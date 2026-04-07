@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── CONSTRUCTORA ────────────────────────────────────────────────────────────
+
+model Constructora {
+  id               String     @id @default(cuid())
+  nombre           String
+  nit              String     @unique
+  logo_url         String?
+  plan_suscripcion PlanTipo   @default(OBRA)
+  created_at       DateTime   @default(now())
+  updated_at       DateTime   @updatedAt
+
+  usuarios         Usuario[]
+  proyectos        Proyecto[]
+
+  @@map("constructoras")
+}
+
+// ─── PROYECTO ────────────────────────────────────────────────────────────────
+
+model Proyecto {
+  id                      String         @id @default(cuid())
+  constructora_id         String
+  nombre                  String
+  ubicacion_lat           Float?
+  ubicacion_lng           Float?
+  subtipo                 SubtipoProyecto
+  dias_habiles_semana     Int            @default(5)
+  checklists_habilitados  Boolean        @default(false)
+  dependencias_habilitadas Boolean       @default(false)
+  whatsapp_habilitado     Boolean        @default(false)
+  fecha_inicio            DateTime?
+  fecha_fin_estimada      DateTime?
+  estado                  EstadoProyecto @default(ACTIVO)
+  created_at              DateTime       @default(now())
+  updated_at              DateTime       @updatedAt
+
+  constructora            Constructora   @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  edificios               Edificio[]
+  fases                   Fase[]
+  tipos_unidad            TipoUnidad[]
+  checklist_templates     ChecklistTemplate[]
+  pagos_contratista       PagoContratista[]
+
+  @@map("proyectos")
+}
+
+// ─── EDIFICIO / TORRE ────────────────────────────────────────────────────────
+
+model Edificio {
+  id          String   @id @default(cuid())
+  proyecto_id String
+  nombre      String
+  num_pisos   Int
+  created_at  DateTime @default(now())
+
+  proyecto    Proyecto  @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  pisos       Piso[]
+
+  @@map("edificios")
+}
+
+model Piso {
+  id          String   @id @default(cuid())
+  edificio_id String
+  numero      Int
+  created_at  DateTime @default(now())
+
+  edificio    Edificio  @relation(fields: [edificio_id], references: [id], onDelete: Cascade)
+  unidades    Unidad[]
+
+  @@map("pisos")
+}
+
+model Unidad {
+  id               String   @id @default(cuid())
+  piso_id          String
+  nombre           String
+  tipo_unidad_id   String?
+  created_at       DateTime @default(now())
+
+  piso             Piso       @relation(fields: [piso_id], references: [id], onDelete: Cascade)
+  tipo_unidad      TipoUnidad? @relation(fields: [tipo_unidad_id], references: [id])
+  espacios         Espacio[]
+
+  @@map("unidades")
+}
+
+model TipoUnidad {
+  id          String   @id @default(cuid())
+  proyecto_id String
+  nombre      String
+  created_at  DateTime @default(now())
+
+  proyecto    Proyecto  @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  unidades    Unidad[]
+
+  @@map("tipos_unidad")
+}
+
+model Espacio {
+  id         String   @id @default(cuid())
+  unidad_id  String
+  nombre     String
+  metraje    Float?
+  created_at DateTime @default(now())
+
+  unidad     Unidad   @relation(fields: [unidad_id], references: [id], onDelete: Cascade)
+  tareas     Tarea[]
+
+  @@map("espacios")
+}
+
+// ─── FASES Y TAREAS ──────────────────────────────────────────────────────────
+
+model Fase {
+  id          String   @id @default(cuid())
+  proyecto_id String
+  nombre      String
+  orden       Int      @default(0)
+  created_at  DateTime @default(now())
+
+  proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  tareas      Tarea[]
+
+  @@map("fases")
+}
+
+model Tarea {
+  id                        String       @id @default(cuid())
+  espacio_id                String
+  fase_id                   String
+  nombre                    String
+  codigo_referencia         String?
+  nombre_pieza              String?
+  marca_linea               String?
+  componentes               String?
+  cantidad_material_planeada Float?
+  unidad_material           String?
+  tiempo_acordado_dias      Int
+  fecha_inicio              DateTime?
+  fecha_fin_real            DateTime?
+  estado                    EstadoTarea  @default(PENDIENTE)
+  asignado_a                String?
+  depende_de                String?
+  created_at                DateTime     @default(now())
+  updated_at                DateTime     @updatedAt
+
+  espacio                   Espacio      @relation(fields: [espacio_id], references: [id], onDelete: Cascade)
+  fase                      Fase         @relation(fields: [fase_id], references: [id])
+  asignado_usuario          Usuario?     @relation("TareasAsignadas", fields: [asignado_a], references: [id])
+  tarea_dependencia         Tarea?       @relation("DependenciaTarea", fields: [depende_de], references: [id])
+  tareas_dependientes       Tarea[]      @relation("DependenciaTarea")
+  evidencias                Evidencia[]
+  aprobaciones              Aprobacion[]
+  checklist_respuesta       ChecklistRespuesta?
+  retrasos                  Retraso[]
+  extensiones_tiempo        ExtensionTiempo[]
+  consumo_material          ConsumoMaterial?
+
+  @@map("tareas")
+}
+
+// ─── EVIDENCIA ───────────────────────────────────────────────────────────────
+
+model Evidencia {
+  id                String       @id @default(cuid())
+  tarea_id          String
+  tipo              TipoEvidencia
+  url_storage       String
+  gps_lat           Float?
+  gps_lng           Float?
+  timestamp_captura DateTime
+  tomada_por        String
+  created_at        DateTime     @default(now())
+
+  tarea             Tarea        @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+  usuario           Usuario      @relation(fields: [tomada_por], references: [id])
+
+  @@map("evidencias")
+}
+
+// ─── APROBACIONES ────────────────────────────────────────────────────────────
+
+model Aprobacion {
+  id                     String          @id @default(cuid())
+  tarea_id               String
+  aprobador_id           String
+  estado                 EstadoAprobacion
+  items_no_aprobados     Json?
+  justificacion_por_item Json?
+  fecha                  DateTime        @default(now())
+
+  tarea                  Tarea           @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+  aprobador              Usuario         @relation(fields: [aprobador_id], references: [id])
+
+  @@map("aprobaciones")
+}
+
+// ─── CHECKLISTS ──────────────────────────────────────────────────────────────
+
+model ChecklistTemplate {
+  id                String   @id @default(cuid())
+  proyecto_id       String
+  nombre_tarea_patron String
+  items             Json
+  created_at        DateTime @default(now())
+
+  proyecto          Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+
+  @@map("checklist_templates")
+}
+
+model ChecklistRespuesta {
+  id               String   @id @default(cuid())
+  tarea_id         String   @unique
+  items_completados Json
+  notas            String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  tarea            Tarea    @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+
+  @@map("checklist_respuestas")
+}
+
+// ─── RETRASOS Y EXTENSIONES ──────────────────────────────────────────────────
+
+model Retraso {
+  id            String       @id @default(cuid())
+  tarea_id      String
+  tipo          TipoRetraso
+  justificacion String
+  evidencia_urls Json?
+  created_at    DateTime     @default(now())
+
+  tarea         Tarea        @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+
+  @@map("retrasos")
+}
+
+model ExtensionTiempo {
+  id                String   @id @default(cuid())
+  tarea_id          String
+  dias_adicionales  Int
+  justificacion     String
+  documentacion_url String
+  autorizado_por    String
+  fecha             DateTime @default(now())
+
+  tarea             Tarea    @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+  autorizador       Usuario  @relation(fields: [autorizado_por], references: [id])
+
+  @@map("extensiones_tiempo")
+}
+
+model ConsumoMaterial {
+  id              String   @id @default(cuid())
+  tarea_id        String   @unique
+  cantidad_real   Float
+  piezas_danadas  Int      @default(0)
+  notas_dano      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tarea           Tarea    @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+
+  @@map("consumo_materiales")
+}
+
+// ─── USUARIOS Y CONTRATISTAS ─────────────────────────────────────────────────
+
+model Usuario {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  nombre          String
+  constructora_id String
+  rol             RolUsuario
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  constructora         Constructora      @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  tareas_asignadas     Tarea[]           @relation("TareasAsignadas")
+  evidencias_tomadas   Evidencia[]
+  aprobaciones         Aprobacion[]
+  extensiones_autorizo ExtensionTiempo[]
+  contratista_perfil   Contratista?
+
+  @@map("usuarios")
+}
+
+model Contratista {
+  id                       String   @id @default(cuid())
+  usuario_id               String   @unique
+  score_cumplimiento       Float    @default(0)
+  score_calidad            Float    @default(0)
+  score_velocidad_correccion Float  @default(0)
+  score_total              Float    @default(0)
+  historial_scores         Json     @default("[]")
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  usuario                  Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+  pagos                    PagoContratista[]
+
+  @@map("contratistas")
+}
+
+model PagoContratista {
+  id                    String       @id @default(cuid())
+  contratista_id        String
+  proyecto_id           String
+  periodo_inicio        DateTime
+  periodo_fin           DateTime
+  monto                 Float
+  retegarantia_porcentaje Float      @default(5)
+  monto_retenido        Float        @default(0)
+  estado                EstadoPago   @default(PENDIENTE)
+  visible_para_contratista Boolean   @default(false)
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @updatedAt
+
+  contratista           Contratista  @relation(fields: [contratista_id], references: [id], onDelete: Cascade)
+  proyecto              Proyecto     @relation(fields: [proyecto_id], references: [id])
+
+  @@map("pagos_contratistas")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum PlanTipo {
+  OBRA
+  PROYECTO
+  EMPRESA
+}
+
+enum SubtipoProyecto {
+  CASAS
+  APARTAMENTOS
+}
+
+enum EstadoProyecto {
+  ACTIVO
+  PAUSADO
+  COMPLETADO
+  ARCHIVADO
+}
+
+enum EstadoTarea {
+  PENDIENTE
+  REPORTADA
+  APROBADA
+  NO_APROBADA
+}
+
+enum TipoEvidencia {
+  FOTO
+  VIDEO
+}
+
+enum EstadoAprobacion {
+  APROBADA
+  NO_APROBADA
+}
+
+enum TipoRetraso {
+  POR_CONTRATISTA
+  POR_FALTA_PISTA
+  OTRO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PAGADO
+  PARCIAL
+}
+
+enum RolUsuario {
+  ADMIN
+  JEFE_OPERACIONES
+  COORDINADOR
+  ASISTENTE
+  AUXILIAR
+  CONTRATISTA_INSTALADOR
+  CONTRATISTA_LUSTRADOR
+}
