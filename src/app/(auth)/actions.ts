@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { provisionarUsuario } from "@/lib/onboarding";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -31,7 +32,7 @@ export async function registro(formData: FormData) {
     password,
     options: {
       data: { nombre, empresa },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"}/api/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
     },
   });
 
@@ -39,7 +40,14 @@ export async function registro(formData: FormData) {
     redirect(`/registro?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/registro?success=confirma-tu-email");
+  // Provisionar constructora + usuario + datos demo en Prisma
+  try {
+    await provisionarUsuario(email, nombre, empresa);
+  } catch {
+    // Si falla silenciosamente, el callback lo reintentará
+  }
+
+  redirect("/dashboard");
 }
 
 export async function loginConGoogle() {
@@ -48,7 +56,7 @@ export async function loginConGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"}/api/auth/callback`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
     },
   });
 
