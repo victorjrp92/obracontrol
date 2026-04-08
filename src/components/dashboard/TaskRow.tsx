@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { CheckCircle2, Clock, AlertTriangle, XCircle, ChevronRight } from "lucide-react";
 
 type TaskStatus = "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA";
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
 
 interface TaskRowProps {
+  id?: string;
   name: string;
   project: string;
   unit: string;
@@ -45,6 +47,7 @@ const semaforoColors: Record<SemaforoLevel, string> = {
 };
 
 export default function TaskRow({
+  id,
   name,
   project,
   unit,
@@ -56,7 +59,7 @@ export default function TaskRow({
   const st = statusConfig[status];
   const dot = semaforoColors[semaforo];
 
-  return (
+  const content = (
     <div className="flex items-center gap-3 py-3 px-4 hover:bg-slate-50/80 transition-colors cursor-pointer rounded-lg group">
       <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
 
@@ -90,4 +93,9 @@ export default function TaskRow({
       </div>
     </div>
   );
+
+  if (id) {
+    return <Link href={`/dashboard/tareas/${id}`}>{content}</Link>;
+  }
+  return content;
 }

@@ -25,9 +25,11 @@ async function main() {
     process.exit(1);
   }
 
-  // Create Prisma client with PrismaPg adapter using DIRECT_URL
+  // Create Prisma client with PrismaPg adapter — use DATABASE_URL (pooler) for connectivity
+  const connectionString = process.env.DATABASE_URL!;
+  console.log(`Connecting via pooler...`);
   const adapter = new PrismaPg({
-    connectionString: process.env.DIRECT_URL!,
+    connectionString,
   });
 
   const prisma = new PrismaClient({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { recalcularScoreContratista } from "@/lib/scoring";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -57,6 +58,16 @@ export async function POST(
         },
       }),
     ]);
+
+    // Recalcular score del contratista si tiene uno asignado
+    if (tareaActualizada.asignado_a) {
+      const contratista = await prisma.contratista.findUnique({
+        where: { usuario_id: tareaActualizada.asignado_a },
+      });
+      if (contratista) {
+        await recalcularScoreContratista(contratista.id);
+      }
+    }
 
     return NextResponse.json({ aprobacion, tarea: tareaActualizada });
   } catch (error) {

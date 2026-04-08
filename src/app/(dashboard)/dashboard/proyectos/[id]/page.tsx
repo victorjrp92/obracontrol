@@ -1,0 +1,152 @@
+import { redirect, notFound } from "next/navigation";
+import { getUsuarioActual } from "@/lib/data";
+import { getProyectoDetalle } from "@/lib/data-detail";
+import { calcularProgreso } from "@/lib/scoring";
+import Topbar from "@/components/dashboard/Topbar";
+import Link from "next/link";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers } from "lucide-react";
+
+type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
+
+function getUnidadColor(tareas: { estado: string }[]): string {
+  if (tareas.length === 0) return "bg-slate-100 text-slate-400";
+  const aprobadas = tareas.filter((t) => t.estado === "APROBADA").length;
+  const noAprobadas = tareas.filter((t) => t.estado === "NO_APROBADA").length;
+  const pct = aprobadas / tareas.length;
+  if (pct === 1) return "bg-green-600 text-white";
+  if (noAprobadas > 0) return "bg-red-100 text-red-700 border border-red-300";
+  if (pct >= 0.5) return "bg-green-100 text-green-700";
+  if (pct > 0) return "bg-yellow-100 text-yellow-700";
+  return "bg-slate-100 text-slate-600";
+}
+
+export default async function ProyectoDetallePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const usuario = await getUsuarioActual();
+  if (!usuario) redirect("/login");
+
+  const { id } = await params;
+  const proyecto = await getProyectoDetalle(id);
+  if (!proyecto) notFound();
+
+  const formatDate = (d: Date | string | null) => {
+    if (!d) return "—";
+    return new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric" }).format(new Date(d));
+  };
+
+  return (
+    <>
+      <Topbar title={proyecto.nombre} subtitle={`${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`} />
+      <main className="flex-1 overflow-y-auto p-6">
+        {/* Back link */}
+        <Link
+          href="/dashboard/proyectos"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver a proyectos
+        </Link>
+
+        {/* Progress summary */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-6 mb-6">
+          <div className="flex flex-wrap items-center gap-6">
+            <div>
+              <div className="text-xs text-slate-500 mb-1">Progreso aprobado</div>
+              <div className="text-3xl font-extrabold text-slate-900">{proyecto.progreso.porcentajeAprobado}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500 mb-1">Reportado</div>
+              <div className="text-3xl font-extrabold text-blue-400">{proyecto.progreso.porcentajeReportado}%</div>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative h-3 rounded-full bg-slate-100 overflow-hidden">
+                <div className="absolute inset-y-0 left-0 rounded-full bg-blue-300" style={{ width: `${proyecto.progreso.porcentajeReportado}%` }} />
+                <div className="absolute inset-y-0 left-0 rounded-full bg-blue-600" style={{ width: `${proyecto.progreso.porcentajeAprobado}%` }} />
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm text-slate-500">
+              <span><strong className="text-green-600">{proyecto.progreso.aprobadas}</strong> aprobadas</span>
+              <span><strong className="text-slate-800">{proyecto.progreso.total}</strong> total</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100 text-sm">
+            <div className="flex items-center gap-2 text-slate-600">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              Inicio: {formatDate(proyecto.fecha_inicio)}
+            </div>
+            <div className="flex items-center gap-2 text-slate-600">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              Fin estimado: {formatDate(proyecto.fecha_fin_estimada)}
+            </div>
+            <div className="flex items-center gap-2 text-slate-600">
+              <Layers className="w-4 h-4 text-slate-400" />
+              Fases: {proyecto.fases.map((f) => f.nombre).join(", ")}
+            </div>
+            <div className="flex items-center gap-2 text-slate-600">
+              <Clock className="w-4 h-4 text-slate-400" />
+              {proyecto.dias_habiles_semana} días hábiles/semana
+            </div>
+          </div>
+        </div>
+
+        {/* Buildings */}
+        {proyecto.edificios.map((edificio) => (
+          <div key={edificio.id} className="bg-white rounded-2xl border border-slate-100 p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              <h2 className="font-bold text-slate-900 text-lg">{edificio.nombre}</h2>
+              <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2">
+                {edificio.pisos.length} pisos
+              </span>
+            </div>
+
+            {/* Grid by floor */}
+            <div className="flex flex-col gap-3">
+              {edificio.pisos.slice().reverse().map((piso) => {
+                return (
+                  <div key={piso.id} className="flex items-center gap-3">
+                    <div className="w-16 text-xs font-semibold text-slate-500 text-right flex-shrink-0">
+                      Piso {piso.numero}
+                    </div>
+                    <div className="flex gap-2 flex-wrap flex-1">
+                      {piso.unidades.map((unidad) => {
+                        const tareas = unidad.espacios.flatMap((e) => e.tareas);
+                        const progreso = calcularProgreso(tareas);
+                        const colorClass = getUnidadColor(tareas);
+
+                        return (
+                          <Link
+                            key={unidad.id}
+                            href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
+                            className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center text-xs font-medium hover:shadow-md transition-all ${colorClass}`}
+                            title={`Apto ${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
+                          >
+                            <span className="font-bold">{unidad.nombre}</span>
+                            <span className="text-[10px] opacity-75">{progreso.porcentajeAprobado}%</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100 text-[10px] text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-600" /> 100%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> ≥50%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300" /> &lt;50%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> No aprobadas</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200" /> Sin progreso</span>
+            </div>
+          </div>
+        ))}
+      </main>
+    </>
+  );
+}
