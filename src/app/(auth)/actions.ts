@@ -72,3 +72,39 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect("/login");
 }
+
+export async function recuperarContrasena(formData: FormData) {
+  const supabase = await createClient();
+
+  const email = formData.get("email") as string;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/api/auth/callback?next=/nueva-contrasena`,
+  });
+
+  if (error) {
+    redirect(`/recuperar?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/recuperar?success=1");
+}
+
+export async function actualizarContrasena(formData: FormData) {
+  const supabase = await createClient();
+
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (password !== confirmPassword) {
+    redirect("/nueva-contrasena?error=Las%20contrase%C3%B1as%20no%20coinciden");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    redirect(`/nueva-contrasena?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/login?success=password_updated");
+}

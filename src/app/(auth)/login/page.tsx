@@ -62,7 +62,7 @@ export default async function LoginPage({ searchParams }: Props) {
                 <label htmlFor="password" className="text-sm font-medium text-slate-700">
                   Contraseña
                 </label>
-                <Link href="/olvide-contrasena" className="text-xs text-blue-600 hover:text-blue-700">
+                <Link href="/recuperar" className="text-xs text-blue-600 hover:text-blue-700">
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
