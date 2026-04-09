@@ -81,6 +81,7 @@ export default async function TareasPage({
               {tareas.map((t) => (
                 <TaskRow
                   key={t.id}
+                  id={t.id}
                   name={t.name}
                   project={t.project}
                   unit={t.unit}

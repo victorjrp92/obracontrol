@@ -172,6 +172,7 @@ export default async function DashboardPage() {
               {tareasRecientes.map((t) => (
                 <TaskRow
                   key={t.id}
+                  id={t.id}
                   name={t.nombre}
                   project={t.proyecto}
                   unit={t.unidad}
