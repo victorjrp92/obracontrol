@@ -212,6 +212,15 @@ export async function getContratistas(constructoraId: string) {
   }));
 }
 
+// Usuarios de la constructora
+export async function getUsuarios(constructoraId: string) {
+  return prisma.usuario.findMany({
+    where: { constructora_id: constructoraId },
+    select: { id: true, email: true, nombre: true, rol: true, created_at: true },
+    orderBy: { created_at: "desc" },
+  });
+}
+
 // Tareas para la página de tareas con filtros
 export async function getTareasFiltradas(constructoraId: string, estado?: string) {
   const ahora = new Date();
