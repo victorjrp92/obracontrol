@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   const [stats, proyectos, tareasRecientes, topContratistas] = await Promise.all([
     getDashboardStats(cid),
     getProyectosConProgreso(cid),
-    getTareasRecientes(cid),
+    getTareasRecientes(cid, 8, usuario.id, usuario.rol),
     getTopContratistas(cid),
   ]);
 

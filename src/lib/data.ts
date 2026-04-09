@@ -124,13 +124,15 @@ export async function getProyectosConProgreso(constructoraId: string) {
 }
 
 // Tareas recientes con toda la info necesaria para el dashboard
-export async function getTareasRecientes(constructoraId: string, limite = 8) {
+export async function getTareasRecientes(constructoraId: string, limite = 8, usuarioId?: string, rol?: string) {
   const ahora = new Date();
+  const esContratista = rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR";
 
   const tareas = await prisma.tarea.findMany({
     where: {
       espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
       estado: { not: "APROBADA" },
+      ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },
     include: {
       espacio: {
@@ -222,13 +224,15 @@ export async function getUsuarios(constructoraId: string) {
 }
 
 // Tareas para la página de tareas con filtros
-export async function getTareasFiltradas(constructoraId: string, estado?: string) {
+export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, rol?: string) {
   const ahora = new Date();
+  const esContratista = rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR";
 
   const tareas = await prisma.tarea.findMany({
     where: {
       espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
       ...(estado && estado !== "ALL" ? { estado: estado as never } : {}),
+      ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },
     include: {
       espacio: {

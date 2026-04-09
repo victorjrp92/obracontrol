@@ -24,7 +24,7 @@ export default async function TareasPage({
   const { estado } = await searchParams;
   const activeFilter = estado ?? "ALL";
 
-  const tareas = await getTareasFiltradas(usuario.constructora_id, activeFilter);
+  const tareas = await getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol);
 
   return (
     <>
