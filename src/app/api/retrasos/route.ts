@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/email";
+import { retrasoRegistradoEmailHtml } from "@/lib/email-templates/notifications";
 
 // POST /api/retrasos — registrar retraso en una tarea
 export async function POST(req: NextRequest) {
@@ -40,6 +42,67 @@ export async function POST(req: NextRequest) {
         evidencia_urls: evidencia_urls ?? [],
       },
     });
+
+    // Notificar a admins/coordinadores
+    try {
+      const tareaInfo = await prisma.tarea.findUnique({
+        where: { id: tarea_id },
+        include: {
+          espacio: {
+            include: {
+              unidad: {
+                include: {
+                  piso: {
+                    include: {
+                      edificio: {
+                        include: { proyecto: { select: { nombre: true, constructora_id: true } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (tareaInfo) {
+        const supervisores = await prisma.usuario.findMany({
+          where: {
+            constructora_id: tareaInfo.espacio.unidad.piso.edificio.proyecto.constructora_id,
+            rol: { in: ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"] },
+          },
+          select: { email: true },
+        });
+
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+        const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
+        const tipoLabel = tipo === "POR_FALTA_PISTA"
+          ? "Por falta de pista"
+          : tipo === "POR_CONTRATISTA"
+          ? "Por contratista"
+          : "Otro motivo";
+
+        const html = retrasoRegistradoEmailHtml({
+          nombre: tareaInfo.nombre,
+          proyecto: tareaInfo.espacio.unidad.piso.edificio.proyecto.nombre,
+          ubicacion,
+          tipoRetraso: tipoLabel,
+          justificacion,
+          url: `${siteUrl}/dashboard/tareas/${tarea_id}`,
+        });
+
+        for (const sup of supervisores) {
+          sendEmail({
+            to: sup.email,
+            subject: `Retraso registrado: ${tareaInfo.nombre}`,
+            html,
+          }).catch((err) => console.error("Email retraso falló:", err));
+        }
+      }
+    } catch (err) {
+      console.error("Error enviando emails de retraso:", err);
+    }
 
     return NextResponse.json(retraso, { status: 201 });
   } catch (error) {

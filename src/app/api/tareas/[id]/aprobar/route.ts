@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { recalcularScoreContratista } from "@/lib/scoring";
+import { sendEmail } from "@/lib/email";
+import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -66,6 +68,66 @@ export async function POST(
       });
       if (contratista) {
         await recalcularScoreContratista(contratista.id);
+      }
+    }
+
+    // Enviar email al contratista asignado
+    if (tareaActualizada.asignado_a) {
+      try {
+        const contratistaInfo = await prisma.usuario.findUnique({
+          where: { id: tareaActualizada.asignado_a },
+          select: { email: true, nombre: true },
+        });
+
+        const tareaInfo = await prisma.tarea.findUnique({
+          where: { id },
+          include: {
+            espacio: {
+              include: {
+                unidad: {
+                  include: {
+                    piso: {
+                      include: {
+                        edificio: { include: { proyecto: { select: { nombre: true } } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (contratistaInfo && tareaInfo) {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+          const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
+          const proyectoNombre = tareaInfo.espacio.unidad.piso.edificio.proyecto.nombre;
+
+          const html = estado === "APROBADA"
+            ? tareaAprobadaEmailHtml({
+                nombre: tareaInfo.nombre,
+                proyecto: proyectoNombre,
+                ubicacion,
+                url: `${siteUrl}/dashboard/tareas/${id}`,
+              })
+            : tareaNoAprobadaEmailHtml({
+                nombre: tareaInfo.nombre,
+                proyecto: proyectoNombre,
+                ubicacion,
+                motivo: typeof justificacion_por_item === "object" && justificacion_por_item !== null
+                  ? (justificacion_por_item as Record<string, string>).motivo ?? "Sin especificar"
+                  : "Sin especificar",
+                url: `${siteUrl}/dashboard/tareas/${id}`,
+              });
+
+          sendEmail({
+            to: contratistaInfo.email,
+            subject: estado === "APROBADA" ? `Tarea aprobada: ${tareaInfo.nombre}` : `Tarea no aprobada: ${tareaInfo.nombre}`,
+            html,
+          }).catch((err) => console.error("Email aprobación falló:", err));
+        }
+      } catch (err) {
+        console.error("Error enviando email de aprobación:", err);
       }
     }
 
