@@ -4,6 +4,7 @@ import { getTareaDetalle } from "@/lib/data-detail";
 import Topbar from "@/components/dashboard/Topbar";
 import ReportarButton from "@/components/dashboard/ReportarButton";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
+import EvidenceGallery from "@/components/evidencia/EvidenceGallery";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -133,11 +134,30 @@ export default async function TareaDetallePage({
               )}
             </div>
 
+            {/* Evidencia */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h3 className="font-bold text-slate-800 mb-4">Evidencia</h3>
+              <EvidenceGallery evidencias={tarea.evidencias.map((e) => ({
+                id: e.id,
+                tipo: e.tipo,
+                url_storage: e.url_storage,
+                gps_lat: e.gps_lat,
+                gps_lng: e.gps_lng,
+                timestamp_captura: e.timestamp_captura.toISOString(),
+              }))} />
+            </div>
+
             {/* Action buttons */}
             {(puedeReportar || puedeAprobar) && (
               <div className="bg-white rounded-2xl border border-slate-100 p-6">
                 <h3 className="font-bold text-slate-800 mb-4">Acciones</h3>
-                {puedeReportar && <ReportarButton tareaId={tarea.id} />}
+                {puedeReportar && (
+                  <ReportarButton
+                    tareaId={tarea.id}
+                    proyectoNombre={tarea.proyecto.nombre}
+                    tareaNombre={tarea.nombre}
+                  />
+                )}
                 {puedeAprobar && <AprobarButtons tareaId={tarea.id} />}
               </div>
             )}
