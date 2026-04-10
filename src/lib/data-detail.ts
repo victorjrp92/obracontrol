@@ -86,6 +86,10 @@ export async function getTareaDetalle(tareaId: string) {
         include: { aprobador: { select: { nombre: true } } },
       },
       retrasos: { orderBy: { created_at: "desc" } },
+      extensiones_tiempo: {
+        orderBy: { fecha: "desc" },
+        include: { autorizador: { select: { nombre: true } } },
+      },
     },
   });
   if (!tarea) return null;

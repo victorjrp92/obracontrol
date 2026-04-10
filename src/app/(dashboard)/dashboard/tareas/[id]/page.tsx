@@ -5,6 +5,8 @@ import Topbar from "@/components/dashboard/Topbar";
 import ReportarButton from "@/components/dashboard/ReportarButton";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
 import EvidenceGallery from "@/components/evidencia/EvidenceGallery";
+import TaskActionMenu from "@/components/dashboard/TaskActionMenu";
+import NotasEditor from "@/components/dashboard/NotasEditor";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -159,6 +161,70 @@ export default async function TareaDetallePage({
                   />
                 )}
                 {puedeAprobar && <AprobarButtons tareaId={tarea.id} />}
+              </div>
+            )}
+
+            {/* Otras acciones: retraso + extensión */}
+            {tarea.estado !== "APROBADA" && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-800 mb-4">Otras acciones</h3>
+                <TaskActionMenu
+                  tareaId={tarea.id}
+                  canExtend={["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"].includes(usuario.rol)}
+                />
+              </div>
+            )}
+
+            {/* Notas */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <NotasEditor tareaId={tarea.id} initialNotas={tarea.notas} />
+            </div>
+
+            {/* Retrasos */}
+            {tarea.retrasos.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-500" />
+                  Retrasos registrados
+                </h3>
+                <div className="flex flex-col gap-3">
+                  {tarea.retrasos.map((r) => (
+                    <div key={r.id} className="border-l-2 border-orange-300 pl-3 py-1">
+                      <div className="text-xs font-semibold text-slate-600">
+                        {r.tipo === "POR_FALTA_PISTA" && "Por falta de pista"}
+                        {r.tipo === "POR_CONTRATISTA" && "Por contratista"}
+                        {r.tipo === "OTRO" && "Otro motivo"}
+                      </div>
+                      <div className="text-sm text-slate-800 mt-0.5">{r.justificacion}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        {new Date(r.created_at).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extensiones */}
+            {tarea.extensiones_tiempo.length > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  Extensiones de tiempo
+                </h3>
+                <div className="flex flex-col gap-3">
+                  {tarea.extensiones_tiempo.map((e) => (
+                    <div key={e.id} className="border-l-2 border-blue-300 pl-3 py-1">
+                      <div className="text-sm font-semibold text-slate-800">
+                        +{e.dias_adicionales} días adicionales
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">{e.justificacion}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">
+                        Autorizado por {e.autorizador.nombre} · {new Date(e.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

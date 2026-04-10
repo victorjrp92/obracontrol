@@ -151,6 +151,7 @@ model Tarea {
   estado                    EstadoTarea  @default(PENDIENTE)
   asignado_a                String?
   depende_de                String?
+  notas                     String?
   created_at                DateTime     @default(now())
   updated_at                DateTime     @updatedAt
 
