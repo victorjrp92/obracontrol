@@ -33,8 +33,22 @@ export async function uploadEvidencia(
 
   if (error) throw new Error(`Error subiendo archivo: ${error.message}`);
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  // Guardamos solo el path — generamos signed URLs al leer
+  return path;
+}
+
+// Genera una signed URL temporal para visualizar una evidencia
+export async function getSignedEvidenciaUrl(path: string, expiresInSeconds = 3600): Promise<string> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+
+  if (error || !data) {
+    console.error("Error creando signed URL:", error);
+    return "";
+  }
+  return data.signedUrl;
 }
 
 export async function deleteEvidencia(url: string) {

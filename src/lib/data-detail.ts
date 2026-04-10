@@ -1,5 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { calcularProgreso, calcularSemaforo, calcularDiasHabiles } from "@/lib/scoring";
+import { getSignedEvidenciaUrl } from "@/lib/storage";
+
+// Convierte un valor en url_storage (path o URL legacy) a una signed URL utilizable
+async function resolveEvidenciaUrl(stored: string): Promise<string> {
+  if (!stored) return "";
+  // Legacy: ya es una URL pública completa
+  if (stored.startsWith("http://") || stored.startsWith("https://")) {
+    // Intentar extraer el path del URL público y generar signed URL
+    const match = stored.match(/\/storage\/v1\/object\/public\/evidencias\/(.+)$/);
+    if (match) {
+      return await getSignedEvidenciaUrl(match[1]);
+    }
+    return stored;
+  }
+  // Path nuevo
+  return await getSignedEvidenciaUrl(stored);
+}
 
 export async function getProyectoDetalle(proyectoId: string) {
   const proyecto = await prisma.proyecto.findUnique({
@@ -73,6 +90,14 @@ export async function getTareaDetalle(tareaId: string) {
   });
   if (!tarea) return null;
 
+  // Generar signed URLs para las evidencias
+  const evidenciasConUrl = await Promise.all(
+    tarea.evidencias.map(async (e) => ({
+      ...e,
+      url_storage: await resolveEvidenciaUrl(e.url_storage),
+    }))
+  );
+
   const proyecto = tarea.espacio.unidad.piso.edificio.proyecto;
   const inicio = tarea.fecha_inicio ?? tarea.created_at;
   const ahora = new Date();
@@ -82,6 +107,7 @@ export async function getTareaDetalle(tareaId: string) {
 
   return {
     ...tarea,
+    evidencias: evidenciasConUrl,
     proyecto,
     ubicacion: `${tarea.espacio.unidad.piso.edificio.nombre} · Piso ${tarea.espacio.unidad.piso.numero} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`,
     semaforo,
