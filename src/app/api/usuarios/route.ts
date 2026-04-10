@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { invitationEmailHtml } from "@/lib/email-templates/invitation";
 import { getRolLabel } from "@/lib/permissions";
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const tempPassword = `OC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-    const { error: authError } = await supabaseAdmin.auth.admin.createUser({
+    const { error: authError } = await getSupabaseAdmin().auth.admin.createUser({
       email,
       password: tempPassword,
       email_confirm: true,
