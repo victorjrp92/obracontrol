@@ -39,17 +39,27 @@ export default async function ProyectosPage() {
         {/* Header actions */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-slate-500">{proyectos.length} proyecto{proyectos.length !== 1 ? "s" : ""} activo{proyectos.length !== 1 ? "s" : ""}</p>
-          <button className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer">
+          <Link
+            href="/dashboard/proyectos/nuevo"
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer"
+          >
             <FolderPlus className="w-4 h-4" />
             Nuevo proyecto
-          </button>
+          </Link>
         </div>
 
         {proyectos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <FolderPlus className="w-12 h-12 mb-3 opacity-30" />
             <p className="font-medium">Sin proyectos activos</p>
-            <p className="text-sm mt-1">Crea tu primer proyecto para comenzar</p>
+            <p className="text-sm mt-1 mb-4">Crea tu primer proyecto para comenzar</p>
+            <Link
+              href="/dashboard/proyectos/nuevo"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Crear proyecto
+            </Link>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
