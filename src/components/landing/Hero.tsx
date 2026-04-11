@@ -30,46 +30,37 @@ export default function Hero() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const dur = reduceMotion ? 0 : 1;
+      const delay = reduceMotion ? 0 : 0.3;
+
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      tl.fromTo(badgeRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5, delay })
+        .fromTo(headlineRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.7 }, "-=0.2")
+        .fromTo(subRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.6 }, "-=0.4")
+        .fromTo(
+          hlRef.current?.querySelectorAll("li") ?? [],
+          { x: -20, opacity: 0 },
+          { x: 0, opacity: 1, duration: dur * 0.5, stagger: reduceMotion ? 0 : 0.1 },
+          "-=0.3"
+        )
+        .fromTo(ctaRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5 }, "-=0.2")
+        .fromTo(statsRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5 }, "-=0.3")
+        .fromTo(mockupRef.current, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: dur * 0.9, ease: "power2.out" }, "<0.3");
+
+      // Floating animation on mockup (only on desktop, not reduced motion)
       const mm = gsap.matchMedia();
-
-      mm.add(
-        {
-          isDesktop: "(min-width: 1024px)",
-          reduceMotion: "(prefers-reduced-motion: reduce)",
-        },
-        (context) => {
-          const { reduceMotion } = context.conditions as { isDesktop: boolean; reduceMotion: boolean };
-          const dur = reduceMotion ? 0 : 1;
-          const delay = reduceMotion ? 0 : 0.3;
-
-          const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-
-          tl.fromTo(badgeRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5, delay })
-            .fromTo(headlineRef.current, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.7 }, "-=0.2")
-            .fromTo(subRef.current, { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.6 }, "-=0.4")
-            .fromTo(
-              hlRef.current?.querySelectorAll("li") ?? [],
-              { x: -20, opacity: 0 },
-              { x: 0, opacity: 1, duration: dur * 0.5, stagger: reduceMotion ? 0 : 0.1 },
-              "-=0.3"
-            )
-            .fromTo(ctaRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5 }, "-=0.2")
-            .fromTo(statsRef.current, { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: dur * 0.5 }, "-=0.3")
-            .fromTo(mockupRef.current, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: dur * 0.9, ease: "power2.out" }, "<0.3");
-
-          // Floating animation on mockup
-          if (!reduceMotion) {
-            gsap.to(mockupRef.current, {
-              y: -12,
-              duration: 3,
-              ease: "sine.inOut",
-              yoyo: true,
-              repeat: -1,
-              delay: 1.5,
-            });
-          }
-        }
-      );
+      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+        gsap.to(mockupRef.current, {
+          y: -12,
+          duration: 3,
+          ease: "sine.inOut",
+          yoyo: true,
+          repeat: -1,
+          delay: 1.5,
+        });
+      });
 
       // Counter animation for stats
       const counters = sectionRef.current?.querySelectorAll("[data-counter]");

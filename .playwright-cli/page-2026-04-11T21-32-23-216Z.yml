@@ -1,0 +1,464 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e4]:
+      - link "Seiricon SEIRICON construyendo en orden" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Seiricon" [ref=e6]
+        - generic [ref=e7]:
+          - generic [ref=e8]: SEIRICON
+          - generic [ref=e9]: construyendo en orden
+      - generic [ref=e10]:
+        - link "Funcionalidades" [ref=e11] [cursor=pointer]:
+          - /url: "#features"
+        - link "Cómo funciona" [ref=e12] [cursor=pointer]:
+          - /url: "#como-funciona"
+        - link "Precios" [ref=e13] [cursor=pointer]:
+          - /url: "#precios"
+      - generic [ref=e14]:
+        - link "Ingresar" [ref=e15] [cursor=pointer]:
+          - /url: /login
+        - link "Prueba gratis — 14 días" [ref=e16] [cursor=pointer]:
+          - /url: /registro
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e23]: Piloto activo · Jaramillo Mora
+          - heading "Control total de obra blanca y carpintería" [level=1] [ref=e25]
+          - paragraph [ref=e26]: Reemplaza el Excel por un sistema digital con evidencia fotográfica, aprobaciones estructuradas y métricas en tiempo real. Sabe exactamente qué está pasando en cada apartamento.
+          - list [ref=e27]:
+            - listitem [ref=e28]:
+              - img [ref=e29]
+              - text: Sin instalación — 100% desde el navegador
+            - listitem [ref=e32]:
+              - img [ref=e33]
+              - text: Modo offline para obra
+            - listitem [ref=e36]:
+              - img [ref=e37]
+              - text: Evidencia fotográfica con GPS
+          - generic [ref=e40]:
+            - link "Empezar gratis — 14 días" [ref=e41] [cursor=pointer]:
+              - /url: /registro
+              - text: Empezar gratis — 14 días
+              - img [ref=e42]
+            - button "Ver demo en 2 min" [ref=e44] [cursor=pointer]:
+              - img [ref=e45]
+              - text: Ver demo en 2 min
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e49]: 0%
+              - paragraph [ref=e50]: Menos tiempo en reportes
+            - generic [ref=e51]:
+              - generic [ref=e52]: 0%
+              - paragraph [ref=e53]: Precisión en trazabilidad
+            - generic [ref=e54]:
+              - generic [ref=e55]: 0x
+              - paragraph [ref=e56]: Más velocidad de aprobación
+        - generic [ref=e58]:
+          - generic [ref=e60]:
+            - generic [ref=e65]: seiricon.co/proyecto/olivo
+            - generic [ref=e73]:
+              - generic [ref=e74]:
+                - generic [ref=e75]:
+                  - generic [ref=e76]: Proyecto Olivo · Torre 5
+                  - generic [ref=e77]: Piso 4 · Fase Madera
+                - generic [ref=e80]: En vivo
+              - generic [ref=e81]:
+                - generic [ref=e82]:
+                  - generic [ref=e83]: Progreso aprobado
+                  - generic [ref=e84]: 62%
+                - generic [ref=e87]:
+                  - generic [ref=e88]: Reportado
+                  - generic [ref=e89]: 78%
+              - generic [ref=e92]:
+                - generic [ref=e93]: Tareas activas
+                - generic [ref=e94]:
+                  - generic [ref=e97]: Estuco cocina · Apto 401
+                  - generic [ref=e100]:
+                    - img [ref=e101]
+                    - text: Aprobada
+                - generic [ref=e104]:
+                  - generic [ref=e107]: Pintura sala · Apto 402
+                  - generic [ref=e110]:
+                    - img [ref=e111]
+                    - text: Reportada
+                - generic [ref=e114]:
+                  - generic [ref=e117]: Mueble bajo cocina · Apto 403
+                  - generic [ref=e120]:
+                    - img [ref=e121]
+                    - text: Pendiente
+                - generic [ref=e123]:
+                  - generic [ref=e126]: Panel yeso baño · Apto 404
+                  - generic [ref=e129]:
+                    - img [ref=e130]
+                    - text: No aprobada
+          - generic [ref=e135]:
+            - img [ref=e137]
+            - generic [ref=e140]:
+              - generic [ref=e141]: Tarea aprobada
+              - generic [ref=e142]: Closet tipo 1 · Apto 302
+              - generic [ref=e143]: hace 2 min
+          - generic [ref=e144]:
+            - generic [ref=e145]: Score contratista
+            - generic [ref=e146]:
+              - generic [ref=e147]: "87"
+              - generic [ref=e148]: +3 ↑
+      - img [ref=e158]
+    - generic [ref=e161]:
+      - generic [ref=e162]:
+        - generic [ref=e163]: Funcionalidades
+        - heading "Todo lo que necesita una constructora" [level=2] [ref=e164]
+        - paragraph [ref=e165]: Diseñado con el proceso real de Jaramillo Mora. Reemplaza el Excel de 80 columnas con visibilidad total desde el obrero hasta la gerencia.
+      - generic [ref=e166]:
+        - generic [ref=e167]:
+          - generic [ref=e168]: Anti-fraude
+          - img [ref=e170]
+          - heading "Evidencia con triple validación" [level=3] [ref=e173]
+          - paragraph [ref=e174]: Fotos solo desde cámara, nunca galería. GPS automático y timestamp del dispositivo. Anti-fraude por diseño.
+        - generic [ref=e175]:
+          - generic [ref=e176]: Métricas
+          - img [ref=e178]
+          - heading "Dashboard en tiempo real" [level=3] [ref=e180]
+          - paragraph [ref=e181]: "Progreso ponderado por tarea, espacio, apartamento, piso, edificio y proyecto. Doble barra: reportado vs. aprobado."
+        - generic [ref=e182]:
+          - generic [ref=e183]: Offline-first
+          - img [ref=e185]
+          - heading "Modo offline en obra" [level=3] [ref=e192]
+          - paragraph [ref=e193]: El obrero trabaja sin señal. Toma fotos, reporta tareas. Todo se sincroniza automáticamente al recuperar conexión.
+        - generic [ref=e194]:
+          - generic [ref=e195]: Desempeño
+          - img [ref=e197]
+          - heading "Score de contratistas" [level=3] [ref=e199]
+          - paragraph [ref=e200]: "Tres ejes: cumplimiento (50%), calidad (30%) y velocidad de corrección (20%). Histórico por proyecto."
+        - generic [ref=e201]:
+          - generic [ref=e202]: Riesgo
+          - img [ref=e204]
+          - heading "Semáforo de tiempos" [level=3] [ref=e207]
+          - paragraph [ref=e208]: Verde intenso, verde, amarillo, rojo y vinotinto según el % de retraso real. Calculado en días hábiles configurables.
+        - generic [ref=e209]:
+          - generic [ref=e210]: Calidad
+          - img [ref=e212]
+          - heading "Flujo de aprobación estructurado" [level=3] [ref=e215]
+          - paragraph [ref=e216]: El supervisor revisa evidencia y checklist. Aprueba o rechaza con justificación por ítem. Ciclo de corrección trazable.
+    - generic [ref=e218]:
+      - generic [ref=e219]:
+        - generic [ref=e220]: Cómo funciona
+        - heading "De la obra al tablero, en 4 pasos" [level=2] [ref=e221]
+        - paragraph [ref=e222]: Un flujo claro que conecta al obrero en campo con el gerente en oficina.
+      - generic [ref=e225]:
+        - generic [ref=e226]:
+          - generic [ref=e227]:
+            - img [ref=e228]
+            - generic [ref=e230]: "1"
+          - generic [ref=e231]:
+            - generic [ref=e233]:
+              - heading "Crea el proyecto" [level=3] [ref=e234]
+              - paragraph [ref=e235]: Define torres, pisos, apartamentos y espacios. El wizard guía cada paso. Configura fases, días hábiles y tipos de apartamento en minutos.
+            - generic [ref=e236]: Wizard de onboarding estructurado
+        - generic [ref=e238]:
+          - generic [ref=e239]:
+            - img [ref=e240]
+            - generic [ref=e243]: "2"
+          - generic [ref=e244]:
+            - generic [ref=e246]:
+              - heading "Asigna tareas y tiempos" [level=3] [ref=e247]
+              - paragraph [ref=e248]: La app sugiere tareas por fase y espacio. Agrega códigos de referencia, marcas y cantidades. Asigna contratistas y define tiempos acordados.
+            - generic [ref=e249]: Sugerencias inteligentes por fase
+        - generic [ref=e251]:
+          - generic [ref=e252]:
+            - img [ref=e253]
+            - generic [ref=e256]: "3"
+          - generic [ref=e257]:
+            - generic [ref=e259]:
+              - heading "El obrero reporta con evidencia" [level=3] [ref=e260]
+              - paragraph [ref=e261]: Desde la app (offline si es necesario), toma 2-4 fotos con GPS y timestamp, graba video opcional de 30 segundos y marca el checklist.
+            - generic [ref=e262]: Funciona sin señal en obra
+        - generic [ref=e264]:
+          - generic [ref=e265]:
+            - img [ref=e266]
+            - generic [ref=e269]: "4"
+          - generic [ref=e270]:
+            - generic [ref=e272]:
+              - heading "Supervisor aprueba o devuelve" [level=3] [ref=e273]
+              - paragraph [ref=e274]: El coordinador revisa evidencia, verifica checklist y aprueba o devuelve con justificación por ítem. El progreso se actualiza en tiempo real.
+            - generic [ref=e275]: Score automático del contratista
+    - generic [ref=e278]:
+      - generic [ref=e279]:
+        - generic [ref=e280]: Semáforo de riesgo
+        - heading "Ve el riesgo de un vistazo" [level=2] [ref=e281]
+        - paragraph [ref=e282]: Cada tarea tiene un color según su estado de cumplimiento. De verde intenso a vinotinto, sin ambigüedad.
+      - generic [ref=e283]:
+        - generic [ref=e284]:
+          - generic [ref=e285]:
+            - generic [ref=e287]:
+              - generic [ref=e288]: Verde intenso
+              - generic [ref=e289]: "> 10% antes del plazo"
+            - generic [ref=e290]: Terminó 3 días antes
+          - generic [ref=e291]:
+            - generic [ref=e293]:
+              - generic [ref=e294]: Verde
+              - generic [ref=e295]: Dentro del plazo
+            - generic [ref=e296]: Terminó a tiempo
+          - generic [ref=e297]:
+            - generic [ref=e299]:
+              - generic [ref=e300]: Amarillo
+              - generic [ref=e301]: 1% – 15% de retraso
+            - generic [ref=e302]: 2 días de retraso
+          - generic [ref=e303]:
+            - generic [ref=e305]:
+              - generic [ref=e306]: Rojo
+              - generic [ref=e307]: 16% – 30% de retraso
+            - generic [ref=e308]: 1 semana de retraso
+          - generic [ref=e309]:
+            - generic [ref=e311]:
+              - generic [ref=e312]: Vinotinto
+              - generic [ref=e313]: "> 30% de retraso"
+            - generic [ref=e314]: Retraso crítico
+        - generic [ref=e315]:
+          - generic [ref=e316]: Torre 5 · Proyecto Olivo
+          - generic [ref=e317]:
+            - generic [ref=e318]:
+              - generic [ref=e319]: P8
+              - generic "Apto 801": ✓
+              - generic "Apto 802": ~
+              - generic "Apto 803": ✓
+              - generic "Apto 804": ~
+              - generic "Apto 805": "!"
+            - generic [ref=e320]:
+              - generic [ref=e321]: P7
+              - generic "Apto 701": ✓
+              - generic "Apto 702": ✓
+              - generic "Apto 703": ~
+              - generic "Apto 704": ~
+              - generic "Apto 705": "!"
+            - generic [ref=e322]:
+              - generic [ref=e323]: P6
+              - generic "Apto 601": ✓
+              - generic "Apto 602": ✓
+              - generic "Apto 603": ✓
+              - generic "Apto 604": ~
+              - generic "Apto 605": ~
+            - generic [ref=e324]:
+              - generic [ref=e325]: P5
+              - generic "Apto 501": ✓
+              - generic "Apto 502": ✓
+              - generic "Apto 503": ✓
+              - generic "Apto 504": ✓
+              - generic "Apto 505": ~
+            - generic [ref=e326]:
+              - generic [ref=e327]: P4
+              - generic "Apto 401": ✓
+              - generic "Apto 402": ✓
+              - generic "Apto 403": ✓
+              - generic "Apto 404": ✓
+              - generic "Apto 405": ✓
+            - generic [ref=e328]:
+              - generic [ref=e329]: P3
+              - generic "Apto 301": ✓
+              - generic "Apto 302": ✓
+              - generic "Apto 303": ✓
+              - generic "Apto 304": ✓
+              - generic "Apto 305": ✓
+            - generic [ref=e330]:
+              - generic [ref=e331]: P2
+              - generic "Apto 201": ✓
+              - generic "Apto 202": ✓
+              - generic "Apto 203": ✓
+              - generic "Apto 204": ✓
+              - generic "Apto 205": ✓
+            - generic [ref=e332]:
+              - generic [ref=e333]: P1
+              - generic "Apto 101": ✓
+              - generic "Apto 102": ✓
+              - generic "Apto 103": ✓
+              - generic "Apto 104": ✓
+              - generic "Apto 105": ✓
+            - generic [ref=e334]:
+              - generic [ref=e335]: A
+              - generic [ref=e336]: B
+              - generic [ref=e337]: C
+              - generic [ref=e338]: D
+              - generic [ref=e339]: E
+          - paragraph [ref=e340]: Vista por edificio — el gerente ve de un solo vistazo dónde están los riesgos.
+    - generic [ref=e342]:
+      - generic [ref=e343]:
+        - generic [ref=e344]: Precios
+        - heading "Precio justo para cada etapa" [level=2] [ref=e345]
+        - paragraph [ref=e346]: "14 días gratis, sin tarjeta de crédito. Piloto Jaramillo Mora: 6 meses gratis a cambio de feedback."
+      - generic [ref=e347]:
+        - generic [ref=e348]:
+          - generic [ref=e349]:
+            - generic [ref=e350]: Plan Obra
+            - generic [ref=e351]: $650.000
+            - generic [ref=e352]: COP/mes · ~$150 USD
+            - paragraph [ref=e353]: Ideal para una obra activa
+          - list [ref=e355]:
+            - listitem [ref=e356]:
+              - img [ref=e357]
+              - generic [ref=e359]: 1 proyecto activo
+            - listitem [ref=e360]:
+              - img [ref=e361]
+              - generic [ref=e363]: Hasta 150 unidades
+            - listitem [ref=e364]:
+              - img [ref=e365]
+              - generic [ref=e367]: 2 fases (obra blanca + madera)
+            - listitem [ref=e368]:
+              - img [ref=e369]
+              - generic [ref=e371]: Hasta 10 usuarios
+            - listitem [ref=e372]:
+              - img [ref=e373]
+              - generic [ref=e375]: Dashboard operativo + semáforo
+            - listitem [ref=e376]:
+              - img [ref=e377]
+              - generic [ref=e379]: Alertas email + plataforma
+            - listitem [ref=e380]:
+              - img [ref=e381]
+              - generic [ref=e383]: Soporte email
+          - link "Empezar gratis" [ref=e384] [cursor=pointer]:
+            - /url: /registro?plan=obra
+        - generic [ref=e385]:
+          - generic [ref=e387]:
+            - img [ref=e388]
+            - text: Recomendado
+          - generic [ref=e390]:
+            - generic [ref=e391]: Plan Proyecto
+            - generic [ref=e392]: $1.800.000
+            - generic [ref=e393]: COP/mes · ~$415 USD
+            - paragraph [ref=e394]: Para constructoras con varios proyectos
+          - list [ref=e396]:
+            - listitem [ref=e397]:
+              - img [ref=e398]
+              - generic [ref=e400]: Hasta 3 proyectos activos
+            - listitem [ref=e401]:
+              - img [ref=e402]
+              - generic [ref=e404]: Hasta 500 unidades totales
+            - listitem [ref=e405]:
+              - img [ref=e406]
+              - generic [ref=e408]: Fases ilimitadas
+            - listitem [ref=e409]:
+              - img [ref=e410]
+              - generic [ref=e412]: Usuarios de gestión ilimitados
+            - listitem [ref=e413]:
+              - img [ref=e414]
+              - generic [ref=e416]: Score de contratistas (3 ejes)
+            - listitem [ref=e417]:
+              - img [ref=e418]
+              - generic [ref=e420]: Analítica de materiales
+            - listitem [ref=e421]:
+              - img [ref=e422]
+              - generic [ref=e424]: Alertas email + plataforma + WhatsApp
+            - listitem [ref=e425]:
+              - img [ref=e426]
+              - generic [ref=e428]: Soporte prioritario
+          - link "Empezar gratis" [ref=e429] [cursor=pointer]:
+            - /url: /registro?plan=proyecto
+        - generic [ref=e430]:
+          - generic [ref=e431]:
+            - generic [ref=e432]: Plan Empresa
+            - generic [ref=e433]: $3.500.000
+            - generic [ref=e434]: COP/mes · ~$807 USD
+            - paragraph [ref=e435]: Para grupos constructores y regionales
+          - list [ref=e437]:
+            - listitem [ref=e438]:
+              - img [ref=e439]
+              - generic [ref=e441]: Proyectos y unidades ilimitados
+            - listitem [ref=e442]:
+              - img [ref=e443]
+              - generic [ref=e445]: Benchmarking entre proyectos
+            - listitem [ref=e446]:
+              - img [ref=e447]
+              - generic [ref=e449]: Reportes auto-generados en PDF
+            - listitem [ref=e450]:
+              - img [ref=e451]
+              - generic [ref=e453]: Dashboard gerencial multi-proyecto
+            - listitem [ref=e454]:
+              - img [ref=e455]
+              - generic [ref=e457]: "Excedente >1.000 unidades: $2.500/u"
+            - listitem [ref=e458]:
+              - img [ref=e459]
+              - generic [ref=e461]: Onboarding asistido
+            - listitem [ref=e462]:
+              - img [ref=e463]
+              - generic [ref=e465]: Soporte dedicado
+          - link "Hablar con ventas" [ref=e466] [cursor=pointer]:
+            - /url: /contacto
+    - generic [ref=e473]:
+      - img "Seiricon" [ref=e475]
+      - heading "Empieza a controlar tu obra desde hoy mismo" [level=2] [ref=e476]:
+        - text: Empieza a controlar tu obra
+        - text: desde hoy mismo
+      - paragraph [ref=e477]: 14 días gratis, sin tarjeta de crédito. Configura tu primer proyecto en menos de 10 minutos.
+      - generic [ref=e478]:
+        - link "Prueba gratis — 14 días" [ref=e479] [cursor=pointer]:
+          - /url: /registro
+          - text: Prueba gratis — 14 días
+          - img [ref=e480]
+        - link "Hablar con el equipo" [ref=e482] [cursor=pointer]:
+          - /url: /contacto
+      - paragraph [ref=e483]: Sin tarjeta · Sin instalación · Cancela cuando quieras
+  - contentinfo [ref=e484]:
+    - generic [ref=e485]:
+      - generic [ref=e486]:
+        - generic [ref=e487]:
+          - link "Seiricon SEIRICON construyendo en orden" [ref=e488] [cursor=pointer]:
+            - /url: /
+            - img "Seiricon" [ref=e489]
+            - generic [ref=e490]:
+              - generic [ref=e491]: SEIRICON
+              - generic [ref=e492]: construyendo en orden
+          - paragraph [ref=e493]: Control de obra blanca y carpintería para constructoras en Colombia. Visibilidad total, evidencia verificable, decisiones en tiempo real.
+          - generic [ref=e494]:
+            - link "hola@seiricon.co" [ref=e495] [cursor=pointer]:
+              - /url: mailto:hola@seiricon.co
+              - img [ref=e496]
+              - text: hola@seiricon.co
+            - link "+57 300 123 4567" [ref=e499] [cursor=pointer]:
+              - /url: tel:+573001234567
+              - img [ref=e500]
+              - text: +57 300 123 4567
+        - generic [ref=e502]:
+          - generic [ref=e503]: Producto
+          - list [ref=e504]:
+            - listitem [ref=e505]:
+              - link "Funcionalidades" [ref=e506] [cursor=pointer]:
+                - /url: "#features"
+            - listitem [ref=e507]:
+              - link "Cómo funciona" [ref=e508] [cursor=pointer]:
+                - /url: "#como-funciona"
+            - listitem [ref=e509]:
+              - link "Precios" [ref=e510] [cursor=pointer]:
+                - /url: "#precios"
+            - listitem [ref=e511]:
+              - link "Seguridad" [ref=e512] [cursor=pointer]:
+                - /url: /seguridad
+        - generic [ref=e513]:
+          - generic [ref=e514]: Empresa
+          - list [ref=e515]:
+            - listitem [ref=e516]:
+              - link "Sobre nosotros" [ref=e517] [cursor=pointer]:
+                - /url: /nosotros
+            - listitem [ref=e518]:
+              - link "Casos de éxito" [ref=e519] [cursor=pointer]:
+                - /url: /casos
+            - listitem [ref=e520]:
+              - link "Blog" [ref=e521] [cursor=pointer]:
+                - /url: /blog
+            - listitem [ref=e522]:
+              - link "Contacto" [ref=e523] [cursor=pointer]:
+                - /url: /contacto
+        - generic [ref=e524]:
+          - generic [ref=e525]: Legal
+          - list [ref=e526]:
+            - listitem [ref=e527]:
+              - link "Términos de uso" [ref=e528] [cursor=pointer]:
+                - /url: /terminos
+            - listitem [ref=e529]:
+              - link "Privacidad" [ref=e530] [cursor=pointer]:
+                - /url: /privacidad
+            - listitem [ref=e531]:
+              - link "Cookies" [ref=e532] [cursor=pointer]:
+                - /url: /cookies
+      - generic [ref=e533]:
+        - generic [ref=e534]: © 2026 Seiricon. Todos los derechos reservados.
+        - generic [ref=e535]: Hecho en Colombia 🇨🇴 para la industria de la construcción
+  - alert [ref=e536]
