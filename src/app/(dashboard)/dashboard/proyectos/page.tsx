@@ -35,7 +35,7 @@ export default async function ProyectosPage() {
   return (
     <>
       <Topbar title="Proyectos" subtitle="Gestión de proyectos activos" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Header actions */}
         <div className="flex items-center justify-between mb-6">
           <p className="text-sm text-slate-500">{proyectos.length} proyecto{proyectos.length !== 1 ? "s" : ""} activo{proyectos.length !== 1 ? "s" : ""}</p>

@@ -29,7 +29,7 @@ export default async function TareasPage({
   return (
     <>
       <Topbar title="Tareas" subtitle="Seguimiento de todas las tareas" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Filters */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-2 flex-wrap">

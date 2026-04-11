@@ -56,7 +56,7 @@ export default function ConfiguracionPage() {
   return (
     <>
       <Topbar title="Configuración" subtitle="Administración de la cuenta" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Plan badge */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 mb-6 flex items-center justify-between">
           <div>

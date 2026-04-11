@@ -107,10 +107,10 @@ export default function Hero() {
       <div className="absolute top-1/4 -left-32 w-80 h-80 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-0 w-96 h-96 rounded-full bg-blue-600/8 blur-3xl pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20 lg:py-28">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-12 sm:py-20 lg:py-28">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           {/* Left — copy */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5 sm:gap-6">
             {/* Badge */}
             <div ref={badgeRef} className="opacity-0">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold uppercase tracking-wide">
@@ -122,7 +122,7 @@ export default function Hero() {
             {/* Headline */}
             <h1
               ref={headlineRef}
-              className="opacity-0 text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] tracking-tight text-slate-900"
+              className="opacity-0 text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight text-slate-900"
             >
               Control total de{" "}
               <span className="text-gradient-blue">obra blanca</span>{" "}
@@ -132,7 +132,7 @@ export default function Hero() {
             {/* Sub */}
             <p
               ref={subRef}
-              className="opacity-0 text-lg text-slate-600 leading-relaxed max-w-xl"
+              className="opacity-0 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl"
             >
               Reemplaza el Excel por un sistema digital con evidencia fotográfica,
               aprobaciones estructuradas y métricas en tiempo real. Sabe exactamente

@@ -59,7 +59,7 @@ export default async function TareaDetallePage({
   return (
     <>
       <Topbar title="Detalle de tarea" subtitle={tarea.nombre} />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Back link */}
         <Link
           href="/dashboard/tareas"
@@ -69,21 +69,21 @@ export default async function TareaDetallePage({
           Volver a tareas
         </Link>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Main content */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-4 sm:gap-6">
             {/* Header card */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="text-xl font-extrabold text-slate-900">{tarea.nombre}</h2>
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 break-words">{tarea.nombre}</h2>
                   {tarea.codigo_referencia && (
                     <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">
                       {tarea.codigo_referencia}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${sem.bg} ${sem.text}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${sem.dot}`} />
                     {sem.label}
@@ -96,7 +96,7 @@ export default async function TareaDetallePage({
               </div>
 
               {/* Meta info */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div className="flex items-center gap-2 text-slate-600">
                   <MapPin className="w-4 h-4 text-slate-400" />
                   <span className="truncate">{tarea.ubicacion}</span>
@@ -137,7 +137,7 @@ export default async function TareaDetallePage({
             </div>
 
             {/* Evidencia */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Evidencia</h3>
               <EvidenceGallery evidencias={tarea.evidencias.map((e) => ({
                 id: e.id,
@@ -151,7 +151,7 @@ export default async function TareaDetallePage({
 
             {/* Action buttons */}
             {(puedeReportar || puedeAprobar) && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
                 <h3 className="font-bold text-slate-800 mb-4">Acciones</h3>
                 {puedeReportar && (
                   <ReportarButton
@@ -166,7 +166,7 @@ export default async function TareaDetallePage({
 
             {/* Otras acciones: retraso + extensión */}
             {tarea.estado !== "APROBADA" && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
                 <h3 className="font-bold text-slate-800 mb-4">Otras acciones</h3>
                 <TaskActionMenu
                   tareaId={tarea.id}
@@ -176,13 +176,13 @@ export default async function TareaDetallePage({
             )}
 
             {/* Notas */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <NotasEditor tareaId={tarea.id} initialNotas={tarea.notas} />
             </div>
 
             {/* Retrasos */}
             {tarea.retrasos.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-orange-500" />
                   Retrasos registrados
@@ -207,7 +207,7 @@ export default async function TareaDetallePage({
 
             {/* Extensiones */}
             {tarea.extensiones_tiempo.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-blue-500" />
                   Extensiones de tiempo
@@ -230,7 +230,7 @@ export default async function TareaDetallePage({
 
             {/* Approval history */}
             {tarea.aprobaciones.length > 0 && (
-              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
                 <h3 className="font-bold text-slate-800 mb-4">Historial de aprobaciones</h3>
                 <div className="flex flex-col gap-3">
                   {tarea.aprobaciones.map((a) => (
@@ -274,7 +274,7 @@ export default async function TareaDetallePage({
           {/* Sidebar */}
           <div className="flex flex-col gap-6">
             {/* Contractor */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
               <h3 className="font-bold text-slate-800 mb-3">Contratista asignado</h3>
               {tarea.asignado_usuario ? (
                 <div className="flex items-center gap-3">
@@ -297,7 +297,7 @@ export default async function TareaDetallePage({
             </div>
 
             {/* Project info */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
               <h3 className="font-bold text-slate-800 mb-3">Proyecto</h3>
               <Link
                 href={`/dashboard/proyectos/${tarea.proyecto.id}`}
@@ -308,7 +308,7 @@ export default async function TareaDetallePage({
             </div>
 
             {/* Dates */}
-            <div className="bg-white rounded-2xl border border-slate-100 p-5">
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
               <h3 className="font-bold text-slate-800 mb-3">Fechas</h3>
               <div className="flex flex-col gap-2 text-sm">
                 <div className="flex justify-between">

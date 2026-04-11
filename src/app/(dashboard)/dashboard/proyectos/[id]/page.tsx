@@ -40,7 +40,7 @@ export default async function ProyectoDetallePage({
   return (
     <>
       <Topbar title={proyecto.nombre} subtitle={`${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`} />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Back link */}
         <Link
           href="/dashboard/proyectos"
@@ -51,8 +51,8 @@ export default async function ProyectoDetallePage({
         </Link>
 
         {/* Progress summary */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 mb-6">
-          <div className="flex flex-wrap items-center gap-6">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <div>
               <div className="text-xs text-slate-500 mb-1">Progreso aprobado</div>
               <div className="text-3xl font-extrabold text-slate-900">{proyecto.progreso.porcentajeAprobado}%</div>
@@ -95,24 +95,24 @@ export default async function ProyectoDetallePage({
 
         {/* Buildings */}
         {proyecto.edificios.map((edificio) => (
-          <div key={edificio.id} className="bg-white rounded-2xl border border-slate-100 p-6 mb-6">
+          <div key={edificio.id} className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <Building2 className="w-5 h-5 text-blue-600" />
-              <h2 className="font-bold text-slate-900 text-lg">{edificio.nombre}</h2>
+              <h2 className="font-bold text-slate-900 text-base sm:text-lg">{edificio.nombre}</h2>
               <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full ml-2">
                 {edificio.pisos.length} pisos
               </span>
             </div>
 
             {/* Grid by floor */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 overflow-x-auto">
               {edificio.pisos.slice().reverse().map((piso) => {
                 return (
-                  <div key={piso.id} className="flex items-center gap-3">
-                    <div className="w-16 text-xs font-semibold text-slate-500 text-right flex-shrink-0">
+                  <div key={piso.id} className="flex items-center gap-2 sm:gap-3">
+                    <div className="w-12 sm:w-16 text-[10px] sm:text-xs font-semibold text-slate-500 text-right flex-shrink-0">
                       Piso {piso.numero}
                     </div>
-                    <div className="flex gap-2 flex-wrap flex-1">
+                    <div className="flex gap-1.5 sm:gap-2 flex-wrap flex-1">
                       {piso.unidades.map((unidad) => {
                         const tareas = unidad.espacios.flatMap((e) => e.tareas);
                         const progreso = calcularProgreso(tareas);
@@ -122,11 +122,11 @@ export default async function ProyectoDetallePage({
                           <Link
                             key={unidad.id}
                             href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
-                            className={`w-20 h-16 rounded-xl flex flex-col items-center justify-center text-xs font-medium hover:shadow-md transition-all ${colorClass}`}
+                            className={`w-14 h-12 sm:w-20 sm:h-16 rounded-lg sm:rounded-xl flex flex-col items-center justify-center text-[10px] sm:text-xs font-medium hover:shadow-md transition-all flex-shrink-0 ${colorClass}`}
                             title={`Apto ${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
                           >
                             <span className="font-bold">{unidad.nombre}</span>
-                            <span className="text-[10px] opacity-75">{progreso.porcentajeAprobado}%</span>
+                            <span className="text-[9px] sm:text-[10px] opacity-75">{progreso.porcentajeAprobado}%</span>
                           </Link>
                         );
                       })}
@@ -137,7 +137,7 @@ export default async function ProyectoDetallePage({
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100 text-[10px] text-slate-500">
+            <div className="flex items-center gap-3 sm:gap-4 mt-4 pt-4 border-t border-slate-100 text-[9px] sm:text-[10px] text-slate-500 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-600" /> 100%</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> ≥50%</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300" /> &lt;50%</span>

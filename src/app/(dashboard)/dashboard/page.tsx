@@ -88,17 +88,17 @@ export default async function DashboardPage() {
         subtitle={`Resumen general · ${usuario.constructora?.nombre ?? "Seiricon"}`}
       />
 
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Stats grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6">
           {statCards.map((s) => (
             <StatCard key={s.label} {...s} />
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
           {/* Project progress */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <h2 className="font-bold text-slate-800 mb-5">Progreso por proyecto</h2>
             <div className="flex flex-col gap-6">
               {proyectos.map((p) => (
@@ -117,7 +117,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Task breakdown */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <h2 className="font-bold text-slate-800 mb-4">Estado de tareas</h2>
             <div className="flex flex-col gap-3">
               {taskBreakdown.map((item) => (
@@ -134,9 +134,9 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Score de contratistas */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-slate-800">Score de contratistas</h2>
               <span className="text-xs text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg">
@@ -161,7 +161,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Recent tasks */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5">
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-slate-800">Actividad reciente</h2>
               <a href="/dashboard/tareas" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
