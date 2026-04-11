@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/alt-text */
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import { pdfStyles, pdfColors, formatDate } from "./styles";
 

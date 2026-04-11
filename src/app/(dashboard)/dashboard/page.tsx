@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import {
   getDashboardStats,
   getProyectosConProgreso,
@@ -164,9 +165,9 @@ export default async function DashboardPage() {
           <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-slate-800">Actividad reciente</h2>
-              <a href="/dashboard/tareas" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+              <Link href="/dashboard/tareas" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                 Ver todas
-              </a>
+              </Link>
             </div>
             <div className="flex flex-col divide-y divide-slate-50">
               {tareasRecientes.map((t) => (
