@@ -23,7 +23,8 @@ export function baseEmailHtml({ title, preheader = "", body, ctaText, ctaUrl }: 
         <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="max-width:480px; background:white; border-radius:16px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
           <tr>
             <td style="background:#2563eb; padding:20px 32px;">
-              <h1 style="color:white; font-size:18px; margin:0; font-weight:700;">ObraControl</h1>
+              <h1 style="color:white; font-size:18px; margin:0; font-weight:700; letter-spacing:0.5px;">SEIRICON</h1>
+              <p style="color:#bfdbfe; font-size:11px; margin:2px 0 0; font-weight:500;">construyendo en orden</p>
             </td>
           </tr>
           <tr>
@@ -44,7 +45,7 @@ export function baseEmailHtml({ title, preheader = "", body, ctaText, ctaUrl }: 
           <tr>
             <td style="padding:16px 32px; border-top:1px solid #e2e8f0; background:#f8fafc;">
               <p style="color:#94a3b8; font-size:11px; margin:0; line-height:1.5;">
-                Este email fue enviado automáticamente por ObraControl. No respondas a este correo.
+                Este email fue enviado automáticamente por Seiricon. No respondas a este correo.
               </p>
             </td>
           </tr>

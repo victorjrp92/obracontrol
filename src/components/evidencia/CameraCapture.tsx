@@ -88,7 +88,7 @@ async function drawOverlay(
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.font = `bold ${Math.round(fontSize * 0.85)}px sans-serif`;
       ctx.textAlign = "right";
-      ctx.fillText("ObraControl", canvas.width - padding, padding);
+      ctx.fillText("SEIRICON", canvas.width - padding, padding);
 
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("Error creando imagen"))),

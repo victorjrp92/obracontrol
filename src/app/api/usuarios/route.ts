@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     try {
       await sendEmail({
         to: email,
-        subject: `Te han invitado a ${currentUser.constructora.nombre} en ObraControl`,
+        subject: `Te han invitado a ${currentUser.constructora.nombre} en Seiricon`,
         html: invitationEmailHtml({
           nombreInvitado: nombre,
           nombreConstructora: currentUser.constructora.nombre,

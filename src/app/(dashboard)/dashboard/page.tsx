@@ -85,7 +85,7 @@ export default async function DashboardPage() {
     <>
       <Topbar
         title="Dashboard"
-        subtitle={`Resumen general · ${usuario.constructora?.nombre ?? "ObraControl"}`}
+        subtitle={`Resumen general · ${usuario.constructora?.nombre ?? "Seiricon"}`}
       />
 
       <main className="flex-1 overflow-y-auto p-6">

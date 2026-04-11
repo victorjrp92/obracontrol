@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HardHat, Mail, Lock, User, Building2, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, Building2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { registro } from "../actions";
 
 interface Props {
@@ -43,13 +43,12 @@ export default async function RegistroPage({ searchParams }: Props) {
       {/* Left — form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
-          <Link href="/" className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
-              <HardHat className="w-4 h-4 text-white" />
+          <Link href="/" className="flex items-center gap-2.5 mb-8">
+            <img src="/seiricon-icon.png" alt="Seiricon" className="w-10 h-10" />
+            <div className="leading-tight">
+              <div className="font-extrabold text-slate-900 text-lg tracking-wide">SEIRICON</div>
+              <div className="text-[10px] text-slate-500">construyendo en orden</div>
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">
-              Obra<span className="text-blue-600">Control</span>
-            </span>
           </Link>
 
           <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Crea tu cuenta gratis</h1>

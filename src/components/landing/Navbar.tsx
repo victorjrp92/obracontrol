@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
-import { Menu, X, HardHat } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { label: "Funcionalidades", href: "#features" },
@@ -41,12 +41,11 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md group-hover:bg-blue-700 transition-colors">
-              <HardHat className="w-4 h-4 text-white" />
+            <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9" />
+            <div className="leading-tight">
+              <div className="font-extrabold text-slate-900 text-base tracking-wide">SEIRICON</div>
+              <div className="text-[9px] text-slate-500">construyendo en orden</div>
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">
-              Obra<span className="text-blue-600">Control</span>
-            </span>
           </Link>
 
           {/* Desktop nav */}

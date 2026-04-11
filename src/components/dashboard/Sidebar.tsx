@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/(auth)/actions";
 import { getPermissions, getRolLabel } from "@/lib/permissions";
 import {
-  HardHat,
   LayoutDashboard,
   FolderOpen,
   ClipboardList,
@@ -51,14 +50,13 @@ export default function Sidebar({ rol = "ADMIN", userName = "Usuario", userRole 
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-800 flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-          <HardHat className="w-4 h-4 text-white" />
-        </div>
+      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-slate-800 flex-shrink-0">
+        <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9 flex-shrink-0" />
         {!collapsed && (
-          <span className="font-bold text-white text-base tracking-tight whitespace-nowrap">
-            Obra<span className="text-blue-400">Control</span>
-          </span>
+          <div className="leading-tight">
+            <div className="font-extrabold text-white text-base tracking-wide whitespace-nowrap">SEIRICON</div>
+            <div className="text-[9px] text-blue-300 whitespace-nowrap">construyendo en orden</div>
+          </div>
         )}
         {/* Mobile close */}
         <button
