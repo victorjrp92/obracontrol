@@ -99,7 +99,7 @@ export async function POST(
         });
 
         if (contratistaInfo && tareaInfo) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
           const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
           const proyectoNombre = tareaInfo.espacio.unidad.piso.edificio.proyecto.nombre;
 

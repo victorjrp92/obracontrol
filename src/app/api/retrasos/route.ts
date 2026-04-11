@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
           select: { email: true },
         });
 
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
         const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
         const tipoLabel = tipo === "POR_FALTA_PISTA"
           ? "Por falta de pista"

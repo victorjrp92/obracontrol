@@ -71,7 +71,7 @@ export async function POST(
         select: { email: true },
       });
 
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
       const ubicacion = `${tarea.espacio.unidad.piso.edificio.nombre} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`;
       const html = tareaReportadaEmailHtml({
         nombre: tarea.nombre,
