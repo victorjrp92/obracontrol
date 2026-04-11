@@ -61,9 +61,9 @@ export default async function TareasPage({
 
         {/* Tasks list */}
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <span className="text-sm font-semibold text-slate-700">{tareas.length} tareas</span>
-            <div className="flex items-center gap-3 text-xs text-slate-400">
+            <div className="flex items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs text-slate-400 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-700" />Verde intenso</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />Verde</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400" />Amarillo</span>
