@@ -1,4 +1,5 @@
 import Topbar from "@/components/dashboard/Topbar";
+import RolesManager from "@/components/dashboard/RolesManager";
 import { Building2, Bell, Shield, CreditCard, Users, Wrench } from "lucide-react";
 
 const sections = [
@@ -88,6 +89,11 @@ export default function ConfiguracionPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Roles section */}
+        <div className="mt-6">
+          <RolesManager />
         </div>
       </main>
     </>
