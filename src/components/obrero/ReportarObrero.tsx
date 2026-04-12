@@ -59,8 +59,16 @@ export default function ReportarObrero({
       body: fd,
     });
     if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error ?? "Error subiendo archivo");
+      const text = await res.text();
+      let msg = "Error subiendo archivo";
+      try {
+        const data = JSON.parse(text);
+        msg = data.error ?? msg;
+      } catch {
+        if (res.status === 413) msg = "El archivo es demasiado grande. Intenta con una foto más pequeña.";
+        else msg = text || msg;
+      }
+      throw new Error(msg);
     }
   }
 
