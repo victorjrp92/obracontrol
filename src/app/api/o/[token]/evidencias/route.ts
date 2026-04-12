@@ -42,6 +42,34 @@ export async function POST(
       );
     }
 
+    // Validate Content-Type
+    const allowedPhotoTypes = ["image/jpeg", "image/png"];
+    const allowedVideoTypes = ["video/mp4"];
+    const contentType = file.type;
+
+    if (tipo === "FOTO" && !allowedPhotoTypes.includes(contentType)) {
+      return NextResponse.json(
+        { error: "Tipo de archivo no permitido. Solo se aceptan image/jpeg y image/png" },
+        { status: 400 }
+      );
+    }
+
+    if (tipo === "VIDEO" && !allowedVideoTypes.includes(contentType)) {
+      return NextResponse.json(
+        { error: "Tipo de archivo no permitido. Solo se acepta video/mp4" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size: photos max 10MB, videos max 50MB
+    const maxSize = tipo === "FOTO" ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: tipo === "FOTO" ? "La foto no puede superar 10 MB" : "El video no puede superar 50 MB" },
+        { status: 400 }
+      );
+    }
+
     // Verify the task exists and belongs to the obrero's contratista
     const tarea = await prisma.tarea.findUnique({ where: { id: tarea_id } });
     if (!tarea) {

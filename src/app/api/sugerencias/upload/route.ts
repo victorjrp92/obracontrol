@@ -32,6 +32,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "file es requerido" }, { status: 400 });
     }
 
+    // Validate Content-Type
+    const allowedTypes = ["image/jpeg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Tipo de archivo no permitido. Solo se aceptan image/jpeg y image/png" },
+        { status: 400 }
+      );
+    }
+
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: "La foto no puede superar 10 MB" }, { status: 400 });
     }

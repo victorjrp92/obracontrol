@@ -17,6 +17,15 @@ export async function POST(
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
     const { id } = await params;
 
     const tarea = await prisma.tarea.findUnique({
@@ -43,6 +52,11 @@ export async function POST(
       },
     });
     if (!tarea) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Tenant isolation: verify the task belongs to the user's constructora
+    if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 

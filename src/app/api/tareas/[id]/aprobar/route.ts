@@ -21,7 +21,7 @@ export async function POST(
 
     const aprobador = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
     if (!aprobador || !["ADMINISTRADOR", "DIRECTIVO"].includes(aprobador.rol_ref.nivel_acceso)) {
@@ -36,9 +36,33 @@ export async function POST(
       return NextResponse.json({ error: "estado debe ser APROBADA o NO_APROBADA" }, { status: 400 });
     }
 
-    const tarea = await prisma.tarea.findUnique({ where: { id } });
+    const tarea = await prisma.tarea.findUnique({
+      where: { id },
+      include: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
     if (!tarea || tarea.estado !== "REPORTADA") {
       return NextResponse.json({ error: "Tarea no encontrada o no está reportada" }, { status: 400 });
+    }
+
+    // Tenant isolation: verify the task belongs to the approver's constructora
+    if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== aprobador.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
     // Transacción: crear aprobación + actualizar tarea

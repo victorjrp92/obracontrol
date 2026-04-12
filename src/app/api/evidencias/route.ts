@@ -42,9 +42,66 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "tipo debe ser FOTO o VIDEO" }, { status: 400 });
     }
 
-    // Verificar que la tarea existe
-    const tarea = await prisma.tarea.findUnique({ where: { id: tarea_id } });
+    // Validate Content-Type
+    const allowedPhotoTypes = ["image/jpeg", "image/png"];
+    const allowedVideoTypes = ["video/mp4"];
+    const contentType = file.type;
+
+    if (tipo === "FOTO" && !allowedPhotoTypes.includes(contentType)) {
+      return NextResponse.json(
+        { error: "Tipo de archivo no permitido. Solo se aceptan image/jpeg y image/png" },
+        { status: 400 }
+      );
+    }
+
+    if (tipo === "VIDEO" && !allowedVideoTypes.includes(contentType)) {
+      return NextResponse.json(
+        { error: "Tipo de archivo no permitido. Solo se acepta video/mp4" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size: photos max 10MB, videos max 50MB
+    const maxSize = tipo === "FOTO" ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: tipo === "FOTO" ? "La foto no puede superar 10 MB" : "El video no puede superar 50 MB" },
+        { status: 400 }
+      );
+    }
+
+    // Verificar que la tarea existe and belongs to the user's constructora
+    const tarea = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        id: true,
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
     if (!tarea) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Tenant isolation: verify the task's constructora matches the user's
+    const userRecord = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!userRecord || tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== userRecord.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
@@ -95,9 +152,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!currentUser) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
     const tarea_id = new URL(req.url).searchParams.get("tarea_id");
     if (!tarea_id) {
       return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
+    }
+
+    // Tenant isolation: verify the task belongs to the user's constructora
+    const tareaCheck = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
     const evidencias = await prisma.evidencia.findMany({

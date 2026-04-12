@@ -13,6 +13,12 @@ export async function GET(
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
     const { proyectoId } = await params;
 
     const proyecto = await prisma.proyecto.findUnique({
@@ -41,6 +47,11 @@ export async function GET(
     });
 
     if (!proyecto) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    // Tenant isolation: verify the project belongs to the user's constructora
+    if (proyecto.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
     }
 

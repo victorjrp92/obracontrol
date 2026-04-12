@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
     if (!usuario || !["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
@@ -32,8 +32,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "dias_adicionales debe estar entre 1 y 365" }, { status: 400 });
     }
 
-    const tarea = await prisma.tarea.findUnique({ where: { id: tarea_id } });
+    const tarea = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      include: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
     if (!tarea) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Tenant isolation: verify the task belongs to the user's constructora
+    if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== usuario.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 

@@ -9,8 +9,23 @@ export async function GET(req: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
     const proyecto_id = new URL(req.url).searchParams.get("proyecto_id");
     if (!proyecto_id) return NextResponse.json({ error: "proyecto_id requerido" }, { status: 400 });
+
+    // Tenant isolation: verify project belongs to the user's constructora
+    const proyecto = await prisma.proyecto.findUnique({
+      where: { id: proyecto_id },
+      select: { constructora_id: true },
+    });
+    if (!proyecto || proyecto.constructora_id !== usuario.constructora_id) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
 
     const edificios = await prisma.edificio.findMany({
       where: { proyecto_id },
@@ -50,12 +65,12 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-    const usuario = await prisma.usuario.findUnique({
+    const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { rol_ref: { select: { nivel_acceso: true } } },
+      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!usuario || !["ADMINISTRADOR"].includes(usuario.rol_ref.nivel_acceso)) {
+    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -67,6 +82,15 @@ export async function POST(req: NextRequest) {
         { error: "proyecto_id, nombre, num_pisos y unidades_por_piso son requeridos" },
         { status: 400 }
       );
+    }
+
+    // Tenant isolation: verify the project belongs to the user's constructora
+    const proyectoCheck = await prisma.proyecto.findUnique({
+      where: { id: proyecto_id },
+      select: { constructora_id: true },
+    });
+    if (!proyectoCheck || proyectoCheck.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
     }
 
     // Crear edificio + pisos + unidades en transacción

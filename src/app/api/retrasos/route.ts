@@ -11,6 +11,12 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
     const body = await req.json();
     const { tarea_id, tipo, justificacion, evidencia_urls } = body;
 
@@ -32,6 +38,31 @@ export async function POST(req: NextRequest) {
         { error: "Retrasos por falta de pista requieren evidencia" },
         { status: 400 }
       );
+    }
+
+    // Tenant isolation: verify the task belongs to the user's constructora
+    const tareaCheck = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
     const retraso = await prisma.retraso.create({
@@ -118,8 +149,39 @@ export async function GET(req: NextRequest) {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
     const tarea_id = new URL(req.url).searchParams.get("tarea_id");
     if (!tarea_id) return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
+
+    // Tenant isolation: verify the task belongs to the user's constructora
+    const tareaCheck = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
 
     const retrasos = await prisma.retraso.findMany({
       where: { tarea_id },

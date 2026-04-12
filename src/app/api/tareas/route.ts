@@ -12,6 +12,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+
+    if (!usuario) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
     const { searchParams } = new URL(req.url);
     const espacio_id = searchParams.get("espacio_id");
     const fase_id = searchParams.get("fase_id");
@@ -20,6 +29,16 @@ export async function GET(req: NextRequest) {
 
     const tareas = await prisma.tarea.findMany({
       where: {
+        // Tenant isolation: only tasks from this constructora
+        espacio: {
+          unidad: {
+            piso: {
+              edificio: {
+                proyecto: { constructora_id: usuario.constructora_id },
+              },
+            },
+          },
+        },
         ...(espacio_id && { espacio_id }),
         ...(fase_id && { fase_id }),
         ...(estado && { estado: estado as never }),
@@ -53,6 +72,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+
+    if (!usuario || !["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
+      return NextResponse.json({ error: "Sin permisos para crear tareas" }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       espacio_id, fase_id, nombre, tiempo_acordado_dias,
@@ -65,6 +93,16 @@ export async function POST(req: NextRequest) {
         { error: "espacio_id, fase_id, nombre y tiempo_acordado_dias son requeridos" },
         { status: 400 }
       );
+    }
+
+    // Tenant isolation: verify the espacio belongs to this constructora
+    const espacio = await prisma.espacio.findUnique({
+      where: { id: espacio_id },
+      select: { unidad: { select: { piso: { select: { edificio: { select: { proyecto: { select: { constructora_id: true } } } } } } } } },
+    });
+
+    if (!espacio || espacio.unidad.piso.edificio.proyecto.constructora_id !== usuario.constructora_id) {
+      return NextResponse.json({ error: "Espacio no encontrado" }, { status: 404 });
     }
 
     const tarea = await prisma.tarea.create({
