@@ -4,7 +4,7 @@ import { getProyectoDetalle } from "@/lib/data-detail";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees } from "lucide-react";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
 
@@ -93,8 +93,8 @@ export default async function ProyectoDetallePage({
           </div>
         </div>
 
-        {/* Buildings */}
-        {proyecto.edificios.map((edificio) => (
+        {/* Regular buildings */}
+        {proyecto.edificios.filter((e) => !e.es_zona_comun).map((edificio) => (
           <div key={edificio.id} className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <Building2 className="w-5 h-5 text-blue-600" />
@@ -138,6 +138,51 @@ export default async function ProyectoDetallePage({
 
             {/* Legend */}
             <div className="flex items-center gap-3 sm:gap-4 mt-4 pt-4 border-t border-slate-100 text-[9px] sm:text-[10px] text-slate-500 flex-wrap">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-600" /> 100%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> ≥50%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300" /> &lt;50%</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-300" /> No aprobadas</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200" /> Sin progreso</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Zonas comunes */}
+        {proyecto.edificios.filter((e) => e.es_zona_comun).map((edificio) => (
+          <div key={edificio.id} className="bg-white rounded-2xl border border-green-100 p-5 sm:p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Trees className="w-5 h-5 text-green-600" />
+              <h2 className="font-bold text-slate-900 text-base sm:text-lg">Zonas Comunes</h2>
+              <span className="text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full ml-2">
+                Área compartida
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              {edificio.pisos.flatMap((piso) =>
+                piso.unidades.map((unidad) => {
+                  const tareas = unidad.espacios.flatMap((e) => e.tareas);
+                  const progreso = calcularProgreso(tareas);
+                  const colorClass = getUnidadColor(tareas);
+
+                  return (
+                    <Link
+                      key={unidad.id}
+                      href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
+                      className={`px-4 py-3 rounded-xl flex flex-col items-center justify-center text-xs font-medium hover:shadow-md transition-all min-w-[100px] ${colorClass}`}
+                      title={`${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
+                    >
+                      <Trees className="w-4 h-4 mb-1 opacity-70" />
+                      <span className="font-bold text-center leading-tight">{unidad.nombre}</span>
+                      <span className="text-[10px] opacity-75 mt-0.5">{progreso.porcentajeAprobado}%</span>
+                    </Link>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-3 sm:gap-4 mt-4 pt-4 border-t border-green-100 text-[9px] sm:text-[10px] text-slate-500 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-600" /> 100%</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300" /> ≥50%</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300" /> &lt;50%</span>

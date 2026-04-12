@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { TASK_TEMPLATES } from "@/lib/task-templates";
 
 interface WizardPayload {
   // Paso 1
@@ -28,6 +29,7 @@ interface WizardPayload {
     componentes?: string;
     asignado_a?: string; // usuario_id del contratista
   }[];
+  zonas_comunes?: string[]; // nombres de zonas comunes seleccionadas
 }
 
 export async function POST(req: NextRequest) {
@@ -130,6 +132,64 @@ export async function POST(req: NextRequest) {
                 });
               }
             }
+          }
+        }
+      }
+
+      // 5. Zonas comunes (si aplica)
+      const zonasComunes = body.zonas_comunes ?? [];
+      if (zonasComunes.length > 0) {
+        // Crear una fase "Zonas Comunes" si no existe ya
+        let faseZonasId = fasesCreadas["Zonas Comunes"];
+        if (!faseZonasId) {
+          const faseZonas = await tx.fase.create({
+            data: {
+              proyecto_id: proyecto.id,
+              nombre: "Zonas Comunes",
+              orden: body.fases.length + 1,
+            },
+          });
+          faseZonasId = faseZonas.id;
+        }
+
+        // Crear el edificio especial de zonas comunes
+        const edificioZC = await tx.edificio.create({
+          data: {
+            proyecto_id: proyecto.id,
+            nombre: "Zonas Comunes",
+            num_pisos: 1,
+            es_zona_comun: true,
+          },
+        });
+
+        // Un único piso (numero 0)
+        const pisoZC = await tx.piso.create({
+          data: { edificio_id: edificioZC.id, numero: 0 },
+        });
+
+        // Una unidad por zona
+        for (const nombreZona of zonasComunes) {
+          const unidadZC = await tx.unidad.create({
+            data: { piso_id: pisoZC.id, nombre: nombreZona },
+          });
+
+          // Crear un espacio con el mismo nombre de la zona
+          const espacioZC = await tx.espacio.create({
+            data: { unidad_id: unidadZC.id, nombre: nombreZona },
+          });
+
+          // Crear tareas desde TASK_TEMPLATES["Zonas Comunes"] si existen para esta zona
+          const tareasZC = TASK_TEMPLATES["Zonas Comunes"]?.[nombreZona] ?? [];
+          for (const t of tareasZC) {
+            await tx.tarea.create({
+              data: {
+                espacio_id: espacioZC.id,
+                fase_id: faseZonasId,
+                nombre: t.nombre,
+                tiempo_acordado_dias: t.tiempo_acordado_dias,
+                estado: "PENDIENTE",
+              },
+            });
           }
         }
       }

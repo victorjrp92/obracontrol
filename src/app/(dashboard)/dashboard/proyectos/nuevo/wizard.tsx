@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowRight, Building2, Calendar, Check, ChevronLeft,
-  Layers, Plus, Trash2, Sparkles, Save,
+  Layers, Plus, Trash2, Sparkles, Save, Trees,
 } from "lucide-react";
-import { ESPACIOS_SUGERIDOS, getTareasSugeridas } from "@/lib/task-templates";
+import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS, getTareasSugeridas, TASK_TEMPLATES } from "@/lib/task-templates";
 
 interface Contratista {
   id: string;
@@ -50,6 +50,9 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
   const [edificios, setEdificios] = useState<EdificioInput[]>([
     { nombre: "Torre 1", pisos: 5, unidadesPorPiso: 4 },
   ]);
+  const [tieneZonasComunes, setTieneZonasComunes] = useState(false);
+  const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>([]);
+  const [zonaPersonalizada, setZonaPersonalizada] = useState("");
 
   // Paso 2
   const [espaciosSeleccionados, setEspaciosSeleccionados] = useState<string[]>([
@@ -95,6 +98,20 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
     setEdificios(next);
   }
 
+  function toggleZona(zona: string) {
+    setZonasSeleccionadas((prev) =>
+      prev.includes(zona) ? prev.filter((z) => z !== zona) : [...prev, zona]
+    );
+  }
+
+  function agregarZonaPersonalizada() {
+    const trimmed = zonaPersonalizada.trim();
+    if (trimmed && !zonasSeleccionadas.includes(trimmed)) {
+      setZonasSeleccionadas((prev) => [...prev, trimmed]);
+    }
+    setZonaPersonalizada("");
+  }
+
   function toggleEspacio(espacio: string) {
     setEspaciosSeleccionados((prev) =>
       prev.includes(espacio) ? prev.filter((e) => e !== espacio) : [...prev, espacio]
@@ -138,6 +155,7 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
       espacios: espaciosSeleccionados,
       fases: fasesSeleccionadas,
       tareas: tareas.map(({ ...rest }) => rest),
+      zonas_comunes: tieneZonasComunes ? zonasSeleccionadas : [],
     };
 
     const res = await fetch("/api/proyectos/wizard", {
@@ -313,6 +331,94 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
             <p className="text-xs text-slate-500 mt-3">
               Total: <strong>{totalUnidades}</strong> unidades en {edificios.length} torre{edificios.length !== 1 ? "s" : ""}
             </p>
+          </div>
+
+          {/* Zonas comunes */}
+          <div className="border-t border-slate-100 pt-5 mt-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Trees className="w-4 h-4 text-green-600" />
+                <h3 className="font-bold text-slate-800 text-sm">Zonas comunes</h3>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={tieneZonasComunes}
+                  onChange={(e) => {
+                    setTieneZonasComunes(e.target.checked);
+                    if (!e.target.checked) setZonasSeleccionadas([]);
+                  }}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-700">Este proyecto tiene zonas comunes</span>
+              </label>
+            </div>
+
+            {tieneZonasComunes && (
+              <div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {ZONAS_COMUNES_SUGERIDAS.map((zona) => (
+                    <button
+                      key={zona}
+                      type="button"
+                      onClick={() => toggleZona(zona)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        zonasSeleccionadas.includes(zona)
+                          ? "bg-green-600 text-white border-green-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {zonasSeleccionadas.includes(zona) && <Check className="w-3 h-3 inline mr-1" />}
+                      {zona}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Zonas personalizadas ya seleccionadas */}
+                {zonasSeleccionadas.filter((z) => !ZONAS_COMUNES_SUGERIDAS.includes(z)).map((zona) => (
+                  <span
+                    key={zona}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-green-600 text-white border border-green-600 mr-2 mb-2"
+                  >
+                    <Check className="w-3 h-3" />
+                    {zona}
+                    <button
+                      type="button"
+                      onClick={() => setZonasSeleccionadas((prev) => prev.filter((z) => z !== zona))}
+                      className="ml-1 hover:text-green-200"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+
+                {/* Agregar zona personalizada */}
+                <div className="flex gap-2 mt-2">
+                  <input
+                    value={zonaPersonalizada}
+                    onChange={(e) => setZonaPersonalizada(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); agregarZonaPersonalizada(); } }}
+                    placeholder="Agregar otra zona..."
+                    className="flex-1 px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={agregarZonaPersonalizada}
+                    disabled={!zonaPersonalizada.trim()}
+                    className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-xs font-semibold flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Agregar
+                  </button>
+                </div>
+
+                {zonasSeleccionadas.length > 0 && (
+                  <p className="text-xs text-slate-500 mt-2">
+                    {zonasSeleccionadas.length} zona{zonasSeleccionadas.length !== 1 ? "s" : ""} seleccionada{zonasSeleccionadas.length !== 1 ? "s" : ""}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end mt-6">
