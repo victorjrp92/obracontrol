@@ -4,12 +4,7 @@ import Topbar from "@/components/dashboard/Topbar";
 import ScoreGauge from "@/components/dashboard/ScoreGauge";
 import { Minus, TrendingDown, TrendingUp, UserPlus } from "lucide-react";
 
-const ROL_LABELS: Record<string, string> = {
-  CONTRATISTA_INSTALADOR: "Contratista instalador",
-  CONTRATISTA_LUSTRADOR: "Contratista lustrador",
-  ADMIN: "Administrador",
-  COORDINADOR: "Coordinador",
-};
+// Role names are now stored as human-readable strings directly in the Rol table
 
 function ScoreChip({ score }: { score: number }) {
   if (score >= 85) return (
@@ -73,7 +68,7 @@ export default async function ContratistasPage() {
                     </div>
                     <div>
                       <div className="font-bold text-slate-900 text-sm">{c.nombre}</div>
-                      <div className="text-xs text-slate-500">{ROL_LABELS[c.rol] ?? c.rol}</div>
+                      <div className="text-xs text-slate-500">{c.rol}</div>
                     </div>
                   </div>
                   <ScoreChip score={c.score_total} />

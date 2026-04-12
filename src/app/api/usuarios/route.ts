@@ -15,15 +15,15 @@ export async function GET() {
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol: true },
+      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMIN", "JEFE_OPERACIONES"].includes(currentUser.rol)) {
+    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
     const usuarios = await prisma.usuario.findMany({
       where: { constructora_id: currentUser.constructora_id },
-      select: { id: true, email: true, nombre: true, rol: true, created_at: true },
+      select: { id: true, email: true, nombre: true, rol_ref: { select: { nombre: true, nivel_acceso: true } }, created_at: true },
       orderBy: { created_at: "desc" },
     });
 
@@ -34,7 +34,7 @@ export async function GET() {
   }
 }
 
-// POST /api/usuarios — invite a new user
+// POST /api/usuarios �� invite a new user
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -43,21 +43,24 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      include: { constructora: { select: { id: true, nombre: true } } },
+      include: { constructora: { select: { id: true, nombre: true } }, rol_ref: true },
     });
-    if (!currentUser || !["ADMIN", "JEFE_OPERACIONES"].includes(currentUser.rol)) {
+    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para invitar usuarios" }, { status: 403 });
     }
 
     const body = await req.json();
-    const { email, nombre, rol } = body;
+    const { email, nombre, rol_id } = body;
 
-    if (!email || !nombre || !rol) {
-      return NextResponse.json({ error: "email, nombre y rol son requeridos" }, { status: 400 });
+    if (!email || !nombre || !rol_id) {
+      return NextResponse.json({ error: "email, nombre y rol_id son requeridos" }, { status: 400 });
     }
 
-    const validRoles = ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE", "AUXILIAR", "CONTRATISTA_INSTALADOR", "CONTRATISTA_LUSTRADOR"];
-    if (!validRoles.includes(rol)) {
+    // Verify the rol exists and belongs to this constructora
+    const rol = await prisma.rol.findFirst({
+      where: { id: rol_id, constructora_id: currentUser.constructora_id },
+    });
+    if (!rol) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 
@@ -84,11 +87,11 @@ export async function POST(req: NextRequest) {
         email,
         nombre,
         constructora_id: currentUser.constructora_id,
-        rol: rol as never,
+        rol_id: rol.id,
       },
     });
 
-    if (rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR") {
+    if (rol.nivel_acceso === "CONTRATISTA") {
       await prisma.contratista.create({
         data: {
           usuario_id: nuevoUsuario.id,
@@ -108,7 +111,7 @@ export async function POST(req: NextRequest) {
         html: invitationEmailHtml({
           nombreInvitado: nombre,
           nombreConstructora: currentUser.constructora.nombre,
-          rol: getRolLabel(rol),
+          rol: getRolLabel(rol.nombre),
           loginUrl: `${siteUrl}/login`,
           password: tempPassword,
         }),

@@ -100,7 +100,7 @@ export function ContratistasReport({ data }: { data: ContratistasReportData }) {
                     {c.nombre}
                   </Text>
                   <Text style={{ fontSize: 7, color: pdfColors.textMuted, marginTop: 1 }}>
-                    {c.rol.replace(/_/g, " ").toLowerCase()}
+                    {c.rol}
                   </Text>
                 </View>
                 <Text style={[pdfStyles.tableCell, { flex: 1, textAlign: "center" }]}>

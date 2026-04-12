@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest) {
         usuario: {
           select: {
             nombre: true,
-            rol: true,
+            rol_ref: { select: { nombre: true } },
             tareas_asignadas: { select: { estado: true } },
           },
         },
@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest) {
 
     const data = contratistas.map((c) => ({
       nombre: c.usuario.nombre,
-      rol: c.usuario.rol,
+      rol: c.usuario.rol_ref.nombre,
       score_total: c.score_total,
       score_cumplimiento: c.score_cumplimiento,
       score_calidad: c.score_calidad,

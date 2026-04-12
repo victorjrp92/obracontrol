@@ -76,7 +76,7 @@ export async function getTareaDetalle(tareaId: string) {
         select: {
           id: true,
           nombre: true,
-          rol: true,
+          rol_ref: { select: { nombre: true, nivel_acceso: true } },
           contratista_perfil: { select: { id: true } },
         },
       },

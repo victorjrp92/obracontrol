@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         : undefined,
       include: {
         usuario: {
-          select: { id: true, nombre: true, email: true, rol: true },
+          select: { id: true, nombre: true, email: true, rol_ref: { select: { nombre: true, nivel_acceso: true } } },
         },
       },
       orderBy: { score_total: "desc" },

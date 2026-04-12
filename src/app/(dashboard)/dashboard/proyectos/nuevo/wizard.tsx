@@ -12,7 +12,7 @@ import { ESPACIOS_SUGERIDOS, getTareasSugeridas } from "@/lib/task-templates";
 interface Contratista {
   id: string;
   nombre: string;
-  rol: string;
+  rol_ref: { nombre: string };
 }
 
 interface EdificioInput {

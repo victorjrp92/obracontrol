@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol: true },
+      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!usuario || !["ADMIN", "JEFE_OPERACIONES"].includes(usuario.rol)) {
+    if (!usuario || !["ADMINISTRADOR"].includes(usuario.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 

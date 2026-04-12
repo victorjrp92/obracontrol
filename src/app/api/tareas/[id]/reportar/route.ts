@@ -66,7 +66,7 @@ export async function POST(
       const supervisores = await prisma.usuario.findMany({
         where: {
           constructora_id: tarea.espacio.unidad.piso.edificio.proyecto.constructora_id,
-          rol: { in: ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"] },
+          rol_ref: { nivel_acceso: { in: ["ADMINISTRADOR", "DIRECTIVO"] } },
         },
         select: { email: true },
       });

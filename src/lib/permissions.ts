@@ -1,11 +1,4 @@
-export type RolUsuario =
-  | "ADMIN"
-  | "JEFE_OPERACIONES"
-  | "COORDINADOR"
-  | "ASISTENTE"
-  | "AUXILIAR"
-  | "CONTRATISTA_INSTALADOR"
-  | "CONTRATISTA_LUSTRADOR";
+import type { NivelAcceso } from "@/generated/prisma";
 
 export interface Permissions {
   canCreate: boolean;
@@ -22,24 +15,13 @@ export interface Permissions {
   sidebarItems: string[];
 }
 
-const ROL_LABELS: Record<RolUsuario, string> = {
-  ADMIN: "Administrador",
-  JEFE_OPERACIONES: "Jefe de operaciones",
-  COORDINADOR: "Coordinador",
-  ASISTENTE: "Asistente",
-  AUXILIAR: "Auxiliar de obra",
-  CONTRATISTA_INSTALADOR: "Contratista instalador",
-  CONTRATISTA_LUSTRADOR: "Contratista lustrador",
-};
-
-export function getRolLabel(rol: string): string {
-  return ROL_LABELS[rol as RolUsuario] ?? rol;
+export function getRolLabel(rolNombre: string): string {
+  return rolNombre;
 }
 
-export function getPermissions(rol: string): Permissions {
-  switch (rol) {
-    case "ADMIN":
-    case "JEFE_OPERACIONES":
+export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
+  switch (nivelAcceso) {
+    case "ADMINISTRADOR":
       return {
         canCreate: true,
         canEdit: true,
@@ -54,8 +36,7 @@ export function getPermissions(rol: string): Permissions {
         canViewUsers: true,
         sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "reportes", "usuarios", "configuracion"],
       };
-    case "COORDINADOR":
-    case "ASISTENTE":
+    case "DIRECTIVO":
       return {
         canCreate: true,
         canEdit: true,
@@ -70,23 +51,7 @@ export function getPermissions(rol: string): Permissions {
         canViewUsers: false,
         sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "reportes"],
       };
-    case "AUXILIAR":
-      return {
-        canCreate: true,
-        canEdit: true,
-        canDelete: false,
-        canApprove: false,
-        canInviteUsers: false,
-        canViewAllProjects: true,
-        canViewAllTasks: true,
-        canViewReports: false,
-        canViewConfig: false,
-        canViewContractors: false,
-        canViewUsers: false,
-        sidebarItems: ["dashboard", "proyectos", "tareas"],
-      };
-    case "CONTRATISTA_INSTALADOR":
-    case "CONTRATISTA_LUSTRADOR":
+    case "CONTRATISTA":
       return {
         canCreate: true,
         canEdit: true,
@@ -100,6 +65,21 @@ export function getPermissions(rol: string): Permissions {
         canViewContractors: false,
         canViewUsers: false,
         sidebarItems: ["dashboard", "tareas"],
+      };
+    case "OBRERO":
+      return {
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        canApprove: false,
+        canInviteUsers: false,
+        canViewAllProjects: false,
+        canViewAllTasks: false,
+        canViewReports: false,
+        canViewConfig: false,
+        canViewContractors: false,
+        canViewUsers: false,
+        sidebarItems: ["dashboard"],
       };
     default:
       return {

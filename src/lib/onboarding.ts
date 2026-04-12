@@ -21,13 +21,45 @@ export async function provisionarUsuario(
     },
   });
 
+  // ── Default roles for this constructora ────────────────────────────────────
+  const defaultRoles = [
+    { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+    { nombre: "Coordinador", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+    { nombre: "Asistente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+    { nombre: "Auxiliar de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+    { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+    { nombre: "Contratista lustrador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+    { nombre: "Obrero", nivel_acceso: "OBRERO" as const, es_default: true },
+  ];
+
+  const rolesCreados: Record<string, string> = {};
+  for (const rolDef of defaultRoles) {
+    const rol = await prisma.rol.upsert({
+      where: {
+        constructora_id_nombre: {
+          constructora_id: constructora.id,
+          nombre: rolDef.nombre,
+        },
+      },
+      update: {},
+      create: {
+        constructora_id: constructora.id,
+        nombre: rolDef.nombre,
+        nivel_acceso: rolDef.nivel_acceso,
+        es_default: rolDef.es_default,
+      },
+    });
+    rolesCreados[rolDef.nombre] = rol.id;
+  }
+
   // ── Admin (el usuario que se registró) ────────────────────────────────────
   await prisma.usuario.create({
     data: {
       email,
       nombre,
       constructora_id: constructora.id,
-      rol: "ADMIN",
+      rol_id: rolesCreados["Administrador"],
     },
   });
 
@@ -39,7 +71,7 @@ export async function provisionarUsuario(
       email: `carlos.rincon.${uid}@demo.co`,
       nombre: "Carlos Rincón",
       constructora_id: constructora.id,
-      rol: "CONTRATISTA_INSTALADOR",
+      rol_id: rolesCreados["Contratista instalador"],
     },
   });
 
@@ -48,7 +80,7 @@ export async function provisionarUsuario(
       email: `mauricio.soto.${uid}@demo.co`,
       nombre: "Mauricio Soto",
       constructora_id: constructora.id,
-      rol: "CONTRATISTA_LUSTRADOR",
+      rol_id: rolesCreados["Contratista lustrador"],
     },
   });
 

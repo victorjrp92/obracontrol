@@ -170,7 +170,7 @@ export default async function TareaDetallePage({
                 <h3 className="font-bold text-slate-800 mb-4">Otras acciones</h3>
                 <TaskActionMenu
                   tareaId={tarea.id}
-                  canExtend={["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"].includes(usuario.rol)}
+                  canExtend={["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)}
                 />
               </div>
             )}
@@ -288,7 +288,7 @@ export default async function TareaDetallePage({
                   </div>
                   <div>
                     <div className="font-semibold text-slate-900 text-sm">{tarea.asignado_usuario.nombre}</div>
-                    <div className="text-xs text-slate-500">{tarea.asignado_usuario.rol.replace(/_/g, " ").toLowerCase()}</div>
+                    <div className="text-xs text-slate-500">{tarea.asignado_usuario.rol_ref?.nombre ?? ""}</div>
                   </div>
                 </div>
               ) : (

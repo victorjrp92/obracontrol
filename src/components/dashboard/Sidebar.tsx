@@ -32,19 +32,19 @@ const allNavItems = [
 ];
 
 interface SidebarProps {
-  rol?: string;
+  nivelAcceso?: string;
   userName?: string;
   userRole?: string;
 }
 
-export default function Sidebar({ rol = "ADMIN", userName = "Usuario", userRole }: SidebarProps) {
+export default function Sidebar({ nivelAcceso = "ADMINISTRADOR", userName = "Usuario", userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const permissions = getPermissions(rol);
+  const permissions = getPermissions(nivelAcceso);
   const navItems = allNavItems.filter((item) => permissions.sidebarItems.includes(item.key));
-  const rolLabel = getRolLabel(userRole ?? rol);
+  const rolLabel = getRolLabel(userRole ?? nivelAcceso);
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   const sidebarContent = (

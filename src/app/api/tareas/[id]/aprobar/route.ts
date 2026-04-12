@@ -20,11 +20,10 @@ export async function POST(
 
     const aprobador = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, rol: true },
+      select: { id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    const rolesAprobadores = ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE"];
-    if (!aprobador || !rolesAprobadores.includes(aprobador.rol)) {
+    if (!aprobador || !["ADMINISTRADOR", "DIRECTIVO"].includes(aprobador.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
     }
 
