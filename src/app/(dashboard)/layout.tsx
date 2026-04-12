@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Sidebar from "@/components/dashboard/Sidebar";
 import { getUsuarioActual } from "@/lib/data";
 
@@ -7,6 +8,9 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const usuario = await getUsuarioActual();
+
+  if (!usuario) redirect("/login");
+  if (usuario.rol_ref.nivel_acceso === "CONTRATISTA") redirect("/contratista");
 
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50">
