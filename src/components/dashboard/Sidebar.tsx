@@ -19,6 +19,7 @@ import {
   LogOut,
   Menu,
   X,
+  Lightbulb,
 } from "lucide-react";
 
 const allNavItems = [
@@ -26,6 +27,7 @@ const allNavItems = [
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
   { key: "contratistas", icon: Users, label: "Contratistas", href: "/dashboard/contratistas" },
+  { key: "sugerencias", icon: Lightbulb, label: "Sugerencias", href: "/dashboard/sugerencias" },
   { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes" },
   { key: "usuarios", icon: UsersRound, label: "Usuarios", href: "/dashboard/usuarios" },
   { key: "configuracion", icon: Settings, label: "Configuración", href: "/dashboard/configuracion" },
