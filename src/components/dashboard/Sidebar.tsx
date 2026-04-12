@@ -15,12 +15,13 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Bell,
   LogOut,
   Menu,
   X,
   Lightbulb,
+  Bell,
 } from "lucide-react";
+import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
 const allNavItems = [
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -113,13 +114,7 @@ export default function Sidebar({ nivelAcceso = "ADMINISTRADOR", userName = "Usu
 
       {/* Bottom */}
       <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
-        <button
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors w-full ${collapsed ? "justify-center" : ""}`}
-          title={collapsed ? "Notificaciones" : undefined}
-        >
-          <Bell className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>Notificaciones</span>}
-        </button>
+        <NotificacionesDropdown collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"

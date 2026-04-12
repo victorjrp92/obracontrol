@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { TASK_TEMPLATES } from "@/lib/task-templates";
 
 /**
  * Provisiona una nueva constructora con usuario admin y datos demo realistas.
@@ -23,14 +24,14 @@ export async function provisionarUsuario(
 
   // ── Default roles for this constructora ────────────────────────────────────
   const defaultRoles = [
-    { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Gerente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
     { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
-    { nombre: "Coordinador", nivel_acceso: "DIRECTIVO" as const, es_default: true },
-    { nombre: "Asistente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
-    { nombre: "Auxiliar de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+    { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Coordinador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Asistente", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
     { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
     { nombre: "Contratista lustrador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
-    { nombre: "Obrero", nivel_acceso: "OBRERO" as const, es_default: true },
+    { nombre: "Auxiliar de obra", nivel_acceso: "OBRERO" as const, es_default: true },
   ];
 
   const rolesCreados: Record<string, string> = {};
@@ -101,6 +102,18 @@ export async function provisionarUsuario(
       score_calidad: 80,
       score_velocidad_correccion: 72,
       score_total: 74,
+    },
+  });
+
+  // ── Obrero demo ───────────────────────────────────────────────────────────
+  await prisma.obrero.create({
+    data: {
+      nombre: "Diego Muñoz",
+      contratista_id: c1.id,
+      constructora_id: constructora.id,
+      fecha_inicio: new Date(),
+      fecha_expiracion: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      activo: true,
     },
   });
 
@@ -223,6 +236,51 @@ export async function provisionarUsuario(
           },
         });
       }
+    }
+  }
+
+  // ── Zonas Comunes ─────────────────────────────────────────────────────────
+  const faseZonasComunes = await prisma.fase.create({
+    data: { proyecto_id: proyecto.id, nombre: "Zonas Comunes", orden: 3 },
+  });
+
+  const edificioZonasComunes = await prisma.edificio.create({
+    data: {
+      proyecto_id: proyecto.id,
+      nombre: "Zonas Comunes",
+      num_pisos: 1,
+      es_zona_comun: true,
+    },
+  });
+
+  const pisoZC = await prisma.piso.create({
+    data: { edificio_id: edificioZonasComunes.id, numero: 1 },
+  });
+
+  const zonasComunes = ["Lobby", "Piscina"] as const;
+  for (const zonaName of zonasComunes) {
+    const unidad = await prisma.unidad.create({
+      data: { piso_id: pisoZC.id, nombre: zonaName },
+    });
+
+    const tareasZona = TASK_TEMPLATES["Zonas Comunes"]?.[zonaName] ?? [];
+    for (const tpl of tareasZona) {
+      const espacio = await prisma.espacio.create({
+        data: { unidad_id: unidad.id, nombre: zonaName, metraje: 50 },
+      });
+      await prisma.tarea.create({
+        data: {
+          espacio_id: espacio.id,
+          fase_id: faseZonasComunes.id,
+          nombre: tpl.nombre,
+          codigo_referencia: tpl.codigo_referencia,
+          marca_linea: tpl.marca_linea,
+          componentes: tpl.componentes,
+          tiempo_acordado_dias: tpl.tiempo_acordado_dias,
+          asignado_a: c2.id,
+          estado: "PENDIENTE",
+        },
+      });
     }
   }
 }
