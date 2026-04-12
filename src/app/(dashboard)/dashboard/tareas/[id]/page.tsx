@@ -136,6 +136,21 @@ export default async function TareaDetallePage({
               )}
             </div>
 
+            {/* Foto de referencia */}
+            {tarea.fotoReferenciaSignedUrl && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
+                <h3 className="font-bold text-slate-800 mb-4">Foto de referencia</h3>
+                <div className="rounded-xl overflow-hidden border border-slate-200">
+                  <img
+                    src={tarea.fotoReferenciaSignedUrl}
+                    alt="Foto de referencia"
+                    className="w-full max-h-64 object-cover"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">Así debe quedar la tarea al completarse</p>
+              </div>
+            )}
+
             {/* Evidencia */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Evidencia</h3>
