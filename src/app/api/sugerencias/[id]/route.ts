@@ -6,6 +6,7 @@ import {
   sugerenciaAprobadaEmailHtml,
   sugerenciaRechazadaEmailHtml,
 } from "@/lib/email-templates/sugerencias";
+import { crearNotificacion } from "@/lib/notifications";
 
 // PATCH /api/sugerencias/[id]
 // ADMINISTRADOR: approve or reject a suggestion
@@ -138,6 +139,19 @@ export async function PATCH(
       } catch (emailErr) {
         console.error("Error enviando email de aprobación de sugerencia:", emailErr);
       }
+
+      // Crear notificación in-app para el contratista
+      try {
+        await crearNotificacion({
+          usuario_id: sugerencia.contratista_id,
+          tipo: "SUGERENCIA_APROBADA",
+          titulo: "Sugerencia aprobada",
+          mensaje: `Tu sugerencia "${sugerencia.nombre}" en ${sugerencia.proyecto.nombre} fue aprobada`,
+          link: `/contratista`,
+        });
+      } catch (err) {
+        console.error("Error creando notificación de sugerencia aprobada:", err);
+      }
     } else {
       // RECHAZADA
       if (!motivo_rechazo) {
@@ -172,6 +186,19 @@ export async function PATCH(
         }).catch((err) => console.error("Email rechazo sugerencia falló:", err));
       } catch (emailErr) {
         console.error("Error enviando email de rechazo de sugerencia:", emailErr);
+      }
+
+      // Crear notificación in-app para el contratista
+      try {
+        await crearNotificacion({
+          usuario_id: sugerencia.contratista_id,
+          tipo: "SUGERENCIA_RECHAZADA",
+          titulo: "Sugerencia no aprobada",
+          mensaje: `Tu sugerencia "${sugerencia.nombre}" en ${sugerencia.proyecto.nombre} no fue aprobada`,
+          link: `/contratista/sugerir`,
+        });
+      } catch (err) {
+        console.error("Error creando notificación de sugerencia rechazada:", err);
       }
     }
 
