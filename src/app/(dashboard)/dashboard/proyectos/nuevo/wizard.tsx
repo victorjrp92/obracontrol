@@ -124,6 +124,27 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
     );
   }
 
+  // Custom task form
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskFase, setNewTaskFase] = useState("");
+  const [newTaskEspacio, setNewTaskEspacio] = useState("");
+  const [newTaskNombre, setNewTaskNombre] = useState("");
+  const [newTaskDias, setNewTaskDias] = useState(3);
+
+  function addCustomTask() {
+    if (!newTaskFase || !newTaskEspacio || !newTaskNombre.trim()) return;
+    const id = `custom-${Date.now()}`;
+    setTareas([...tareas, {
+      id,
+      fase: newTaskFase,
+      espacio: newTaskEspacio,
+      nombre: newTaskNombre.trim(),
+      tiempo_acordado_dias: newTaskDias,
+    }]);
+    setNewTaskNombre("");
+    setNewTaskDias(3);
+  }
+
   function removeTarea(id: string) {
     setTareas(tareas.filter((t) => t.id !== id));
   }
@@ -481,19 +502,87 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
             </div>
           </div>
 
-          {/* Generar tareas sugeridas */}
-          <div className="mb-4">
+          {/* Generar tareas sugeridas + agregar personalizada */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
             <button
               onClick={generarTareasSugeridas}
-              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-xl text-sm"
+              className="inline-flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-xl text-sm cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               Generar tareas sugeridas
             </button>
-            <p className="text-xs text-slate-500 mt-2">
-              Genera automáticamente las tareas comunes para los espacios y fases seleccionados
-            </p>
+            <button
+              onClick={() => {
+                setShowAddTask(!showAddTask);
+                if (!newTaskFase && fasesSeleccionadas.length > 0) setNewTaskFase(fasesSeleccionadas[0]);
+                if (!newTaskEspacio && espaciosSeleccionados.length > 0) setNewTaskEspacio(espaciosSeleccionados[0]);
+              }}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Agregar tarea manual
+            </button>
           </div>
+          <p className="text-xs text-slate-500 mb-4">
+            Genera tareas sugeridas o agrega las tuyas manualmente
+          </p>
+
+          {/* Custom task form */}
+          {showAddTask && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-3">Nueva tarea</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Fase</label>
+                  <select
+                    value={newTaskFase}
+                    onChange={(e) => setNewTaskFase(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                  >
+                    {fasesSeleccionadas.map((f) => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Espacio</label>
+                  <select
+                    value={newTaskEspacio}
+                    onChange={(e) => setNewTaskEspacio(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                  >
+                    {espaciosSeleccionados.map((e) => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="text-xs text-slate-500 mb-1 block">Nombre de la tarea</label>
+                  <input
+                    value={newTaskNombre}
+                    onChange={(e) => setNewTaskNombre(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomTask(); } }}
+                    placeholder="Ej: Instalar mesón"
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Días</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newTaskDias}
+                    onChange={(e) => setNewTaskDias(Number(e.target.value))}
+                    className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={addCustomTask}
+                disabled={!newTaskFase || !newTaskEspacio || !newTaskNombre.trim()}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Agregar
+              </button>
+            </div>
+          )}
 
           {/* Lista de tareas */}
           {tareas.length > 0 && (

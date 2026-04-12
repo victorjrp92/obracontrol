@@ -218,7 +218,7 @@ export async function getContratistas(constructoraId: string) {
 export async function getUsuarios(constructoraId: string) {
   return prisma.usuario.findMany({
     where: { constructora_id: constructoraId },
-    select: { id: true, email: true, nombre: true, rol_ref: { select: { nombre: true, nivel_acceso: true } }, created_at: true },
+    select: { id: true, email: true, nombre: true, rol_id: true, rol_ref: { select: { nombre: true, nivel_acceso: true } }, created_at: true },
     orderBy: { created_at: "desc" },
   });
 }

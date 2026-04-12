@@ -2,15 +2,14 @@ import { redirect } from "next/navigation";
 import { getTareasFiltradas, getUsuarioActual } from "@/lib/data";
 import Topbar from "@/components/dashboard/Topbar";
 import TaskRow from "@/components/dashboard/TaskRow";
-import { Filter, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 
 const filters = [
   { label: "Todas", value: "ALL" },
-  { label: "Reportadas", value: "REPORTADA" },
-  { label: "No aprobadas", value: "NO_APROBADA" },
   { label: "Pendientes", value: "PENDIENTE" },
+  { label: "Reportadas", value: "REPORTADA" },
   { label: "Aprobadas", value: "APROBADA" },
+  { label: "No aprobadas", value: "NO_APROBADA" },
 ];
 
 export default async function TareasPage({
@@ -22,7 +21,7 @@ export default async function TareasPage({
   if (!usuario?.constructora_id) redirect("/login");
 
   const { estado } = await searchParams;
-  const activeFilter = estado ?? "ALL";
+  const activeFilter = estado ?? "REPORTADA";
 
   const tareas = await getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol_ref.nivel_acceso);
 
@@ -36,7 +35,7 @@ export default async function TareasPage({
             {filters.map((f) => (
               <Link
                 key={f.value}
-                href={f.value === "ALL" ? "/dashboard/tareas" : `/dashboard/tareas?estado=${f.value}`}
+                href={`/dashboard/tareas?estado=${f.value}`}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   activeFilter === f.value
                     ? "bg-blue-600 text-white"
@@ -47,16 +46,7 @@ export default async function TareasPage({
               </Link>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors cursor-pointer">
-              <Filter className="w-3.5 h-3.5" />
-              Filtrar
-            </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors cursor-pointer">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Ordenar
-            </button>
-          </div>
+          <span className="text-xs text-slate-400">{tareas.length} resultado{tareas.length !== 1 ? "s" : ""}</span>
         </div>
 
         {/* Tasks list */}

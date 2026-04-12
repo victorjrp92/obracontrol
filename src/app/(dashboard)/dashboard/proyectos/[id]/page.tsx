@@ -22,15 +22,47 @@ function getUnidadColor(tareas: { estado: string }[]): string {
 
 export default async function ProyectoDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ unidad?: string }>;
 }) {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login");
 
   const { id } = await params;
+  const { unidad: unidadId } = await searchParams;
   const proyecto = await getProyectoDetalle(id);
   if (!proyecto) notFound();
+
+  // Find selected unidad if param present
+  type TareaType = { id: string; nombre: string; estado: string; tiempo_acordado_dias: number; asignado_usuario: { id: string; nombre: string } | null };
+  let selectedUnidad: { nombre: string; edificioNombre: string; pisoNumero: number; tareas: TareaType[] } | null = null;
+  if (unidadId) {
+    for (const edificio of proyecto.edificios) {
+      for (const piso of edificio.pisos) {
+        const u = piso.unidades.find((u) => u.id === unidadId);
+        if (u) {
+          selectedUnidad = {
+            nombre: u.nombre,
+            edificioNombre: edificio.nombre,
+            pisoNumero: piso.numero,
+            tareas: u.espacios.flatMap((e) =>
+              e.tareas.map((t) => ({
+                id: t.id,
+                nombre: `${e.nombre} — ${t.nombre}`,
+                estado: t.estado,
+                tiempo_acordado_dias: t.tiempo_acordado_dias,
+                asignado_usuario: t.asignado_usuario,
+              }))
+            ),
+          };
+          break;
+        }
+      }
+      if (selectedUnidad) break;
+    }
+  }
 
   const formatDate = (d: Date | string | null) => {
     if (!d) return "—";
@@ -146,6 +178,52 @@ export default async function ProyectoDetallePage({
             </div>
           </div>
         ))}
+
+        {/* Unidad detail panel */}
+        {selectedUnidad && (() => {
+          const estados = ["PENDIENTE", "REPORTADA", "APROBADA", "NO_APROBADA"] as const;
+          const labels: Record<string, string> = { PENDIENTE: "Pendientes", REPORTADA: "Reportadas", APROBADA: "Aprobadas", NO_APROBADA: "No aprobadas" };
+          const colors: Record<string, string> = { PENDIENTE: "text-slate-600 bg-slate-100", REPORTADA: "text-blue-700 bg-blue-50", APROBADA: "text-green-700 bg-green-50", NO_APROBADA: "text-red-700 bg-red-50" };
+          const dotColors: Record<string, string> = { PENDIENTE: "bg-slate-400", REPORTADA: "bg-blue-500", APROBADA: "bg-green-500", NO_APROBADA: "bg-red-500" };
+          return (
+            <div id="unidad-detail" className="bg-white rounded-2xl border border-blue-200 p-5 sm:p-6 mb-6 scroll-mt-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-bold text-slate-900 text-lg">Apto {selectedUnidad.nombre}</h2>
+                  <p className="text-sm text-slate-500">{selectedUnidad.edificioNombre} · Piso {selectedUnidad.pisoNumero} · {selectedUnidad.tareas.length} tareas</p>
+                </div>
+                <Link href={`/dashboard/proyectos/${id}`} className="text-xs text-slate-500 hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg">Cerrar</Link>
+              </div>
+              {estados.map((estado) => {
+                const tareasEstado = selectedUnidad.tareas.filter((t) => t.estado === estado);
+                if (tareasEstado.length === 0) return null;
+                return (
+                  <div key={estado} className="mb-4 last:mb-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`w-2 h-2 rounded-full ${dotColors[estado]}`} />
+                      <span className="text-sm font-semibold text-slate-700">{labels[estado]}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[estado]}`}>{tareasEstado.length}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 pl-4">
+                      {tareasEstado.map((t) => (
+                        <Link key={t.id} href={`/dashboard/tareas/${t.id}`} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-50 transition-colors group">
+                          <span className="text-sm text-slate-800 group-hover:text-blue-600">{t.nombre}</span>
+                          <div className="flex items-center gap-2">
+                            {t.asignado_usuario && <span className="text-xs text-slate-400">{t.asignado_usuario.nombre}</span>}
+                            <span className="text-xs text-slate-400">{t.tiempo_acordado_dias}d</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {selectedUnidad.tareas.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-6">No hay tareas en esta unidad</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Zonas comunes */}
         {proyecto.edificios.filter((e) => e.es_zona_comun).map((edificio) => (

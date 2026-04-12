@@ -16,7 +16,7 @@ export async function PATCH(
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
