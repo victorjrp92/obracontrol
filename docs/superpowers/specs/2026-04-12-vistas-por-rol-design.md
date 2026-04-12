@@ -626,3 +626,84 @@ Este diseño es una feature grande. Se recomienda implementar en sub-proyectos i
 - Badge de conteo
 
 Cada sub-proyecto produce software funcional y testeable de forma independiente.
+
+---
+
+## 14. Seguridad, Pruebas y Protección de Datos
+
+### 14.1 Protección de APIs
+
+Toda API route debe validar:
+- **Autenticación**: verificar sesión de Supabase Auth (o token de obrero para rutas `/o/`)
+- **Autorización por nivel**: verificar que el `nivel_acceso` del usuario permite la operación
+- **Aislamiento de datos (tenant isolation)**: toda query incluye `constructora_id` — un usuario de la constructora A NUNCA puede ver datos de la constructora B
+- **Validación de propiedad**: un contratista solo puede ver/modificar sus propias tareas, obreros y sugerencias
+- **Rate limiting**: protección contra abuso en endpoints públicos (login, registro, token de obrero)
+- **Input validation**: sanitizar todos los inputs con zod schemas en cada endpoint
+
+### 14.2 Seguridad de datos
+
+- **Datos en tránsito**: HTTPS obligatorio (Vercel lo provee por defecto)
+- **Datos en reposo**: Supabase Storage y PostgreSQL encriptan en reposo
+- **Row Level Security (RLS)**: configurar políticas en Supabase para que las queries directas a la DB estén protegidas por constructora_id
+- **Tokens de obrero**: no predecibles (cuid), con expiración, revocables, sin acceso a datos sensibles
+- **Variables de entorno**: nunca expuestas al client-side (solo `NEXT_PUBLIC_*` llegan al browser)
+- **Evidencia fotográfica**: bucket privado con signed URLs temporales (ya implementado)
+
+### 14.3 Privacidad y aislamiento multi-tenant
+
+- Cada constructora es un tenant aislado
+- Queries a la DB siempre filtran por `constructora_id`
+- Un administrador de la constructora A no puede:
+  - Ver proyectos de la constructora B
+  - Ver usuarios/contratistas/obreros de otra constructora
+  - Acceder a evidencia de otra constructora
+- Los obreros solo ven tareas del contratista que los invitó
+- Los contratistas solo ven proyectos/edificios donde están asignados
+
+### 14.4 Protección contra ataques comunes (OWASP Top 10)
+
+| Ataque | Mitigación |
+|--------|-----------|
+| SQL Injection | Prisma ORM con queries parametrizadas (nunca raw SQL) |
+| XSS | React escapa automáticamente, no usar `dangerouslySetInnerHTML` |
+| CSRF | Next.js Server Actions con tokens automáticos |
+| Broken Access Control | Validación de nivel + constructora_id en cada API route |
+| Insecure Direct Object Reference (IDOR) | Verificar propiedad del recurso antes de retornar datos |
+| File Upload Abuse | Validar tipo MIME y tamaño antes de subir a Storage |
+| Broken Authentication | Supabase Auth maneja sesiones, tokens JWT, refresh |
+| Security Misconfiguration | Headers de seguridad en next.config (CSP, X-Frame-Options, etc.) |
+
+### 14.5 Headers de seguridad
+
+Configurar en `next.config.ts`:
+- `Content-Security-Policy` — restringir fuentes de scripts, estilos, imágenes
+- `X-Frame-Options: DENY` — prevenir clickjacking
+- `X-Content-Type-Options: nosniff`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy` — deshabilitar APIs del browser no usadas
+
+### 14.6 Plan de pruebas
+
+**Por cada sub-proyecto:**
+- Tests unitarios para lógica de negocio (permisos, scoring, validaciones)
+- Tests de integración para API routes (happy path + casos de error + acceso no autorizado)
+- Tests E2E con Playwright para flujos críticos de cada vista
+
+**Tests de seguridad específicos:**
+- Test: usuario nivel CONTRATISTA intenta acceder a `/dashboard/configuracion` → redirect
+- Test: usuario nivel DIRECTIVO intenta crear proyecto → API retorna 403
+- Test: contratista A intenta ver tareas de contratista B → API retorna 403
+- Test: obrero con token expirado intenta reportar → error amigable
+- Test: obrero intenta acceder a tarea de otro contratista → 403
+- Test: request sin autenticación a cualquier API → 401
+- Test: constructora A intenta acceder datos de constructora B → 403
+- Test: upload de archivo con tipo MIME no permitido → 400
+- Test: input con caracteres maliciosos en sugerencia de tarea → sanitizado correctamente
+
+### 14.7 Auditoría
+
+Considerar para futuro (no en este release pero preparar la estructura):
+- Log de acciones críticas (aprobaciones, rechazos, creación de obreros, desactivación de tokens)
+- Registro de IP y timestamp en accesos de obrero
+- Alertas si un token de obrero se usa desde ubicaciones geográficas inconsistentes
