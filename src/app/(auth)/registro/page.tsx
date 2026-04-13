@@ -121,12 +121,20 @@ export default async function RegistroPage({ searchParams }: Props) {
               </div>
             </div>
 
-            <p className="text-xs text-slate-500 -mt-1">
-              Al registrarte aceptas nuestros{" "}
-              <Link href="/terminos" className="text-blue-600 hover:text-blue-700">términos de uso</Link>{" "}
-              y{" "}
-              <Link href="/privacidad" className="text-blue-600 hover:text-blue-700">política de privacidad</Link>.
-            </p>
+            <label className="flex items-start gap-2.5 -mt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                name="consent"
+                required
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+              />
+              <span className="text-xs text-slate-500">
+                Autorizo el tratamiento de mis datos personales conforme a la{" "}
+                <Link href="/privacidad" className="text-blue-600 hover:text-blue-700">Politica de Tratamiento de Datos</Link>{" "}
+                y acepto los{" "}
+                <Link href="/terminos" className="text-blue-600 hover:text-blue-700">Terminos y Condiciones</Link>.
+              </span>
+            </label>
 
             <button
               type="submit"

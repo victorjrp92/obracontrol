@@ -52,6 +52,7 @@ model Proyecto {
   checklist_templates     ChecklistTemplate[]
   pagos_contratista       PagoContratista[]
   tareas_sugeridas        TareaSugerida[]
+  audit_logs              AuditLog[]
 
   @@map("proyectos")
 }
@@ -284,6 +285,24 @@ model ConsumoMaterial {
   @@map("consumo_materiales")
 }
 
+// ─── AUDIT LOG ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  proyecto_id    String
+  usuario_id     String
+  accion         String   // e.g. "EDITAR_PROYECTO", "EDITAR_EDIFICIO"
+  campo          String   // field that changed
+  valor_anterior String?  // previous value (JSON string)
+  valor_nuevo    String?  // new value (JSON string)
+  created_at     DateTime @default(now())
+
+  proyecto       Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  usuario        Usuario  @relation(fields: [usuario_id], references: [id])
+
+  @@map("audit_logs")
+}
+
 // ─── USUARIOS Y CONTRATISTAS ─────────────────────────────────────────────────
 
 model Usuario {
@@ -306,6 +325,7 @@ model Usuario {
   sugerencias_hechas     TareaSugerida[]   @relation("SugerenciasContratista")
   sugerencias_revisadas  TareaSugerida[]   @relation("SugerenciasRevisadas")
   notificaciones         Notificacion[]
+  audit_logs             AuditLog[]
 
   @@map("usuarios")
 }
@@ -448,6 +468,20 @@ model Notificacion {
   @@map("notificaciones")
 }
 
+// ─── MENSAJES DE CONTACTO ───────────────────────────────────────────────────
+
+model MensajeContacto {
+  id         String   @id @default(cuid())
+  nombre     String
+  email      String
+  asunto     String
+  mensaje    String
+  leido      Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("mensajes_contacto")
+}
+
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
 enum PlanTipo {
@@ -459,6 +493,7 @@ enum PlanTipo {
 enum SubtipoProyecto {
   CASAS
   APARTAMENTOS
+  ZONAS_COMUNES
 }
 
 enum EstadoProyecto {

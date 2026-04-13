@@ -5,6 +5,8 @@ import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
 import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees } from "lucide-react";
+import ExcelButtons from "./ExcelButtons";
+import EditProyecto from "./EditProyecto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
 
@@ -69,6 +71,30 @@ export default async function ProyectoDetallePage({
     return new Intl.DateTimeFormat("es-CO", { day: "numeric", month: "short", year: "numeric" }).format(new Date(d));
   };
 
+  // Compute progress by unit type
+  const progresoByTipo: { nombre: string; aprobadas: number; total: number; porcentaje: number }[] = [];
+  const tipoGroups = new Map<string, { nombre: string; tareas: { estado: string }[] }>();
+  for (const edificio of proyecto.edificios) {
+    for (const piso of edificio.pisos) {
+      for (const unidad of piso.unidades) {
+        const tipoNombre = unidad.tipo_unidad?.nombre ?? "Sin tipo";
+        if (!tipoGroups.has(tipoNombre)) {
+          tipoGroups.set(tipoNombre, { nombre: tipoNombre, tareas: [] });
+        }
+        const group = tipoGroups.get(tipoNombre)!;
+        for (const espacio of unidad.espacios) {
+          for (const tarea of espacio.tareas) {
+            group.tareas.push(tarea);
+          }
+        }
+      }
+    }
+  }
+  for (const [, group] of tipoGroups) {
+    const prog = calcularProgreso(group.tareas);
+    progresoByTipo.push({ nombre: group.nombre, aprobadas: prog.aprobadas, total: prog.total, porcentaje: prog.porcentajeAprobado });
+  }
+
   return (
     <>
       <Topbar title={proyecto.nombre} subtitle={`${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`} />
@@ -81,6 +107,30 @@ export default async function ProyectoDetallePage({
           <ArrowLeft className="w-4 h-4" />
           Volver a proyectos
         </Link>
+
+        {/* Excel import/export */}
+        {["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
+          <div className="mb-4">
+            <ExcelButtons proyectoId={id} />
+          </div>
+        )}
+
+        {/* Edit project + audit log (admin can edit, directivo can view log) */}
+        {["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
+          <div className="mb-4">
+            <EditProyecto
+              proyecto={{
+                id,
+                nombre: proyecto.nombre,
+                dias_habiles_semana: proyecto.dias_habiles_semana,
+                fecha_inicio: proyecto.fecha_inicio?.toISOString() ?? null,
+                fecha_fin_estimada: proyecto.fecha_fin_estimada?.toISOString() ?? null,
+                estado: proyecto.estado,
+              }}
+              canEdit={usuario.rol_ref.nivel_acceso === "ADMINISTRADOR"}
+            />
+          </div>
+        )}
 
         {/* Progress summary */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
@@ -124,6 +174,22 @@ export default async function ProyectoDetallePage({
             </div>
           </div>
         </div>
+
+        {/* Progress by unit type */}
+        {progresoByTipo.length > 1 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+            {progresoByTipo.map((tipo) => (
+              <div key={tipo.nombre} className="bg-white rounded-xl border border-slate-100 p-4">
+                <div className="text-xs text-slate-500 mb-1">{tipo.nombre}</div>
+                <div className="text-xl font-bold text-slate-900">{tipo.porcentaje}%</div>
+                <div className="relative h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
+                  <div className="absolute inset-y-0 left-0 rounded-full bg-blue-600" style={{ width: `${tipo.porcentaje}%` }} />
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1">{tipo.aprobadas}/{tipo.total} tareas</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Regular buildings */}
         {proyecto.edificios.filter((e) => !e.es_zona_comun).map((edificio) => (

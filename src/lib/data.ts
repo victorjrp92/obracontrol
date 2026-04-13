@@ -223,14 +223,23 @@ export async function getUsuarios(constructoraId: string) {
   });
 }
 
+// Proyectos activos (lightweight, for dropdowns)
+export async function getProyectosActivos(constructoraId: string) {
+  return prisma.proyecto.findMany({
+    where: { constructora_id: constructoraId, estado: "ACTIVO" },
+    select: { id: true, nombre: true },
+    orderBy: { nombre: "asc" },
+  });
+}
+
 // Tareas para la página de tareas con filtros
-export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, nivelAcceso?: string) {
+export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, nivelAcceso?: string, proyectoId?: string) {
   const ahora = new Date();
   const esContratista = nivelAcceso === "CONTRATISTA";
 
   const tareas = await prisma.tarea.findMany({
     where: {
-      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
+      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId, ...(proyectoId ? { id: proyectoId } : {}) } } } } },
       ...(estado && estado !== "ALL" ? { estado: estado as never } : {}),
       ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },

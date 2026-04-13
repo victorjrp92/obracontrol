@@ -40,9 +40,9 @@ export default function Footer() {
               Visibilidad total, evidencia verificable, decisiones en tiempo real.
             </p>
             <div className="flex flex-col gap-2 text-sm">
-              <a href="mailto:hola@seiricon.co" className="flex items-center gap-2 hover:text-white transition-colors">
+              <a href="mailto:info@seiricon.com" className="flex items-center gap-2 hover:text-white transition-colors">
                 <Mail className="w-4 h-4" />
-                hola@seiricon.co
+                info@seiricon.com
               </a>
               <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-white transition-colors">
                 <Phone className="w-4 h-4" />

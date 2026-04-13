@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { getTareasFiltradas, getUsuarioActual } from "@/lib/data";
+import { getTareasFiltradas, getUsuarioActual, getProyectosActivos } from "@/lib/data";
 import Topbar from "@/components/dashboard/Topbar";
 import TaskRow from "@/components/dashboard/TaskRow";
 import Link from "next/link";
+import ProjectSelect from "./ProjectSelect";
 
 const filters = [
   { label: "Todas", value: "ALL" },
@@ -15,27 +16,39 @@ const filters = [
 export default async function TareasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; proyecto?: string }>;
 }) {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
-  const { estado } = await searchParams;
+  const { estado, proyecto } = await searchParams;
   const activeFilter = estado ?? "REPORTADA";
+  const activeProyecto = proyecto ?? "";
 
-  const tareas = await getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol_ref.nivel_acceso);
+  const [tareas, proyectos] = await Promise.all([
+    getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol_ref.nivel_acceso, activeProyecto || undefined),
+    getProyectosActivos(usuario.constructora_id),
+  ]);
+
+  // Build href preserving both filters
+  function buildHref(newEstado: string) {
+    const sp = new URLSearchParams();
+    sp.set("estado", newEstado);
+    if (activeProyecto) sp.set("proyecto", activeProyecto);
+    return `/dashboard/tareas?${sp.toString()}`;
+  }
 
   return (
     <>
       <Topbar title="Tareas" subtitle="Seguimiento de todas las tareas" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-2 flex-wrap">
             {filters.map((f) => (
               <Link
                 key={f.value}
-                href={`/dashboard/tareas?estado=${f.value}`}
+                href={buildHref(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   activeFilter === f.value
                     ? "bg-blue-600 text-white"
@@ -46,7 +59,16 @@ export default async function TareasPage({
               </Link>
             ))}
           </div>
-          <span className="text-xs text-slate-400">{tareas.length} resultado{tareas.length !== 1 ? "s" : ""}</span>
+          <div className="flex items-center gap-3">
+            {proyectos.length > 1 && (
+              <ProjectSelect
+                proyectos={proyectos}
+                activeProyecto={activeProyecto}
+                activeFilter={activeFilter}
+              />
+            )}
+            <span className="text-xs text-slate-400">{tareas.length} resultado{tareas.length !== 1 ? "s" : ""}</span>
+          </div>
         </div>
 
         {/* Tasks list */}

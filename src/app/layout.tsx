@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import CookieBanner from "@/components/CookieBanner";
 
 export const metadata: Metadata = {
   title: "Seiricon — Construyendo en orden",
@@ -23,7 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full">
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+      <body className="min-h-full flex flex-col antialiased">
+        {children}
+        <CookieBanner />
+      </body>
     </html>
   );
 }
