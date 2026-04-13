@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { login, loginConGoogle } from "../actions";
+import AuthRightPanel from "@/components/auth/AuthRightPanel";
 
 interface Props {
   searchParams: Promise<{ error?: string }>;
@@ -10,9 +11,9 @@ export default async function LoginPage({ searchParams }: Props) {
   const { error } = await searchParams;
 
   return (
-    <div className="min-h-dvh flex hero-bg">
+    <div className="min-h-dvh flex">
       {/* Left — form */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex-1 flex items-center justify-center px-4 py-12 bg-slate-50">
         <div className="w-full max-w-sm">
           <Link href="/" className="flex items-center gap-2.5 mb-8">
             <img src="/seiricon-icon.png" alt="Seiricon" className="w-10 h-10" />
@@ -114,21 +115,8 @@ export default async function LoginPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Right — visual */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 items-center justify-center p-12">
-        <div className="max-w-md text-center text-white">
-          <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6 backdrop-blur">
-            <img src="/seiricon-icon.png" alt="Seiricon" className="w-14 h-14" />
-          </div>
-          <h2 className="text-3xl font-extrabold mb-4 leading-tight">
-            Control total de tu obra desde un solo lugar
-          </h2>
-          <p className="text-blue-200 text-base leading-relaxed">
-            Evidencia fotográfica, aprobaciones estructuradas y métricas en tiempo real
-            para constructoras en Colombia.
-          </p>
-        </div>
-      </div>
+      {/* Right — interactive buildings visual */}
+      <AuthRightPanel />
     </div>
   );
 }

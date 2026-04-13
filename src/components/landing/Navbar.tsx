@@ -13,6 +13,7 @@ const navLinks = [
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
 
@@ -23,17 +24,26 @@ export default function Navbar() {
       { y: 0, opacity: 1, duration: 0.7, ease: "power3.out", delay: 0.2 }
     );
 
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 20);
+      // Switch to light theme once scrolled past ~90% of viewport (hero height)
+      setPastHero(window.scrollY > window.innerHeight * 0.85);
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Colors depend on whether we're in the dark hero or light content below
+  const inDark = !pastHero;
 
   return (
     <nav
       ref={navRef}
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "glass-card shadow-sm shadow-blue-100/50"
+          ? inDark
+            ? "glass-card-dark shadow-lg shadow-black/10"
+            : "glass-card shadow-sm shadow-blue-100/50"
           : "bg-transparent"
       }`}
     >
@@ -43,8 +53,12 @@ export default function Navbar() {
           <Link href="/" className="flex items-center gap-2 group">
             <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9" />
             <div className="leading-tight">
-              <div className="font-extrabold text-slate-900 text-base tracking-wide">SEIRICON</div>
-              <div className="text-[9px] text-slate-500">construyendo en orden</div>
+              <div className={`font-extrabold text-base tracking-wide transition-colors duration-300 ${inDark ? "text-white" : "text-slate-900"}`}>
+                SEIRICON
+              </div>
+              <div className={`text-[9px] transition-colors duration-300 ${inDark ? "text-blue-400" : "text-slate-500"}`}>
+                construyendo en orden
+              </div>
             </div>
           </Link>
 
@@ -54,7 +68,11 @@ export default function Navbar() {
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors duration-150 cursor-pointer"
+                className={`text-sm font-medium transition-colors duration-300 cursor-pointer ${
+                  inDark
+                    ? "text-white/60 hover:text-white"
+                    : "text-slate-600 hover:text-blue-600"
+                }`}
               >
                 {link.label}
               </a>
@@ -65,7 +83,11 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             <Link
               href="/login"
-              className="text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors duration-150 px-3 py-2"
+              className={`text-sm font-medium transition-colors duration-300 px-3 py-2 ${
+                inDark
+                  ? "text-white/70 hover:text-white"
+                  : "text-slate-700 hover:text-blue-600"
+              }`}
             >
               Ingresar
             </Link>
@@ -73,14 +95,18 @@ export default function Navbar() {
               href="/registro"
               className="text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-150 shadow-sm"
             >
-              Prueba gratis — 14 días
+              Empezar gratis
             </Link>
           </div>
 
           {/* Mobile menu button */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className={`md:hidden p-2 rounded-lg transition-colors cursor-pointer ${
+              inDark
+                ? "text-white/70 hover:bg-white/10"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
             aria-label="Menú"
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -90,26 +116,34 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden glass-card border-t border-slate-200/60 px-4 py-4 flex flex-col gap-3">
+        <div className={`md:hidden border-t px-4 py-4 flex flex-col gap-3 ${
+          inDark
+            ? "glass-card-dark border-white/10"
+            : "glass-card border-slate-200/60"
+        }`}>
           {navLinks.map((link) => (
             <a
               key={link.href}
               href={link.href}
               onClick={() => setMenuOpen(false)}
-              className="text-sm font-medium text-slate-700 hover:text-blue-600 py-2 transition-colors cursor-pointer"
+              className={`text-sm font-medium py-2 transition-colors cursor-pointer ${
+                inDark
+                  ? "text-white/70 hover:text-white"
+                  : "text-slate-700 hover:text-blue-600"
+              }`}
             >
               {link.label}
             </a>
           ))}
-          <div className="pt-2 flex flex-col gap-2 border-t border-slate-200">
-            <Link href="/login" className="text-sm font-medium text-center text-slate-700 py-2">
+          <div className={`pt-2 flex flex-col gap-2 border-t ${inDark ? "border-white/10" : "border-slate-200"}`}>
+            <Link href="/login" className={`text-sm font-medium text-center py-2 ${inDark ? "text-white/70" : "text-slate-700"}`}>
               Ingresar
             </Link>
             <Link
               href="/registro"
               className="text-sm font-semibold text-center bg-blue-600 text-white px-4 py-2.5 rounded-lg"
             >
-              Prueba gratis — 14 días
+              Empezar gratis
             </Link>
           </div>
         </div>

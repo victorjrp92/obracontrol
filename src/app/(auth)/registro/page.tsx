@@ -1,24 +1,18 @@
 import Link from "next/link";
 import { Mail, Lock, User, Building2, ArrowRight, CheckCircle2 } from "lucide-react";
 import { registro } from "../actions";
+import AuthRightPanel from "@/components/auth/AuthRightPanel";
 
 interface Props {
   searchParams: Promise<{ error?: string; success?: string }>;
 }
-
-const perks = [
-  "14 días gratis sin tarjeta de crédito",
-  "Configura tu primer proyecto en 10 minutos",
-  "Soporte por email incluido",
-  "Cancela cuando quieras",
-];
 
 export default async function RegistroPage({ searchParams }: Props) {
   const { error, success } = await searchParams;
 
   if (success) {
     return (
-      <div className="min-h-dvh flex items-center justify-center hero-bg px-4">
+      <div className="min-h-dvh flex items-center justify-center bg-slate-50 px-4">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-lg p-8 max-w-sm w-full text-center">
           <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-6 h-6 text-green-600" />
@@ -39,9 +33,9 @@ export default async function RegistroPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="min-h-dvh flex hero-bg">
+    <div className="min-h-dvh flex">
       {/* Left — form */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex-1 flex items-center justify-center px-4 py-12 bg-slate-50">
         <div className="w-full max-w-sm">
           <Link href="/" className="flex items-center gap-2.5 mb-8">
             <img src="/seiricon-icon.png" alt="Seiricon" className="w-10 h-10" />
@@ -145,25 +139,8 @@ export default async function RegistroPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Right — visual */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 items-center justify-center p-12">
-        <div className="max-w-md text-white">
-          <h2 className="text-3xl font-extrabold mb-4 leading-tight">
-            14 días gratis. Sin tarjeta. Sin compromiso.
-          </h2>
-          <p className="text-blue-200 text-base leading-relaxed mb-8">
-            Únete a constructoras en Colombia que ya reemplazaron el Excel por control digital inteligente.
-          </p>
-          <ul className="flex flex-col gap-3">
-            {perks.map((p) => (
-              <li key={p} className="flex items-center gap-3 text-sm text-blue-100">
-                <CheckCircle2 className="w-4 h-4 text-blue-300 flex-shrink-0" />
-                {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      {/* Right — interactive buildings visual */}
+      <AuthRightPanel />
     </div>
   );
 }
