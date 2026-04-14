@@ -16,11 +16,11 @@ export default function TerminosPage() {
         <p>
           Los presentes Terminos y Condiciones regulan el acceso y uso de la plataforma tecnologica SEIRICON
           (en adelante, "la Plataforma"), operada por SEIRICON S.A.S., sociedad constituida bajo las leyes de la
-          Republica de Colombia, identificada con NIT [pendiente de registro], con domicilio en la ciudad de Bogota D.C.
+          Republica de Colombia, identificada con NIT [pendiente de registro], con domicilio en la ciudad de Cali, Valle del Cauca
         </p>
         <p>
           La Plataforma es un software como servicio (SaaS) disenado para la gestion, seguimiento y control de
-          proyectos de obra blanca y carpinteria en el sector de la construccion.
+          proyectos de construccion.
         </p>
 
         <h2>2. Aceptacion</h2>
@@ -119,7 +119,7 @@ export default function TerminosPage() {
         <h2>14. Ley Aplicable y Jurisdiccion</h2>
         <p>
           Estos Terminos se rigen por las leyes de la Republica de Colombia. Cualquier controversia sera
-          resuelta ante los jueces y tribunales competentes de la ciudad de Bogota D.C., previo agotamiento
+          resuelta ante los jueces y tribunales competentes de la ciudad de Cali, Valle del Cauca, previo agotamiento
           de mecanismos alternativos de solucion de conflictos.
         </p>
 

@@ -5,7 +5,7 @@ import CookieBanner from "@/components/CookieBanner";
 export const metadata: Metadata = {
   title: "Seiricon — Construyendo en orden",
   description:
-    "SaaS para constructoras en Colombia. Controla obra blanca, carpintería y madera en tiempo real. Evidencia fotográfica, aprobaciones y métricas de desempeño.",
+    "SaaS para constructoras. Controla todo el proceso de construccion en tiempo real. Evidencia fotografica, aprobaciones y metricas de desempeno.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

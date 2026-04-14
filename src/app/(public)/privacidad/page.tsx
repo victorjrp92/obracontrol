@@ -19,7 +19,7 @@ export default function PrivacidadPage() {
           <tbody className="divide-y divide-slate-100">
             <tr><td className="py-2 pr-4 font-medium text-slate-700 w-48">Razon social</td><td className="py-2 text-slate-600">SEIRICON S.A.S.</td></tr>
             <tr><td className="py-2 pr-4 font-medium text-slate-700">NIT</td><td className="py-2 text-slate-600">[Pendiente de registro]</td></tr>
-            <tr><td className="py-2 pr-4 font-medium text-slate-700">Domicilio</td><td className="py-2 text-slate-600">Bogota D.C., Colombia</td></tr>
+            <tr><td className="py-2 pr-4 font-medium text-slate-700">Domicilio</td><td className="py-2 text-slate-600">Cali, Colombia</td></tr>
             <tr><td className="py-2 pr-4 font-medium text-slate-700">Correo electronico</td><td className="py-2 text-slate-600"><a href="mailto:info@seiricon.com" className="text-blue-600">info@seiricon.com</a></td></tr>
             <tr><td className="py-2 pr-4 font-medium text-slate-700">Sitio web</td><td className="py-2 text-slate-600">www.seiricon.com</td></tr>
           </tbody>

@@ -21,7 +21,7 @@ export default function Hero() {
           {/* Badge */}
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs sm:text-sm font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Plataforma activa — constructoras en Colombia
+            Plataforma activa — constructoras en Latinoamerica
           </span>
 
           {/* Headline */}

@@ -20,7 +20,7 @@ export default function AuthRightPanel() {
         </h2>
         <p className="text-sm xl:text-base text-white/50 leading-relaxed mb-8">
           Evidencia fotográfica, aprobaciones estructuradas y métricas en tiempo
-          real para constructoras en Colombia.
+          real para constructoras.
         </p>
 
         {/* Stats */}

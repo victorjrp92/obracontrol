@@ -31,14 +31,14 @@ export default function ContactoPage() {
             <Phone className="w-5 h-5 text-blue-600" />
           </div>
           <div className="text-sm font-semibold text-slate-900 mb-1">Telefono</div>
-          <a href="tel:+573001234567" className="text-sm text-slate-600">+57 300 123 4567</a>
+          <a href="tel:+573151760351" className="text-sm text-slate-600">+57 315 176 0351</a>
         </div>
         <div className="flex flex-col items-center text-center p-5 rounded-xl bg-white border border-slate-100">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
             <MapPin className="w-5 h-5 text-blue-600" />
           </div>
           <div className="text-sm font-semibold text-slate-900 mb-1">Ubicacion</div>
-          <span className="text-sm text-slate-600">Bogota D.C., Colombia</span>
+          <span className="text-sm text-slate-600">Cali, Colombia</span>
         </div>
       </div>
 

@@ -36,7 +36,8 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm leading-relaxed mb-5">
-              Control de obra blanca y carpintería para constructoras en Colombia.
+              Control integral de proyectos de construccion.
+              Visibilidad total, evidencia verificable, decisiones en tiempo real.
               Visibilidad total, evidencia verificable, decisiones en tiempo real.
             </p>
             <div className="flex flex-col gap-2 text-sm">
@@ -44,9 +45,9 @@ export default function Footer() {
                 <Mail className="w-4 h-4" />
                 info@seiricon.com
               </a>
-              <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-white transition-colors">
+              <a href="tel:+573151760351" className="flex items-center gap-2 hover:text-white transition-colors">
                 <Phone className="w-4 h-4" />
-                +57 300 123 4567
+                +57 315 176 0351
               </a>
             </div>
           </div>
@@ -73,7 +74,7 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <span>© {new Date().getFullYear()} Seiricon. Todos los derechos reservados.</span>
-          <span className="text-slate-600">Hecho en Colombia 🇨🇴 para la industria de la construcción</span>
+          <span className="text-slate-600">Hecho en Latinoamerica para la industria de la construccion</span>
         </div>
       </div>
     </footer>
