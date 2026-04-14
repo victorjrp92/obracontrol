@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import {
+  requireUser,
+  requireRole,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // POST /api/extensiones — solicitar extensión de tiempo (admin/coordinador)
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-    const usuario = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { id: true, rol: true },
-    });
-
-    const rolesAutorizados = ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"];
-    if (!usuario || !rolesAutorizados.includes(usuario.rol)) {
-      return NextResponse.json({ error: "Sin permisos para autorizar extensiones" }, { status: 403 });
-    }
+    const ctx = await requireUser();
+    requireRole(ctx, "ADMIN", "JEFE_OPERACIONES", "COORDINADOR");
 
     const body = await req.json();
     const { tarea_id, dias_adicionales, justificacion, documentacion_url } = body;
@@ -33,6 +27,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "dias_adicionales debe estar entre 1 y 365" }, { status: 400 });
     }
 
+    await assertTareaInTenant(tarea_id, ctx.constructoraId);
+
     const tarea = await prisma.tarea.findUnique({ where: { id: tarea_id } });
     if (!tarea) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
@@ -46,7 +42,7 @@ export async function POST(req: NextRequest) {
           dias_adicionales: Number(dias_adicionales),
           justificacion,
           documentacion_url: documentacion_url ?? "",
-          autorizado_por: usuario.id,
+          autorizado_por: ctx.usuario.id,
         },
       }),
       prisma.tarea.update({
@@ -57,6 +53,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(extension, { status: 201 });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/extensiones", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

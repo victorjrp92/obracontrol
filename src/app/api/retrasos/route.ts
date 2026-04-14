@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { retrasoRegistradoEmailHtml } from "@/lib/email-templates/notifications";
+import {
+  requireUser,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // POST /api/retrasos — registrar retraso en una tarea
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const { constructoraId } = await requireUser();
 
     const body = await req.json();
     const { tarea_id, tipo, justificacion, evidencia_urls } = body;
@@ -33,6 +35,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    await assertTareaInTenant(tarea_id, constructoraId);
 
     const retraso = await prisma.retraso.create({
       data: {
@@ -106,6 +110,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(retraso, { status: 201 });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/retrasos", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
@@ -114,12 +120,12 @@ export async function POST(req: NextRequest) {
 // GET /api/retrasos?tarea_id=
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const { constructoraId } = await requireUser();
 
     const tarea_id = new URL(req.url).searchParams.get("tarea_id");
     if (!tarea_id) return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
+
+    await assertTareaInTenant(tarea_id, constructoraId);
 
     const retrasos = await prisma.retraso.findMany({
       where: { tarea_id },
@@ -128,6 +134,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(retrasos);
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("GET /api/retrasos", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

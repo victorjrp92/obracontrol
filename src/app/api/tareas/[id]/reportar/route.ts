@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
+import {
+  requireUser,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // POST /api/tareas/[id]/reportar — obrero reporta tarea terminada
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
+    const { constructoraId } = await requireUser();
     const { id } = await params;
+
+    // Verificar que la tarea pertenezca a la constructora del usuario
+    await assertTareaInTenant(id, constructoraId);
 
     const tarea = await prisma.tarea.findUnique({
       where: { id },
@@ -94,6 +95,8 @@ export async function POST(
 
     return NextResponse.json(updated);
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/tareas/[id]/reportar", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { recalcularScoreContratista } from "@/lib/scoring";
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
+import {
+  requireUser,
+  requireRole,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -11,22 +16,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const aprobador = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { id: true, rol: true },
-    });
-
-    const rolesAprobadores = ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE"];
-    if (!aprobador || !rolesAprobadores.includes(aprobador.rol)) {
-      return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
-    }
+    const ctx = await requireUser();
+    requireRole(ctx, "ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE");
+    const aprobador = ctx.usuario;
 
     const { id } = await params;
     const body = await req.json();
@@ -35,6 +27,9 @@ export async function POST(
     if (!["APROBADA", "NO_APROBADA"].includes(estado)) {
       return NextResponse.json({ error: "estado debe ser APROBADA o NO_APROBADA" }, { status: 400 });
     }
+
+    // Verificar que la tarea pertenezca a la constructora del aprobador
+    await assertTareaInTenant(id, ctx.constructoraId);
 
     const tarea = await prisma.tarea.findUnique({ where: { id } });
     if (!tarea || tarea.estado !== "REPORTADA") {
@@ -133,6 +128,8 @@ export async function POST(
 
     return NextResponse.json({ aprobacion, tarea: tareaActualizada });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/tareas/[id]/aprobar", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

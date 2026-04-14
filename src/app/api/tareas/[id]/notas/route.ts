@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import {
+  requireUser,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // PATCH /api/tareas/[id]/notas — actualizar notas de una tarea
 export async function PATCH(
@@ -8,11 +12,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
+    const { constructoraId } = await requireUser();
     const { id } = await params;
+
+    await assertTareaInTenant(id, constructoraId);
+
     const body = await req.json();
     const { notas } = body;
 
@@ -23,6 +27,8 @@ export async function PATCH(
 
     return NextResponse.json(tarea);
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("PATCH /api/tareas/[id]/notas", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

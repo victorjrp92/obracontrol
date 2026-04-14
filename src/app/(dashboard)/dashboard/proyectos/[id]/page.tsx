@@ -29,7 +29,7 @@ export default async function ProyectoDetallePage({
   if (!usuario) redirect("/login");
 
   const { id } = await params;
-  const proyecto = await getProyectoDetalle(id);
+  const proyecto = await getProyectoDetalle(id, usuario.constructora_id);
   if (!proyecto) notFound();
 
   const formatDate = (d: Date | string | null) => {

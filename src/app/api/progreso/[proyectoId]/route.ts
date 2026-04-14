@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { calcularProgreso, calcularSemaforo, calcularDiasHabiles } from "@/lib/scoring";
+import {
+  requireUser,
+  assertProyectoInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // GET /api/progreso/[proyectoId] — progreso ponderado completo del proyecto
 export async function GET(
@@ -9,11 +13,10 @@ export async function GET(
   { params }: { params: Promise<{ proyectoId: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
+    const { constructoraId } = await requireUser();
     const { proyectoId } = await params;
+
+    await assertProyectoInTenant(proyectoId, constructoraId);
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
@@ -111,6 +114,8 @@ export async function GET(
       edificios: edificiosData,
     });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("GET /api/progreso/[proyectoId]", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

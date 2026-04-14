@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import {
+  requireUser,
+  requireRole,
+  assertProyectoInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // GET /api/edificios?proyecto_id=
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const { constructoraId } = await requireUser();
 
     const proyecto_id = new URL(req.url).searchParams.get("proyecto_id");
     if (!proyecto_id) return NextResponse.json({ error: "proyecto_id requerido" }, { status: 400 });
+
+    await assertProyectoInTenant(proyecto_id, constructoraId);
 
     const edificios = await prisma.edificio.findMany({
       where: { proyecto_id },
@@ -38,6 +43,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(edificios);
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("GET /api/edificios", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
@@ -46,18 +53,8 @@ export async function GET(req: NextRequest) {
 // POST /api/edificios — crear edificio con pisos y unidades
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-    const usuario = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { rol: true },
-    });
-
-    if (!usuario || !["ADMIN", "JEFE_OPERACIONES"].includes(usuario.rol)) {
-      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
-    }
+    const ctx = await requireUser();
+    requireRole(ctx, "ADMIN", "JEFE_OPERACIONES");
 
     const body = await req.json();
     const { proyecto_id, nombre, num_pisos, unidades_por_piso, tipo_unidad_id } = body;
@@ -68,6 +65,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    await assertProyectoInTenant(proyecto_id, ctx.constructoraId);
 
     // Crear edificio + pisos + unidades en transacción
     const edificio = await prisma.$transaction(async (tx) => {
@@ -97,6 +96,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(edificio, { status: 201 });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/edificios", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

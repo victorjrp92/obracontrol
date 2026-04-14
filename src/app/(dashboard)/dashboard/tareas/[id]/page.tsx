@@ -46,7 +46,7 @@ export default async function TareaDetallePage({
   if (!usuario) redirect("/login");
 
   const { id } = await params;
-  const tarea = await getTareaDetalle(id);
+  const tarea = await getTareaDetalle(id, usuario.constructora_id);
   if (!tarea) notFound();
 
   const sem = semaforoConfig[tarea.semaforo as SemaforoLevel] ?? semaforoConfig.verde;
