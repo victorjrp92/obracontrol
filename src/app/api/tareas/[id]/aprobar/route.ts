@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { recalcularScoreContratista } from "@/lib/scoring";
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
+import { crearNotificacion } from "@/lib/notifications";
 import {
   requireUser,
   requireRole,
@@ -63,6 +64,21 @@ export async function POST(
       });
       if (contratista) {
         await recalcularScoreContratista(contratista.id);
+      }
+    }
+
+    // Crear notificación in-app para el contratista asignado
+    if (tareaActualizada.asignado_a) {
+      try {
+        await crearNotificacion({
+          usuario_id: tareaActualizada.asignado_a,
+          tipo: estado === "APROBADA" ? "TAREA_APROBADA" : "TAREA_RECHAZADA",
+          titulo: estado === "APROBADA" ? "Tarea aprobada" : "Tarea no aprobada",
+          mensaje: `Tu tarea "${tarea.nombre}" fue ${estado === "APROBADA" ? "aprobada" : "rechazada"}`,
+          link: `/contratista?estado=${estado}`,
+        });
+      } catch (err) {
+        console.error("Error creando notificación de aprobación:", err);
       }
     }
 

@@ -21,7 +21,7 @@ interface SendEmailOptions {
 
 export async function sendEmail({ to, subject, html }: SendEmailOptions) {
   const { error } = await getResend().emails.send({
-    from: "ObraControl <onboarding@resend.dev>",
+    from: "Seiricon <notificaciones@seiricon.com>",
     to,
     subject,
     html,

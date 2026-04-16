@@ -10,7 +10,7 @@ export async function getUsuarioActual() {
 
   return prisma.usuario.findUnique({
     where: { email: user.email! },
-    include: { constructora: true },
+    include: { constructora: true, rol_ref: true },
   });
 }
 
@@ -41,7 +41,7 @@ export async function getDashboardStats(constructoraId: string) {
     prisma.usuario.count({
       where: {
         constructora_id: constructoraId,
-        rol: { in: ["CONTRATISTA_INSTALADOR", "CONTRATISTA_LUSTRADOR"] },
+        rol_ref: { nivel_acceso: "CONTRATISTA" },
       },
     }),
     // Tareas en rojo/vinotinto (retrasadas > 15%)
@@ -124,9 +124,9 @@ export async function getProyectosConProgreso(constructoraId: string) {
 }
 
 // Tareas recientes con toda la info necesaria para el dashboard
-export async function getTareasRecientes(constructoraId: string, limite = 8, usuarioId?: string, rol?: string) {
+export async function getTareasRecientes(constructoraId: string, limite = 8, usuarioId?: string, nivelAcceso?: string) {
   const ahora = new Date();
-  const esContratista = rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR";
+  const esContratista = nivelAcceso === "CONTRATISTA";
 
   const tareas = await prisma.tarea.findMany({
     where: {
@@ -176,7 +176,7 @@ export async function getTopContratistas(constructoraId: string, limite = 3) {
   return prisma.contratista.findMany({
     where: { usuario: { constructora_id: constructoraId } },
     include: {
-      usuario: { select: { nombre: true, rol: true } },
+      usuario: { select: { nombre: true, rol_ref: { select: { nombre: true } } } },
     },
     orderBy: { score_total: "desc" },
     take: limite,
@@ -191,7 +191,7 @@ export async function getContratistas(constructoraId: string) {
       usuario: {
         select: {
           nombre: true,
-          rol: true,
+          rol_ref: { select: { nombre: true } },
           tareas_asignadas: { select: { estado: true } },
         },
       },
@@ -202,7 +202,7 @@ export async function getContratistas(constructoraId: string) {
   return contratistas.map((c) => ({
     id: c.id,
     nombre: c.usuario.nombre,
-    rol: c.usuario.rol,
+    rol: c.usuario.rol_ref.nombre,
     score_total: c.score_total,
     score_cumplimiento: c.score_cumplimiento,
     score_calidad: c.score_calidad,
@@ -218,19 +218,28 @@ export async function getContratistas(constructoraId: string) {
 export async function getUsuarios(constructoraId: string) {
   return prisma.usuario.findMany({
     where: { constructora_id: constructoraId },
-    select: { id: true, email: true, nombre: true, rol: true, created_at: true },
+    select: { id: true, email: true, nombre: true, rol_id: true, rol_ref: { select: { nombre: true, nivel_acceso: true } }, created_at: true },
     orderBy: { created_at: "desc" },
   });
 }
 
+// Proyectos activos (lightweight, for dropdowns)
+export async function getProyectosActivos(constructoraId: string) {
+  return prisma.proyecto.findMany({
+    where: { constructora_id: constructoraId, estado: "ACTIVO" },
+    select: { id: true, nombre: true },
+    orderBy: { nombre: "asc" },
+  });
+}
+
 // Tareas para la página de tareas con filtros
-export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, rol?: string) {
+export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, nivelAcceso?: string, proyectoId?: string) {
   const ahora = new Date();
-  const esContratista = rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR";
+  const esContratista = nivelAcceso === "CONTRATISTA";
 
   const tareas = await prisma.tarea.findMany({
     where: {
-      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
+      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId, ...(proyectoId ? { id: proyectoId } : {}) } } } } },
       ...(estado && estado !== "ALL" ? { estado: estado as never } : {}),
       ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },

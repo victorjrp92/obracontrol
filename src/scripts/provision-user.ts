@@ -56,13 +56,39 @@ async function main() {
     });
     console.log(`  • Constructora creada: ${constructora.nombre}`);
 
+    // ── Default roles ──────────────────────────────────────────────────────────
+    const defaultRoles = [
+      { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+      { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+      { nombre: "Coordinador", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+      { nombre: "Asistente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+      { nombre: "Auxiliar de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
+      { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+      { nombre: "Contratista lustrador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+      { nombre: "Obrero", nivel_acceso: "OBRERO" as const, es_default: true },
+    ];
+
+    const rolesCreados: Record<string, string> = {};
+    for (const rolDef of defaultRoles) {
+      const rol = await prisma.rol.create({
+        data: {
+          constructora_id: constructora.id,
+          nombre: rolDef.nombre,
+          nivel_acceso: rolDef.nivel_acceso,
+          es_default: rolDef.es_default,
+        },
+      });
+      rolesCreados[rolDef.nombre] = rol.id;
+    }
+    console.log(`  • Roles creados: ${Object.keys(rolesCreados).length}`);
+
     // ── Admin (el usuario que se registró) ────────────────────────────────────
     const admin = await prisma.usuario.create({
       data: {
         email,
         nombre,
         constructora_id: constructora.id,
-        rol: "ADMIN",
+        rol_id: rolesCreados["Administrador"],
       },
     });
     console.log(`  • Admin creado: ${admin.nombre} (${admin.email})`);
@@ -75,7 +101,7 @@ async function main() {
         email: `carlos.rincon.${uid}@demo.co`,
         nombre: "Carlos Rincón",
         constructora_id: constructora.id,
-        rol: "CONTRATISTA_INSTALADOR",
+        rol_id: rolesCreados["Contratista instalador"],
       },
     });
 
@@ -84,7 +110,7 @@ async function main() {
         email: `mauricio.soto.${uid}@demo.co`,
         nombre: "Mauricio Soto",
         constructora_id: constructora.id,
-        rol: "CONTRATISTA_LUSTRADOR",
+        rol_id: rolesCreados["Contratista lustrador"],
       },
     });
 

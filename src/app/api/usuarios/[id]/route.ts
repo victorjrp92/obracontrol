@@ -14,18 +14,25 @@ export async function PATCH(
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol: true },
+      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMIN", "JEFE_OPERACIONES"].includes(currentUser.rol)) {
+    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
     const { id } = await params;
     const body = await req.json();
-    const { rol } = body;
+    const { rol_id } = body;
 
-    const validRoles = ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE", "AUXILIAR", "CONTRATISTA_INSTALADOR", "CONTRATISTA_LUSTRADOR"];
-    if (!rol || !validRoles.includes(rol)) {
+    if (!rol_id) {
+      return NextResponse.json({ error: "rol_id es requerido" }, { status: 400 });
+    }
+
+    // Verify the rol exists and belongs to this constructora
+    const rol = await prisma.rol.findFirst({
+      where: { id: rol_id, constructora_id: currentUser.constructora_id },
+    });
+    if (!rol) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 
@@ -36,10 +43,10 @@ export async function PATCH(
 
     const updated = await prisma.usuario.update({
       where: { id },
-      data: { rol: rol as never },
+      data: { rol_id: rol.id },
     });
 
-    if (rol === "CONTRATISTA_INSTALADOR" || rol === "CONTRATISTA_LUSTRADOR") {
+    if (rol.nivel_acceso === "CONTRATISTA") {
       const existing = await prisma.contratista.findUnique({ where: { usuario_id: id } });
       if (!existing) {
         await prisma.contratista.create({

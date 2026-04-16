@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HardHat, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 import { recuperarContrasena } from "../actions";
 
 interface Props {
@@ -36,13 +36,12 @@ export default async function RecuperarPage({ searchParams }: Props) {
       {/* Left — form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
-          <Link href="/" className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
-              <HardHat className="w-4 h-4 text-white" />
+          <Link href="/" className="flex items-center gap-2.5 mb-8">
+            <img src="/seiricon-icon.png" alt="Seiricon" className="w-10 h-10" />
+            <div className="leading-tight">
+              <div className="font-extrabold text-slate-900 text-lg tracking-wide">SEIRICON</div>
+              <div className="text-[10px] text-slate-500">construyendo en orden</div>
             </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">
-              Obra<span className="text-blue-600">Control</span>
-            </span>
           </Link>
 
           <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Recupera tu contraseña</h1>
@@ -92,8 +91,8 @@ export default async function RecuperarPage({ searchParams }: Props) {
       {/* Right — visual */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 items-center justify-center p-12">
         <div className="max-w-md text-center text-white">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6 backdrop-blur">
-            <HardHat className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-6 backdrop-blur">
+            <img src="/seiricon-icon.png" alt="Seiricon" className="w-14 h-14" />
           </div>
           <h2 className="text-3xl font-extrabold mb-4 leading-tight">
             Recupera el acceso a tu cuenta en segundos

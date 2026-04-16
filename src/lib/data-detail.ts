@@ -83,7 +83,7 @@ export async function getTareaDetalle(tareaId: string, constructoraId: string) {
         select: {
           id: true,
           nombre: true,
-          rol: true,
+          rol_ref: { select: { nombre: true, nivel_acceso: true } },
           contratista_perfil: { select: { id: true } },
         },
       },
@@ -109,6 +109,11 @@ export async function getTareaDetalle(tareaId: string, constructoraId: string) {
     }))
   );
 
+  // Generar signed URL para la foto de referencia si existe
+  const fotoReferenciaSignedUrl = tarea.foto_referencia_url
+    ? await resolveEvidenciaUrl(tarea.foto_referencia_url)
+    : null;
+
   const proyecto = tarea.espacio.unidad.piso.edificio.proyecto;
   const inicio = tarea.fecha_inicio ?? tarea.created_at;
   const ahora = new Date();
@@ -119,6 +124,7 @@ export async function getTareaDetalle(tareaId: string, constructoraId: string) {
   return {
     ...tarea,
     evidencias: evidenciasConUrl,
+    fotoReferenciaSignedUrl,
     proyecto,
     ubicacion: `${tarea.espacio.unidad.piso.edificio.nombre} · Piso ${tarea.espacio.unidad.piso.numero} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`,
     semaforo,

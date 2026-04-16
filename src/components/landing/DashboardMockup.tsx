@@ -61,7 +61,7 @@ export default function DashboardMockup() {
           <div className="w-3 h-3 rounded-full bg-red-400" />
           <div className="w-3 h-3 rounded-full bg-yellow-400" />
           <div className="w-3 h-3 rounded-full bg-green-400" />
-          <div className="ml-auto text-slate-400 text-xs font-mono">obracontrol.co/proyecto/olivo</div>
+          <div className="ml-auto text-slate-400 text-xs font-mono">seiricon.co/proyecto/olivo</div>
         </div>
 
         {/* App content */}

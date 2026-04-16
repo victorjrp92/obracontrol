@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/(auth)/actions";
 import { getPermissions, getRolLabel } from "@/lib/permissions";
 import {
-  HardHat,
   LayoutDashboard,
   FolderOpen,
   ClipboardList,
@@ -16,49 +15,51 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Bell,
   LogOut,
   Menu,
   X,
+  Lightbulb,
+  Bell,
 } from "lucide-react";
+import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
 const allNavItems = [
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
   { key: "contratistas", icon: Users, label: "Contratistas", href: "/dashboard/contratistas" },
+  { key: "sugerencias", icon: Lightbulb, label: "Sugerencias", href: "/dashboard/sugerencias" },
   { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes" },
   { key: "usuarios", icon: UsersRound, label: "Usuarios", href: "/dashboard/usuarios" },
   { key: "configuracion", icon: Settings, label: "Configuración", href: "/dashboard/configuracion" },
 ];
 
 interface SidebarProps {
-  rol?: string;
+  nivelAcceso?: string;
   userName?: string;
   userRole?: string;
 }
 
-export default function Sidebar({ rol = "ADMIN", userName = "Usuario", userRole }: SidebarProps) {
+export default function Sidebar({ nivelAcceso = "ADMINISTRADOR", userName = "Usuario", userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const permissions = getPermissions(rol);
+  const permissions = getPermissions(nivelAcceso);
   const navItems = allNavItems.filter((item) => permissions.sidebarItems.includes(item.key));
-  const rolLabel = getRolLabel(userRole ?? rol);
+  const rolLabel = getRolLabel(userRole ?? nivelAcceso);
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-slate-800 flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-          <HardHat className="w-4 h-4 text-white" />
-        </div>
+      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-slate-800 flex-shrink-0">
+        <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9 flex-shrink-0" />
         {!collapsed && (
-          <span className="font-bold text-white text-base tracking-tight whitespace-nowrap">
-            Obra<span className="text-blue-400">Control</span>
-          </span>
+          <div className="leading-tight">
+            <div className="font-extrabold text-white text-base tracking-wide whitespace-nowrap">SEIRICON</div>
+            <div className="text-[9px] text-blue-300 whitespace-nowrap">construyendo en orden</div>
+          </div>
         )}
         {/* Mobile close */}
         <button
@@ -113,13 +114,7 @@ export default function Sidebar({ rol = "ADMIN", userName = "Usuario", userRole 
 
       {/* Bottom */}
       <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
-        <button
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors w-full ${collapsed ? "justify-center" : ""}`}
-          title={collapsed ? "Notificaciones" : undefined}
-        >
-          <Bell className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>Notificaciones</span>}
-        </button>
+        <NotificacionesDropdown collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"

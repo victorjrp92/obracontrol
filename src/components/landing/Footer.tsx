@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { HardHat, Mail, Phone } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 
 const links = {
   Producto: [
@@ -28,26 +28,26 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 lg:gap-16">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                <HardHat className="w-4 h-4 text-white" />
+            <Link href="/" className="flex items-center gap-2.5 mb-4">
+              <img src="/seiricon-icon.png" alt="Seiricon" className="w-10 h-10" />
+              <div className="leading-tight">
+                <div className="font-extrabold text-white text-lg tracking-wide">SEIRICON</div>
+                <div className="text-[10px] text-blue-300">construyendo en orden</div>
               </div>
-              <span className="font-bold text-white text-lg">
-                Obra<span className="text-blue-400">Control</span>
-              </span>
             </Link>
             <p className="text-sm leading-relaxed mb-5">
-              Control de obra blanca y carpintería para constructoras en Colombia.
+              Control integral de proyectos de construccion.
+              Visibilidad total, evidencia verificable, decisiones en tiempo real.
               Visibilidad total, evidencia verificable, decisiones en tiempo real.
             </p>
             <div className="flex flex-col gap-2 text-sm">
-              <a href="mailto:hola@obracontrol.co" className="flex items-center gap-2 hover:text-white transition-colors">
+              <a href="mailto:info@seiricon.com" className="flex items-center gap-2 hover:text-white transition-colors">
                 <Mail className="w-4 h-4" />
-                hola@obracontrol.co
+                info@seiricon.com
               </a>
-              <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-white transition-colors">
+              <a href="tel:+573151760351" className="flex items-center gap-2 hover:text-white transition-colors">
                 <Phone className="w-4 h-4" />
-                +57 300 123 4567
+                +57 315 176 0351
               </a>
             </div>
           </div>
@@ -73,8 +73,8 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <span>© {new Date().getFullYear()} ObraControl. Todos los derechos reservados.</span>
-          <span className="text-slate-600">Hecho en Colombia 🇨🇴 para la industria de la construcción</span>
+          <span>© {new Date().getFullYear()} Seiricon. Todos los derechos reservados.</span>
+          <span className="text-slate-600">Hecho en Latinoamerica para la industria de la construccion</span>
         </div>
       </div>
     </footer>

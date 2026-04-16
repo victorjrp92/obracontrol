@@ -1,23 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, UserPlus, Mail, User, Shield } from "lucide-react";
 
-const roles = [
-  { value: "COORDINADOR", label: "Coordinador de instalaciones" },
-  { value: "ASISTENTE", label: "Asistente de instalaciones" },
-  { value: "AUXILIAR", label: "Auxiliar de obra" },
-  { value: "CONTRATISTA_INSTALADOR", label: "Contratista instalador" },
-  { value: "CONTRATISTA_LUSTRADOR", label: "Contratista lustrador" },
-  { value: "JEFE_OPERACIONES", label: "Jefe de operaciones" },
-  { value: "ADMIN", label: "Administrador" },
-];
+interface RolOption {
+  id: string;
+  nombre: string;
+}
 
 export default function InviteUserModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [roles, setRoles] = useState<RolOption[]>([]);
+
+  useEffect(() => {
+    fetch("/api/roles")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setRoles(data);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,7 +33,7 @@ export default function InviteUserModal({ onClose }: { onClose: () => void }) {
     const body = {
       email: form.get("email"),
       nombre: form.get("nombre"),
-      rol: form.get("rol"),
+      rol_id: form.get("rol_id"),
     };
 
     const res = await fetch("/api/usuarios", {
@@ -91,12 +96,12 @@ export default function InviteUserModal({ onClose }: { onClose: () => void }) {
             <div className="relative">
               <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <select
-                name="rol" required
+                name="rol_id" required
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 appearance-none bg-white cursor-pointer"
               >
                 <option value="">Seleccionar rol...</option>
                 {roles.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
+                  <option key={r.id} value={r.id}>{r.nombre}</option>
                 ))}
               </select>
             </div>

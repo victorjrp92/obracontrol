@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import CookieBanner from "@/components/CookieBanner";
 
 const APP_NAME = "ObraControl";
 const APP_DESCRIPTION =
@@ -44,7 +45,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full" dir="ltr">
-      <body className="min-h-full flex flex-col antialiased">{children}</body>
+      <body className="min-h-full flex flex-col antialiased">
+        {children}
+        <CookieBanner />
+      </body>
     </html>
   );
 }

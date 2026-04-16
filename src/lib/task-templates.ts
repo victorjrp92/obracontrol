@@ -21,6 +21,17 @@ export const ESPACIOS_SUGERIDOS = [
   "Hall",
 ];
 
+export const ZONAS_COMUNES_SUGERIDAS = [
+  "Lobby",
+  "Piscina",
+  "Salón de eventos",
+  "Portería",
+  "Pasillos",
+  "Baños comunes",
+  "Zona de juegos infantiles",
+  "Terraza BBQ",
+];
+
 export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
   "Obra Blanca": {
     Cocina: [
@@ -125,6 +136,48 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
     ],
     "Zona de labores": [
       { nombre: "Mueble zona de labores", tiempo_acordado_dias: 2 },
+    ],
+  },
+  "Zonas Comunes": {
+    Lobby: [
+      { nombre: "Estuco paredes lobby", tiempo_acordado_dias: 3 },
+      { nombre: "Pintura muros lobby", tiempo_acordado_dias: 2 },
+      { nombre: "Pintura techo lobby", tiempo_acordado_dias: 2 },
+      { nombre: "Acabado recepción", tiempo_acordado_dias: 2 },
+    ],
+    Piscina: [
+      { nombre: "Baldosería borde piscina", tiempo_acordado_dias: 4 },
+      { nombre: "Baldosería duchas piscina", tiempo_acordado_dias: 3 },
+      { nombre: "Pintura caseta máquinas", tiempo_acordado_dias: 1 },
+    ],
+    "Salón de eventos": [
+      { nombre: "Estuco paredes salón", tiempo_acordado_dias: 3 },
+      { nombre: "Pintura muros salón", tiempo_acordado_dias: 2 },
+      { nombre: "Pintura techo salón", tiempo_acordado_dias: 2 },
+      { nombre: "Acabado barra salón", tiempo_acordado_dias: 2 },
+    ],
+    Portería: [
+      { nombre: "Estuco paredes portería", tiempo_acordado_dias: 1 },
+      { nombre: "Pintura portería", tiempo_acordado_dias: 1 },
+      { nombre: "Acabado módulo portero", tiempo_acordado_dias: 1 },
+    ],
+    Pasillos: [
+      { nombre: "Pintura muros pasillos", tiempo_acordado_dias: 3 },
+      { nombre: "Pintura techo pasillos", tiempo_acordado_dias: 2 },
+    ],
+    "Baños comunes": [
+      { nombre: "Baldosería pisos baños comunes", tiempo_acordado_dias: 2 },
+      { nombre: "Baldosería paredes baños comunes", tiempo_acordado_dias: 2 },
+      { nombre: "Pintura techo baños comunes", tiempo_acordado_dias: 1 },
+    ],
+    "Zona de juegos infantiles": [
+      { nombre: "Pintura muros perimetrales zona infantil", tiempo_acordado_dias: 2 },
+      { nombre: "Acabado piso zona infantil", tiempo_acordado_dias: 2 },
+    ],
+    "Terraza BBQ": [
+      { nombre: "Baldosería piso terraza", tiempo_acordado_dias: 3 },
+      { nombre: "Pintura muros terraza", tiempo_acordado_dias: 2 },
+      { nombre: "Acabado mesón BBQ", tiempo_acordado_dias: 2 },
     ],
   },
 };

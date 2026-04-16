@@ -39,12 +39,22 @@ async function drawOverlay(
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      // Resize to max 1920px on longest side to keep under Vercel's 4.5MB limit
+      const MAX_DIM = 1920;
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = w;
+      canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("Canvas no disponible"));
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, w, h);
 
       // Overlay box at the bottom
       const padding = Math.round(canvas.width * 0.025);
@@ -88,7 +98,7 @@ async function drawOverlay(
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.font = `bold ${Math.round(fontSize * 0.85)}px sans-serif`;
       ctx.textAlign = "right";
-      ctx.fillText("ObraControl", canvas.width - padding, padding);
+      ctx.fillText("SEIRICON", canvas.width - padding, padding);
 
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("Error creando imagen"))),

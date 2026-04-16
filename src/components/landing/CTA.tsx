@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowRight, HardHat } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -43,8 +43,8 @@ export default function CTA() {
           <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
 
           <div className="relative flex flex-col items-center gap-6">
-            <div className="cta-item opacity-0 w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
-              <HardHat className="w-7 h-7 text-white" />
+            <div className="cta-item opacity-0 w-20 h-20 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
+              <img src="/seiricon-icon.png" alt="Seiricon" className="w-14 h-14" />
             </div>
 
             <h2 className="cta-item opacity-0 text-3xl sm:text-4xl font-extrabold text-white leading-tight">

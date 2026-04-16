@@ -20,6 +20,8 @@ model Constructora {
 
   usuarios         Usuario[]
   proyectos        Proyecto[]
+  roles            Rol[]
+  obreros          Obrero[]
 
   @@map("constructoras")
 }
@@ -49,6 +51,8 @@ model Proyecto {
   tipos_unidad            TipoUnidad[]
   checklist_templates     ChecklistTemplate[]
   pagos_contratista       PagoContratista[]
+  tareas_sugeridas        TareaSugerida[]
+  audit_logs              AuditLog[]
 
   @@map("proyectos")
 }
@@ -56,11 +60,12 @@ model Proyecto {
 // ─── EDIFICIO / TORRE ────────────────────────────────────────────────────────
 
 model Edificio {
-  id          String   @id @default(cuid())
-  proyecto_id String
-  nombre      String
-  num_pisos   Int
-  created_at  DateTime @default(now())
+  id             String   @id @default(cuid())
+  proyecto_id    String
+  nombre         String
+  num_pisos      Int
+  es_zona_comun  Boolean  @default(false)
+  created_at     DateTime @default(now())
 
   proyecto    Proyecto  @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
   pisos       Piso[]
@@ -152,6 +157,7 @@ model Tarea {
   asignado_a                String?
   depende_de                String?
   notas                     String?
+  foto_referencia_url       String?
   created_at                DateTime     @default(now())
   updated_at                DateTime     @updatedAt
 
@@ -180,11 +186,13 @@ model Evidencia {
   gps_lat           Float?
   gps_lng           Float?
   timestamp_captura DateTime
-  tomada_por        String
+  tomada_por        String?
+  obrero_id         String?
   created_at        DateTime     @default(now())
 
   tarea             Tarea        @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
-  usuario           Usuario      @relation(fields: [tomada_por], references: [id])
+  usuario           Usuario?     @relation(fields: [tomada_por], references: [id])
+  obrero            Obrero?      @relation(fields: [obrero_id], references: [id])
 
   @@map("evidencias")
 }
@@ -277,23 +285,47 @@ model ConsumoMaterial {
   @@map("consumo_materiales")
 }
 
+// ─── AUDIT LOG ──────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  proyecto_id    String
+  usuario_id     String
+  accion         String   // e.g. "EDITAR_PROYECTO", "EDITAR_EDIFICIO"
+  campo          String   // field that changed
+  valor_anterior String?  // previous value (JSON string)
+  valor_nuevo    String?  // new value (JSON string)
+  created_at     DateTime @default(now())
+
+  proyecto       Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  usuario        Usuario  @relation(fields: [usuario_id], references: [id])
+
+  @@map("audit_logs")
+}
+
 // ─── USUARIOS Y CONTRATISTAS ─────────────────────────────────────────────────
 
 model Usuario {
-  id              String   @id @default(cuid())
-  email           String   @unique
+  id              String      @id @default(cuid())
+  email           String      @unique
   nombre          String
   constructora_id String
-  rol             RolUsuario
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  rol_id          String
+  created_at      DateTime    @default(now())
+  updated_at      DateTime    @updatedAt
 
-  constructora         Constructora      @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
-  tareas_asignadas     Tarea[]           @relation("TareasAsignadas")
-  evidencias_tomadas   Evidencia[]
-  aprobaciones         Aprobacion[]
-  extensiones_autorizo ExtensionTiempo[]
-  contratista_perfil   Contratista?
+  constructora           Constructora      @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  rol_ref                Rol               @relation(fields: [rol_id], references: [id])
+  tareas_asignadas       Tarea[]           @relation("TareasAsignadas")
+  evidencias_tomadas     Evidencia[]
+  aprobaciones           Aprobacion[]
+  extensiones_autorizo   ExtensionTiempo[]
+  contratista_perfil     Contratista?
+  obreros_a_cargo        Obrero[]          @relation("ObrerosDelContratista")
+  sugerencias_hechas     TareaSugerida[]   @relation("SugerenciasContratista")
+  sugerencias_revisadas  TareaSugerida[]   @relation("SugerenciasRevisadas")
+  notificaciones         Notificacion[]
+  audit_logs             AuditLog[]
 
   @@map("usuarios")
 }
@@ -335,6 +367,121 @@ model PagoContratista {
   @@map("pagos_contratistas")
 }
 
+// ─── ROLES Y ACCESO ─────────────────────────────────────────────────────────
+
+enum NivelAcceso {
+  DIRECTIVO
+  ADMINISTRADOR
+  CONTRATISTA
+  OBRERO
+}
+
+model Rol {
+  id              String       @id @default(cuid())
+  constructora_id String
+  nombre          String
+  nivel_acceso    NivelAcceso
+  es_default      Boolean      @default(false)
+  created_at      DateTime     @default(now())
+
+  constructora    Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  usuarios        Usuario[]
+
+  @@unique([constructora_id, nombre])
+  @@map("roles")
+}
+
+// ─── OBREROS ────────────────────────────────────────────────────────────────
+
+model Obrero {
+  id               String       @id @default(cuid())
+  nombre           String
+  token            String       @unique @default(cuid())
+  contratista_id   String
+  constructora_id  String
+  fecha_inicio     DateTime
+  fecha_expiracion DateTime
+  activo           Boolean      @default(true)
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  contratista      Usuario      @relation("ObrerosDelContratista", fields: [contratista_id], references: [id])
+  constructora     Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  evidencias       Evidencia[]
+
+  @@map("obreros")
+}
+
+// ─── TAREAS SUGERIDAS ───────────────────────────────────────────────────────
+
+enum EstadoSugerencia {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+model TareaSugerida {
+  id             String            @id @default(cuid())
+  contratista_id String
+  proyecto_id    String
+  edificio_id    String?
+  unidades       Json
+  nombre         String
+  descripcion    String?
+  foto_url       String?
+  estado         EstadoSugerencia  @default(PENDIENTE)
+  motivo_rechazo String?
+  revisado_por   String?
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+
+  contratista    Usuario           @relation("SugerenciasContratista", fields: [contratista_id], references: [id])
+  proyecto       Proyecto          @relation(fields: [proyecto_id], references: [id])
+  revisor        Usuario?          @relation("SugerenciasRevisadas", fields: [revisado_por], references: [id])
+
+  @@map("tareas_sugeridas")
+}
+
+// ─── NOTIFICACIONES ─────────────────────────────────────────────────────────
+
+enum TipoNotificacion {
+  TAREA_APROBADA
+  TAREA_RECHAZADA
+  SUGERENCIA_NUEVA
+  SUGERENCIA_APROBADA
+  SUGERENCIA_RECHAZADA
+  OBRERO_REPORTO
+}
+
+model Notificacion {
+  id         String            @id @default(cuid())
+  usuario_id String
+  tipo       TipoNotificacion
+  titulo     String
+  mensaje    String
+  leida      Boolean           @default(false)
+  link       String?
+  created_at DateTime          @default(now())
+
+  usuario    Usuario           @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("notificaciones")
+}
+
+// ─── MENSAJES DE CONTACTO ───────────────────────────────────────────────────
+
+model MensajeContacto {
+  id         String   @id @default(cuid())
+  nombre     String
+  email      String
+  asunto     String
+  mensaje    String
+  leido      Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@map("mensajes_contacto")
+}
+
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
 enum PlanTipo {
@@ -346,6 +493,7 @@ enum PlanTipo {
 enum SubtipoProyecto {
   CASAS
   APARTAMENTOS
+  ZONAS_COMUNES
 }
 
 enum EstadoProyecto {
@@ -384,12 +532,3 @@ enum EstadoPago {
   PARCIAL
 }
 
-enum RolUsuario {
-  ADMIN
-  JEFE_OPERACIONES
-  COORDINADOR
-  ASISTENTE
-  AUXILIAR
-  CONTRATISTA_INSTALADOR
-  CONTRATISTA_LUSTRADOR
-}
