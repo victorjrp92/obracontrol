@@ -69,16 +69,18 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
   const allEspacios = [...new Set(tiposUnidad.flatMap((t) => t.espacios))];
   const [fasesSeleccionadas, setFasesSeleccionadas] = useState<string[]>(["Madera", "Obra Blanca"]);
   const [tareas, setTareas] = useState<TareaInput[]>([]);
+  const [sugeridas, setSugeridas] = useState<TareaInput[]>([]);
+  const [sugeridosChecked, setSugeridosChecked] = useState<Set<string>>(new Set());
 
   function generarTareasSugeridas() {
     const nuevas: TareaInput[] = [];
     let counter = 0;
     for (const fase of fasesSeleccionadas) {
       for (const espacio of allEspacios) {
-        const sugeridas = getTareasSugeridas(fase, espacio);
-        for (const t of sugeridas) {
+        const propuestas = getTareasSugeridas(fase, espacio);
+        for (const t of propuestas) {
           nuevas.push({
-            id: `t${counter++}`,
+            id: `sug-${counter++}`,
             fase,
             espacio,
             nombre: t.nombre,
@@ -90,7 +92,33 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
         }
       }
     }
-    setTareas(nuevas);
+    setSugeridas(nuevas);
+    setSugeridosChecked(new Set(nuevas.map((t) => t.id)));
+  }
+
+  function toggleSugerida(id: string) {
+    setSugeridosChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodasSugeridas() {
+    if (sugeridosChecked.size === sugeridas.length) {
+      setSugeridosChecked(new Set());
+    } else {
+      setSugeridosChecked(new Set(sugeridas.map((t) => t.id)));
+    }
+  }
+
+  function confirmarSugeridas() {
+    const seleccionadas = sugeridas
+      .filter((t) => sugeridosChecked.has(t.id))
+      .map((t, i) => ({ ...t, id: `t${Date.now()}-${i}` }));
+    setTareas((prev) => [...prev, ...seleccionadas]);
+    setSugeridas([]);
+    setSugeridosChecked(new Set());
   }
 
   function addEdificio() {
@@ -307,7 +335,7 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
 
       {/* PASO 1: Estructura */}
       {step === 1 && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-3xl">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 w-full">
           <h2 className="text-lg font-bold text-slate-900 mb-5">Información del proyecto</h2>
 
           <div className="grid sm:grid-cols-2 gap-4 mb-6">
@@ -602,7 +630,7 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
 
       {/* PASO 2: Espacios y tareas */}
       {step === 2 && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-4xl">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 w-full">
           <h2 className="text-lg font-bold text-slate-900 mb-2">Fases y tareas</h2>
           <p className="text-xs text-slate-500 mb-5">
             Espacios definidos por tipo: {allEspacios.join(", ") || "—"}
@@ -653,6 +681,68 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
           <p className="text-xs text-slate-500 mb-4">
             Genera tareas sugeridas o agrega las tuyas manualmente
           </p>
+
+          {/* Panel de sugerencias con checkboxes */}
+          {sugeridas.length > 0 && (
+            <div className="border border-violet-200 bg-violet-50 rounded-xl mb-4 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-violet-200 bg-violet-100">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-violet-600" />
+                  <span className="text-sm font-bold text-violet-900">
+                    {sugeridas.length} tareas sugeridas — elige cuáles agregar
+                  </span>
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-violet-700">
+                  <input
+                    type="checkbox"
+                    checked={sugeridosChecked.size === sugeridas.length}
+                    onChange={toggleTodasSugeridas}
+                    className="w-3.5 h-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  Todas
+                </label>
+              </div>
+              <div className="max-h-72 overflow-y-auto divide-y divide-violet-100">
+                {sugeridas.map((t) => (
+                  <label key={t.id} className="flex items-center gap-3 px-4 py-2 hover:bg-violet-100/60 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sugeridosChecked.has(t.id)}
+                      onChange={() => toggleSugerida(t.id)}
+                      className="w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 flex-shrink-0"
+                    />
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-200 text-violet-700 flex-shrink-0">
+                      {t.fase === "Madera" ? "M" : "OB"}
+                    </span>
+                    <span className="text-[10px] text-slate-500 w-28 truncate flex-shrink-0">{t.espacio}</span>
+                    <span className="text-sm text-slate-800 flex-1 truncate">{t.nombre}</span>
+                    <span className="text-xs text-slate-400 flex-shrink-0">{t.tiempo_acordado_dias}d</span>
+                  </label>
+                ))}
+              </div>
+              <div className="flex items-center justify-between px-4 py-3 border-t border-violet-200 bg-violet-100">
+                <span className="text-xs text-violet-700">
+                  {sugeridosChecked.size} de {sugeridas.length} seleccionadas
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setSugeridas([]); setSugeridosChecked(new Set()); }}
+                    className="text-xs font-medium text-slate-600 hover:text-slate-800 px-3 py-1.5 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarSugeridas}
+                    disabled={sugeridosChecked.size === 0}
+                    className="inline-flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white font-semibold px-4 py-1.5 rounded-lg text-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Agregar {sugeridosChecked.size > 0 ? sugeridosChecked.size : ""} tarea{sugeridosChecked.size !== 1 ? "s" : ""}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Custom task form */}
           {showAddTask && (
@@ -757,7 +847,7 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
 
       {/* PASO 3: Asignar contratistas y revisar */}
       {step === 3 && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-4xl">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 w-full">
           <h2 className="text-lg font-bold text-slate-900 mb-2">Resumen del proyecto</h2>
           <p className="text-sm text-slate-500 mb-5">
             Revisa los detalles y asigna contratistas a las tareas (opcional)
