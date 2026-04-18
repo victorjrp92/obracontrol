@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { sugerenciaNuevaEmailHtml } from "@/lib/email-templates/sugerencias";
+import { getAccessibleProjectIds, canManageUsers, isAnyAdmin } from "@/lib/access";
 
 // GET /api/sugerencias?estado=PENDIENTE|APROBADA|RECHAZADA|ALL
 // ADMINISTRADOR: list suggestions for their constructora
@@ -17,18 +18,27 @@ export async function GET(req: NextRequest) {
 
     const admin = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      include: { rol_ref: true },
+      select: {
+        id: true,
+        constructora_id: true,
+        rol_ref: { select: { nivel_acceso: true } },
+      },
     });
 
-    if (!admin || !["ADMINISTRADOR", "DIRECTIVO"].includes(admin.rol_ref.nivel_acceso)) {
+    if (!admin || !(canManageUsers(admin.rol_ref.nivel_acceso) || isAnyAdmin(admin.rol_ref.nivel_acceso))) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
+
+    const accessible = await getAccessibleProjectIds(admin.id);
 
     const url = new URL(req.url);
     const estadoParam = url.searchParams.get("estado") ?? "ALL";
 
     const where: Record<string, unknown> = {
-      proyecto: { constructora_id: admin.constructora_id },
+      proyecto: {
+        constructora_id: admin.constructora_id,
+        ...(accessible === "ALL" ? {} : { id: { in: accessible } }),
+      },
     };
 
     if (estadoParam !== "ALL") {
@@ -124,7 +134,7 @@ export async function POST(req: NextRequest) {
       const admins = await prisma.usuario.findMany({
         where: {
           constructora_id: sugerencia.proyecto.constructora_id,
-          rol_ref: { nivel_acceso: "ADMINISTRADOR" },
+          rol_ref: { nivel_acceso: { in: ["ADMIN_GENERAL", "ADMIN_PROYECTO"] } },
         },
         select: { email: true },
       });
