@@ -5,7 +5,6 @@ import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
 import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees } from "lucide-react";
-import ExcelButtons from "./ExcelButtons";
 import EditProyecto from "./EditProyecto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
@@ -107,13 +106,6 @@ export default async function ProyectoDetallePage({
           <ArrowLeft className="w-4 h-4" />
           Volver a proyectos
         </Link>
-
-        {/* Excel import/export */}
-        {["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
-          <div className="mb-4">
-            <ExcelButtons proyectoId={id} />
-          </div>
-        )}
 
         {/* Edit project + audit log (admin can edit, directivo can view log) */}
         {["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
