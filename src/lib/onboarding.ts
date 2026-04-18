@@ -26,9 +26,10 @@ export async function provisionarUsuario(
   const defaultRoles = [
     { nombre: "Gerente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
     { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
-    { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
-    { nombre: "Coordinador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
-    { nombre: "Asistente", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Administrador", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
+    { nombre: "Admin Proyecto", nivel_acceso: "ADMIN_PROYECTO" as const, es_default: true },
+    { nombre: "Coordinador", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
+    { nombre: "Asistente", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
     { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
     { nombre: "Contratista lustrador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
     { nombre: "Auxiliar de obra", nivel_acceso: "OBRERO" as const, es_default: true },
