@@ -114,7 +114,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
                 {selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
                   <ProyectosMultiSelect
                     proyectos={proyectos}
-                    selected={selectedProyectoIds}
+                    value={selectedProyectoIds}
                     onChange={setSelectedProyectoIds}
                   />
                 )}
@@ -205,7 +205,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
                 {selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
                   <ProyectosMultiSelect
                     proyectos={proyectos}
-                    selected={selectedProyectoIds}
+                    value={selectedProyectoIds}
                     onChange={setSelectedProyectoIds}
                   />
                 )}

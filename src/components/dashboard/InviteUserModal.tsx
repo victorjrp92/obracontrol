@@ -19,9 +19,11 @@ interface ProyectoOption {
 interface Props {
   onClose: () => void;
   proyectos?: ProyectoOption[];
+  canInviteAnyRole?: boolean;
 }
 
-export default function InviteUserModal({ onClose, proyectos = [] }: Props) {
+export default function InviteUserModal({ onClose, proyectos = [], canInviteAnyRole: _canInviteAnyRole = true }: Props) {
+  void _canInviteAnyRole;
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

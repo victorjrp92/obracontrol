@@ -29,7 +29,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
-    const accessible = await getAccessibleProjectIds(admin.id);
+    const accessible = await getAccessibleProjectIds(
+      admin.id,
+      admin.constructora_id,
+      admin.rol_ref.nivel_acceso,
+    );
 
     const url = new URL(req.url);
     const estadoParam = url.searchParams.get("estado") ?? "ALL";

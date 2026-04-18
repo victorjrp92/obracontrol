@@ -29,7 +29,7 @@ async function main() {
 
   // ── Default roles ───────────────────────────────────────────
   const defaultRoles = [
-    { nombre: "Administrador", nivel_acceso: "ADMINISTRADOR" as const, es_default: true },
+    { nombre: "Administrador", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
     { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
     { nombre: "Coordinador", nivel_acceso: "DIRECTIVO" as const, es_default: true },
     { nombre: "Asistente", nivel_acceso: "DIRECTIVO" as const, es_default: true },
