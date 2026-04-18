@@ -15,7 +15,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50">
       <Sidebar
-        nivelAcceso={usuario?.rol_ref?.nivel_acceso ?? "ADMINISTRADOR"}
+        nivelAcceso={usuario?.rol_ref?.nivel_acceso ?? "ADMIN_GENERAL"}
         userName={usuario?.nombre ?? "Usuario"}
         userRole={usuario?.rol_ref?.nombre ?? ""}
       />
