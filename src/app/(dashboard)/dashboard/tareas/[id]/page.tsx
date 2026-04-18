@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import ReportarButton from "@/components/dashboard/ReportarButton";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
@@ -48,6 +49,16 @@ export default async function TareaDetallePage({
   const { id } = await params;
   const tarea = await getTareaDetalle(id);
   if (!tarea) notFound();
+
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+  const proyectoIdForTask = tarea.proyecto.id;
+  if (accessible !== "ALL" && !accessible.includes(proyectoIdForTask)) {
+    redirect("/dashboard/tareas");
+  }
 
   const sem = semaforoConfig[tarea.semaforo as SemaforoLevel] ?? semaforoConfig.verde;
   const est = estadoConfig[tarea.estado] ?? estadoConfig.PENDIENTE;
@@ -185,7 +196,7 @@ export default async function TareaDetallePage({
                 <h3 className="font-bold text-slate-800 mb-4">Otras acciones</h3>
                 <TaskActionMenu
                   tareaId={tarea.id}
-                  canExtend={["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)}
+                  canExtend={["ADMIN_GENERAL", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)}
                 />
               </div>
             )}
