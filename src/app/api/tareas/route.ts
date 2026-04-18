@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // GET /api/tareas?espacio_id=&fase_id=&estado=&asignado_a=
 export async function GET(req: NextRequest) {
@@ -14,12 +15,18 @@ export async function GET(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
     if (!usuario) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
+
+    const accessible = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
 
     const { searchParams } = new URL(req.url);
     const espacio_id = searchParams.get("espacio_id");
@@ -34,7 +41,10 @@ export async function GET(req: NextRequest) {
           unidad: {
             piso: {
               edificio: {
-                proyecto: { constructora_id: usuario.constructora_id },
+                proyecto: {
+                  constructora_id: usuario.constructora_id,
+                  ...(accessible === "ALL" ? {} : { id: { in: accessible } }),
+                },
               },
             },
           },
@@ -74,10 +84,10 @@ export async function POST(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!usuario || !["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
+    if (!usuario || !canApproveTasks(usuario.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para crear tareas" }, { status: 403 });
     }
 
@@ -103,6 +113,21 @@ export async function POST(req: NextRequest) {
 
     if (!espacio || espacio.unidad.piso.edificio.proyecto.constructora_id !== usuario.constructora_id) {
       return NextResponse.json({ error: "Espacio no encontrado" }, { status: 404 });
+    }
+
+    const accessibleCreate = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+    const espacioProyectoId = await prisma.proyecto.findFirst({
+      where: {
+        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { id: espacio_id } } } } } } } },
+      },
+      select: { id: true },
+    });
+    if (!espacioProyectoId || !canAccessProject(accessibleCreate, espacioProyectoId.id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     const tarea = await prisma.tarea.create({
