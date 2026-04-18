@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getProyectosConProgreso, getUsuarioActual } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
+import { getPermissions } from "@/lib/permissions";
 import Topbar from "@/components/dashboard/Topbar";
 import { Building2, Calendar, ChevronRight, FolderPlus } from "lucide-react";
 import Link from "next/link";
@@ -32,38 +34,55 @@ export default async function ProyectosPage() {
 
   const proyectos = await getProyectosConProgreso(usuario.constructora_id);
 
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+  const proyectosVisibles =
+    accessible === "ALL"
+      ? proyectos
+      : proyectos.filter((p) => accessible.includes(p.id));
+
+  const permissions = getPermissions(usuario.rol_ref.nivel_acceso);
+  const puedeCrearProyectos = permissions.canViewAllProjects && usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL";
+
   return (
     <>
       <Topbar title="Proyectos" subtitle="Gestión de proyectos activos" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Header actions */}
         <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-slate-500">{proyectos.length} proyecto{proyectos.length !== 1 ? "s" : ""} activo{proyectos.length !== 1 ? "s" : ""}</p>
-          <Link
-            href="/dashboard/proyectos/nuevo"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer"
-          >
-            <FolderPlus className="w-4 h-4" />
-            Nuevo proyecto
-          </Link>
+          <p className="text-sm text-slate-500">{proyectosVisibles.length} proyecto{proyectosVisibles.length !== 1 ? "s" : ""} activo{proyectosVisibles.length !== 1 ? "s" : ""}</p>
+          {puedeCrearProyectos && (
+            <Link
+              href="/dashboard/proyectos/nuevo"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Nuevo proyecto
+            </Link>
+          )}
         </div>
 
-        {proyectos.length === 0 ? (
+        {proyectosVisibles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <FolderPlus className="w-12 h-12 mb-3 opacity-30" />
             <p className="font-medium">Sin proyectos activos</p>
             <p className="text-sm mt-1 mb-4">Crea tu primer proyecto para comenzar</p>
-            <Link
-              href="/dashboard/proyectos/nuevo"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl"
-            >
-              <FolderPlus className="w-4 h-4" />
-              Crear proyecto
-            </Link>
+            {puedeCrearProyectos && (
+              <Link
+                href="/dashboard/proyectos/nuevo"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl"
+              >
+                <FolderPlus className="w-4 h-4" />
+                Crear proyecto
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {proyectos.map((p) => {
+            {proyectosVisibles.map((p) => {
               const sem = semaforoColors[p.semaforo as SemaforoLevel] ?? semaforoColors.verde;
               const numEdificios = p.edificios.length;
 
