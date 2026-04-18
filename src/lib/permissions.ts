@@ -21,7 +21,7 @@ export function getRolLabel(rolNombre: string): string {
 
 export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
   switch (nivelAcceso) {
-    case "ADMINISTRADOR":
+    case "ADMIN_GENERAL":
       return {
         canCreate: true,
         canEdit: true,
@@ -35,6 +35,21 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewContractors: true,
         canViewUsers: true,
         sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "sugerencias", "reportes", "usuarios", "configuracion"],
+      };
+    case "ADMIN_PROYECTO":
+      return {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canApprove: true,
+        canInviteUsers: true,
+        canViewAllProjects: false,
+        canViewAllTasks: false,
+        canViewReports: true,
+        canViewConfig: false,
+        canViewContractors: true,
+        canViewUsers: true,
+        sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "sugerencias", "reportes", "usuarios"],
       };
     case "DIRECTIVO":
       return {
