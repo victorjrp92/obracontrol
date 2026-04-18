@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import SugerenciasPanel from "@/components/dashboard/SugerenciasPanel";
 
@@ -12,9 +13,11 @@ export default async function SugerenciasPage({
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
-  if (!["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
+  if (!["ADMIN_GENERAL", "ADMIN_PROYECTO", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
     redirect("/dashboard");
   }
+
+  const accessible = await getAccessibleProjectIds(usuario.id, usuario.constructora_id, usuario.rol_ref.nivel_acceso);
 
   const { estado } = await searchParams;
   const estadoActivo = estado ?? "PENDIENTE";
@@ -22,7 +25,10 @@ export default async function SugerenciasPage({
   // Fetch all suggestions for this constructora
   const sugerenciasRaw = await prisma.tareaSugerida.findMany({
     where: {
-      proyecto: { constructora_id: usuario.constructora_id },
+      proyecto: {
+        constructora_id: usuario.constructora_id,
+        ...(accessible === "ALL" ? {} : { id: { in: accessible } }),
+      },
     },
     include: {
       contratista: { select: { id: true, nombre: true, email: true } },
