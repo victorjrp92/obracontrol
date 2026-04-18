@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
+import { isGeneralAdmin } from "@/lib/access";
 
 interface WizardPayload {
   // Paso 1
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !isGeneralAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para crear proyectos" }, { status: 403 });
     }
 
