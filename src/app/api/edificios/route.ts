@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin } from "@/lib/access";
 
 // GET /api/edificios?proyecto_id=
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
     if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
@@ -25,6 +26,15 @@ export async function GET(req: NextRequest) {
     });
     if (!proyecto || proyecto.constructora_id !== usuario.constructora_id) {
       return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    const accessible = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, proyecto_id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     const edificios = await prisma.edificio.findMany({
@@ -67,10 +77,10 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!currentUser || !["ADMINISTRADOR"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !isAnyAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -91,6 +101,15 @@ export async function POST(req: NextRequest) {
     });
     if (!proyectoCheck || proyectoCheck.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    const accessibleCreate = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessibleCreate, proyecto_id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     // Crear edificio + pisos + unidades en transacción
