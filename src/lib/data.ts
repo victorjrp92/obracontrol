@@ -10,7 +10,11 @@ export async function getUsuarioActual() {
 
   return prisma.usuario.findUnique({
     where: { email: user.email! },
-    include: { constructora: true, rol_ref: true },
+    include: {
+      constructora: true,
+      rol_ref: true,
+      proyectos_administrados: { select: { proyecto_id: true } },
+    },
   });
 }
 
