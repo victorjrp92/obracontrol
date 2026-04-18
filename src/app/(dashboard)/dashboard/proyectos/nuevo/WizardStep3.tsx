@@ -22,7 +22,7 @@ interface WizardStep3Props {
   totalTareasGlobal: number;
   loading: boolean;
   onBack: () => void;
-  onSubmit: () => void;
+  onSubmit: (resolvedTareas?: TareaInput[]) => void;
 }
 
 function buildInitialAssignments(
@@ -139,18 +139,12 @@ export default function WizardStep3({
     }));
   }
 
-  // Resolve assignments to per-task asignado_a and call onSubmit
+  // Resolve assignments to per-task asignado_a and call onSubmit directly
   function handleCreate() {
-    // Apply hierarchical assignments to tareas
-    setTareas((prev) => prev.map((t) => {
+    const resolvedTareas = tareas.map((t) => {
       const faseAssign = assignments.find((a) => a.fase === t.fase);
       if (!faseAssign) return t;
 
-      // For each torre, check if this task's espacio maps to a contratista
-      // Since tasks are per-phase (not per-tower), we use the first torre's assignment
-      // as the default. The API creates tasks per unit/tower, so assigning at wizard level
-      // means the same contratista for all towers (unless desglosado).
-      // For simplicity: iterate towers and pick the first matching assignment.
       for (const [, torreAssign] of Object.entries(faseAssign.distribucion)) {
         if (torreAssign.desglosado && torreAssign.por_actividad[t.espacio] !== undefined) {
           return { ...t, asignado_a: torreAssign.por_actividad[t.espacio] ?? undefined };
@@ -160,10 +154,10 @@ export default function WizardStep3({
         }
       }
       return t;
-    }));
+    });
 
-    // Call the submit callback after state update settles
-    setTimeout(onSubmit, 0);
+    setTareas(resolvedTareas);
+    onSubmit(resolvedTareas);
   }
 
   return (

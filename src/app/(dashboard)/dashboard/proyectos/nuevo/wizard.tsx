@@ -22,7 +22,7 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [tiposUnidad, setTiposUnidad] = useState<TipoUnidadInput[]>([
-    { id: "t1", nombre: "Tipo estandar", espacios: ["Cocina", "Bano principal", "Habitacion principal", "Sala-comedor"] },
+    { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
   const [edificios, setEdificios] = useState<EdificioInput[]>([
     { nombre: "Torre 1", pisos: 5, distribucion: { "t1": 4 } },
@@ -54,12 +54,14 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
 
-  async function handleSubmit() {
+  async function handleSubmit(resolvedTareas?: TareaInput[]) {
     setLoading(true);
     setError("");
 
+    const tareasToSend = resolvedTareas ?? tareas;
+
     if (totalTareasGlobal > 5000) {
-      setError(`Demasiadas tareas (${totalTareasGlobal}). Reduce el tamano del proyecto o las tareas por unidad.`);
+      setError(`Demasiadas tareas (${totalTareasGlobal}). Reduce el tamaño del proyecto o las tareas por unidad.`);
       setLoading(false);
       return;
     }
@@ -85,22 +87,27 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
       })),
       espacios: allEspacios,
       fases: fasesSeleccionadas,
-      tareas: tareas.map(({ id: _id, ...rest }) => rest),
+      tareas: tareasToSend.map(({ id: _id, ...rest }) => rest),
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
     };
 
-    const res = await fetch("/api/proyectos/wizard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await fetch("/api/proyectos/wizard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/dashboard/proyectos/${data.id}`);
-    } else {
-      const data = await res.json();
-      setError(data.error ?? "Error creando proyecto");
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/dashboard/proyectos/${data.id}`);
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "Error creando proyecto");
+        setLoading(false);
+      }
+    } catch {
+      setError("Error de red. Intenta de nuevo.");
       setLoading(false);
     }
   }
