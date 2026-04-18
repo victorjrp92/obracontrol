@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // POST /api/extensiones — solicitar extensión de tiempo (admin/coordinador)
 export async function POST(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!usuario || !["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
+    if (!usuario || !canApproveTasks(usuario.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para autorizar extensiones" }, { status: 403 });
     }
 
@@ -54,6 +55,22 @@ export async function POST(req: NextRequest) {
     });
     if (!tarea) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Project-level access check
+    const proyectoIdForTarea = await prisma.proyecto.findFirst({
+      where: {
+        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { tareas: { some: { id: tarea_id } } } } } } } } } },
+      },
+      select: { id: true },
+    });
+    const accessibleExt = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+    if (!proyectoIdForTarea || !canAccessProject(accessibleExt, proyectoIdForTarea.id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     // Tenant isolation: verify the task belongs to the user's constructora
