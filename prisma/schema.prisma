@@ -53,6 +53,7 @@ model Proyecto {
   pagos_contratista       PagoContratista[]
   tareas_sugeridas        TareaSugerida[]
   audit_logs              AuditLog[]
+  admins_proyecto          AdminProyectoAccess[]
 
   @@map("proyectos")
 }
@@ -326,6 +327,8 @@ model Usuario {
   sugerencias_revisadas  TareaSugerida[]   @relation("SugerenciasRevisadas")
   notificaciones         Notificacion[]
   audit_logs             AuditLog[]
+  proyectos_administrados  AdminProyectoAccess[] @relation("AdminProyectoAccessUsuario")
+  proyectos_asignados_por  AdminProyectoAccess[] @relation("AdminProyectoAccessAsignador")
 
   @@map("usuarios")
 }
@@ -371,7 +374,8 @@ model PagoContratista {
 
 enum NivelAcceso {
   DIRECTIVO
-  ADMINISTRADOR
+  ADMIN_GENERAL
+  ADMIN_PROYECTO
   CONTRATISTA
   OBRERO
 }
@@ -480,6 +484,23 @@ model MensajeContacto {
   created_at DateTime @default(now())
 
   @@map("mensajes_contacto")
+}
+
+// ─── ACCESO DE ADMIN A PROYECTOS ─────────────────────────────────────────────
+
+model AdminProyectoAccess {
+  id           String   @id @default(cuid())
+  usuario_id   String
+  proyecto_id  String
+  asignado_por String?
+  created_at   DateTime @default(now())
+
+  usuario      Usuario  @relation("AdminProyectoAccessUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
+  proyecto     Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  asignador    Usuario? @relation("AdminProyectoAccessAsignador", fields: [asignado_por], references: [id])
+
+  @@unique([usuario_id, proyecto_id])
+  @@map("admin_proyecto_access")
 }
 
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
