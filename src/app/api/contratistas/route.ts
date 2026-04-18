@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { recalcularScoreContratista } from "@/lib/scoring";
+import { canApproveTasks } from "@/lib/access";
 
 // GET /api/contratistas?proyecto_id=
 export async function GET(req: NextRequest) {
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !canApproveTasks(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 

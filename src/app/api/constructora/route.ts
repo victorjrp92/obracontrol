@@ -7,7 +7,7 @@ export async function GET() {
   if (!usuario?.constructora_id) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
-  if (usuario.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+  if (usuario.rol_ref.nivel_acceso !== "ADMIN_GENERAL") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest) {
   if (!usuario?.constructora_id) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
-  if (usuario.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+  if (usuario.rol_ref.nivel_acceso !== "ADMIN_GENERAL") {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
