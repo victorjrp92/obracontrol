@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, Shield, Pencil, Check, X } from "lucide-react";
 import InviteUserModal from "@/components/dashboard/InviteUserModal";
+import ProyectosMultiSelect from "@/components/dashboard/ProyectosMultiSelect";
 
 interface UserRow {
   id: string;
@@ -21,12 +22,23 @@ interface RolOption {
   nivel_acceso: string;
 }
 
-export default function UsuariosClient({ usuarios, roles }: { usuarios: UserRow[]; roles: RolOption[] }) {
+interface Props {
+  usuarios: UserRow[];
+  roles: RolOption[];
+  proyectos?: { id: string; nombre: string }[];
+  canInviteAnyRole?: boolean;
+}
+
+export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAnyRole }: Props) {
   const router = useRouter();
   const [showInvite, setShowInvite] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedRolId, setSelectedRolId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedProyectoIds, setSelectedProyectoIds] = useState<string[]>([]);
+
+  // Derived: the RolOption currently selected in the edit dropdown
+  const selectedRol = roles.find((r) => r.id === selectedRolId);
 
   async function handleSaveRole(userId: string) {
     if (!selectedRolId) return;
@@ -99,6 +111,13 @@ export default function UsuariosClient({ usuarios, roles }: { usuarios: UserRow[
                     <option key={r.id} value={r.id}>{r.nombre} ({r.nivel_acceso.toLowerCase()})</option>
                   ))}
                 </select>
+                {selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
+                  <ProyectosMultiSelect
+                    proyectos={proyectos}
+                    selected={selectedProyectoIds}
+                    onChange={setSelectedProyectoIds}
+                  />
+                )}
                 <button
                   onClick={() => handleSaveRole(u.id)}
                   disabled={saving}
@@ -158,29 +177,38 @@ export default function UsuariosClient({ usuarios, roles }: { usuarios: UserRow[
               )}
             </div>
             {editingId === u.id ? (
-              <div className="flex items-center gap-2 mt-2">
-                <select
-                  value={selectedRolId}
-                  onChange={(e) => setSelectedRolId(e.target.value)}
-                  className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-blue-300 bg-white"
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>{r.nombre} ({r.nivel_acceso.toLowerCase()})</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => handleSaveRole(u.id)}
-                  disabled={saving}
-                  className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setEditingId(null)}
-                  className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col gap-2 mt-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedRolId}
+                    onChange={(e) => setSelectedRolId(e.target.value)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-blue-300 bg-white"
+                  >
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>{r.nombre} ({r.nivel_acceso.toLowerCase()})</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleSaveRole(u.id)}
+                    disabled={saving}
+                    className="p-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
+                  <ProyectosMultiSelect
+                    proyectos={proyectos}
+                    selected={selectedProyectoIds}
+                    onChange={setSelectedProyectoIds}
+                  />
+                )}
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -197,7 +225,13 @@ export default function UsuariosClient({ usuarios, roles }: { usuarios: UserRow[
         ))}
       </div>
 
-      {showInvite && <InviteUserModal onClose={() => setShowInvite(false)} />}
+      {showInvite && (
+        <InviteUserModal
+          onClose={() => setShowInvite(false)}
+          proyectos={proyectos}
+          canInviteAnyRole={canInviteAnyRole}
+        />
+      )}
     </main>
   );
 }
