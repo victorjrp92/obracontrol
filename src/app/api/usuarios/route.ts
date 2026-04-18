@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email";
 import { invitationEmailHtml } from "@/lib/email-templates/invitation";
 import { getRolLabel } from "@/lib/permissions";
+import { canManageUsers, isAnyAdmin, isProjectAdmin, getAccessibleProjectIds } from "@/lib/access";
 
 // GET /api/usuarios — list users of the constructora
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !(canManageUsers(currentUser.rol_ref.nivel_acceso) || isProjectAdmin(currentUser.rol_ref.nivel_acceso))) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -45,23 +46,74 @@ export async function POST(req: NextRequest) {
       where: { email: user.email! },
       include: { constructora: { select: { id: true, nombre: true } }, rol_ref: true },
     });
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !(canManageUsers(currentUser.rol_ref.nivel_acceso) || isProjectAdmin(currentUser.rol_ref.nivel_acceso))) {
       return NextResponse.json({ error: "Sin permisos para invitar usuarios" }, { status: 403 });
     }
 
     const body = await req.json();
-    const { email, nombre, rol_id } = body;
+    const { email, nombre, rol_id, proyectos_asignados } = body as {
+      email?: string;
+      nombre?: string;
+      rol_id?: string;
+      proyectos_asignados?: string[];
+    };
 
     if (!email || !nombre || !rol_id) {
       return NextResponse.json({ error: "email, nombre y rol_id son requeridos" }, { status: 400 });
     }
 
-    // Verify the rol exists and belongs to this constructora
     const rol = await prisma.rol.findFirst({
       where: { id: rol_id, constructora_id: currentUser.constructora_id },
     });
     if (!rol) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    }
+
+    // ADMIN_PROYECTO can only invite CONTRATISTA or OBRERO
+    if (isProjectAdmin(currentUser.rol_ref.nivel_acceso) && !["CONTRATISTA", "OBRERO"].includes(rol.nivel_acceso)) {
+      return NextResponse.json(
+        { error: "Solo puedes invitar contratistas u obreros" },
+        { status: 403 },
+      );
+    }
+
+    // If the target role is ADMIN_PROYECTO, proyectos_asignados must be non-empty.
+    if (rol.nivel_acceso === "ADMIN_PROYECTO") {
+      if (!Array.isArray(proyectos_asignados) || proyectos_asignados.length === 0) {
+        return NextResponse.json(
+          { error: "Debes seleccionar al menos un proyecto para un Admin Proyecto" },
+          { status: 400 },
+        );
+      }
+
+      const proyectosDb = await prisma.proyecto.findMany({
+        where: { id: { in: proyectos_asignados }, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (proyectosDb.length !== proyectos_asignados.length) {
+        return NextResponse.json(
+          { error: "Algunos proyectos no pertenecen a esta constructora" },
+          { status: 400 },
+        );
+      }
+
+      // If the inviter is ADMIN_PROYECTO (edge-case: spec allows Contratista/Obrero only, but guard anyway)
+      if (isAnyAdmin(currentUser.rol_ref.nivel_acceso) && !canManageUsers(currentUser.rol_ref.nivel_acceso)) {
+        const accessible = await getAccessibleProjectIds(
+          currentUser.id,
+          currentUser.constructora_id,
+          currentUser.rol_ref.nivel_acceso,
+        );
+        if (accessible !== "ALL") {
+          const allowed = new Set(accessible);
+          if (proyectos_asignados.some((p) => !allowed.has(p))) {
+            return NextResponse.json(
+              { error: "Solo puedes asignar proyectos que administras" },
+              { status: 403 },
+            );
+          }
+        }
+      }
     }
 
     const existing = await prisma.usuario.findUnique({ where: { email } });
@@ -90,6 +142,17 @@ export async function POST(req: NextRequest) {
         rol_id: rol.id,
       },
     });
+
+    if (rol.nivel_acceso === "ADMIN_PROYECTO" && Array.isArray(proyectos_asignados)) {
+      await prisma.adminProyectoAccess.createMany({
+        data: proyectos_asignados.map((pid) => ({
+          usuario_id: nuevoUsuario.id,
+          proyecto_id: pid,
+          asignado_por: currentUser.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
 
     if (rol.nivel_acceso === "CONTRATISTA") {
       await prisma.contratista.create({
