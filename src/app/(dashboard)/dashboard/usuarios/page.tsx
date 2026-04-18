@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getUsuarioActual, getUsuarios, getProyectosActivos } from "@/lib/data";
+import { getUsuarioActual, getProyectosActivos } from "@/lib/data";
 import { getRolLabel } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
@@ -14,7 +14,14 @@ export default async function UsuariosPage() {
     redirect("/dashboard");
   }
 
-  const usuarios = await getUsuarios(usuario.constructora_id);
+  const usuarios = await prisma.usuario.findMany({
+    where: { constructora_id: usuario.constructora_id },
+    include: {
+      rol_ref: true,
+      proyectos_administrados: { select: { proyecto_id: true } },
+    },
+    orderBy: { created_at: "desc" },
+  });
   const roles = await prisma.rol.findMany({
     where: { constructora_id: usuario.constructora_id },
     select: { id: true, nombre: true, nivel_acceso: true },
@@ -32,9 +39,10 @@ export default async function UsuariosPage() {
     nombre: u.nombre,
     email: u.email,
     rol: u.rol_ref.nombre,
-    rol_id: (u as unknown as { rol_id: string }).rol_id,
+    rol_id: u.rol_id,
     rolLabel: getRolLabel(u.rol_ref.nombre),
     created_at: u.created_at.toISOString(),
+    proyectos_ids: u.proyectos_administrados.map((a) => a.proyecto_id),
   }));
 
   return (

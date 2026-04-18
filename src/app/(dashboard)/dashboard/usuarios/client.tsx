@@ -14,6 +14,7 @@ interface UserRow {
   rol_id: string;
   rolLabel: string;
   created_at: string;
+  proyectos_ids?: string[];
 }
 
 interface RolOption {
@@ -42,12 +43,21 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
 
   async function handleSaveRole(userId: string) {
     if (!selectedRolId) return;
+    const nextRol = roles.find((r) => r.id === selectedRolId);
+    if (nextRol?.nivel_acceso === "ADMIN_PROYECTO" && selectedProyectoIds.length === 0) {
+      alert("Un Admin Proyecto debe tener al menos un proyecto asignado");
+      return;
+    }
     setSaving(true);
     try {
+      const body: { rol_id: string; proyectos_asignados?: string[] } = { rol_id: selectedRolId };
+      if (nextRol?.nivel_acceso === "ADMIN_PROYECTO") {
+        body.proyectos_asignados = selectedProyectoIds;
+      }
       const res = await fetch(`/api/usuarios/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rol_id: selectedRolId }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -66,6 +76,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
   function startEditing(user: UserRow) {
     setEditingId(user.id);
     setSelectedRolId(user.rol_id);
+    setSelectedProyectoIds(user.proyectos_ids ?? []);
   }
 
   return (
