@@ -5,6 +5,7 @@ import { recalcularScoreContratista } from "@/lib/scoring";
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 import { crearNotificacion } from "@/lib/notifications";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -24,7 +25,7 @@ export async function POST(
       select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!aprobador || !["ADMINISTRADOR", "DIRECTIVO"].includes(aprobador.rol_ref.nivel_acceso)) {
+    if (!aprobador || !canApproveTasks(aprobador.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
     }
 
@@ -58,6 +59,22 @@ export async function POST(
     });
     if (!tarea || tarea.estado !== "REPORTADA") {
       return NextResponse.json({ error: "Tarea no encontrada o no está reportada" }, { status: 400 });
+    }
+
+    // Project-access check: scope by accessible projects for this user
+    const proyectoIdForTask = await prisma.proyecto.findFirst({
+      where: {
+        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { tareas: { some: { id } } } } } } } } } },
+      },
+      select: { id: true },
+    });
+    const accessibleApr = await getAccessibleProjectIds(
+      aprobador.id,
+      aprobador.constructora_id,
+      aprobador.rol_ref.nivel_acceso,
+    );
+    if (!proyectoIdForTask || !canAccessProject(accessibleApr, proyectoIdForTask.id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     // Tenant isolation: verify the task belongs to the approver's constructora
