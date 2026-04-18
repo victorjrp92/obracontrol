@@ -40,7 +40,7 @@ interface SidebarProps {
   userRole?: string;
 }
 
-export default function Sidebar({ nivelAcceso = "ADMINISTRADOR", userName = "Usuario", userRole }: SidebarProps) {
+export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usuario", userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
