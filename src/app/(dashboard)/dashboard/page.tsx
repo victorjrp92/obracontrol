@@ -18,6 +18,19 @@ export default async function DashboardPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
+  if (
+    usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO" &&
+    (usuario.proyectos_administrados?.length ?? 0) === 0
+  ) {
+    return (
+      <main className="flex-1 flex items-center justify-center p-8">
+        <p className="text-slate-500 text-sm text-center max-w-sm">
+          No tienes proyectos asignados. Contacta al administrador general para que te asigne al menos un proyecto.
+        </p>
+      </main>
+    );
+  }
+
   const cid = usuario.constructora_id;
 
   const [stats, proyectos, tareasRecientes, topContratistas] = await Promise.all([
