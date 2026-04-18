@@ -3,26 +3,43 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, UserPlus, Mail, User, Shield } from "lucide-react";
+import ProyectosMultiSelect from "@/components/dashboard/ProyectosMultiSelect";
 
 interface RolOption {
   id: string;
   nombre: string;
+  nivel_acceso: string;
 }
 
-export default function InviteUserModal({ onClose }: { onClose: () => void }) {
+interface ProyectoOption {
+  id: string;
+  nombre: string;
+}
+
+interface Props {
+  onClose: () => void;
+  proyectos?: ProyectoOption[];
+}
+
+export default function InviteUserModal({ onClose, proyectos = [] }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [roles, setRoles] = useState<RolOption[]>([]);
+  const [selectedRolId, setSelectedRolId] = useState("");
+  const [proyectosAsignados, setProyectosAsignados] = useState<string[]>([]);
 
   useEffect(() => {
     fetch("/api/roles")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setRoles(data);
+        if (Array.isArray(data)) setRoles(data as RolOption[]);
       })
       .catch(() => {});
   }, []);
+
+  const selectedRol = roles.find((r) => r.id === selectedRolId);
+  const needsProyectos = selectedRol?.nivel_acceso === "ADMIN_PROYECTO";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -30,11 +47,20 @@ export default function InviteUserModal({ onClose }: { onClose: () => void }) {
     setError("");
 
     const form = new FormData(e.currentTarget);
-    const body = {
+    const body: Record<string, unknown> = {
       email: form.get("email"),
       nombre: form.get("nombre"),
-      rol_id: form.get("rol_id"),
+      rol_id: selectedRolId,
     };
+
+    if (needsProyectos) {
+      if (proyectosAsignados.length === 0) {
+        setError("Selecciona al menos un proyecto");
+        setLoading(false);
+        return;
+      }
+      body.proyectos_asignados = proyectosAsignados;
+    }
 
     const res = await fetch("/api/usuarios", {
       method: "POST",
@@ -96,7 +122,9 @@ export default function InviteUserModal({ onClose }: { onClose: () => void }) {
             <div className="relative">
               <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <select
-                name="rol_id" required
+                required
+                value={selectedRolId}
+                onChange={(e) => setSelectedRolId(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 appearance-none bg-white cursor-pointer"
               >
                 <option value="">Seleccionar rol...</option>
@@ -106,6 +134,15 @@ export default function InviteUserModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           </div>
+
+          {needsProyectos && (
+            <ProyectosMultiSelect
+              proyectos={proyectos}
+              value={proyectosAsignados}
+              onChange={setProyectosAsignados}
+              required
+            />
+          )}
 
           <p className="text-xs text-slate-500">
             Se enviará un email con contraseña temporal al usuario invitado.
