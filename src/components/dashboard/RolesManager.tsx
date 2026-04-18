@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, X, Shield, ChevronDown } from "lucide-react";
 
-type NivelAcceso = "DIRECTIVO" | "ADMINISTRADOR" | "CONTRATISTA" | "OBRERO";
+type NivelAcceso = "DIRECTIVO" | "ADMIN_GENERAL" | "ADMIN_PROYECTO" | "CONTRATISTA" | "OBRERO";
 
 interface Rol {
   id: string;
@@ -14,18 +14,20 @@ interface Rol {
   _count: { usuarios: number };
 }
 
-const NIVELES: NivelAcceso[] = ["DIRECTIVO", "ADMINISTRADOR", "CONTRATISTA", "OBRERO"];
+const NIVELES: NivelAcceso[] = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"];
 
 const NIVEL_LABELS: Record<NivelAcceso, string> = {
   DIRECTIVO: "Directivo",
-  ADMINISTRADOR: "Administrador",
+  ADMIN_GENERAL: "Administrador general",
+  ADMIN_PROYECTO: "Admin proyecto",
   CONTRATISTA: "Contratista",
   OBRERO: "Obrero",
 };
 
 const NIVEL_COLORS: Record<NivelAcceso, string> = {
   DIRECTIVO: "bg-violet-100 text-violet-700",
-  ADMINISTRADOR: "bg-blue-100 text-blue-700",
+  ADMIN_GENERAL: "bg-blue-100 text-blue-700",
+  ADMIN_PROYECTO: "bg-sky-100 text-sky-700",
   CONTRATISTA: "bg-amber-100 text-amber-700",
   OBRERO: "bg-emerald-100 text-emerald-700",
 };
