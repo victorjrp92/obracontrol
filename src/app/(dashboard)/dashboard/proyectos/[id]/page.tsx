@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getProyectoDetalle } from "@/lib/data-detail";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
@@ -32,6 +33,16 @@ export default async function ProyectoDetallePage({
   if (!usuario) redirect("/login");
 
   const { id } = await params;
+
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+  if (accessible !== "ALL" && !accessible.includes(id)) {
+    redirect("/dashboard/proyectos");
+  }
+
   const { unidad: unidadId } = await searchParams;
   const proyecto = await getProyectoDetalle(id);
   if (!proyecto) notFound();
@@ -108,7 +119,7 @@ export default async function ProyectoDetallePage({
         </Link>
 
         {/* Edit project + audit log (admin can edit, directivo can view log) */}
-        {["ADMINISTRADOR", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
+        {["ADMIN_GENERAL", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (
           <div className="mb-4">
             <EditProyecto
               proyecto={{
@@ -119,7 +130,7 @@ export default async function ProyectoDetallePage({
                 fecha_fin_estimada: proyecto.fecha_fin_estimada?.toISOString() ?? null,
                 estado: proyecto.estado,
               }}
-              canEdit={usuario.rol_ref.nivel_acceso === "ADMINISTRADOR"}
+              canEdit={usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL"}
             />
           </div>
         )}
