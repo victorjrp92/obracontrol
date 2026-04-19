@@ -89,8 +89,36 @@ export async function PATCH(
         );
       }
 
+      // Validate fase_id belongs to the sugerencia's project (avoid cross-project reuse)
+      const faseOwned = await prisma.fase.findFirst({
+        where: { id: fase_id, proyecto_id: sugerencia.proyecto_id },
+        select: { id: true },
+      });
+      if (!faseOwned) {
+        return NextResponse.json(
+          { error: "La fase no pertenece al proyecto de la sugerencia" },
+          { status: 400 }
+        );
+      }
+
       // Parse unidades from the sugerencia
       const unidades = sugerencia.unidades as string[];
+
+      // Validate unidades belong to the sugerencia's project (avoid injecting tasks into other projects)
+      if (unidades.length > 0) {
+        const unidadesOwned = await prisma.unidad.count({
+          where: {
+            id: { in: unidades },
+            piso: { edificio: { proyecto_id: sugerencia.proyecto_id } },
+          },
+        });
+        if (unidadesOwned !== unidades.length) {
+          return NextResponse.json(
+            { error: "Algunas unidades no pertenecen al proyecto de la sugerencia" },
+            { status: 400 }
+          );
+        }
+      }
 
       // For each unidad, find or create an Espacio, then create a Tarea
       await prisma.$transaction(async (tx) => {
