@@ -126,11 +126,11 @@ export async function recalcularScoreContratista(contratistaId: string): Promise
         t.espacio.unidad.piso.edificio.proyecto.dias_habiles_semana;
       const diasReales = calcularDiasHabiles(inicio, fin, diasSemanales);
 
-      // Si el retraso fue por falta de pista, no penaliza
+      // Si el retraso fue por falta de pista (sin culpa del contratista), no penaliza
       const tieneRetrasoContratista = t.retrasos.some(
         (r) => r.tipo === "POR_CONTRATISTA" || r.tipo === "OTRO"
       );
-      if (!tieneRetrasoContratista && diasReales > diasAcordados) return 0;
+      if (!tieneRetrasoContratista && diasReales > diasAcordados) return 80;
 
       const pct = (diasReales - diasAcordados) / diasAcordados;
       if (pct < -0.1) return 100;
