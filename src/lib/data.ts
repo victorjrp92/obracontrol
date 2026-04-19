@@ -67,15 +67,22 @@ export async function getDashboardStats(
         rol_ref: { nivel_acceso: "CONTRATISTA" },
       },
     }),
-    // Tareas en rojo/vinotinto (retrasadas > 15%)
-    prisma.tarea.count({
+    prisma.tarea.findMany({
       where: {
-        estado: { in: ["PENDIENTE", "REPORTADA"] },
+        estado: { in: ["PENDIENTE", "NO_APROBADA"] },
         fecha_inicio: { not: null },
+        tiempo_acordado_dias: { gt: 0 },
         ...proyectoPathFilter,
       },
+      select: { fecha_inicio: true, tiempo_acordado_dias: true },
     }),
   ]);
+
+  const ahora = new Date();
+  const tareasEnRiesgoCount = tareasEnRiesgo.filter((t) => {
+    const limite = new Date(t.fecha_inicio!.getTime() + t.tiempo_acordado_dias * 86400000);
+    return limite < ahora;
+  }).length;
 
   const total = tareasAprobadas + tareasReportadas + tareasPendientes + tareasNoAprobadas;
   const porcentajeAprobado = total > 0 ? Math.round((tareasAprobadas / total) * 100) : 0;
@@ -87,7 +94,7 @@ export async function getDashboardStats(
     tareasPendientes,
     tareasNoAprobadas,
     contratistasActivos,
-    tareasEnRiesgo,
+    tareasEnRiesgo: tareasEnRiesgoCount,
     total,
     porcentajeAprobado,
   };
@@ -339,10 +346,10 @@ export async function getTareasFiltradas(
           },
         },
       },
+      fase: { select: { id: true, nombre: true, orden: true } },
       asignado_usuario: { select: { nombre: true } },
     },
-    orderBy: { updated_at: "desc" },
-    take: 50,
+    orderBy: [{ fase: { orden: "asc" } }, { nombre: "asc" }],
   });
 
   return tareas.map((t) => {
@@ -353,7 +360,18 @@ export async function getTareasFiltradas(
     const diasRestantes = t.tiempo_acordado_dias - dias;
 
     return {
+      // New fields for TareasTable
       id: t.id,
+      nombre: `${t.espacio.nombre} — ${t.nombre}`,
+      contratista: t.asignado_usuario?.nombre ?? null,
+      diasEstimados: t.tiempo_acordado_dias,
+      plazo: diasRestantes,
+      estado: t.estado as "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA",
+      faseId: t.fase.id,
+      faseNombre: t.fase.nombre,
+      faseOrden: t.fase.orden,
+      fechaInicio: t.fecha_inicio,
+      // Backward-compatible fields for dashboard TaskRow
       name: t.nombre,
       project: proyecto.nombre,
       unit: `${t.espacio.unidad.piso.edificio.nombre} · Apto ${t.espacio.unidad.nombre}`,

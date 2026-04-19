@@ -16,6 +16,8 @@ interface WizardStep2Props {
   setFasesSeleccionadas: React.Dispatch<React.SetStateAction<string[]>>;
   tareas: TareaInput[];
   setTareas: React.Dispatch<React.SetStateAction<TareaInput[]>>;
+  faseDias: Record<string, number | undefined>;
+  onFaseDiasChange: (fase: string, dias: number | undefined) => void;
   canProceed: boolean;
   onNext: () => void;
   onBack: () => void;
@@ -27,6 +29,8 @@ export default function WizardStep2({
   setFasesSeleccionadas,
   tareas,
   setTareas,
+  faseDias,
+  onFaseDiasChange,
   canProceed,
   onNext,
   onBack,
@@ -152,11 +156,11 @@ export default function WizardStep2({
         return (
           <div key={fase} className="mb-6 border border-slate-200 rounded-xl overflow-hidden">
             {/* Phase header */}
-            <button
-              onClick={() => toggleCollapse(fase)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
-            >
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors">
+              <button
+                onClick={() => toggleCollapse(fase)}
+                className="flex items-center gap-2 flex-1"
+              >
                 {isCollapsed
                   ? <ChevronRight className="w-4 h-4 text-slate-500" />
                   : <ChevronDown className="w-4 h-4 text-slate-500" />
@@ -165,8 +169,19 @@ export default function WizardStep2({
                 <span className="text-[10px] font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
                   {faseTareas.length} tarea{faseTareas.length !== 1 ? "s" : ""}
                 </span>
+              </button>
+              <div className="flex items-center gap-1 flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Dias"
+                  value={faseDias[fase] ?? ""}
+                  onChange={(e) => onFaseDiasChange(fase, e.target.value ? Number(e.target.value) : undefined)}
+                  className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                />
+                <span className="text-[10px] text-slate-400">dias est.</span>
               </div>
-            </button>
+            </div>
 
             {!isCollapsed && (
               <div className="p-4">

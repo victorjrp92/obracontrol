@@ -12,7 +12,12 @@ interface WizardPayload {
   fecha_inicio?: string;
   fecha_fin_estimada?: string;
   // Tipos de unidad (optional for backward compat)
-  tipos_unidad?: { nombre: string; espacios: string[] }[];
+  tipos_unidad?: {
+    nombre: string;
+    espacios: string[];
+    metraje_total?: number;
+    metrajes_espacios?: Record<string, number>;
+  }[];
   // Paso 2 — estructura
   edificios: {
     nombre: string;
@@ -22,7 +27,7 @@ interface WizardPayload {
   }[];
   // Paso 3 — espacios y tareas
   espacios: string[]; // espacios que tendrá cada unidad (union of all tipos)
-  fases: string[]; // fases activas (Madera, Obra Blanca)
+  fases: (string | { nombre: string; tiempo_estimado_dias?: number })[]; // backward-compatible
   tareas: {
     fase: string;
     espacio: string;
@@ -34,6 +39,7 @@ interface WizardPayload {
     asignado_a?: string; // usuario_id del contratista
   }[];
   zonas_comunes?: string[]; // nombres de zonas comunes seleccionadas
+  zonas_comunes_metrajes?: Record<string, number>;
 }
 
 export async function POST(req: NextRequest) {
@@ -59,6 +65,17 @@ export async function POST(req: NextRequest) {
     if (!body.nombre || !body.subtipo) {
       return NextResponse.json({ error: "Faltan datos requeridos" }, { status: 400 });
     }
+    if (
+      body.dias_habiles_semana != null &&
+      (typeof body.dias_habiles_semana !== "number" ||
+        body.dias_habiles_semana < 1 ||
+        body.dias_habiles_semana > 7)
+    ) {
+      return NextResponse.json(
+        { error: "Dias habiles por semana debe estar entre 1 y 7" },
+        { status: 400 },
+      );
+    }
     if (esZonasComunes) {
       if (!body.zonas_comunes?.length) {
         return NextResponse.json({ error: "Selecciona al menos una zona comun" }, { status: 400 });
@@ -69,8 +86,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Normalize fases so ZONAS_COMUNES projects don't blow up on undefined access
-    const fasesInput: string[] = Array.isArray(body.fases) ? body.fases : [];
+    // Normalize fases: accept string[] or { nombre, tiempo_estimado_dias }[]
+    const fasesRaw = Array.isArray(body.fases) ? body.fases : [];
+    const fasesNormalized = fasesRaw.map((f) =>
+      typeof f === "string" ? { nombre: f } : f
+    );
+    const fasesInput = fasesNormalized.map((f) => f.nombre);
+
+    // Validate task references: each tarea.fase must be in fasesInput
+    for (const t of body.tareas ?? []) {
+      if (!fasesInput.includes(t.fase)) {
+        return NextResponse.json(
+          { error: `La tarea "${t.nombre}" referencia la fase "${t.fase}" que no fue seleccionada` },
+          { status: 400 },
+        );
+      }
+      if (typeof t.tiempo_acordado_dias === "number" && t.tiempo_acordado_dias < 0) {
+        return NextResponse.json(
+          { error: `La tarea "${t.nombre}" tiene dias negativos` },
+          { status: 400 },
+        );
+      }
+    }
 
     // Tenant isolation: verify all `asignado_a` user IDs referenced in tareas
     // belong to the caller's constructora. Otherwise a malicious admin could
@@ -153,21 +190,41 @@ export async function POST(req: NextRequest) {
 
       // 2. Fases
       const fasesCreadas: Record<string, string> = {};
-      for (let i = 0; i < fasesInput.length; i++) {
+      const faseDiasMap: Record<string, number | undefined> = {};
+      for (let i = 0; i < fasesNormalized.length; i++) {
+        const faseInput = fasesNormalized[i];
         const fase = await tx.fase.create({
-          data: { proyecto_id: proyecto.id, nombre: fasesInput[i], orden: i + 1 },
+          data: {
+            proyecto_id: proyecto.id,
+            nombre: faseInput.nombre,
+            orden: i + 1,
+            ...(faseInput.tiempo_estimado_dias != null
+              ? { tiempo_estimado_dias: faseInput.tiempo_estimado_dias }
+              : {}),
+          },
         });
-        fasesCreadas[fasesInput[i]] = fase.id;
+        fasesCreadas[faseInput.nombre] = fase.id;
+        faseDiasMap[faseInput.nombre] = faseInput.tiempo_estimado_dias;
       }
 
       // 3. Tipos de unidad
-      const tipoMap: Record<string, { id: string; espacios: string[] }> = {};
+      const tipoMap: Record<string, {
+        id: string;
+        espacios: string[];
+        metraje_total?: number;
+        metrajes_espacios?: Record<string, number>;
+      }> = {};
       if (body.tipos_unidad && body.tipos_unidad.length > 0) {
         for (const tipoInput of body.tipos_unidad) {
           const created = await tx.tipoUnidad.create({
             data: { proyecto_id: proyecto.id, nombre: tipoInput.nombre },
           });
-          tipoMap[tipoInput.nombre] = { id: created.id, espacios: tipoInput.espacios };
+          tipoMap[tipoInput.nombre] = {
+            id: created.id,
+            espacios: tipoInput.espacios,
+            metraje_total: tipoInput.metraje_total,
+            metrajes_espacios: tipoInput.metrajes_espacios,
+          };
         }
       } else {
         // Legacy: single default type with all spaces
@@ -175,6 +232,36 @@ export async function POST(req: NextRequest) {
           data: { proyecto_id: proyecto.id, nombre: "Tipo estándar" },
         });
         tipoMap["Tipo estándar"] = { id: created.id, espacios: body.espacios };
+      }
+
+      // Pre-compute tarea counts per fase for auto-calculation
+      const tareasInput = body.tareas ?? [];
+      const tareaCountPerFase: Record<string, number> = {};
+      for (const t of tareasInput) {
+        tareaCountPerFase[t.fase] = (tareaCountPerFase[t.fase] ?? 0) + 1;
+      }
+
+      // Calculate total project days from dates (fallback)
+      let totalProjectDias: number | null = null;
+      if (body.fecha_inicio && body.fecha_fin_estimada) {
+        const start = new Date(body.fecha_inicio);
+        const end = new Date(body.fecha_fin_estimada);
+        const diffMs = end.getTime() - start.getTime();
+        totalProjectDias = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+      }
+      const numFases = fasesNormalized.length || 1;
+
+      function calcDias(original: number, faseName: string): number {
+        if (original > 0) return original;
+        const diasFase = faseDiasMap[faseName];
+        const numTareas = tareaCountPerFase[faseName] || 1;
+        if (diasFase != null && diasFase > 0) {
+          return Math.max(1, Math.round(diasFase / numTareas));
+        }
+        if (totalProjectDias != null) {
+          return Math.max(1, Math.round(totalProjectDias / numFases / numTareas));
+        }
+        return 3;
       }
 
       // 4. Edificios → Pisos → Unidades → Espacios
@@ -213,25 +300,28 @@ export async function POST(req: NextRequest) {
                   piso_id: piso.id,
                   nombre: `${p}0${unitCounter}`,
                   tipo_unidad_id: tipoInfo.id,
+                  ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
                 },
               });
               unitCounter++;
 
               // Only create spaces that belong to this unit's type
               for (const nombreEspacio of tipoInfo.espacios) {
+                const espacioMetraje = tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
                 const espacio = await tx.espacio.create({
-                  data: { unidad_id: unidad.id, nombre: nombreEspacio, metraje: 15 },
+                  data: { unidad_id: unidad.id, nombre: nombreEspacio, metraje: espacioMetraje },
                 });
 
                 // Create tasks for this space
                 const tareasDelEspacio = (body.tareas ?? []).filter((t) => t.espacio === nombreEspacio);
                 for (const t of tareasDelEspacio) {
+                  const dias = calcDias(t.tiempo_acordado_dias, t.fase);
                   await tx.tarea.create({
                     data: {
                       espacio_id: espacio.id,
                       fase_id: fasesCreadas[t.fase],
                       nombre: t.nombre,
-                      tiempo_acordado_dias: t.tiempo_acordado_dias,
+                      tiempo_acordado_dias: dias,
                       codigo_referencia: t.codigo_referencia ?? null,
                       marca_linea: t.marca_linea ?? null,
                       componentes: t.componentes ?? null,
@@ -284,8 +374,13 @@ export async function POST(req: NextRequest) {
           });
 
           // Crear un espacio con el mismo nombre de la zona
+          const zcMetraje = body.zonas_comunes_metrajes?.[nombreZona];
           const espacioZC = await tx.espacio.create({
-            data: { unidad_id: unidadZC.id, nombre: nombreZona },
+            data: {
+              unidad_id: unidadZC.id,
+              nombre: nombreZona,
+              ...(zcMetraje != null ? { metraje: zcMetraje } : {}),
+            },
           });
 
           // Crear tareas desde TASK_TEMPLATES["Zonas Comunes"] si existen para esta zona
@@ -308,8 +403,7 @@ export async function POST(req: NextRequest) {
     }, { timeout: 60000 });
 
     return NextResponse.json(proyectoCreado, { status: 201 });
-  } catch (error) {
-    console.error("POST /api/proyectos/wizard", error);
+  } catch {
     return NextResponse.json({ error: "Error creando proyecto" }, { status: 500 });
   }
 }

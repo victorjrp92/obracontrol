@@ -29,11 +29,14 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
   ]);
   const [tieneZonasComunes, setTieneZonasComunes] = useState(false);
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>([]);
+  const [metrosEnabled, setMetrosEnabled] = useState(false);
+  const [metrosZonas, setMetrosZonas] = useState<Record<string, number>>({});
 
   // Step 2 state
   const allEspacios = [...new Set(tiposUnidad.flatMap((t) => t.espacios))];
   const [fasesSeleccionadas, setFasesSeleccionadas] = useState<string[]>(["Madera", "Obra Blanca"]);
   const [tareas, setTareas] = useState<TareaInput[]>([]);
+  const [faseDias, setFaseDias] = useState<Record<string, number | undefined>>({});
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
@@ -74,7 +77,13 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
       dias_habiles_semana: diasHabiles,
       fecha_inicio: fechaInicio || undefined,
       fecha_fin_estimada: fechaFin || undefined,
-      tipos_unidad: tiposUnidad.map((t) => ({ nombre: t.nombre, espacios: t.espacios })),
+      tipos_unidad: tiposUnidad.map((t) => ({
+        nombre: t.nombre,
+        espacios: t.espacios,
+        ...(metrosEnabled && t.metraje_total != null ? { metraje_total: t.metraje_total } : {}),
+        ...(metrosEnabled && t.metrajes_espacios && Object.keys(t.metrajes_espacios).length > 0
+          ? { metrajes_espacios: t.metrajes_espacios } : {}),
+      })),
       edificios: esZonasComunes ? [] : edificios.map((e) => ({
         nombre: e.nombre,
         pisos: e.pisos,
@@ -86,9 +95,14 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
         ),
       })),
       espacios: allEspacios,
-      fases: fasesSeleccionadas,
+      fases: fasesSeleccionadas.map((f) => ({
+        nombre: f,
+        ...(faseDias[f] != null ? { tiempo_estimado_dias: faseDias[f] } : {}),
+      })),
       tareas: tareasToSend.map(({ id: _id, ...rest }) => rest),
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
+      ...(metrosEnabled && Object.keys(metrosZonas).length > 0
+        ? { zonas_comunes_metrajes: metrosZonas } : {}),
     };
 
     try {
@@ -157,6 +171,8 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
           edificios={edificios} setEdificios={setEdificios}
           tieneZonasComunes={tieneZonasComunes} setTieneZonasComunes={setTieneZonasComunes}
           zonasSeleccionadas={zonasSeleccionadas} setZonasSeleccionadas={setZonasSeleccionadas}
+          metrosEnabled={metrosEnabled} onMetrosEnabledChange={setMetrosEnabled}
+          metrosZonas={metrosZonas} onMetrosZonasChange={setMetrosZonas}
           canProceed={canProceed1}
           onNext={() => setStep(2)}
         />
@@ -169,6 +185,8 @@ export default function WizardClient({ contratistas }: { contratistas: Contratis
           setFasesSeleccionadas={setFasesSeleccionadas}
           tareas={tareas}
           setTareas={setTareas}
+          faseDias={faseDias}
+          onFaseDiasChange={(fase, dias) => setFaseDias((prev) => ({ ...prev, [fase]: dias }))}
           canProceed={canProceed2}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}

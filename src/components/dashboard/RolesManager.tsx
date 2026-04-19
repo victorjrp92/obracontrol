@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, X, Shield, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Shield, ChevronDown, Users, Loader2 } from "lucide-react";
 
 type NivelAcceso = "DIRECTIVO" | "ADMIN_GENERAL" | "ADMIN_PROYECTO" | "CONTRATISTA" | "OBRERO";
 
@@ -19,7 +19,7 @@ const NIVELES: NivelAcceso[] = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", 
 const NIVEL_LABELS: Record<NivelAcceso, string> = {
   DIRECTIVO: "Directivo",
   ADMIN_GENERAL: "Administrador general",
-  ADMIN_PROYECTO: "Admin proyecto",
+  ADMIN_PROYECTO: "Administrador Proyectos",
   CONTRATISTA: "Contratista",
   OBRERO: "Obrero",
 };
@@ -223,6 +223,9 @@ export default function RolesManager() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRol, setEditingRol] = useState<Rol | null>(null);
   const [deletingRol, setDeletingRol] = useState<Rol | null>(null);
+  const [expandedRolId, setExpandedRolId] = useState<string | null>(null);
+  const [expandedUsers, setExpandedUsers] = useState<{ id: string; nombre: string; email: string; created_at: string }[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   const fetchRoles = useCallback(async () => {
     setLoading(true);
@@ -246,6 +249,31 @@ export default function RolesManager() {
   function handleSaved() {
     fetchRoles();
     router.refresh();
+  }
+
+  async function fetchUsersForRole(rolId: string) {
+    setLoadingUsers(true);
+    try {
+      const res = await fetch(`/api/roles/${rolId}/usuarios`);
+      if (res.ok) {
+        const data = await res.json();
+        setExpandedUsers(data);
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingUsers(false);
+    }
+  }
+
+  function handleToggleUsers(rolId: string) {
+    if (expandedRolId === rolId) {
+      setExpandedRolId(null);
+      setExpandedUsers([]);
+    } else {
+      setExpandedRolId(rolId);
+      fetchUsersForRole(rolId);
+    }
   }
 
   return (
@@ -299,45 +327,87 @@ export default function RolesManager() {
             </thead>
             <tbody>
               {roles.map((rol) => (
-                <tr key={rol.id} className="border-b border-slate-50 last:border-0">
-                  <td className="py-3 pr-4">
-                    <span className="font-medium text-slate-900">{rol.nombre}</span>
-                    {rol.es_default && (
-                      <span className="ml-2 text-xs text-slate-400 font-normal">(predeterminado)</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${NIVEL_COLORS[rol.nivel_acceso]}`}>
-                      {NIVEL_LABELS[rol.nivel_acceso]}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4 text-slate-600">
-                    {rol._count.usuarios}
-                  </td>
-                  <td className="py-3 text-right">
-                    <div className="inline-flex items-center gap-1">
-                      <button
-                        onClick={() => setEditingRol(rol)}
-                        title="Editar rol"
-                        className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => rol._count.usuarios === 0 && setDeletingRol(rol)}
-                        disabled={rol._count.usuarios > 0}
-                        title={
-                          rol._count.usuarios > 0
-                            ? "No se puede eliminar un rol con usuarios asignados"
-                            : "Eliminar rol"
-                        }
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <React.Fragment key={rol.id}>
+                  <tr className="border-b border-slate-50 last:border-0">
+                    <td className="py-3 pr-4">
+                      <span className="font-medium text-slate-900">{rol.nombre}</span>
+                      {rol.es_default && (
+                        <span className="ml-2 text-xs text-slate-400 font-normal">(predeterminado)</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${NIVEL_COLORS[rol.nivel_acceso]}`}>
+                        {NIVEL_LABELS[rol.nivel_acceso]}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4 text-slate-600">
+                      {rol._count.usuarios > 0 ? (
+                        <button
+                          onClick={() => handleToggleUsers(rol.id)}
+                          className="inline-flex items-center gap-1 cursor-pointer hover:text-blue-600 underline decoration-dotted transition-colors"
+                          title="Ver usuarios con este rol"
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          {rol._count.usuarios}
+                        </button>
+                      ) : (
+                        rol._count.usuarios
+                      )}
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingRol(rol)}
+                          title="Editar rol"
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => rol._count.usuarios === 0 && setDeletingRol(rol)}
+                          disabled={rol._count.usuarios > 0}
+                          title={
+                            rol._count.usuarios > 0
+                              ? "No se puede eliminar un rol con usuarios asignados"
+                              : "Eliminar rol"
+                          }
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedRolId === rol.id && (
+                    <tr>
+                      <td colSpan={4} className="bg-blue-50/50 px-4 py-3">
+                        {loadingUsers ? (
+                          <div className="flex items-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Cargando...
+                          </div>
+                        ) : expandedUsers.length === 0 ? (
+                          <p className="text-sm text-slate-500">Sin usuarios</p>
+                        ) : (
+                          <div className="grid gap-2">
+                            {expandedUsers.map((u) => (
+                              <div
+                                key={u.id}
+                                className="flex items-center gap-4 text-sm"
+                              >
+                                <span className="font-medium text-slate-800">{u.nombre}</span>
+                                <span className="text-slate-500">{u.email}</span>
+                                <span className="text-xs text-slate-400">
+                                  Desde {new Date(u.created_at).toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

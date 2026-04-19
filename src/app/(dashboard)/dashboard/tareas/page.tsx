@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getTareasFiltradas, getUsuarioActual, getProyectosActivos } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
-import TaskRow from "@/components/dashboard/TaskRow";
+import TareasTable from "@/components/dashboard/TareasTable";
 import Link from "next/link";
 import ProjectSelect from "./ProjectSelect";
 
@@ -85,7 +85,7 @@ export default async function TareasPage({
           </div>
         </div>
 
-        {/* Tasks list */}
+        {/* Tasks table grouped by phase */}
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <span className="text-sm font-semibold text-slate-700">{tareas.length} tareas</span>
@@ -98,27 +98,18 @@ export default async function TareasPage({
             </div>
           </div>
 
-          {tareas.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-sm">
-              No hay tareas con este estado
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {tareas.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  id={t.id}
-                  name={t.name}
-                  project={t.project}
-                  unit={t.unit}
-                  status={t.status}
-                  semaforo={t.semaforo}
-                  daysLeft={t.daysLeft}
-                  contractor={t.contractor}
-                />
-              ))}
-            </div>
-          )}
+          <TareasTable
+            tareas={tareas.map((t) => ({
+              id: t.id,
+              nombre: t.nombre,
+              contratista: t.contratista,
+              diasEstimados: t.diasEstimados,
+              plazo: t.plazo,
+              estado: t.estado,
+              faseNombre: t.faseNombre,
+              faseOrden: t.faseOrden,
+            }))}
+          />
         </div>
       </main>
     </>

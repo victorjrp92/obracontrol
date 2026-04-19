@@ -8,6 +8,13 @@ export interface TipoUnidadInput {
   id: string;
   nombre: string;
   espacios: string[];
+  metraje_total?: number;              // m² total of the unit
+  metrajes_espacios?: Record<string, number>;  // space_name -> m²
+}
+
+export interface FaseInput {
+  nombre: string;
+  tiempo_estimado_dias?: number;
 }
 
 export interface EdificioInput {

@@ -53,18 +53,20 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-slate-800 flex-shrink-0">
-        <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9 flex-shrink-0" />
-        {!collapsed && (
-          <div className="leading-tight">
-            <div className="font-extrabold text-white text-base tracking-wide whitespace-nowrap">SEIRICON</div>
-            <div className="text-[9px] text-blue-300 whitespace-nowrap">construyendo en orden</div>
-          </div>
-        )}
+      <div className="flex items-center h-16 border-b border-slate-800 flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2.5 px-4 flex-1 min-w-0" onClick={() => setMobileOpen(false)}>
+          <img src="/seiricon-icon.png" alt="Seiricon" className="w-9 h-9 flex-shrink-0" />
+          {!collapsed && (
+            <div className="leading-tight">
+              <div className="font-extrabold text-white text-base tracking-wide whitespace-nowrap">SEIRICON</div>
+              <div className="text-[9px] text-blue-300 whitespace-nowrap">construyendo en orden</div>
+            </div>
+          )}
+        </Link>
         {/* Mobile close */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="ml-auto lg:hidden p-1 text-slate-400 hover:text-white"
+          className="lg:hidden p-1 text-slate-400 hover:text-white mr-3"
         >
           <X className="w-5 h-5" />
         </button>

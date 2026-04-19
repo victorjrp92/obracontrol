@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  ArrowRight, Check, Plus, Trash2, Trees,
+  ArrowRight, Check, Plus, Ruler, Trash2, Trees,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
 import type { TipoUnidadInput, EdificioInput } from "./wizard-types";
@@ -26,6 +26,10 @@ interface WizardStep1Props {
   setTieneZonasComunes: (v: boolean) => void;
   zonasSeleccionadas: string[];
   setZonasSeleccionadas: React.Dispatch<React.SetStateAction<string[]>>;
+  metrosEnabled: boolean;
+  onMetrosEnabledChange: (v: boolean) => void;
+  metrosZonas: Record<string, number>;
+  onMetrosZonasChange: (v: Record<string, number>) => void;
   canProceed: boolean;
   onNext: () => void;
 }
@@ -40,6 +44,8 @@ export default function WizardStep1({
   edificios, setEdificios,
   tieneZonasComunes, setTieneZonasComunes,
   zonasSeleccionadas, setZonasSeleccionadas,
+  metrosEnabled, onMetrosEnabledChange,
+  metrosZonas, onMetrosZonasChange,
   canProceed, onNext,
 }: WizardStep1Props) {
   // Custom space input per tipo (keyed by tipo.id)
@@ -100,6 +106,25 @@ export default function WizardStep1({
     setTiposUnidad(tiposUnidad.map((t) =>
       t.id === tipoId ? { ...t, espacios: t.espacios.filter((e) => e !== espacio) } : t
     ));
+  }
+
+  // --- Metraje helpers ---
+  function updateTipoMetrajeTotal(tipoId: string, value: number | undefined) {
+    setTiposUnidad(tiposUnidad.map((t) =>
+      t.id === tipoId ? { ...t, metraje_total: value } : t
+    ));
+  }
+
+  function updateTipoMetrajeEspacio(tipoId: string, espacio: string, value: number | undefined) {
+    setTiposUnidad(tiposUnidad.map((t) => {
+      if (t.id !== tipoId) return t;
+      const prev = t.metrajes_espacios ?? {};
+      if (value === undefined) {
+        const { [espacio]: _, ...rest } = prev;
+        return { ...t, metrajes_espacios: rest };
+      }
+      return { ...t, metrajes_espacios: { ...prev, [espacio]: value } };
+    }));
   }
 
   // --- Edificio management ---
@@ -262,7 +287,19 @@ export default function WizardStep1({
                 Agregar tipo
               </button>
             </div>
-            <p className="text-xs text-slate-500 mb-3">Define los tipos de unidad y los espacios que tiene cada uno</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-slate-500">Define los tipos de unidad y los espacios que tiene cada uno</p>
+              <label className="flex items-center gap-2 cursor-pointer flex-shrink-0 ml-4">
+                <Ruler className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs text-slate-600">Incluir m²</span>
+                <input
+                  type="checkbox"
+                  checked={metrosEnabled}
+                  onChange={(e) => onMetrosEnabledChange(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+              </label>
+            </div>
 
             <div className="flex flex-col gap-4">
               {tiposUnidad.map((tipo) => (
@@ -273,6 +310,20 @@ export default function WizardStep1({
                       onChange={(e) => updateTipoNombre(tipo.id, e.target.value)}
                       className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                     />
+                    {metrosEnabled && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          placeholder="m² total"
+                          value={tipo.metraje_total ?? ""}
+                          onChange={(e) => updateTipoMetrajeTotal(tipo.id, e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-20 px-2 py-1.5 rounded-lg border border-slate-200 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                        />
+                        <span className="text-[10px] text-slate-400">m²</span>
+                      </div>
+                    )}
                     {tiposUnidad.length > 1 && (
                       <button onClick={() => removeTipoUnidad(tipo.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50">
                         <Trash2 className="w-3.5 h-3.5" />
@@ -314,6 +365,25 @@ export default function WizardStep1({
                             <Trash2 className="w-2.5 h-2.5" />
                           </button>
                         </span>
+                      ))}
+                    </div>
+                  )}
+                  {/* m² per espacio */}
+                  {metrosEnabled && tipo.espacios.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {tipo.espacios.map((esp) => (
+                        <div key={esp} className="flex items-center gap-1">
+                          <span className="text-[11px] text-slate-500 truncate max-w-[80px]">{esp}:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            placeholder="m²"
+                            value={tipo.metrajes_espacios?.[esp] ?? ""}
+                            onChange={(e) => updateTipoMetrajeEspacio(tipo.id, esp, e.target.value ? Number(e.target.value) : undefined)}
+                            className="w-16 px-1.5 py-1 rounded-lg border border-slate-200 text-[11px] text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -508,6 +578,31 @@ export default function WizardStep1({
               <p className="text-xs text-slate-500 mt-2">
                 {zonasSeleccionadas.length} zona{zonasSeleccionadas.length !== 1 ? "s" : ""} seleccionada{zonasSeleccionadas.length !== 1 ? "s" : ""}
               </p>
+            )}
+
+            {/* m² per zona comun */}
+            {metrosEnabled && zonasSeleccionadas.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {zonasSeleccionadas.map((zona) => (
+                  <div key={zona} className="flex items-center gap-1">
+                    <span className="text-[11px] text-slate-500 truncate max-w-[100px]">{zona}:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      placeholder="m²"
+                      value={metrosZonas[zona] ?? ""}
+                      onChange={(e) => {
+                        const val = e.target.value ? Number(e.target.value) : undefined;
+                        const next = { ...metrosZonas };
+                        if (val === undefined) { delete next[zona]; } else { next[zona] = val; }
+                        onMetrosZonasChange(next);
+                      }}
+                      className="w-16 px-1.5 py-1 rounded-lg border border-slate-200 text-[11px] text-center focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400"
+                    />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         )}

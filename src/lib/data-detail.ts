@@ -18,9 +18,12 @@ async function resolveEvidenciaUrl(stored: string): Promise<string> {
   return await getSignedEvidenciaUrl(stored);
 }
 
-export async function getProyectoDetalle(proyectoId: string) {
+export async function getProyectoDetalle(proyectoId: string, constructoraId?: string) {
   const proyecto = await prisma.proyecto.findUnique({
-    where: { id: proyectoId },
+    where: {
+      id: proyectoId,
+      ...(constructoraId ? { constructora_id: constructoraId } : {}),
+    },
     include: {
       fases: { orderBy: { orden: "asc" } },
       edificios: {
@@ -38,6 +41,7 @@ export async function getProyectoDetalle(proyectoId: string) {
                       tareas: {
                         include: {
                           asignado_usuario: { select: { id: true, nombre: true } },
+                          fase: { select: { id: true, nombre: true, orden: true } },
                         },
                       },
                     },
