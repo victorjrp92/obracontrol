@@ -94,6 +94,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Bound structural inputs to prevent DoS (unbounded row creation in a
+    // transaction). Legit buildings are well under these caps.
+    const MAX_PISOS = 200;
+    const MAX_UNIDADES_POR_PISO = 200;
+    const pisosNum = Number(num_pisos);
+    const unidadesNum = Number(unidades_por_piso);
+    if (
+      !Number.isInteger(pisosNum) ||
+      pisosNum < 1 ||
+      pisosNum > MAX_PISOS ||
+      !Number.isInteger(unidadesNum) ||
+      unidadesNum < 1 ||
+      unidadesNum > MAX_UNIDADES_POR_PISO
+    ) {
+      return NextResponse.json(
+        {
+          error: `num_pisos debe estar entre 1 y ${MAX_PISOS}; unidades_por_piso entre 1 y ${MAX_UNIDADES_POR_PISO}`,
+        },
+        { status: 400 }
+      );
+    }
+
     // Tenant isolation: verify the project belongs to the user's constructora
     const proyectoCheck = await prisma.proyecto.findUnique({
       where: { id: proyecto_id },
@@ -115,15 +137,15 @@ export async function POST(req: NextRequest) {
     // Crear edificio + pisos + unidades en transacción
     const edificio = await prisma.$transaction(async (tx) => {
       const edificio = await tx.edificio.create({
-        data: { proyecto_id, nombre, num_pisos },
+        data: { proyecto_id, nombre, num_pisos: pisosNum },
       });
 
-      for (let p = 1; p <= num_pisos; p++) {
+      for (let p = 1; p <= pisosNum; p++) {
         const piso = await tx.piso.create({
           data: { edificio_id: edificio.id, numero: p },
         });
 
-        for (let u = 1; u <= unidades_por_piso; u++) {
+        for (let u = 1; u <= unidadesNum; u++) {
           const numeroUnidad = `${p}0${u}`.padStart(3, "0");
           await tx.unidad.create({
             data: {

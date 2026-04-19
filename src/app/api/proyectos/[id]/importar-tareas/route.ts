@@ -60,6 +60,16 @@ export async function POST(
       return NextResponse.json({ error: "No se envio archivo" }, { status: 400 });
     }
 
+    // Bound file size to prevent DoS via oversized uploads. 10 MB is generous
+    // for task spreadsheets (tens of thousands of rows at most).
+    const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_UPLOAD_SIZE) {
+      return NextResponse.json(
+        { error: "El archivo no puede superar 10 MB" },
+        { status: 400 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const wb = new ExcelJS.Workbook();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,6 +158,17 @@ export async function POST(
 
     if (errors.length > 0 && tasksToCreate.length === 0) {
       return NextResponse.json({ error: "No se pudo importar ninguna tarea", errores: errors }, { status: 400 });
+    }
+
+    // Bound the number of tasks created per import to avoid abuse.
+    const MAX_TASKS_PER_IMPORT = 5000;
+    if (tasksToCreate.length > MAX_TASKS_PER_IMPORT) {
+      return NextResponse.json(
+        {
+          error: `El archivo contiene demasiadas tareas (maximo ${MAX_TASKS_PER_IMPORT} por importacion)`,
+        },
+        { status: 400 }
+      );
     }
 
     // Create tasks in batch
