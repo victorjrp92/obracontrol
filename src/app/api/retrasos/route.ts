@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { retrasoRegistradoEmailHtml } from "@/lib/email-templates/notifications";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // POST /api/retrasos — registrar retraso en una tarea
 export async function POST(req: NextRequest) {
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
     if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
@@ -40,10 +41,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Tenant isolation: verify the task belongs to the user's constructora
+    // Tenant isolation + project-access + role check: only supervisors (admins /
+    // directivo) or the contratista assigned to the task may register a delay.
     const tareaCheck = await prisma.tarea.findUnique({
       where: { id: tarea_id },
       select: {
+        asignado_a: true,
         espacio: {
           select: {
             unidad: {
@@ -51,7 +54,10 @@ export async function POST(req: NextRequest) {
                 piso: {
                   select: {
                     edificio: {
-                      select: { proyecto: { select: { constructora_id: true } } },
+                      select: {
+                        proyecto_id: true,
+                        proyecto: { select: { constructora_id: true } },
+                      },
                     },
                   },
                 },
@@ -63,6 +69,29 @@ export async function POST(req: NextRequest) {
     });
     if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    const esAsignado = tareaCheck.asignado_a === currentUser.id;
+    const esSupervisor = canApproveTasks(currentUser.rol_ref.nivel_acceso);
+    if (!esAsignado && !esSupervisor) {
+      return NextResponse.json(
+        { error: "Sin permisos para registrar retrasos en esta tarea" },
+        { status: 403 }
+      );
+    }
+
+    // Project-access: if the caller is a supervisor (e.g. ADMIN_PROYECTO), the
+    // task's project must be in their assignments. Contratistas are allowed
+    // through when they own the task regardless of the scope helper.
+    if (esSupervisor) {
+      const accessible = await getAccessibleProjectIds(
+        currentUser.id,
+        currentUser.constructora_id,
+        currentUser.rol_ref.nivel_acceso,
+      );
+      if (!canAccessProject(accessible, tareaCheck.espacio.unidad.piso.edificio.proyecto_id)) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
     }
 
     const retraso = await prisma.retraso.create({

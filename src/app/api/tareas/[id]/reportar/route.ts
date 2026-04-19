@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
-import { canApproveTasks } from "@/lib/access";
+import { canApproveTasks, getAccessibleProjectIds, canAccessProject } from "@/lib/access";
 
 // POST /api/tareas/[id]/reportar — obrero reporta tarea terminada
 export async function POST(
@@ -45,7 +45,7 @@ export async function POST(
                   include: {
                     edificio: {
                       include: {
-                        proyecto: { select: { nombre: true, constructora_id: true } },
+                        proyecto: { select: { id: true, nombre: true, constructora_id: true } },
                       },
                     },
                   },
@@ -75,6 +75,19 @@ export async function POST(
         { error: "Solo el contratista asignado o un supervisor puede reportar esta tarea" },
         { status: 403 }
       );
+    }
+
+    // Project-access: a supervisor (e.g. ADMIN_PROYECTO) must have the project
+    // in their assignments before reporting someone else's task.
+    if (esSupervisor && !esAsignado) {
+      const accessible = await getAccessibleProjectIds(
+        currentUser.id,
+        currentUser.constructora_id,
+        currentUser.rol_ref.nivel_acceso,
+      );
+      if (!canAccessProject(accessible, tarea.espacio.unidad.piso.edificio.proyecto.id)) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
     }
 
     if (tarea.estado !== "PENDIENTE" && tarea.estado !== "NO_APROBADA") {
