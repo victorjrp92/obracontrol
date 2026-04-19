@@ -32,17 +32,15 @@ export default async function ProyectosPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
-  const proyectos = await getProyectosConProgreso(usuario.constructora_id);
-
   const accessible = await getAccessibleProjectIds(
     usuario.id,
     usuario.constructora_id,
     usuario.rol_ref.nivel_acceso,
   );
-  const proyectosVisibles =
-    accessible === "ALL"
-      ? proyectos
-      : proyectos.filter((p) => accessible.includes(p.id));
+  const proyectosVisibles = await getProyectosConProgreso(
+    usuario.constructora_id,
+    accessible,
+  );
 
   const permissions = getPermissions(usuario.rol_ref.nivel_acceso);
   const puedeCrearProyectos = permissions.canViewAllProjects && usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL";

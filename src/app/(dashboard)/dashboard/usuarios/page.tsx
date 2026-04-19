@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual, getProyectosActivos } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { getRolLabel } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
@@ -27,7 +28,12 @@ export default async function UsuariosPage() {
     select: { id: true, nombre: true, nivel_acceso: true },
     orderBy: { nombre: "asc" },
   });
-  const proyectos = await getProyectosActivos(usuario.constructora_id);
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    nivel,
+  );
+  const proyectos = await getProyectosActivos(usuario.constructora_id, accessible);
 
   const rolesVisibles =
     nivel === "ADMIN_PROYECTO"

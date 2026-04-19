@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTareasFiltradas, getUsuarioActual, getProyectosActivos } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import TaskRow from "@/components/dashboard/TaskRow";
 import Link from "next/link";
@@ -25,9 +26,22 @@ export default async function TareasPage({
   const activeFilter = estado ?? "REPORTADA";
   const activeProyecto = proyecto ?? "";
 
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+
   const [tareas, proyectos] = await Promise.all([
-    getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol_ref.nivel_acceso, activeProyecto || undefined),
-    getProyectosActivos(usuario.constructora_id),
+    getTareasFiltradas(
+      usuario.constructora_id,
+      activeFilter,
+      usuario.id,
+      usuario.rol_ref.nivel_acceso,
+      activeProyecto || undefined,
+      accessible,
+    ),
+    getProyectosActivos(usuario.constructora_id, accessible),
   ]);
 
   // Build href preserving both filters

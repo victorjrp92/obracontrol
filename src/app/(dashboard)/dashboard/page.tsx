@@ -7,6 +7,7 @@ import {
   getTopContratistas,
   getUsuarioActual,
 } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
@@ -33,11 +34,17 @@ export default async function DashboardPage() {
 
   const cid = usuario.constructora_id;
 
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    cid,
+    usuario.rol_ref.nivel_acceso,
+  );
+
   const [stats, proyectos, tareasRecientes, topContratistas] = await Promise.all([
-    getDashboardStats(cid),
-    getProyectosConProgreso(cid),
-    getTareasRecientes(cid, 8, usuario.id, usuario.rol_ref.nivel_acceso),
-    getTopContratistas(cid),
+    getDashboardStats(cid, accessible),
+    getProyectosConProgreso(cid, accessible),
+    getTareasRecientes(cid, 8, usuario.id, usuario.rol_ref.nivel_acceso, accessible),
+    getTopContratistas(cid, 3, accessible),
   ]);
 
   const total = stats.total;

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual, getProyectosConProgreso } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import { BarChart3, FileCheck, Download, FileText } from "lucide-react";
 
@@ -7,7 +8,12 @@ export default async function ReportesPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
-  const proyectos = await getProyectosConProgreso(usuario.constructora_id);
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+  const proyectos = await getProyectosConProgreso(usuario.constructora_id, accessible);
 
   return (
     <>
