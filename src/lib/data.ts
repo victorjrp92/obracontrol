@@ -1,6 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { calcularProgreso, calcularSemaforo, calcularDiasHabiles } from "@/lib/scoring";
+import type { AccessibleProjects } from "@/lib/access";
+
+// Internal helper: returns a where-fragment scoped through the espacio→...→proyecto path
+// when accessibleProjectIds is a list; returns `undefined` for "ALL" or when not passed.
+function scopedProyectoConstructoraFilter(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  if (accessibleProjectIds !== undefined && accessibleProjectIds !== "ALL") {
+    return { constructora_id: constructoraId, id: { in: accessibleProjectIds } };
+  }
+  return { constructora_id: constructoraId };
+}
 
 // Usuario autenticado + perfil de la DB
 export async function getUsuarioActual() {
@@ -19,7 +32,13 @@ export async function getUsuarioActual() {
 }
 
 // Stats del dashboard principal
-export async function getDashboardStats(constructoraId: string) {
+export async function getDashboardStats(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
+  const proyectoPathFilter = { espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } } };
+
   const [
     proyectosActivos,
     tareasAprobadas,
@@ -29,18 +48,18 @@ export async function getDashboardStats(constructoraId: string) {
     contratistasActivos,
     tareasEnRiesgo,
   ] = await Promise.all([
-    prisma.proyecto.count({ where: { constructora_id: constructoraId, estado: "ACTIVO" } }),
+    prisma.proyecto.count({ where: { ...proyectoWhere, estado: "ACTIVO" } }),
     prisma.tarea.count({
-      where: { estado: "APROBADA", espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } } },
+      where: { estado: "APROBADA", ...proyectoPathFilter },
     }),
     prisma.tarea.count({
-      where: { estado: "REPORTADA", espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } } },
+      where: { estado: "REPORTADA", ...proyectoPathFilter },
     }),
     prisma.tarea.count({
-      where: { estado: "PENDIENTE", espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } } },
+      where: { estado: "PENDIENTE", ...proyectoPathFilter },
     }),
     prisma.tarea.count({
-      where: { estado: "NO_APROBADA", espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } } },
+      where: { estado: "NO_APROBADA", ...proyectoPathFilter },
     }),
     prisma.usuario.count({
       where: {
@@ -53,7 +72,7 @@ export async function getDashboardStats(constructoraId: string) {
       where: {
         estado: { in: ["PENDIENTE", "REPORTADA"] },
         fecha_inicio: { not: null },
-        espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
+        ...proyectoPathFilter,
       },
     }),
   ]);
@@ -75,9 +94,13 @@ export async function getDashboardStats(constructoraId: string) {
 }
 
 // Proyectos con progreso calculado
-export async function getProyectosConProgreso(constructoraId: string) {
+export async function getProyectosConProgreso(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
   const proyectos = await prisma.proyecto.findMany({
-    where: { constructora_id: constructoraId, estado: "ACTIVO" },
+    where: { ...proyectoWhere, estado: "ACTIVO" },
     include: {
       edificios: {
         include: {
@@ -128,13 +151,20 @@ export async function getProyectosConProgreso(constructoraId: string) {
 }
 
 // Tareas recientes con toda la info necesaria para el dashboard
-export async function getTareasRecientes(constructoraId: string, limite = 8, usuarioId?: string, nivelAcceso?: string) {
+export async function getTareasRecientes(
+  constructoraId: string,
+  limite = 8,
+  usuarioId?: string,
+  nivelAcceso?: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
   const ahora = new Date();
   const esContratista = nivelAcceso === "CONTRATISTA";
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
 
   const tareas = await prisma.tarea.findMany({
     where: {
-      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId } } } } },
+      espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } },
       estado: { not: "APROBADA" },
       ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },
@@ -176,9 +206,36 @@ export async function getTareasRecientes(constructoraId: string, limite = 8, usu
 }
 
 // Top contratistas por score
-export async function getTopContratistas(constructoraId: string, limite = 3) {
+export async function getTopContratistas(
+  constructoraId: string,
+  limite = 3,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  // Base scope: contratistas of this constructora.
+  const baseWhere: Record<string, unknown> = { usuario: { constructora_id: constructoraId } };
+
+  // When project-scoped, narrow to contratistas with at least one task in an accessible project.
+  if (accessibleProjectIds !== undefined && accessibleProjectIds !== "ALL") {
+    baseWhere.usuario = {
+      constructora_id: constructoraId,
+      tareas_asignadas: {
+        some: {
+          espacio: {
+            unidad: {
+              piso: {
+                edificio: {
+                  proyecto: { id: { in: accessibleProjectIds } },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
   return prisma.contratista.findMany({
-    where: { usuario: { constructora_id: constructoraId } },
+    where: baseWhere,
     include: {
       usuario: { select: { nombre: true, rol_ref: { select: { nombre: true } } } },
     },
@@ -228,22 +285,49 @@ export async function getUsuarios(constructoraId: string) {
 }
 
 // Proyectos activos (lightweight, for dropdowns)
-export async function getProyectosActivos(constructoraId: string) {
+export async function getProyectosActivos(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
   return prisma.proyecto.findMany({
-    where: { constructora_id: constructoraId, estado: "ACTIVO" },
+    where: { ...proyectoWhere, estado: "ACTIVO" },
     select: { id: true, nombre: true },
     orderBy: { nombre: "asc" },
   });
 }
 
 // Tareas para la página de tareas con filtros
-export async function getTareasFiltradas(constructoraId: string, estado?: string, usuarioId?: string, nivelAcceso?: string, proyectoId?: string) {
+export async function getTareasFiltradas(
+  constructoraId: string,
+  estado?: string,
+  usuarioId?: string,
+  nivelAcceso?: string,
+  proyectoId?: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
   const ahora = new Date();
   const esContratista = nivelAcceso === "CONTRATISTA";
+  const scoped = accessibleProjectIds !== undefined && accessibleProjectIds !== "ALL";
+  // If project-scoped AND a specific proyectoId is requested, ensure the requested id
+  // is actually accessible — otherwise clamp to a filter that will match nothing.
+  let proyectoWhere: Record<string, unknown> = { constructora_id: constructoraId };
+  if (scoped) {
+    const allowed = accessibleProjectIds as string[];
+    if (proyectoId) {
+      proyectoWhere = allowed.includes(proyectoId)
+        ? { constructora_id: constructoraId, id: proyectoId }
+        : { constructora_id: constructoraId, id: { in: [] as string[] } };
+    } else {
+      proyectoWhere = { constructora_id: constructoraId, id: { in: allowed } };
+    }
+  } else if (proyectoId) {
+    proyectoWhere = { constructora_id: constructoraId, id: proyectoId };
+  }
 
   const tareas = await prisma.tarea.findMany({
     where: {
-      espacio: { unidad: { piso: { edificio: { proyecto: { constructora_id: constructoraId, ...(proyectoId ? { id: proyectoId } : {}) } } } } },
+      espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } },
       ...(estado && estado !== "ALL" ? { estado: estado as never } : {}),
       ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
     },
