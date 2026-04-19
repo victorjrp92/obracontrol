@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Normalize fases so ZONAS_COMUNES projects don't blow up on undefined access
+    const fasesInput: string[] = Array.isArray(body.fases) ? body.fases : [];
+
     // Crear todo en una transacción
     const proyectoCreado = await prisma.$transaction(async (tx) => {
       // 1. Proyecto
@@ -86,11 +89,11 @@ export async function POST(req: NextRequest) {
 
       // 2. Fases
       const fasesCreadas: Record<string, string> = {};
-      for (let i = 0; i < body.fases.length; i++) {
+      for (let i = 0; i < fasesInput.length; i++) {
         const fase = await tx.fase.create({
-          data: { proyecto_id: proyecto.id, nombre: body.fases[i], orden: i + 1 },
+          data: { proyecto_id: proyecto.id, nombre: fasesInput[i], orden: i + 1 },
         });
-        fasesCreadas[body.fases[i]] = fase.id;
+        fasesCreadas[fasesInput[i]] = fase.id;
       }
 
       // 3. Tipos de unidad
@@ -157,7 +160,7 @@ export async function POST(req: NextRequest) {
                 });
 
                 // Create tasks for this space
-                const tareasDelEspacio = body.tareas.filter((t) => t.espacio === nombreEspacio);
+                const tareasDelEspacio = (body.tareas ?? []).filter((t) => t.espacio === nombreEspacio);
                 for (const t of tareasDelEspacio) {
                   await tx.tarea.create({
                     data: {
@@ -189,7 +192,7 @@ export async function POST(req: NextRequest) {
             data: {
               proyecto_id: proyecto.id,
               nombre: "Zonas Comunes",
-              orden: body.fases.length + 1,
+              orden: fasesInput.length + 1,
             },
           });
           faseZonasId = faseZonas.id;
