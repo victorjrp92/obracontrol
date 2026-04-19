@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { isGeneralAdmin } from "@/lib/access";
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
 export async function POST(
   req: NextRequest,
@@ -47,7 +52,7 @@ export async function POST(
     }
 
     if (!codigo_verificacion) {
-      const codigo = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const codigo = crypto.randomBytes(3).toString("hex").toUpperCase();
 
       await prisma.auditLog.create({
         data: {
@@ -60,6 +65,7 @@ export async function POST(
       });
 
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
+      const nombreSafe = escapeHtml(proyecto.nombre);
       try {
         await sendEmail({
           to: currentUser.email,
@@ -67,7 +73,7 @@ export async function POST(
           html: `
             <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
               <h2 style="color:#1e293b;">Confirmar eliminación de proyecto</h2>
-              <p style="color:#64748b;">Estás a punto de eliminar el proyecto <strong>${proyecto.nombre}</strong>. Esta acción es irreversible.</p>
+              <p style="color:#64748b;">Estás a punto de eliminar el proyecto <strong>${nombreSafe}</strong>. Esta acción es irreversible.</p>
               <div style="background:#f1f5f9;border-radius:12px;padding:20px;text-align:center;margin:20px 0;">
                 <span style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#1e293b;">${codigo}</span>
               </div>
@@ -84,6 +90,20 @@ export async function POST(
       return NextResponse.json({ step: "codigo_enviado" });
     }
 
+    // Check failed attempts (max 5 in the last 10 minutes)
+    const recentAttempts = await prisma.auditLog.count({
+      where: {
+        proyecto_id: proyecto.id,
+        usuario_id: currentUser.id,
+        accion: "DELETE_REQUEST",
+        campo: "codigo_intento_fallido",
+        created_at: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+      },
+    });
+    if (recentAttempts >= 5) {
+      return NextResponse.json({ error: "Demasiados intentos. Solicita un nuevo código." }, { status: 429 });
+    }
+
     const recentLog = await prisma.auditLog.findFirst({
       where: {
         proyecto_id: proyecto.id,
@@ -96,14 +116,22 @@ export async function POST(
     });
 
     if (!recentLog || recentLog.valor_nuevo !== codigo_verificacion) {
+      await prisma.auditLog.create({
+        data: {
+          proyecto_id: proyecto.id,
+          usuario_id: currentUser.id,
+          accion: "DELETE_REQUEST",
+          campo: "codigo_intento_fallido",
+          valor_nuevo: "failed",
+        },
+      });
       return NextResponse.json({ error: "Código de verificación incorrecto o expirado" }, { status: 400 });
     }
 
-    await prisma.proyecto.delete({ where: { id: proyecto.id } });
-
-    await prisma.auditLog.deleteMany({
-      where: { proyecto_id: proyecto.id },
-    });
+    await prisma.$transaction([
+      prisma.proyecto.delete({ where: { id: proyecto.id } }),
+      prisma.auditLog.deleteMany({ where: { proyecto_id: proyecto.id } }),
+    ]);
 
     return NextResponse.json({ deleted: true });
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -64,7 +65,7 @@ export async function POST(
     }
 
     // Create Supabase auth account
-    const tempPassword = `OC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    const tempPassword = `OC-${crypto.randomBytes(6).toString("base64url")}`;
 
     const { error: authError } =
       await getSupabaseAdmin().auth.admin.createUser({

@@ -5,7 +5,7 @@ import { getAccessibleProjectIds } from "@/lib/access";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2 } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
@@ -307,6 +307,15 @@ export default async function ProyectoDetallePage({
               }}
               canEdit={usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL"}
             />
+            {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && (
+              <Link
+                href={`/dashboard/proyectos/${id}/editar`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors mt-2"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                Edición completa (fases, tipos, tareas)
+              </Link>
+            )}
           </div>
         )}
 

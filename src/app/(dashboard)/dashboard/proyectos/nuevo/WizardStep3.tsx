@@ -21,6 +21,7 @@ interface WizardStep3Props {
   totalUnidades: number;
   totalTareasGlobal: number;
   loading: boolean;
+  isEditMode?: boolean;
   onBack: () => void;
   onSubmit: (resolvedTareas?: TareaInput[]) => void;
 }
@@ -53,6 +54,7 @@ export default function WizardStep3({
   totalUnidades,
   totalTareasGlobal,
   loading,
+  isEditMode,
   onBack,
   onSubmit,
 }: WizardStep3Props) {
@@ -360,7 +362,9 @@ export default function WizardStep3({
           className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm cursor-pointer"
         >
           <Save className="w-4 h-4" />
-          {loading ? "Creando proyecto..." : "Crear proyecto"}
+          {isEditMode
+            ? (loading ? "Guardando cambios..." : "Guardar cambios")
+            : (loading ? "Creando proyecto..." : "Crear proyecto")}
         </button>
       </div>
     </div>

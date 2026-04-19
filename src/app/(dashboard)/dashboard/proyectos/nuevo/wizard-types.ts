@@ -47,4 +47,26 @@ export interface FaseAssignment {
   distribucion: Record<string, TorreAssignment>; // edificio nombre -> assignment
 }
 
+export interface EditModeData {
+  projectId: string;
+  nombre: string;
+  subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
+  diasHabiles: number;
+  fechaInicio: string;
+  fechaFin: string;
+  tiposUnidad: TipoUnidadInput[];
+  edificios: EdificioInput[];
+  fasesSeleccionadas: string[];
+  faseDias: Record<string, number | undefined>;
+  tareas: TareaInput[];
+  tieneZonasComunes: boolean;
+  zonasSeleccionadas: string[];
+  metrosEnabled: boolean;
+  metrosZonas: Record<string, number>;
+  dbIdMap: {
+    fases: Record<string, string>;      // fase nombre -> db ID
+    tiposUnidad: Record<string, string>; // local tipo id -> db ID
+  };
+}
+
 export const FASES_DISPONIBLES = ["Madera", "Obra Blanca"];
