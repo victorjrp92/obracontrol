@@ -72,6 +72,70 @@ export async function POST(req: NextRequest) {
     // Normalize fases so ZONAS_COMUNES projects don't blow up on undefined access
     const fasesInput: string[] = Array.isArray(body.fases) ? body.fases : [];
 
+    // Tenant isolation: verify all `asignado_a` user IDs referenced in tareas
+    // belong to the caller's constructora. Otherwise a malicious admin could
+    // assign tasks to users of another tenant via cross-tenant IDs.
+    const asignadoIds = Array.from(
+      new Set(
+        (body.tareas ?? [])
+          .map((t) => t.asignado_a)
+          .filter((v): v is string => typeof v === "string" && v.length > 0),
+      ),
+    );
+    if (asignadoIds.length > 0) {
+      const validos = await prisma.usuario.findMany({
+        where: { id: { in: asignadoIds }, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (validos.length !== asignadoIds.length) {
+        return NextResponse.json(
+          { error: "Uno o más usuarios asignados no pertenecen a esta constructora" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Bound structural counts to prevent DoS via huge row creation.
+    const MAX_EDIFICIOS = 50;
+    const MAX_PISOS = 200;
+    const MAX_UNIDADES_POR_PISO = 200;
+    if (Array.isArray(body.edificios)) {
+      if (body.edificios.length > MAX_EDIFICIOS) {
+        return NextResponse.json(
+          { error: `Maximo ${MAX_EDIFICIOS} edificios por proyecto` },
+          { status: 400 },
+        );
+      }
+      for (const ed of body.edificios) {
+        if (typeof ed.pisos !== "number" || ed.pisos < 1 || ed.pisos > MAX_PISOS) {
+          return NextResponse.json(
+            { error: `El numero de pisos debe estar entre 1 y ${MAX_PISOS}` },
+            { status: 400 },
+          );
+        }
+        if (ed.unidadesPorPiso !== undefined) {
+          if (ed.unidadesPorPiso < 1 || ed.unidadesPorPiso > MAX_UNIDADES_POR_PISO) {
+            return NextResponse.json(
+              { error: `Las unidades por piso deben estar entre 1 y ${MAX_UNIDADES_POR_PISO}` },
+              { status: 400 },
+            );
+          }
+        }
+        if (ed.distribucion) {
+          const total = Object.values(ed.distribucion).reduce(
+            (a, b) => a + (typeof b === "number" ? b : 0),
+            0,
+          );
+          if (total > MAX_UNIDADES_POR_PISO) {
+            return NextResponse.json(
+              { error: `La distribucion por piso no puede superar ${MAX_UNIDADES_POR_PISO} unidades` },
+              { status: 400 },
+            );
+          }
+        }
+      }
+    }
+
     // Crear todo en una transacción
     const proyectoCreado = await prisma.$transaction(async (tx) => {
       // 1. Proyecto

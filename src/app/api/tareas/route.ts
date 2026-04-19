@@ -130,6 +130,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
+    // Tenant isolation: verify fase_id belongs to the same constructora/project
+    const faseOwned = await prisma.fase.findFirst({
+      where: { id: fase_id, proyecto_id: espacioProyectoId.id },
+      select: { id: true },
+    });
+    if (!faseOwned) {
+      return NextResponse.json({ error: "Fase no encontrada" }, { status: 400 });
+    }
+
+    // Tenant isolation: verify asignado_a (if provided) belongs to the same constructora
+    if (asignado_a) {
+      const assignee = await prisma.usuario.findFirst({
+        where: { id: asignado_a, constructora_id: usuario.constructora_id },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return NextResponse.json({ error: "Usuario asignado no válido" }, { status: 400 });
+      }
+    }
+
+    // Tenant isolation: verify depende_de (if provided) belongs to a task in the same constructora
+    if (depende_de) {
+      const dep = await prisma.tarea.findFirst({
+        where: {
+          id: depende_de,
+          espacio: {
+            unidad: { piso: { edificio: { proyecto: { constructora_id: usuario.constructora_id } } } },
+          },
+        },
+        select: { id: true },
+      });
+      if (!dep) {
+        return NextResponse.json({ error: "Dependencia no válida" }, { status: 400 });
+      }
+    }
+
     const tarea = await prisma.tarea.create({
       data: {
         espacio_id, fase_id, nombre,
