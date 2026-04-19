@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
+import { canApproveTasks } from "@/lib/access";
 
 // POST /api/tareas/[id]/reportar — obrero reporta tarea terminada
 export async function POST(
@@ -19,7 +20,11 @@ export async function POST(
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, constructora_id: true },
+      select: {
+        id: true,
+        constructora_id: true,
+        rol_ref: { select: { nivel_acceso: true } },
+      },
     });
 
     if (!currentUser) {
@@ -58,6 +63,18 @@ export async function POST(
     // Tenant isolation: verify the task belongs to the user's constructora
     if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Authorization: only the asignado contratista (or supervisors who can approve)
+    // may report a task complete. Previously any authenticated user in the
+    // constructora could mark somebody else's task as REPORTADA.
+    const esAsignado = tarea.asignado_a === currentUser.id;
+    const esSupervisor = canApproveTasks(currentUser.rol_ref.nivel_acceso);
+    if (!esAsignado && !esSupervisor) {
+      return NextResponse.json(
+        { error: "Solo el contratista asignado o un supervisor puede reportar esta tarea" },
+        { status: 403 }
+      );
     }
 
     if (tarea.estado !== "PENDIENTE" && tarea.estado !== "NO_APROBADA") {
