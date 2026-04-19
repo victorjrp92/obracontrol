@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { calcularProgreso } from "@/lib/scoring";
 import { ProgresoReport } from "@/lib/pdf/ProgresoReport";
+import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
 
 // GET /api/reportes/progreso/[proyectoId] — genera y devuelve PDF
 export async function GET(
@@ -17,11 +18,21 @@ export async function GET(
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
     if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const { proyectoId } = await params;
+
+    // Project-access: ADMIN_PROYECTO may only generate reports for their assigned projects.
+    const accessible = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, proyectoId)) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
