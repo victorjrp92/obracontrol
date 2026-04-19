@@ -6,16 +6,7 @@ interface InvitationEmailProps {
   password: string;
 }
 
-// Minimal HTML escape for interpolating untrusted user data into email HTML.
-// Prevents HTML/phishing injection via names, company, role strings.
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "./escape";
 
 export function invitationEmailHtml({
   nombreInvitado,
