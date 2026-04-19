@@ -51,14 +51,14 @@ function PlazoCell({ plazo, estado }: { plazo: number; estado: TaskStatus }) {
     return <span className="text-green-600 text-sm">Completada</span>;
   }
   if (plazo > 0) {
-    return <span className="text-slate-500 text-sm tabular-nums">{plazo}d</span>;
+    return <span className="text-slate-500 text-sm tabular-nums">{plazo} {plazo === 1 ? "Día" : "Días"}</span>;
   }
   if (plazo === 0) {
     return <span className="text-yellow-600 text-sm font-medium">Vence hoy</span>;
   }
   return (
     <span className="text-red-500 text-sm font-medium tabular-nums">
-      {Math.abs(plazo)}d atraso
+      {Math.abs(plazo)} {Math.abs(plazo) === 1 ? "Día" : "Días"} atraso
     </span>
   );
 }
@@ -199,7 +199,7 @@ function PhaseGroup({
           </td>
           <td className="px-4 py-2.5 text-right">
             <span className="text-sm text-slate-600 tabular-nums">
-              {t.diasEstimados}d
+              {t.diasEstimados} Días
             </span>
           </td>
           <td className="px-4 py-2.5 text-right">
@@ -227,7 +227,7 @@ function MobileCard({ tarea: t }: { tarea: TareaRow }) {
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
         <span className="text-slate-500">{t.contratista ?? "—"}</span>
         <span className="text-slate-400">·</span>
-        <span className="text-slate-600 tabular-nums">{t.diasEstimados}d est.</span>
+        <span className="text-slate-600 tabular-nums">{t.diasEstimados} Días est.</span>
         <span className="text-slate-400">·</span>
         <PlazoCell plazo={t.plazo} estado={t.estado} />
         <span className="text-slate-400">·</span>

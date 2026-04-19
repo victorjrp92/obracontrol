@@ -23,13 +23,15 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { rol_id, proyectos_asignados } = body as {
+    const { rol_id, proyectos_asignados, nombre, email } = body as {
       rol_id?: string;
       proyectos_asignados?: string[];
+      nombre?: string;
+      email?: string;
     };
 
-    if (!rol_id && proyectos_asignados === undefined) {
-      return NextResponse.json({ error: "rol_id o proyectos_asignados es requerido" }, { status: 400 });
+    if (!rol_id && proyectos_asignados === undefined && !nombre && !email) {
+      return NextResponse.json({ error: "rol_id, proyectos_asignados, nombre o email es requerido" }, { status: 400 });
     }
 
     const target = await prisma.usuario.findUnique({
@@ -38,6 +40,32 @@ export async function PATCH(
     });
     if (!target || target.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    // Only allow nombre/email edits for uninvited users
+    if ((nombre || email) && target.invitado) {
+      return NextResponse.json({ error: "Solo se puede editar nombre/email de usuarios sin invitación" }, { status: 400 });
+    }
+
+    // Validate nombre/email if provided
+    if (nombre !== undefined) {
+      const trimmed = nombre.trim();
+      if (trimmed.length < 2 || trimmed.length > 100) {
+        return NextResponse.json({ error: "El nombre debe tener entre 2 y 100 caracteres" }, { status: 400 });
+      }
+    }
+    if (email !== undefined) {
+      const trimmed = email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        return NextResponse.json({ error: "Email no válido" }, { status: 400 });
+      }
+      // Check if new email already exists (and it's not the same user)
+      if (trimmed !== target.email) {
+        const existing = await prisma.usuario.findUnique({ where: { email: trimmed } });
+        if (existing) {
+          return NextResponse.json({ error: "Ya existe un usuario con este email" }, { status: 409 });
+        }
+      }
     }
 
     let effectiveNivel = target.rol_ref.nivel_acceso;
@@ -85,8 +113,17 @@ export async function PATCH(
     }
 
     await prisma.$transaction(async (tx) => {
+      // Build update data for nombre/email if provided (uninvited users only)
+      const updateData: { rol_id?: string; nombre?: string; email?: string } = {};
+      if (rol_id) updateData.rol_id = rol_id;
+      if (nombre && !target.invitado) updateData.nombre = nombre.trim();
+      if (email && !target.invitado) updateData.email = email.trim().toLowerCase();
+
+      if (Object.keys(updateData).length > 0) {
+        await tx.usuario.update({ where: { id }, data: updateData });
+      }
+
       if (rol_id) {
-        await tx.usuario.update({ where: { id }, data: { rol_id } });
 
         // Ensure contratista row if switching to CONTRATISTA
         if (effectiveNivel === "CONTRATISTA") {

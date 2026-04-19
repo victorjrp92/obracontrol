@@ -249,9 +249,10 @@ export default function WizardStep1({
             onChange={(e) => setDiasHabiles(Number(e.target.value))}
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
           >
-            <option value={5}>5 dias (lun-vie)</option>
-            <option value={6}>6 dias (lun-sab)</option>
-            <option value={7}>7 dias</option>
+            <option value={5}>5 días (lun-vie)</option>
+            <option value={5.5}>5.5 días (lun-sáb medio día)</option>
+            <option value={6}>6 días (lun-sáb)</option>
+            <option value={7}>7 días</option>
           </select>
         </div>
 

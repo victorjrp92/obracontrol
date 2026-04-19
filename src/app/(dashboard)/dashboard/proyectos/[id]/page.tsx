@@ -175,7 +175,7 @@ function UnidadDetailPanel({
                               </span>
                             )}
                             <span className="text-xs text-slate-400">
-                              {t.tiempo_acordado_dias}d
+                              {t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}
                             </span>
                           </div>
                         </Link>

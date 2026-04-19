@@ -78,7 +78,7 @@ export default function TaskRow({
               daysLeft < 0 ? "text-red-500" : daysLeft === 0 ? "text-yellow-500" : "text-slate-500"
             }`}
           >
-            {daysLeft < 0 ? `${Math.abs(daysLeft)}d atraso` : daysLeft === 0 ? "Vence hoy" : `${daysLeft}d`}
+            {daysLeft < 0 ? `${Math.abs(daysLeft)} ${Math.abs(daysLeft) === 1 ? "Día" : "Días"} atraso` : daysLeft === 0 ? "Vence hoy" : `${daysLeft} ${daysLeft === 1 ? "Día" : "Días"}`}
           </span>
         )}
 

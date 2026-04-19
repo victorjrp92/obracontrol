@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import {
   ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight,
-  Download, Plus, Sparkles, Trash2, Upload,
+  Download, Pencil, Plus, Sparkles, Trash2, Upload, X,
 } from "lucide-react";
 import type { TareaInput } from "./wizard-types";
 import { FASES_DISPONIBLES } from "./wizard-types";
@@ -46,6 +46,10 @@ export default function WizardStep2({
   const [newTaskNombre, setNewTaskNombre] = useState("");
   const [newTaskDias, setNewTaskDias] = useState(3);
   // Excel upload state per fase
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editEspacio, setEditEspacio] = useState("");
+  const [editDias, setEditDias] = useState(3);
   const [excelErrors, setExcelErrors] = useState<Record<string, string[]>>({});
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -62,6 +66,22 @@ export default function WizardStep2({
 
   function removeTarea(id: string) {
     setTareas((prev) => prev.filter((t) => t.id !== id));
+    if (editingId === id) setEditingId(null);
+  }
+
+  function startEdit(t: TareaInput) {
+    setEditingId(t.id);
+    setEditNombre(t.nombre);
+    setEditEspacio(t.espacio);
+    setEditDias(t.tiempo_acordado_dias);
+  }
+
+  function saveEdit(id: string) {
+    if (!editNombre.trim() || !editEspacio) return;
+    setTareas((prev) => prev.map((t) =>
+      t.id === id ? { ...t, nombre: editNombre.trim(), espacio: editEspacio, tiempo_acordado_dias: editDias } : t
+    ));
+    setEditingId(null);
   }
 
   function addSuggestedTareas(fase: string, nuevas: Omit<TareaInput, "id">[]) {
@@ -310,14 +330,49 @@ export default function WizardStep2({
                     </div>
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
                       {faseTareas.map((t) => (
-                        <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
-                          <span className="text-[10px] text-slate-500 w-28 truncate flex-shrink-0">{t.espacio}</span>
-                          <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
-                          <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias}d</span>
-                          <button onClick={() => removeTarea(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        editingId === t.id ? (
+                          <div key={t.id} className="flex items-center gap-2 px-4 py-2 bg-blue-50">
+                            <select
+                              value={editEspacio}
+                              onChange={(e) => setEditEspacio(e.target.value)}
+                              className="text-[10px] w-28 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                            >
+                              {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
+                            </select>
+                            <input
+                              value={editNombre}
+                              onChange={(e) => setEditNombre(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEdit(t.id); } if (e.key === "Escape") setEditingId(null); }}
+                              className="text-sm flex-1 px-2 py-1 rounded border border-blue-300 bg-white"
+                              autoFocus
+                            />
+                            <input
+                              type="number"
+                              min="1"
+                              value={editDias}
+                              onChange={(e) => setEditDias(Number(e.target.value) || 1)}
+                              className="w-14 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                            />
+                            <button onClick={() => saveEdit(t.id)} className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer">
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded cursor-pointer">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
+                            <span className="text-[10px] text-slate-500 w-28 truncate flex-shrink-0">{t.espacio}</span>
+                            <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
+                            <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
+                            <button onClick={() => startEdit(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => removeTarea(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )
                       ))}
                     </div>
                   </div>

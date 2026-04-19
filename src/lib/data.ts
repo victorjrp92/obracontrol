@@ -312,6 +312,7 @@ export async function getTareasFiltradas(
   nivelAcceso?: string,
   proyectoId?: string,
   accessibleProjectIds?: AccessibleProjects,
+  faseId?: string,
 ) {
   const ahora = new Date();
   const esContratista = nivelAcceso === "CONTRATISTA";
@@ -337,6 +338,7 @@ export async function getTareasFiltradas(
       espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } },
       ...(estado && estado !== "ALL" ? { estado: estado as never } : {}),
       ...(esContratista && usuarioId ? { asignado_a: usuarioId } : {}),
+      ...(faseId ? { fase_id: faseId } : {}),
     },
     include: {
       espacio: {

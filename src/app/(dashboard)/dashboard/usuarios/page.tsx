@@ -46,7 +46,9 @@ export default async function UsuariosPage() {
     email: u.email,
     rol: u.rol_ref.nombre,
     rol_id: u.rol_id,
+    nivel_acceso: u.rol_ref.nivel_acceso,
     rolLabel: getRolLabel(u.rol_ref.nombre),
+    invitado: u.invitado,
     created_at: u.created_at.toISOString(),
     proyectos_ids: u.proyectos_administrados.map((a) => a.proyecto_id),
   }));

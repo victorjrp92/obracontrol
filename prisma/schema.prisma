@@ -35,7 +35,7 @@ model Proyecto {
   ubicacion_lat           Float?
   ubicacion_lng           Float?
   subtipo                 SubtipoProyecto
-  dias_habiles_semana     Int            @default(5)
+  dias_habiles_semana     Float          @default(5)
   checklists_habilitados  Boolean        @default(false)
   dependencias_habilitadas Boolean       @default(false)
   whatsapp_habilitado     Boolean        @default(false)
@@ -314,6 +314,7 @@ model Usuario {
   nombre          String
   constructora_id String
   rol_id          String
+  invitado        Boolean     @default(true)
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
 
