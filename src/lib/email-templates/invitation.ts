@@ -6,6 +6,17 @@ interface InvitationEmailProps {
   password: string;
 }
 
+// Minimal HTML escape for interpolating untrusted user data into email HTML.
+// Prevents HTML/phishing injection via names, company, role strings.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function invitationEmailHtml({
   nombreInvitado,
   nombreConstructora,
@@ -13,6 +24,13 @@ export function invitationEmailHtml({
   loginUrl,
   password,
 }: InvitationEmailProps): string {
+  const safeNombre = escapeHtml(nombreInvitado);
+  const safeConstructora = escapeHtml(nombreConstructora);
+  const safeRol = escapeHtml(rol);
+  const safePassword = escapeHtml(password);
+  // loginUrl is derived from server env (NEXT_PUBLIC_SITE_URL) so it is trusted,
+  // but escape attribute-sensitive characters defensively.
+  const safeLoginUrl = escapeHtml(loginUrl);
   return `
 <!DOCTYPE html>
 <html>
@@ -24,17 +42,17 @@ export function invitationEmailHtml({
       <p style="color: #bfdbfe; font-size: 11px; margin: 2px 0 0;">construyendo en orden</p>
     </div>
     <div style="padding: 32px;">
-      <h2 style="color: #0f172a; font-size: 18px; margin: 0 0 8px;">Hola ${nombreInvitado},</h2>
+      <h2 style="color: #0f172a; font-size: 18px; margin: 0 0 8px;">Hola ${safeNombre},</h2>
       <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-        Te han invitado a <strong>${nombreConstructora}</strong> en Seiricon como <strong>${rol}</strong>.
+        Te han invitado a <strong>${safeConstructora}</strong> en Seiricon como <strong>${safeRol}</strong>.
       </p>
       <p style="color: #475569; font-size: 14px; line-height: 1.6;">
-        Tu contraseña temporal es: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 16px; font-weight: bold;">${password}</code>
+        Tu contraseña temporal es: <code style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 16px; font-weight: bold;">${safePassword}</code>
       </p>
       <p style="color: #475569; font-size: 14px; line-height: 1.6;">
         Te recomendamos cambiarla después de tu primer inicio de sesión.
       </p>
-      <a href="${loginUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 16px;">
+      <a href="${safeLoginUrl}" style="display: inline-block; background: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; margin-top: 16px;">
         Ingresar a Seiricon
       </a>
     </div>

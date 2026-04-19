@@ -51,15 +51,25 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { email, nombre, rol_id, proyectos_asignados } = body as {
+    const { email: rawEmail, nombre: rawNombre, rol_id, proyectos_asignados } = body as {
       email?: string;
       nombre?: string;
       rol_id?: string;
       proyectos_asignados?: string[];
     };
 
-    if (!email || !nombre || !rol_id) {
+    if (!rawEmail || !rawNombre || !rol_id) {
       return NextResponse.json({ error: "email, nombre y rol_id son requeridos" }, { status: 400 });
+    }
+
+    const email = rawEmail.trim().toLowerCase();
+    const nombre = rawNombre.trim();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Email no valido" }, { status: 400 });
+    }
+    if (nombre.length < 2 || nombre.length > 100) {
+      return NextResponse.json({ error: "El nombre debe tener entre 2 y 100 caracteres" }, { status: 400 });
     }
 
     const rol = await prisma.rol.findFirst({
