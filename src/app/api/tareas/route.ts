@@ -1,16 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  requireUser,
-  assertEspacioInTenant,
-  tenantTareaWhere,
-  tenantErrorResponse,
-} from "@/lib/tenant";
+import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // GET /api/tareas?espacio_id=&fase_id=&estado=&asignado_a=
 export async function GET(req: NextRequest) {
   try {
-    const { constructoraId, usuario } = await requireUser();
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+
+    if (!usuario) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+    }
+
+    const accessible = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
 
     const { searchParams } = new URL(req.url);
     const espacio_id = searchParams.get("espacio_id");
@@ -18,24 +34,28 @@ export async function GET(req: NextRequest) {
     const estado = searchParams.get("estado");
     const asignado_a = searchParams.get("asignado_a");
 
-    const esContratista =
-      usuario.rol === "CONTRATISTA_INSTALADOR" ||
-      usuario.rol === "CONTRATISTA_LUSTRADOR";
-
     const tareas = await prisma.tarea.findMany({
       where: {
-        ...tenantTareaWhere(constructoraId),
+        // Tenant isolation: only tasks from this constructora
+        espacio: {
+          unidad: {
+            piso: {
+              edificio: {
+                proyecto: {
+                  constructora_id: usuario.constructora_id,
+                  ...(accessible === "ALL" ? {} : { id: { in: accessible } }),
+                },
+              },
+            },
+          },
+        },
         ...(espacio_id && { espacio_id }),
         ...(fase_id && { fase_id }),
         ...(estado && { estado: estado as never }),
         ...(asignado_a && { asignado_a }),
-        // Contratistas solo ven sus propias tareas
-        ...(esContratista && { asignado_a: usuario.id }),
       },
       include: {
-        espacio: {
-          include: { unidad: { include: { piso: { include: { edificio: true } } } } },
-        },
+        espacio: { include: { unidad: { include: { piso: { include: { edificio: true } } } } } },
         fase: true,
         asignado_usuario: { select: { id: true, nombre: true, email: true } },
         evidencias: { orderBy: { created_at: "desc" }, take: 4 },
@@ -47,8 +67,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(tareas);
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("GET /api/tareas", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
@@ -57,7 +75,21 @@ export async function GET(req: NextRequest) {
 // POST /api/tareas — crear tarea
 export async function POST(req: NextRequest) {
   try {
-    const { constructoraId } = await requireUser();
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const usuario = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+
+    if (!usuario || !canApproveTasks(usuario.rol_ref.nivel_acceso)) {
+      return NextResponse.json({ error: "Sin permisos para crear tareas" }, { status: 403 });
+    }
 
     const body = await req.json();
     const {
@@ -73,8 +105,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar que el espacio pertenezca a la constructora del usuario
-    await assertEspacioInTenant(espacio_id, constructoraId);
+    // Tenant isolation: verify the espacio belongs to this constructora
+    const espacio = await prisma.espacio.findUnique({
+      where: { id: espacio_id },
+      select: { unidad: { select: { piso: { select: { edificio: { select: { proyecto: { select: { constructora_id: true } } } } } } } } },
+    });
+
+    if (!espacio || espacio.unidad.piso.edificio.proyecto.constructora_id !== usuario.constructora_id) {
+      return NextResponse.json({ error: "Espacio no encontrado" }, { status: 404 });
+    }
+
+    const accessibleCreate = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+    const espacioProyectoId = await prisma.proyecto.findFirst({
+      where: {
+        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { id: espacio_id } } } } } } } },
+      },
+      select: { id: true },
+    });
+    if (!espacioProyectoId || !canAccessProject(accessibleCreate, espacioProyectoId.id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+
+    // Tenant isolation: verify fase_id belongs to the same constructora/project
+    const faseOwned = await prisma.fase.findFirst({
+      where: { id: fase_id, proyecto_id: espacioProyectoId.id },
+      select: { id: true },
+    });
+    if (!faseOwned) {
+      return NextResponse.json({ error: "Fase no encontrada" }, { status: 400 });
+    }
+
+    // Tenant isolation: verify asignado_a (if provided) belongs to the same constructora
+    if (asignado_a) {
+      const assignee = await prisma.usuario.findFirst({
+        where: { id: asignado_a, constructora_id: usuario.constructora_id },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return NextResponse.json({ error: "Usuario asignado no válido" }, { status: 400 });
+      }
+    }
+
+    // Tenant isolation: verify depende_de (if provided) belongs to a task in the same constructora
+    if (depende_de) {
+      const dep = await prisma.tarea.findFirst({
+        where: {
+          id: depende_de,
+          espacio: {
+            unidad: { piso: { edificio: { proyecto: { constructora_id: usuario.constructora_id } } } },
+          },
+        },
+        select: { id: true },
+      });
+      if (!dep) {
+        return NextResponse.json({ error: "Dependencia no válida" }, { status: 400 });
+      }
+    }
 
     const tarea = await prisma.tarea.create({
       data: {
@@ -88,8 +178,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(tarea, { status: 201 });
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("POST /api/tareas", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

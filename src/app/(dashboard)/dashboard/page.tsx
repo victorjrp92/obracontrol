@@ -7,6 +7,7 @@ import {
   getTopContratistas,
   getUsuarioActual,
 } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
@@ -18,13 +19,32 @@ export default async function DashboardPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
+  if (
+    usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO" &&
+    (usuario.proyectos_administrados?.length ?? 0) === 0
+  ) {
+    return (
+      <main className="flex-1 flex items-center justify-center p-8">
+        <p className="text-slate-500 text-sm text-center max-w-sm">
+          No tienes proyectos asignados. Contacta al administrador general para que te asigne al menos un proyecto.
+        </p>
+      </main>
+    );
+  }
+
   const cid = usuario.constructora_id;
 
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    cid,
+    usuario.rol_ref.nivel_acceso,
+  );
+
   const [stats, proyectos, tareasRecientes, topContratistas] = await Promise.all([
-    getDashboardStats(cid),
-    getProyectosConProgreso(cid),
-    getTareasRecientes(cid, 8, usuario.id, usuario.rol_ref.nivel_acceso),
-    getTopContratistas(cid),
+    getDashboardStats(cid, accessible),
+    getProyectosConProgreso(cid, accessible),
+    getTareasRecientes(cid, 8, usuario.id, usuario.rol_ref.nivel_acceso, accessible),
+    getTopContratistas(cid, 3, accessible),
   ]);
 
   const total = stats.total;

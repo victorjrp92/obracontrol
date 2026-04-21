@@ -6,7 +6,7 @@ import EmpresaForm from "./EmpresaForm";
 export default async function EmpresaPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
-  if (usuario.rol_ref.nivel_acceso !== "ADMINISTRADOR") redirect("/dashboard");
+  if (usuario.rol_ref.nivel_acceso !== "ADMIN_GENERAL") redirect("/dashboard");
 
   return (
     <>

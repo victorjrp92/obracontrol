@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, buildProjectWhereFilter, isGeneralAdmin } from "@/lib/access";
 
 // GET /api/proyectos — lista proyectos de la constructora del usuario
 export async function GET() {
@@ -14,15 +15,24 @@ export async function GET() {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
     if (!usuario) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
+    const accessible = await getAccessibleProjectIds(
+      usuario.id,
+      usuario.constructora_id,
+      usuario.rol_ref.nivel_acceso,
+    );
+
     const proyectos = await prisma.proyecto.findMany({
-      where: { constructora_id: usuario.constructora_id },
+      where: {
+        constructora_id: usuario.constructora_id,
+        ...buildProjectWhereFilter(accessible),
+      },
       include: {
         edificios: { include: { pisos: { include: { unidades: true } } } },
         fases: true,
@@ -52,7 +62,7 @@ export async function POST(req: NextRequest) {
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!usuario || !["ADMINISTRADOR"].includes(usuario.rol_ref.nivel_acceso)) {
+    if (!usuario || !isGeneralAdmin(usuario.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 

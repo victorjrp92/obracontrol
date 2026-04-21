@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { retrasoRegistradoEmailHtml } from "@/lib/email-templates/notifications";
-import {
-  requireUser,
-  assertTareaInTenant,
-  tenantErrorResponse,
-} from "@/lib/tenant";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // POST /api/retrasos — registrar retraso en una tarea
 export async function POST(req: NextRequest) {
   try {
-    const { constructoraId } = await requireUser();
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const body = await req.json();
     const { tarea_id, tipo, justificacion, evidencia_urls } = body;
@@ -36,7 +41,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await assertTareaInTenant(tarea_id, constructoraId);
+    // Tenant isolation + project-access + role check: only supervisors (admins /
+    // directivo) or the contratista assigned to the task may register a delay.
+    const tareaCheck = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        asignado_a: true,
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: {
+                        proyecto_id: true,
+                        proyecto: { select: { constructora_id: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    const esAsignado = tareaCheck.asignado_a === currentUser.id;
+    const esSupervisor = canApproveTasks(currentUser.rol_ref.nivel_acceso);
+    if (!esAsignado && !esSupervisor) {
+      return NextResponse.json(
+        { error: "Sin permisos para registrar retrasos en esta tarea" },
+        { status: 403 }
+      );
+    }
+
+    // Project-access: if the caller is a supervisor (e.g. ADMIN_PROYECTO), the
+    // task's project must be in their assignments. Contratistas are allowed
+    // through when they own the task regardless of the scope helper.
+    if (esSupervisor) {
+      const accessible = await getAccessibleProjectIds(
+        currentUser.id,
+        currentUser.constructora_id,
+        currentUser.rol_ref.nivel_acceso,
+      );
+      if (!canAccessProject(accessible, tareaCheck.espacio.unidad.piso.edificio.proyecto_id)) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+    }
 
     const retraso = await prisma.retraso.create({
       data: {
@@ -74,12 +130,12 @@ export async function POST(req: NextRequest) {
         const supervisores = await prisma.usuario.findMany({
           where: {
             constructora_id: tareaInfo.espacio.unidad.piso.edificio.proyecto.constructora_id,
-            rol: { in: ["ADMIN", "JEFE_OPERACIONES", "COORDINADOR"] },
+            rol_ref: { nivel_acceso: { in: ["ADMIN_GENERAL", "ADMIN_PROYECTO", "DIRECTIVO"] } },
           },
           select: { email: true },
         });
 
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
         const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
         const tipoLabel = tipo === "POR_FALTA_PISTA"
           ? "Por falta de pista"
@@ -110,8 +166,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(retraso, { status: 201 });
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("POST /api/retrasos", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
@@ -120,12 +174,43 @@ export async function POST(req: NextRequest) {
 // GET /api/retrasos?tarea_id=
 export async function GET(req: NextRequest) {
   try {
-    const { constructoraId } = await requireUser();
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { constructora_id: true },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
     const tarea_id = new URL(req.url).searchParams.get("tarea_id");
     if (!tarea_id) return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
 
-    await assertTareaInTenant(tarea_id, constructoraId);
+    // Tenant isolation: verify the task belongs to the user's constructora
+    const tareaCheck = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
 
     const retrasos = await prisma.retraso.findMany({
       where: { tarea_id },
@@ -134,8 +219,6 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(retrasos);
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("GET /api/retrasos", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

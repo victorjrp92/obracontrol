@@ -16,6 +16,9 @@ export default function ProjectSelect({ proyectos, activeProyecto, activeFilter 
     sp.set("estado", activeFilter);
     const val = e.target.value;
     if (val) sp.set("proyecto", val);
+    const currentParams = new URLSearchParams(window.location.search);
+    const fase = currentParams.get("fase");
+    if (fase) sp.set("fase", fase);
     router.push(`/dashboard/tareas?${sp.toString()}`);
   }
 

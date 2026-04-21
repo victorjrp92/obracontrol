@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { isGeneralAdmin } from "@/lib/access";
 
-const VALID_NIVELES = ["DIRECTIVO", "ADMINISTRADOR", "CONTRATISTA", "OBRERO"] as const;
+const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"] as const;
 
 // PATCH /api/roles/[id] — edit a role's nombre or nivel_acceso
 export async function PATCH(
@@ -18,7 +19,7 @@ export async function PATCH(
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || currentUser.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+    if (!currentUser || !isGeneralAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -91,7 +92,7 @@ export async function DELETE(
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || currentUser.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+    if (!currentUser || !isGeneralAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 

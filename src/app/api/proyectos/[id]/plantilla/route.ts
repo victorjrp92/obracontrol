@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import ExcelJS from "exceljs";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin } from "@/lib/access";
 
 // GET /api/proyectos/[id]/plantilla — download Excel template for a project
 export async function GET(
@@ -15,13 +16,20 @@ export async function GET(
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !(isAnyAdmin(currentUser.rol_ref.nivel_acceso) || currentUser.rol_ref.nivel_acceso === "DIRECTIVO")) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
-
     const { id } = await params;
+    const accessible = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
 
     const proyecto = await prisma.proyecto.findFirst({
       where: { id, constructora_id: currentUser.constructora_id },

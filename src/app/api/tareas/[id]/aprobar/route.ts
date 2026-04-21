@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { recalcularScoreContratista } from "@/lib/scoring";
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 import { crearNotificacion } from "@/lib/notifications";
-import {
-  requireUser,
-  requireRole,
-  assertTareaInTenant,
-  tenantErrorResponse,
-} from "@/lib/tenant";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -17,9 +13,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ctx = await requireUser();
-    requireRole(ctx, "ADMIN", "JEFE_OPERACIONES", "COORDINADOR", "ASISTENTE");
-    const aprobador = ctx.usuario;
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const aprobador = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+
+    if (!aprobador || !canApproveTasks(aprobador.rol_ref.nivel_acceso)) {
+      return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
+    }
 
     const { id } = await params;
     const body = await req.json();
@@ -29,12 +37,49 @@ export async function POST(
       return NextResponse.json({ error: "estado debe ser APROBADA o NO_APROBADA" }, { status: 400 });
     }
 
-    // Verificar que la tarea pertenezca a la constructora del aprobador
-    await assertTareaInTenant(id, ctx.constructoraId);
-
-    const tarea = await prisma.tarea.findUnique({ where: { id } });
+    const tarea = await prisma.tarea.findUnique({
+      where: { id },
+      include: {
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { constructora_id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
     if (!tarea || tarea.estado !== "REPORTADA") {
       return NextResponse.json({ error: "Tarea no encontrada o no está reportada" }, { status: 400 });
+    }
+
+    // Project-access check: scope by accessible projects for this user
+    const proyectoIdForTask = await prisma.proyecto.findFirst({
+      where: {
+        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { tareas: { some: { id } } } } } } } } } },
+      },
+      select: { id: true },
+    });
+    const accessibleApr = await getAccessibleProjectIds(
+      aprobador.id,
+      aprobador.constructora_id,
+      aprobador.rol_ref.nivel_acceso,
+    );
+    if (!proyectoIdForTask || !canAccessProject(accessibleApr, proyectoIdForTask.id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+
+    // Tenant isolation: verify the task belongs to the approver's constructora
+    if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== aprobador.constructora_id) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
     // Transacción: crear aprobación + actualizar tarea
@@ -110,7 +155,7 @@ export async function POST(
         });
 
         if (contratistaInfo && tareaInfo) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://obracontrol-sigma.vercel.app";
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
           const ubicacion = `${tareaInfo.espacio.unidad.piso.edificio.nombre} · Apto ${tareaInfo.espacio.unidad.nombre} · ${tareaInfo.espacio.nombre}`;
           const proyectoNombre = tareaInfo.espacio.unidad.piso.edificio.proyecto.nombre;
 
@@ -144,8 +189,6 @@ export async function POST(
 
     return NextResponse.json({ aprobacion, tarea: tareaActualizada });
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("POST /api/tareas/[id]/aprobar", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

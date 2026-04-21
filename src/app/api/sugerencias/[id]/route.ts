@@ -7,6 +7,7 @@ import {
   sugerenciaRechazadaEmailHtml,
 } from "@/lib/email-templates/sugerencias";
 import { crearNotificacion } from "@/lib/notifications";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
 
 // PATCH /api/sugerencias/[id]
 // ADMINISTRADOR: approve or reject a suggestion
@@ -24,10 +25,14 @@ export async function PATCH(
 
     const admin = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      include: { rol_ref: true },
+      select: {
+        id: true,
+        constructora_id: true,
+        rol_ref: { select: { nivel_acceso: true } },
+      },
     });
 
-    if (!admin || !["ADMINISTRADOR", "DIRECTIVO"].includes(admin.rol_ref.nivel_acceso)) {
+    if (!admin || !canApproveTasks(admin.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -64,7 +69,16 @@ export async function PATCH(
 
     // Validate the sugerencia belongs to the admin's constructora
     if (sugerencia.proyecto.constructora_id !== admin.constructora_id) {
-      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+      return NextResponse.json({ error: "Sugerencia no encontrada" }, { status: 404 });
+    }
+
+    const accessible = await getAccessibleProjectIds(
+      admin.id,
+      admin.constructora_id,
+      admin.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, sugerencia.proyecto_id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
     }
 
     if (estado === "APROBADA") {
@@ -75,8 +89,36 @@ export async function PATCH(
         );
       }
 
+      // Validate fase_id belongs to the sugerencia's project (avoid cross-project reuse)
+      const faseOwned = await prisma.fase.findFirst({
+        where: { id: fase_id, proyecto_id: sugerencia.proyecto_id },
+        select: { id: true },
+      });
+      if (!faseOwned) {
+        return NextResponse.json(
+          { error: "La fase no pertenece al proyecto de la sugerencia" },
+          { status: 400 }
+        );
+      }
+
       // Parse unidades from the sugerencia
       const unidades = sugerencia.unidades as string[];
+
+      // Validate unidades belong to the sugerencia's project (avoid injecting tasks into other projects)
+      if (unidades.length > 0) {
+        const unidadesOwned = await prisma.unidad.count({
+          where: {
+            id: { in: unidades },
+            piso: { edificio: { proyecto_id: sugerencia.proyecto_id } },
+          },
+        });
+        if (unidadesOwned !== unidades.length) {
+          return NextResponse.json(
+            { error: "Algunas unidades no pertenecen al proyecto de la sugerencia" },
+            { status: 400 }
+          );
+        }
+      }
 
       // For each unidad, find or create an Espacio, then create a Tarea
       await prisma.$transaction(async (tx) => {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { isGeneralAdmin } from "@/lib/access";
 
-const VALID_NIVELES = ["DIRECTIVO", "ADMINISTRADOR", "CONTRATISTA", "OBRERO"] as const;
+const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"] as const;
 
 // GET /api/roles — list roles for the current constructora
 export async function GET() {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
       where: { email: user.email! },
       select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || currentUser.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+    if (!currentUser || !isGeneralAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!VALID_NIVELES.includes(nivel_acceso as typeof VALID_NIVELES[number])) {
-      return NextResponse.json({ error: "nivel_acceso inválido. Debe ser uno de: DIRECTIVO, ADMINISTRADOR, CONTRATISTA, OBRERO" }, { status: 400 });
+      return NextResponse.json({ error: "nivel_acceso inválido. Debe ser uno de: DIRECTIVO, ADMIN_GENERAL, ADMIN_PROYECTO, CONTRATISTA, OBRERO" }, { status: 400 });
     }
 
     // Check for duplicate name in same constructora

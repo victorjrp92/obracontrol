@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin, canManageUsers } from "@/lib/access";
 
 // PATCH /api/proyectos/[id]/editar — edit project (requires admin password re-confirmation)
 export async function PATCH(
@@ -16,11 +17,21 @@ export async function PATCH(
       where: { email: user.email! },
       select: { id: true, email: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || currentUser.rol_ref.nivel_acceso !== "ADMINISTRADOR") {
+    if (!currentUser || !isAnyAdmin(currentUser.rol_ref.nivel_acceso)) {
       return NextResponse.json({ error: "Solo administradores pueden editar proyectos" }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id: projectIdForCheck } = await params;
+    const accessibleForEdit = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessibleForEdit, projectIdForCheck)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+
+    const id = projectIdForCheck;
     const body = await req.json();
     const { password, cambios } = body as {
       password: string;
@@ -131,13 +142,21 @@ export async function GET(
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !(canManageUsers(currentUser.rol_ref.nivel_acceso) || isAnyAdmin(currentUser.rol_ref.nivel_acceso))) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
     const { id } = await params;
+    const accessibleForAudit = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessibleForAudit, id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
 
     const logs = await prisma.auditLog.findMany({
       where: { proyecto_id: id, proyecto: { constructora_id: currentUser.constructora_id } },

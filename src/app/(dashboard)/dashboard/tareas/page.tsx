@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
 import { getTareasFiltradas, getUsuarioActual, getProyectosActivos } from "@/lib/data";
+import { getAccessibleProjectIds } from "@/lib/access";
+import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
-import TaskRow from "@/components/dashboard/TaskRow";
+import TareasTable from "@/components/dashboard/TareasTable";
 import Link from "next/link";
 import ProjectSelect from "./ProjectSelect";
+import FaseSelect from "./FaseSelect";
 
 const filters = [
   { label: "Todas", value: "ALL" },
@@ -16,25 +19,52 @@ const filters = [
 export default async function TareasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; proyecto?: string }>;
+  searchParams: Promise<{ estado?: string; proyecto?: string; fase?: string }>;
 }) {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
-  const { estado, proyecto } = await searchParams;
+  const { estado, proyecto, fase } = await searchParams;
   const activeFilter = estado ?? "REPORTADA";
   const activeProyecto = proyecto ?? "";
+  const activeFase = fase ?? "";
 
-  const [tareas, proyectos] = await Promise.all([
-    getTareasFiltradas(usuario.constructora_id, activeFilter, usuario.id, usuario.rol_ref.nivel_acceso, activeProyecto || undefined),
-    getProyectosActivos(usuario.constructora_id),
+  const accessible = await getAccessibleProjectIds(
+    usuario.id,
+    usuario.constructora_id,
+    usuario.rol_ref.nivel_acceso,
+  );
+
+  const [tareas, proyectos, fases] = await Promise.all([
+    getTareasFiltradas(
+      usuario.constructora_id,
+      activeFilter,
+      usuario.id,
+      usuario.rol_ref.nivel_acceso,
+      activeProyecto || undefined,
+      accessible,
+      activeFase || undefined,
+    ),
+    getProyectosActivos(usuario.constructora_id, accessible),
+    prisma.fase.findMany({
+      where: {
+        proyecto: {
+          constructora_id: usuario.constructora_id,
+          estado: "ACTIVO",
+          ...(accessible !== "ALL" ? { id: { in: accessible } } : {}),
+        },
+      },
+      select: { id: true, nombre: true },
+      distinct: ["nombre"],
+      orderBy: { orden: "asc" },
+    }),
   ]);
 
-  // Build href preserving both filters
   function buildHref(newEstado: string) {
     const sp = new URLSearchParams();
     sp.set("estado", newEstado);
     if (activeProyecto) sp.set("proyecto", activeProyecto);
+    if (activeFase) sp.set("fase", activeFase);
     return `/dashboard/tareas?${sp.toString()}`;
   }
 
@@ -60,6 +90,14 @@ export default async function TareasPage({
             ))}
           </div>
           <div className="flex items-center gap-3">
+            {fases.length > 1 && (
+              <FaseSelect
+                fases={fases}
+                activeFase={activeFase}
+                activeFilter={activeFilter}
+                activeProyecto={activeProyecto}
+              />
+            )}
             {proyectos.length > 1 && (
               <ProjectSelect
                 proyectos={proyectos}
@@ -71,40 +109,24 @@ export default async function TareasPage({
           </div>
         </div>
 
-        {/* Tasks list */}
+        {/* Tasks table */}
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="px-4 py-3 border-b border-slate-100">
             <span className="text-sm font-semibold text-slate-700">{tareas.length} tareas</span>
-            <div className="flex items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs text-slate-400 flex-wrap">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-700" />Verde intenso</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />Verde</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400" />Amarillo</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" />Rojo</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-900" />Vinotinto</span>
-            </div>
           </div>
 
-          {tareas.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-sm">
-              No hay tareas con este estado
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {tareas.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  id={t.id}
-                  name={t.name}
-                  project={t.project}
-                  unit={t.unit}
-                  status={t.status}
-                  semaforo={t.semaforo}
-                  daysLeft={t.daysLeft}
-                  contractor={t.contractor}
-                />
-              ))}
-            </div>
-          )}
+          <TareasTable
+            tareas={tareas.map((t) => ({
+              id: t.id,
+              nombre: t.nombre,
+              contratista: t.contratista,
+              diasEstimados: t.diasEstimados,
+              plazo: t.plazo,
+              estado: t.estado,
+              faseNombre: t.faseNombre,
+              faseOrden: t.faseOrden,
+            }))}
+          />
         </div>
       </main>
     </>

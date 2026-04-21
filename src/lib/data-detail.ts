@@ -18,9 +18,12 @@ async function resolveEvidenciaUrl(stored: string): Promise<string> {
   return await getSignedEvidenciaUrl(stored);
 }
 
-export async function getProyectoDetalle(proyectoId: string, constructoraId: string) {
-  const proyecto = await prisma.proyecto.findFirst({
-    where: { id: proyectoId, constructora_id: constructoraId },
+export async function getProyectoDetalle(proyectoId: string, constructoraId?: string) {
+  const proyecto = await prisma.proyecto.findUnique({
+    where: {
+      id: proyectoId,
+      ...(constructoraId ? { constructora_id: constructoraId } : {}),
+    },
     include: {
       fases: { orderBy: { orden: "asc" } },
       edificios: {
@@ -38,6 +41,7 @@ export async function getProyectoDetalle(proyectoId: string, constructoraId: str
                       tareas: {
                         include: {
                           asignado_usuario: { select: { id: true, nombre: true } },
+                          fase: { select: { id: true, nombre: true, orden: true } },
                         },
                       },
                     },
@@ -60,16 +64,9 @@ export async function getProyectoDetalle(proyectoId: string, constructoraId: str
   return { ...proyecto, progreso, totalTareas: todasTareas.length };
 }
 
-export async function getTareaDetalle(tareaId: string, constructoraId: string) {
-  const tarea = await prisma.tarea.findFirst({
-    where: {
-      id: tareaId,
-      espacio: {
-        unidad: {
-          piso: { edificio: { proyecto: { constructora_id: constructoraId } } },
-        },
-      },
-    },
+export async function getTareaDetalle(tareaId: string) {
+  const tarea = await prisma.tarea.findUnique({
+    where: { id: tareaId },
     include: {
       espacio: {
         include: {

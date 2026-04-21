@@ -7,7 +7,7 @@ import WizardClient from "./wizard";
 export default async function NuevoProyectoPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
-  if (!["ADMINISTRADOR"].includes(usuario.rol_ref.nivel_acceso)) redirect("/dashboard/proyectos");
+  if (usuario.rol_ref.nivel_acceso !== "ADMIN_GENERAL") redirect("/dashboard/proyectos");
 
   const contratistas = await prisma.usuario.findMany({
     where: {

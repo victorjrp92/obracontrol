@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import ExcelJS from "exceljs";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin } from "@/lib/access";
 
 // POST /api/proyectos/[id]/importar-tareas — import tasks from Excel
 export async function POST(
@@ -15,13 +16,20 @@ export async function POST(
 
     const currentUser = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
-    if (!currentUser || !["ADMINISTRADOR", "DIRECTIVO"].includes(currentUser.rol_ref.nivel_acceso)) {
+    if (!currentUser || !(isAnyAdmin(currentUser.rol_ref.nivel_acceso) || currentUser.rol_ref.nivel_acceso === "DIRECTIVO")) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
-
     const { id } = await params;
+    const accessible = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, id)) {
+      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
 
     const proyecto = await prisma.proyecto.findFirst({
       where: { id, constructora_id: currentUser.constructora_id },
@@ -50,6 +58,16 @@ export async function POST(
     const file = formData.get("file") as File | null;
     if (!file) {
       return NextResponse.json({ error: "No se envio archivo" }, { status: 400 });
+    }
+
+    // Bound file size to prevent DoS via oversized uploads. 10 MB is generous
+    // for task spreadsheets (tens of thousands of rows at most).
+    const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_UPLOAD_SIZE) {
+      return NextResponse.json(
+        { error: "El archivo no puede superar 10 MB" },
+        { status: 400 }
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -140,6 +158,17 @@ export async function POST(
 
     if (errors.length > 0 && tasksToCreate.length === 0) {
       return NextResponse.json({ error: "No se pudo importar ninguna tarea", errores: errors }, { status: 400 });
+    }
+
+    // Bound the number of tasks created per import to avoid abuse.
+    const MAX_TASKS_PER_IMPORT = 5000;
+    if (tasksToCreate.length > MAX_TASKS_PER_IMPORT) {
+      return NextResponse.json(
+        {
+          error: `El archivo contiene demasiadas tareas (maximo ${MAX_TASKS_PER_IMPORT} por importacion)`,
+        },
+        { status: 400 }
+      );
     }
 
     // Create tasks in batch

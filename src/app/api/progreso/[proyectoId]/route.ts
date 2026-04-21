@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { calcularProgreso, calcularSemaforo, calcularDiasHabiles } from "@/lib/scoring";
-import {
-  requireUser,
-  assertProyectoInTenant,
-  tenantErrorResponse,
-} from "@/lib/tenant";
+import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
 
 // GET /api/progreso/[proyectoId] — progreso ponderado completo del proyecto
 export async function GET(
@@ -13,10 +10,27 @@ export async function GET(
   { params }: { params: Promise<{ proyectoId: string }> }
 ) {
   try {
-    const { constructoraId } = await requireUser();
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+    const currentUser = await prisma.usuario.findUnique({
+      where: { email: user.email! },
+      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    });
+    if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
     const { proyectoId } = await params;
 
-    await assertProyectoInTenant(proyectoId, constructoraId);
+    // Project-access: ADMIN_PROYECTO may only see projects in their assignments.
+    const accessible = await getAccessibleProjectIds(
+      currentUser.id,
+      currentUser.constructora_id,
+      currentUser.rol_ref.nivel_acceso,
+    );
+    if (!canAccessProject(accessible, proyectoId)) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
 
     const proyecto = await prisma.proyecto.findUnique({
       where: { id: proyectoId },
@@ -44,6 +58,11 @@ export async function GET(
     });
 
     if (!proyecto) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
+    // Tenant isolation: verify the project belongs to the user's constructora
+    if (proyecto.constructora_id !== currentUser.constructora_id) {
       return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
     }
 
@@ -114,8 +133,6 @@ export async function GET(
       edificios: edificiosData,
     });
   } catch (error) {
-    const resp = tenantErrorResponse(error);
-    if (resp) return resp;
     console.error("GET /api/progreso/[proyectoId]", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }

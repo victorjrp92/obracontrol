@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, X, History, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Pencil, X, History, Eye, EyeOff, Loader2, Trash2, AlertTriangle } from "lucide-react";
 
 interface ProyectoData {
   id: string;
@@ -68,9 +68,67 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Delete project
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"password" | "code">("password");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleteCode, setDeleteCode] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   // Audit log
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
+
+  function openDeleteModal() {
+    setDeleteStep("password");
+    setDeletePassword("");
+    setShowDeletePassword(false);
+    setDeleteCode("");
+    setDeleteError("");
+    setShowDeleteModal(true);
+  }
+
+  async function handleDeleteStep() {
+    if (!deletePassword) {
+      setDeleteError("Ingresa tu contraseña");
+      return;
+    }
+    setDeleting(true);
+    setDeleteError("");
+
+    try {
+      const body: Record<string, string> = { password: deletePassword };
+      if (deleteStep === "code") body.codigo_verificacion = deleteCode;
+
+      const res = await fetch(`/api/proyectos/${proyecto.id}/eliminar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setDeleteError(data.error ?? "Error al procesar");
+        return;
+      }
+
+      if (data.step === "codigo_enviado") {
+        setDeleteStep("code");
+        setDeleteError("");
+        return;
+      }
+
+      if (data.deleted) {
+        router.push("/dashboard/proyectos");
+      }
+    } catch {
+      setDeleteError("Error de conexión");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   function buildCambios() {
     const cambios: Record<string, unknown> = {};
@@ -169,6 +227,15 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
           <History className="w-3.5 h-3.5" />
           {loadingLogs ? "Cargando..." : showLog ? "Ocultar historial" : "Historial de cambios"}
         </button>
+        {canEdit && (
+          <button
+            onClick={openDeleteModal}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 hover:border-red-300 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors ml-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Eliminar proyecto
+          </button>
+        )}
       </div>
 
       {/* Success message */}
@@ -296,6 +363,95 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
               >
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {saving ? "Guardando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete project modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                </div>
+                <h3 className="font-bold text-slate-900">Eliminar proyecto</h3>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {deleteStep === "password" ? (
+              <>
+                <p className="text-sm text-slate-600 mb-1">
+                  Vas a eliminar <strong>{proyecto.nombre}</strong>.
+                </p>
+                <p className="text-xs text-red-600 font-medium mb-4">
+                  Esta acción es irreversible. Se eliminarán todas las unidades, tareas y datos asociados.
+                </p>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Contraseña de administrador</label>
+                <div className="relative mb-3">
+                  <input
+                    type={showDeletePassword ? "text" : "password"}
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleDeleteStep()}
+                    placeholder="Contraseña"
+                    autoFocus
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeletePassword(!showDeletePassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showDeletePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600 mb-4">
+                  Se envió un código de verificación a tu correo. Ingrésalo para confirmar la eliminación.
+                </p>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Código de verificación</label>
+                <input
+                  type="text"
+                  value={deleteCode}
+                  onChange={(e) => setDeleteCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleDeleteStep()}
+                  placeholder="Ej: A1B2C3"
+                  autoFocus
+                  maxLength={6}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 tracking-widest text-center font-mono text-lg mb-3"
+                />
+              </>
+            )}
+
+            {deleteError && (
+              <p className="text-xs text-red-600 mb-3">{deleteError}</p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteStep}
+                disabled={deleting}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {deleting
+                  ? deleteStep === "password" ? "Verificando..." : "Eliminando..."
+                  : deleteStep === "password" ? "Enviar código" : "Eliminar definitivamente"}
               </button>
             </div>
           </div>
