@@ -7,6 +7,7 @@ import { logout } from "@/app/(auth)/actions";
 import { getPermissions, getRolLabel } from "@/lib/permissions";
 import {
   LayoutDashboard,
+  Building2,
   FolderOpen,
   ClipboardList,
   Users,
@@ -25,6 +26,7 @@ import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdow
 
 const allNavItems = [
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { key: "empresa", icon: Building2, label: "Empresa", href: "/dashboard/empresa" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
   { key: "contratistas", icon: Users, label: "Contratistas", href: "/dashboard/contratistas" },

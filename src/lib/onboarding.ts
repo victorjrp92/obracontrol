@@ -8,7 +8,14 @@ import { TASK_TEMPLATES } from "@/lib/task-templates";
 export async function provisionarUsuario(
   email: string,
   nombre: string,
-  empresa: string
+  empresa: string,
+  empresaData?: {
+    nit?: string;
+    direccion?: string;
+    ciudad?: string;
+    telefono?: string;
+    sitio_web?: string;
+  }
 ): Promise<void> {
   const existing = await prisma.usuario.findUnique({ where: { email } });
   if (existing) return;
@@ -17,7 +24,11 @@ export async function provisionarUsuario(
   const constructora = await prisma.constructora.create({
     data: {
       nombre: empresa,
-      nit: `demo-${Date.now()}`,
+      nit: empresaData?.nit ?? null,
+      direccion: empresaData?.direccion ?? null,
+      ciudad: empresaData?.ciudad ?? null,
+      telefono: empresaData?.telefono ?? null,
+      sitio_web: empresaData?.sitio_web ?? null,
       plan_suscripcion: "PROYECTO",
     },
   });

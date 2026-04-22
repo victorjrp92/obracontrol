@@ -27,6 +27,21 @@ export async function registro(formData: FormData) {
   const nombre = formData.get("name") as string;
   const empresa = formData.get("company") as string;
 
+  // Campos opcionales de la empresa (step 1 del wizard)
+  const empresaNit = (formData.get("empresa_nit") as string) || undefined;
+  const empresaDireccion = (formData.get("empresa_direccion") as string) || undefined;
+  const empresaCiudad = (formData.get("empresa_ciudad") as string) || undefined;
+  const empresaTelefono = (formData.get("empresa_telefono") as string) || undefined;
+  const empresaSitioWeb = (formData.get("empresa_sitio_web") as string) || undefined;
+
+  const empresaData = {
+    nit: empresaNit,
+    direccion: empresaDireccion,
+    ciudad: empresaCiudad,
+    telefono: empresaTelefono,
+    sitio_web: empresaSitioWeb,
+  };
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
@@ -42,7 +57,7 @@ export async function registro(formData: FormData) {
 
   // Provisionar constructora + usuario + datos demo en Prisma
   try {
-    await provisionarUsuario(email, nombre, empresa);
+    await provisionarUsuario(email, nombre, empresa, empresaData);
   } catch {
     // Si falla silenciosamente, el callback lo reintentará
   }
