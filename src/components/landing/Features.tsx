@@ -14,54 +14,48 @@ import {
 
 gsap.registerPlugin(ScrollTrigger);
 
-const features = [
+const problems = [
   {
     icon: Camera,
     color: "bg-blue-600",
-    title: "Evidencia con triple validación",
-    description:
-      "Fotos solo desde cámara, nunca galería. GPS automático y timestamp del dispositivo. Anti-fraude por diseño.",
-    tag: "Anti-fraude",
+    pain: "\u00abEl contratista dice que termin\u00f3, pero cuando vas a obra no es as\u00ed\u00bb",
+    solution:
+      "Evidencia fotogr\u00e1fica obligatoria con GPS y timestamp del dispositivo. Solo c\u00e1mara, nunca galer\u00eda. Si no hay foto verificable, no hay reporte.",
   },
   {
     icon: BarChart3,
     color: "bg-violet-600",
-    title: "Dashboard en tiempo real",
-    description:
-      "Progreso ponderado por tarea, espacio, apartamento, piso, edificio y proyecto. Doble barra: reportado vs. aprobado.",
-    tag: "Métricas",
-  },
-  {
-    icon: WifiOff,
-    color: "bg-emerald-600",
-    title: "Modo offline en obra",
-    description:
-      "El obrero trabaja sin señal. Toma fotos, reporta tareas. Todo se sincroniza automáticamente al recuperar conexión.",
-    tag: "Offline-first",
-  },
-  {
-    icon: Star,
-    color: "bg-orange-500",
-    title: "Score de contratistas",
-    description:
-      "Tres ejes: cumplimiento (50%), calidad (30%) y velocidad de corrección (20%). Histórico por proyecto.",
-    tag: "Desempeño",
+    pain: "\u00abNo s\u00e9 cu\u00e1nto lleva realmente el proyecto\u00bb",
+    solution:
+      "Progreso calculado autom\u00e1ticamente por tarea, espacio, piso y torre. Dashboard actualizado en tiempo real con doble barra: reportado vs. aprobado.",
   },
   {
     icon: Clock,
     color: "bg-rose-600",
-    title: "Semáforo de tiempos",
-    description:
-      "Verde intenso, verde, amarillo, rojo y vinotinto según el % de retraso real. Calculado en días hábiles configurables.",
-    tag: "Riesgo",
+    pain: "\u00abMe entero del atraso cuando ya es tarde\u00bb",
+    solution:
+      "Sem\u00e1foro de 5 niveles por tarea: de verde intenso a vinotinto. Ves el riesgo antes de que sea cr\u00edtico y puedes actuar a tiempo.",
+  },
+  {
+    icon: Star,
+    color: "bg-orange-500",
+    pain: "\u00abSiempre contrato al mismo contratista sin saber si realmente cumple\u00bb",
+    solution:
+      "Score autom\u00e1tico basado en cumplimiento, calidad y velocidad de correcci\u00f3n. Datos reales de cada proyecto, no percepci\u00f3n.",
+  },
+  {
+    icon: WifiOff,
+    color: "bg-emerald-600",
+    pain: "\u00abEn la obra no hay se\u00f1al y los reportes se pierden\u00bb",
+    solution:
+      "La app funciona sin conexi\u00f3n. El obrero toma fotos y reporta tareas offline. Todo se sincroniza autom\u00e1ticamente al recuperar se\u00f1al.",
   },
   {
     icon: CheckSquare,
     color: "bg-sky-600",
-    title: "Flujo de aprobación estructurado",
-    description:
-      "El supervisor revisa evidencia y checklist. Aprueba o rechaza con justificación por ítem. Ciclo de corrección trazable.",
-    tag: "Calidad",
+    pain: "\u00abNo hay forma de saber si la tarea se hizo bien o si hay que repetirla\u00bb",
+    solution:
+      "El supervisor revisa evidencia y checklist. Aprueba o rechaza con justificaci\u00f3n por \u00edtem. Cada correcci\u00f3n queda documentada.",
   },
 ];
 
@@ -119,32 +113,26 @@ export default function Features() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Title */}
         <div ref={titleRef} className="text-center mb-16 opacity-0">
-          <span className="inline-block px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold uppercase tracking-wide mb-4">
-            Funcionalidades
+          <span className="inline-block px-3 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-semibold uppercase tracking-wide mb-4">
+            Tu obra sin excusas
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
-            Todo lo que necesita una constructora
+            Deja de apagar incendios. Empieza a prevenirlos.
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Diseñado con el proceso real de Jaramillo Mora. Reemplaza el Excel de 80 columnas
-            con visibilidad total desde el obrero hasta la gerencia.
+            Cada uno de estos problemas tiene soluci&oacute;n. As&iacute; es como Seiricon los elimina de tu operaci&oacute;n.
           </p>
         </div>
 
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((f) => {
+          {problems.map((f) => {
             const Icon = f.icon;
             return (
               <div
-                key={f.title}
+                key={f.pain}
                 className="feature-card opacity-0 group relative bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-6 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-default"
               >
-                {/* Tag */}
-                <span className="absolute top-4 right-4 text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {f.tag}
-                </span>
-
                 {/* Icon */}
                 <div
                   className={`w-10 h-10 rounded-xl ${f.color} flex items-center justify-center mb-4 shadow-sm`}
@@ -152,8 +140,8 @@ export default function Features() {
                   <Icon className="w-5 h-5 text-white" />
                 </div>
 
-                <h3 className="font-bold text-slate-900 mb-2 text-base">{f.title}</h3>
-                <p className="text-sm text-slate-600 leading-relaxed">{f.description}</p>
+                <p className="font-bold text-slate-800 mb-3 text-sm italic leading-snug">{f.pain}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{f.solution}</p>
               </div>
             );
           })}

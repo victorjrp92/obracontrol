@@ -12,8 +12,13 @@ datasource db {
 model Constructora {
   id               String     @id @default(cuid())
   nombre           String
-  nit              String     @unique
+  nit              String?    @unique
   logo_url         String?
+  direccion        String?
+  ciudad           String?
+  telefono         String?
+  sitio_web        String?
+  descripcion      String?
   plan_suscripcion PlanTipo   @default(OBRA)
   created_at       DateTime   @default(now())
   updated_at       DateTime   @updatedAt

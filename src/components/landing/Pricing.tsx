@@ -121,9 +121,7 @@ export default function Pricing() {
             Precio justo para cada etapa
           </h2>
           <p className="text-lg text-slate-600 max-w-xl mx-auto">
-            14 días gratis, sin tarjeta de crédito.{" "}
-            <span className="text-blue-600 font-semibold">Piloto Jaramillo Mora:</span>{" "}
-            6 meses gratis a cambio de feedback.
+            14 d&iacute;as gratis, sin tarjeta de cr&eacute;dito. Elige el plan que se ajuste a tu operaci&oacute;n.
           </p>
         </div>
 

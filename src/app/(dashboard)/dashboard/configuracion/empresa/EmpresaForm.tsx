@@ -9,12 +9,22 @@ interface EmpresaFormProps {
     nombre: string;
     nit: string;
     logo_url: string | null;
+    direccion: string;
+    ciudad: string;
+    telefono: string;
+    sitio_web: string;
+    descripcion: string;
   };
 }
 
 export default function EmpresaForm({ initialData }: EmpresaFormProps) {
   const [nombre, setNombre] = useState(initialData.nombre);
   const [nit, setNit] = useState(initialData.nit);
+  const [direccion, setDireccion] = useState(initialData.direccion);
+  const [ciudad, setCiudad] = useState(initialData.ciudad);
+  const [telefono, setTelefono] = useState(initialData.telefono);
+  const [sitioWeb, setSitioWeb] = useState(initialData.sitio_web);
+  const [descripcion, setDescripcion] = useState(initialData.descripcion);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -27,7 +37,15 @@ export default function EmpresaForm({ initialData }: EmpresaFormProps) {
       const res = await fetch("/api/constructora", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, nit }),
+        body: JSON.stringify({
+          nombre,
+          nit,
+          direccion,
+          ciudad,
+          telefono,
+          sitio_web: sitioWeb,
+          descripcion,
+        }),
       });
 
       if (!res.ok) {
@@ -42,6 +60,9 @@ export default function EmpresaForm({ initialData }: EmpresaFormProps) {
       setSaving(false);
     }
   }
+
+  const inputClass =
+    "w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent";
 
   return (
     <div className="max-w-2xl">
@@ -64,7 +85,10 @@ export default function EmpresaForm({ initialData }: EmpresaFormProps) {
           </div>
         </div>
 
-        <div className="space-y-4">
+        {/* Datos principales */}
+        <fieldset className="space-y-4">
+          <legend className="text-sm font-semibold text-slate-800 mb-2">Datos principales</legend>
+
           <div>
             <label htmlFor="nombre" className="block text-sm font-medium text-slate-700 mb-1.5">
               Nombre de la constructora
@@ -74,7 +98,7 @@ export default function EmpresaForm({ initialData }: EmpresaFormProps) {
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className={inputClass}
               required
             />
           </div>
@@ -88,11 +112,93 @@ export default function EmpresaForm({ initialData }: EmpresaFormProps) {
               type="text"
               value={nit}
               onChange={(e) => setNit(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
+              className={inputClass}
+              placeholder="Opcional"
             />
           </div>
-        </div>
+        </fieldset>
+
+        {/* Contacto */}
+        <fieldset className="space-y-4 pt-4 border-t border-slate-100">
+          <legend className="text-sm font-semibold text-slate-800 mb-2">Contacto</legend>
+
+          <div>
+            <label htmlFor="direccion" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Dirección
+            </label>
+            <input
+              id="direccion"
+              type="text"
+              value={direccion}
+              onChange={(e) => setDireccion(e.target.value)}
+              className={inputClass}
+              placeholder="Ej: Cra 7 #45-12, Oficina 301"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="ciudad" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Ciudad
+              </label>
+              <input
+                id="ciudad"
+                type="text"
+                value={ciudad}
+                onChange={(e) => setCiudad(e.target.value)}
+                className={inputClass}
+                placeholder="Ej: Bogotá"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="telefono" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Teléfono
+              </label>
+              <input
+                id="telefono"
+                type="tel"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                className={inputClass}
+                placeholder="Ej: +57 300 123 4567"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="sitio_web" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Sitio web
+            </label>
+            <input
+              id="sitio_web"
+              type="url"
+              value={sitioWeb}
+              onChange={(e) => setSitioWeb(e.target.value)}
+              className={inputClass}
+              placeholder="https://www.ejemplo.com"
+            />
+          </div>
+        </fieldset>
+
+        {/* Descripción */}
+        <fieldset className="space-y-4 pt-4 border-t border-slate-100">
+          <legend className="text-sm font-semibold text-slate-800 mb-2">Descripción</legend>
+
+          <div>
+            <label htmlFor="descripcion" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Acerca de la empresa
+            </label>
+            <textarea
+              id="descripcion"
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              rows={4}
+              className={`${inputClass} resize-none`}
+              placeholder="Breve descripción de la constructora..."
+            />
+          </div>
+        </fieldset>
 
         {message && (
           <div
