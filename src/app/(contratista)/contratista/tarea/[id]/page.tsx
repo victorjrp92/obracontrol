@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, MapPin, Calendar, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
+import { extractMotivo } from "@/lib/aprobaciones";
 import Topbar from "@/components/dashboard/Topbar";
 import EvidenceGallery from "@/components/evidencia/EvidenceGallery";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
@@ -13,13 +14,6 @@ const estadoLabels: Record<string, { text: string; cls: string }> = {
   APROBADA: { text: "Aprobada", cls: "bg-green-50 text-green-700 border-green-200" },
   NO_APROBADA: { text: "No aprobada", cls: "bg-red-50 text-red-700 border-red-200" },
 };
-
-function extractMotivo(j: unknown): string | null {
-  if (!j || typeof j !== "object") return null;
-  const obj = j as Record<string, unknown>;
-  if (typeof obj.motivo === "string") return obj.motivo;
-  return JSON.stringify(j);
-}
 
 export default async function ContratistaTareaDetallePage({
   params,
