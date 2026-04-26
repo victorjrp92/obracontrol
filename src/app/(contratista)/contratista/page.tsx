@@ -128,6 +128,7 @@ export default async function ContratistaPage({
                 <div key={t.id}>
                   <TaskRow
                     id={t.id}
+                    href={`/contratista/tarea/${t.id}`}
                     name={t.nombre}
                     project={t.proyecto}
                     unit={`${t.edificio} · Apto ${t.unidad}`}

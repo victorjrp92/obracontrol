@@ -85,14 +85,24 @@ export async function POST(
       );
     }
 
-    // Photo limit: max 4 per task
+    // Photo limit: max 4 per task — but only counts the CURRENT attempt
+    // (evidences after the last rejection don't count old ones)
     if (tipo === "FOTO") {
+      const ultimoRechazo = await prisma.aprobacion.findFirst({
+        where: { tarea_id, estado: "NO_APROBADA" },
+        orderBy: { fecha: "desc" },
+        select: { fecha: true },
+      });
       const count = await prisma.evidencia.count({
-        where: { tarea_id, tipo: "FOTO" },
+        where: {
+          tarea_id,
+          tipo: "FOTO",
+          ...(ultimoRechazo ? { created_at: { gt: ultimoRechazo.fecha } } : {}),
+        },
       });
       if (count >= 4) {
         return NextResponse.json(
-          { error: "Maximo 4 fotos por tarea" },
+          { error: "Maximo 4 fotos por intento" },
           { status: 400 }
         );
       }

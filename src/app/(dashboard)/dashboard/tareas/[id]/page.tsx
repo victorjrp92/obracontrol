@@ -47,7 +47,7 @@ export default async function TareaDetallePage({
   if (!usuario) redirect("/login");
 
   const { id } = await params;
-  const tarea = await getTareaDetalle(id, usuario.constructora_id);
+  const tarea = await getTareaDetalle(id);
   if (!tarea) notFound();
 
   const accessible = await getAccessibleProjectIds(

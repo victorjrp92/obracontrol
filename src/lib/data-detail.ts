@@ -98,9 +98,17 @@ export async function getTareaDetalle(tareaId: string) {
   });
   if (!tarea) return null;
 
-  // Generar signed URLs para las evidencias
+  // Filtrar evidencias al "intento actual": solo las creadas después del último rechazo.
+  // Las evidencias del intento rechazado se mantienen en BD para auditoría pero no se
+  // muestran en la revisión actual (la trazabilidad de los intentos vive en `aprobaciones`).
+  const ultimoRechazo = tarea.aprobaciones.find((a) => a.estado === "NO_APROBADA");
+  const evidenciasIntentoActual = ultimoRechazo
+    ? tarea.evidencias.filter((e) => e.created_at > ultimoRechazo.fecha)
+    : tarea.evidencias;
+
+  // Generar signed URLs para las evidencias del intento actual
   const evidenciasConUrl = await Promise.all(
-    tarea.evidencias.map(async (e) => ({
+    evidenciasIntentoActual.map(async (e) => ({
       ...e,
       url_storage: await resolveEvidenciaUrl(e.url_storage),
     }))

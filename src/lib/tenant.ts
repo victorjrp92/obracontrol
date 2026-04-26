@@ -25,7 +25,7 @@ export interface AuthContext {
     id: string;
     email: string;
     nombre: string;
-    rol: string;
+    rol_ref: { nombre: string };
     constructora_id: string;
   };
   constructoraId: string;
@@ -45,7 +45,7 @@ export async function requireUser(): Promise<AuthContext> {
       id: true,
       email: true,
       nombre: true,
-      rol: true,
+      rol_ref: { select: { nombre: true } },
       constructora_id: true,
     },
   });
@@ -62,10 +62,10 @@ export async function requireUser(): Promise<AuthContext> {
 }
 
 export function requireRole(
-  ctx: { usuario: { rol: string } },
+  ctx: { usuario: { rol_ref: { nombre: string } } },
   ...roles: string[]
 ): void {
-  if (!roles.includes(ctx.usuario.rol)) {
+  if (!roles.includes(ctx.usuario.rol_ref.nombre)) {
     throw new TenantError(403, "Sin permisos");
   }
 }
