@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { calcularDiasHabiles, calcularSemaforo } from "@/lib/scoring";
+import { extractMotivo } from "@/lib/aprobaciones";
 
 export interface ObreroTarea {
   id: string;
@@ -191,16 +192,6 @@ export async function getObreroTareaDetalle(
         }
       : null,
   };
-}
-
-function extractMotivo(j: unknown): string | null {
-  if (!j) return null;
-  if (typeof j === "string") return j;
-  if (typeof j === "object") {
-    const obj = j as Record<string, unknown>;
-    if (typeof obj.motivo === "string") return obj.motivo;
-  }
-  return null;
 }
 
 /**
