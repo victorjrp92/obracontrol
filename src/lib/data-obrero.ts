@@ -186,13 +186,21 @@ export async function getObreroTareaDetalle(
     ultimaAprobacion: ultimaAprobacion
       ? {
           estado: ultimaAprobacion.estado,
-          justificacion: ultimaAprobacion.justificacion_por_item
-            ? JSON.stringify(ultimaAprobacion.justificacion_por_item)
-            : null,
+          justificacion: extractMotivo(ultimaAprobacion.justificacion_por_item),
           fecha: ultimaAprobacion.fecha,
         }
       : null,
   };
+}
+
+function extractMotivo(j: unknown): string | null {
+  if (!j) return null;
+  if (typeof j === "string") return j;
+  if (typeof j === "object") {
+    const obj = j as Record<string, unknown>;
+    if (typeof obj.motivo === "string") return obj.motivo;
+  }
+  return null;
 }
 
 /**

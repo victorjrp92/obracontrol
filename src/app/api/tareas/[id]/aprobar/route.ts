@@ -25,8 +25,8 @@ export async function POST(
       select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
 
-    if (!aprobador || !canApproveTasks(aprobador.rol_ref.nivel_acceso)) {
-      return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
+    if (!aprobador) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -61,25 +61,46 @@ export async function POST(
       return NextResponse.json({ error: "Tarea no encontrada o no está reportada" }, { status: 400 });
     }
 
-    // Project-access check: scope by accessible projects for this user
-    const proyectoIdForTask = await prisma.proyecto.findFirst({
-      where: {
-        edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { tareas: { some: { id } } } } } } } } } },
-      },
-      select: { id: true },
-    });
-    const accessibleApr = await getAccessibleProjectIds(
-      aprobador.id,
-      aprobador.constructora_id,
-      aprobador.rol_ref.nivel_acceso,
-    );
-    if (!proyectoIdForTask || !canAccessProject(accessibleApr, proyectoIdForTask.id)) {
-      return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    // Permiso: supervisor con canApproveTasks O el contratista asignado a la tarea
+    const isAssignedContratista = tarea.asignado_a === aprobador.id;
+    if (!canApproveTasks(aprobador.rol_ref.nivel_acceso) && !isAssignedContratista) {
+      return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
     }
 
     // Tenant isolation: verify the task belongs to the approver's constructora
     if (tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== aprobador.constructora_id) {
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Project-access check (se omite para el contratista asignado: la asignación ya implica acceso)
+    if (!isAssignedContratista) {
+      const proyectoIdForTask = await prisma.proyecto.findFirst({
+        where: {
+          edificios: { some: { pisos: { some: { unidades: { some: { espacios: { some: { tareas: { some: { id } } } } } } } } } },
+        },
+        select: { id: true },
+      });
+      const accessibleApr = await getAccessibleProjectIds(
+        aprobador.id,
+        aprobador.constructora_id,
+        aprobador.rol_ref.nivel_acceso,
+      );
+      if (!proyectoIdForTask || !canAccessProject(accessibleApr, proyectoIdForTask.id)) {
+        return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+    }
+
+    // Aprobación requiere mínimo 2 fotos como prueba
+    if (estado === "APROBADA") {
+      const fotosCount = await prisma.evidencia.count({
+        where: { tarea_id: id, tipo: "FOTO" },
+      });
+      if (fotosCount < 2) {
+        return NextResponse.json(
+          { error: `Se requieren al menos 2 fotos para aprobar (hay ${fotosCount})` },
+          { status: 400 },
+        );
+      }
     }
 
     // Transacción: crear aprobación + actualizar tarea

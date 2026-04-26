@@ -13,6 +13,7 @@ interface TaskRowProps {
   semaforo: SemaforoLevel;
   daysLeft?: number;
   contractor?: string;
+  href?: string;
 }
 
 const statusConfig: Record<TaskStatus, { icon: React.ReactNode; label: string; class: string }> = {
@@ -55,6 +56,7 @@ export default function TaskRow({
   semaforo,
   daysLeft,
   contractor,
+  href,
 }: TaskRowProps) {
   const st = statusConfig[status];
   const dot = semaforoColors[semaforo];
@@ -94,8 +96,8 @@ export default function TaskRow({
     </div>
   );
 
-  if (id) {
-    return <Link href={`/dashboard/tareas/${id}`}>{content}</Link>;
+  if (id || href) {
+    return <Link href={href ?? `/dashboard/tareas/${id}`}>{content}</Link>;
   }
   return content;
 }

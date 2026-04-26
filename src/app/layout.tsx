@@ -1,20 +1,41 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
 
+const APP_NAME = "ObraControl";
+const APP_DESCRIPTION =
+  "SaaS para constructoras en Colombia. Controla obra blanca, carpintería y madera en tiempo real. Evidencia fotográfica, aprobaciones y métricas de desempeño.";
+
 export const metadata: Metadata = {
-  title: "Seiricon — Construyendo en orden",
-  description:
-    "SaaS para constructoras. Controla todo el proceso de construccion en tiempo real. Evidencia fotografica, aprobaciones y metricas de desempeno.",
+  applicationName: APP_NAME,
+  title: {
+    default: `${APP_NAME} — Control de Obra Inteligente`,
+    template: `%s — ${APP_NAME}`,
+  },
+  description: APP_DESCRIPTION,
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: APP_NAME,
+  },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: "/apple-touch-icon.png",
+    apple: [{ url: "/icons/apple-touch-icon.png" }],
   },
-  manifest: "/site.webmanifest",
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -23,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full">
+    <html lang="es" className="h-full" dir="ltr">
       <body className="min-h-full flex flex-col antialiased">
         {children}
         <CookieBanner />

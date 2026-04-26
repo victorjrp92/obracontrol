@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Bell, Search } from "lucide-react";
+import OfflineQueueBadge from "@/components/pwa/OfflineQueueBadge";
 
 interface TopbarProps {
   title?: string;
@@ -17,6 +18,9 @@ export default function Topbar({ title = "Dashboard", subtitle }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Evidencias pendientes de sincronizar */}
+        <OfflineQueueBadge />
+
         {/* Search */}
         <div className="relative hidden md:block">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

@@ -1,27 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { uploadEvidencia } from "@/lib/storage";
+import {
+  requireUser,
+  assertTareaInTenant,
+  tenantErrorResponse,
+} from "@/lib/tenant";
 
 // POST /api/evidencias — subir foto o video de una tarea
 // multipart/form-data: file, tarea_id, tipo, gps_lat?, gps_lng?, timestamp_captura
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const usuario = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { id: true },
-    });
-
-    if (!usuario) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-    }
+    const { constructoraId, usuario } = await requireUser();
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -45,16 +35,13 @@ export async function POST(req: NextRequest) {
     // Validate Content-Type
     const allowedPhotoTypes = ["image/jpeg", "image/png"];
     const allowedVideoTypes = ["video/mp4"];
-    const contentType = file.type;
-
-    if (tipo === "FOTO" && !allowedPhotoTypes.includes(contentType)) {
+    if (tipo === "FOTO" && !allowedPhotoTypes.includes(file.type)) {
       return NextResponse.json(
         { error: "Tipo de archivo no permitido. Solo se aceptan image/jpeg y image/png" },
         { status: 400 }
       );
     }
-
-    if (tipo === "VIDEO" && !allowedVideoTypes.includes(contentType)) {
+    if (tipo === "VIDEO" && !allowedVideoTypes.includes(file.type)) {
       return NextResponse.json(
         { error: "Tipo de archivo no permitido. Solo se acepta video/mp4" },
         { status: 400 }
@@ -70,40 +57,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar que la tarea existe and belongs to the user's constructora
-    const tarea = await prisma.tarea.findUnique({
-      where: { id: tarea_id },
-      select: {
-        id: true,
-        espacio: {
-          select: {
-            unidad: {
-              select: {
-                piso: {
-                  select: {
-                    edificio: {
-                      select: { proyecto: { select: { constructora_id: true } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!tarea) {
-      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
-    }
-
-    // Tenant isolation: verify the task's constructora matches the user's
-    const userRecord = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { constructora_id: true },
-    });
-    if (!userRecord || tarea.espacio.unidad.piso.edificio.proyecto.constructora_id !== userRecord.constructora_id) {
-      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
-    }
+    // Verificar que la tarea pertenezca a la constructora del usuario
+    await assertTareaInTenant(tarea_id, constructoraId);
 
     // Validar límite de fotos (máx 4)
     if (tipo === "FOTO") {
@@ -136,6 +91,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(evidencia, { status: 201 });
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("POST /api/evidencias", error);
     const msg = error instanceof Error ? error.message : "Error interno";
     return NextResponse.json({ error: msg }, { status: 500 });
@@ -145,50 +102,14 @@ export async function POST(req: NextRequest) {
 // GET /api/evidencias?tarea_id=
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    }
-
-    const currentUser = await prisma.usuario.findUnique({
-      where: { email: user.email! },
-      select: { constructora_id: true },
-    });
-    if (!currentUser) {
-      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-    }
+    const { constructoraId } = await requireUser();
 
     const tarea_id = new URL(req.url).searchParams.get("tarea_id");
     if (!tarea_id) {
       return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
     }
 
-    // Tenant isolation: verify the task belongs to the user's constructora
-    const tareaCheck = await prisma.tarea.findUnique({
-      where: { id: tarea_id },
-      select: {
-        espacio: {
-          select: {
-            unidad: {
-              select: {
-                piso: {
-                  select: {
-                    edificio: {
-                      select: { proyecto: { select: { constructora_id: true } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!tareaCheck || tareaCheck.espacio.unidad.piso.edificio.proyecto.constructora_id !== currentUser.constructora_id) {
-      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
-    }
+    await assertTareaInTenant(tarea_id, constructoraId);
 
     const evidencias = await prisma.evidencia.findMany({
       where: { tarea_id },
@@ -197,6 +118,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(evidencias);
   } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
     console.error("GET /api/evidencias", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
