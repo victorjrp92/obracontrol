@@ -11,6 +11,7 @@ export default async function DashboardLayout({
   const usuario = await getUsuarioActual();
 
   if (!usuario) redirect("/login");
+  if (usuario.rol_ref.nivel_acceso === "SUPER_ADMIN") redirect("/super-admin");
   if (usuario.rol_ref.nivel_acceso === "CONTRATISTA") redirect("/contratista");
 
   return (

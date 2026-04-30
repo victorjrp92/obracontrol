@@ -21,6 +21,28 @@ export function getRolLabel(rolNombre: string): string {
 
 export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
   switch (nivelAcceso) {
+    case "SUPER_ADMIN":
+      return {
+        canCreate: true,
+        canEdit: true,
+        canDelete: true,
+        canApprove: true,
+        canInviteUsers: true,
+        canViewAllProjects: true,
+        canViewAllTasks: true,
+        canViewReports: true,
+        canViewConfig: true,
+        canViewContractors: true,
+        canViewUsers: true,
+        sidebarItems: [
+          "sa-dashboard",
+          "sa-constructoras",
+          "sa-admins",
+          "sa-proyectos",
+          "sa-reportes",
+          "sa-configuracion",
+        ],
+      };
     case "ADMIN_GENERAL":
       return {
         canCreate: true,

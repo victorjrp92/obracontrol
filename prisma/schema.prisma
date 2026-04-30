@@ -381,6 +381,7 @@ model PagoContratista {
 // ─── ROLES Y ACCESO ─────────────────────────────────────────────────────────
 
 enum NivelAcceso {
+  SUPER_ADMIN
   DIRECTIVO
   ADMIN_GENERAL
   ADMIN_PROYECTO

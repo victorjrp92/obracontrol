@@ -403,7 +403,9 @@ export async function POST(req: NextRequest) {
     }, { timeout: 60000 });
 
     return NextResponse.json(proyectoCreado, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Error creando proyecto" }, { status: 500 });
+  } catch (error) {
+    console.error("POST /api/proyectos/wizard failed:", error);
+    const msg = error instanceof Error ? error.message : "Error creando proyecto";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -11,7 +11,8 @@
     "docker:build": "docker build -t obracontrol .",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
-    "db:seed-test-users": "npx tsx scripts/seed-test-users.ts"
+    "db:seed-test-users": "npx tsx scripts/seed-test-users.ts",
+    "db:seed-roles": "npx tsx scripts/seed-roles-test.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
