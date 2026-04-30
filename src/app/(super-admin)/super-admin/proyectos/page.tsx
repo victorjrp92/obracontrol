@@ -24,6 +24,7 @@ export default async function TodosProyectosPage() {
           proyectos={proyectos.map((p) => ({
             id: p.id,
             nombre: p.nombre,
+            numeroRegistro: p.numero_registro,
             estado: p.estado,
             constructora_id: p.constructora_id,
             constructora_nombre: p.constructora.nombre,

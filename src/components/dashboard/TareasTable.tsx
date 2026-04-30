@@ -7,6 +7,7 @@ type TaskStatus = "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA";
 
 interface TareaRow {
   id: string;
+  numeroRegistro?: string | null;
   nombre: string;
   contratista: string | null;
   diasEstimados: number;
@@ -189,8 +190,13 @@ function PhaseGroup({
           <td className="px-4 py-2.5">
             <Link
               href={`/dashboard/tareas/${t.id}`}
-              className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
+              className="block text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
             >
+              {t.numeroRegistro && (
+                <span className="block font-mono text-[10px] font-bold text-blue-700">
+                  {t.numeroRegistro}
+                </span>
+              )}
               {t.nombre}
             </Link>
           </td>
@@ -217,9 +223,14 @@ function PhaseGroup({
 function MobileCard({ tarea: t }: { tarea: TareaRow }) {
   return (
     <div className="bg-white rounded-xl border border-slate-100 p-3 mx-2 my-1.5">
+      {t.numeroRegistro && (
+        <span className="inline-block font-mono text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mb-1">
+          {t.numeroRegistro}
+        </span>
+      )}
       <Link
         href={`/dashboard/tareas/${t.id}`}
-        className="text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
+        className="block text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
       >
         {t.nombre}
       </Link>

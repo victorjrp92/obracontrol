@@ -36,6 +36,7 @@ model Constructora {
 model Proyecto {
   id                      String         @id @default(cuid())
   constructora_id         String
+  numero_registro         String?
   nombre                  String
   ubicacion_lat           Float?
   ubicacion_lng           Float?
@@ -60,6 +61,7 @@ model Proyecto {
   audit_logs              AuditLog[]
   admins_proyecto          AdminProyectoAccess[]
 
+  @@unique([constructora_id, numero_registro])
   @@map("proyectos")
 }
 
@@ -151,6 +153,7 @@ model Tarea {
   id                        String       @id @default(cuid())
   espacio_id                String
   fase_id                   String
+  numero_registro           String?      // {proyecto.numero_registro}-T{seq}
   nombre                    String
   codigo_referencia         String?
   nombre_pieza              String?
@@ -418,11 +421,51 @@ model Obrero {
   created_at       DateTime     @default(now())
   updated_at       DateTime     @updatedAt
 
+  // Información básica obligatoria al crear (legacy permite null para no romper)
+  cedula                       String?
+  telefono                     String?
+  especialidad                 EspecialidadObrero?
+  eps                          String?
+  arl                          String?
+
+  // Información adicional opcional
+  fecha_nacimiento             DateTime?
+  direccion                    String?
+  contacto_emergencia          String?
+  contacto_emergencia_telefono String?
+  tipo_sangre                  String?
+  anos_experiencia             Int?
+  foto_url                     String?
+
+  // Scoring — el sistema lo actualiza automáticamente
+  score_total                  Float    @default(0)
+  score_calidad                Float    @default(0)
+  score_velocidad              Float    @default(0)
+  score_cumplimiento           Float    @default(0)
+  evidencias_aprobadas         Int      @default(0)
+  evidencias_rechazadas        Int      @default(0)
+  tareas_completadas           Int      @default(0)
+  historial_scores             Json     @default("[]")
+
   contratista      Usuario      @relation("ObrerosDelContratista", fields: [contratista_id], references: [id])
   constructora     Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
   evidencias       Evidencia[]
 
+  @@unique([constructora_id, cedula])
   @@map("obreros")
+}
+
+enum EspecialidadObrero {
+  ALBANIL
+  INSTALADOR
+  ELECTRICISTA
+  PLOMERO
+  PINTOR
+  CARPINTERO
+  ENCHAPADOR
+  ESTUCADOR
+  AYUDANTE
+  OTRO
 }
 
 // ─── TAREAS SUGERIDAS ───────────────────────────────────────────────────────

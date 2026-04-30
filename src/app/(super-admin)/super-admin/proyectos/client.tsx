@@ -7,6 +7,7 @@ import { FolderOpen, Trash2, Users } from "lucide-react";
 interface Proyecto {
   id: string;
   nombre: string;
+  numeroRegistro: string | null;
   estado: string;
   constructora_id: string;
   constructora_nombre: string;
@@ -47,6 +48,11 @@ export default function ProyectosClient({ proyectos }: { proyectos: Proyecto[] }
               <FolderOpen className="w-5 h-5 text-blue-600" />
             </div>
             <div className="min-w-0 flex-1">
+              {p.numeroRegistro && (
+                <span className="inline-block font-mono text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded mb-1">
+                  {p.numeroRegistro}
+                </span>
+              )}
               <Link
                 href={`/super-admin/proyectos/${p.id}`}
                 className="font-bold text-slate-800 hover:text-red-600 truncate block"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { recalcularScoreContratista } from "@/lib/scoring";
+import { recalcularScoreContratista, recalcularScoreObrerosDeTarea } from "@/lib/scoring";
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 import { crearNotificacion } from "@/lib/notifications";
@@ -131,6 +131,13 @@ export async function POST(
       if (contratista) {
         await recalcularScoreContratista(contratista.id);
       }
+    }
+
+    // Recalcular scores de los obreros que aportaron evidencia
+    try {
+      await recalcularScoreObrerosDeTarea(id);
+    } catch (err) {
+      console.error("Error recalculando score de obreros:", err);
     }
 
     // Crear notificación in-app para el contratista asignado

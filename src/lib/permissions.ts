@@ -56,7 +56,7 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: true,
         canViewContractors: true,
         canViewUsers: true,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "sugerencias", "reportes", "usuarios", "configuracion"],
+        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes", "usuarios", "configuracion"],
       };
     case "ADMIN_PROYECTO":
       return {
@@ -71,7 +71,7 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: false,
         canViewContractors: true,
         canViewUsers: true,
-        sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "sugerencias", "reportes", "usuarios"],
+        sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes", "usuarios"],
       };
     case "DIRECTIVO":
       return {
@@ -86,7 +86,7 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: false,
         canViewContractors: true,
         canViewUsers: false,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "sugerencias", "reportes"],
+        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes"],
       };
     case "CONTRATISTA":
       return {

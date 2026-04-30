@@ -21,6 +21,7 @@ import {
   X,
   Lightbulb,
   Bell,
+  HardHat,
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
@@ -30,6 +31,7 @@ const allNavItems = [
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
   { key: "contratistas", icon: Users, label: "Contratistas", href: "/dashboard/contratistas" },
+  { key: "obreros", icon: HardHat, label: "Obreros", href: "/dashboard/obreros" },
   { key: "sugerencias", icon: Lightbulb, label: "Sugerencias", href: "/dashboard/sugerencias" },
   { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes" },
   { key: "usuarios", icon: UsersRound, label: "Usuarios", href: "/dashboard/usuarios" },

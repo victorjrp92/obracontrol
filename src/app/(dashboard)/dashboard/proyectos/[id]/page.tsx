@@ -282,7 +282,10 @@ export default async function ProyectoDetallePage({
 
   return (
     <>
-      <Topbar title={proyecto.nombre} subtitle={`${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`} />
+      <Topbar
+        title={proyecto.nombre}
+        subtitle={`${proyecto.numero_registro ? `${proyecto.numero_registro} · ` : ""}${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`}
+      />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Back link */}
         <Link
@@ -300,6 +303,7 @@ export default async function ProyectoDetallePage({
               proyecto={{
                 id,
                 nombre: proyecto.nombre,
+                numero_registro: proyecto.numero_registro,
                 dias_habiles_semana: proyecto.dias_habiles_semana,
                 fecha_inicio: proyecto.fecha_inicio?.toISOString() ?? null,
                 fecha_fin_estimada: proyecto.fecha_fin_estimada?.toISOString() ?? null,

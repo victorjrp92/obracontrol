@@ -364,6 +364,7 @@ export async function getTareasFiltradas(
     return {
       // New fields for TareasTable
       id: t.id,
+      numeroRegistro: t.numero_registro ?? null,
       nombre: `${t.espacio.nombre} — ${t.nombre}`,
       contratista: t.asignado_usuario?.nombre ?? null,
       diasEstimados: t.tiempo_acordado_dias,

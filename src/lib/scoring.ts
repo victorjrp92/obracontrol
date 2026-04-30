@@ -189,3 +189,61 @@ export async function recalcularScoreContratista(contratistaId: string): Promise
     },
   });
 }
+
+/**
+ * Recalcula los scores de los obreros que aportaron evidencias para una tarea.
+ * Se invoca después de que un supervisor aprueba/rechaza la tarea.
+ *
+ * Lógica: cada evidencia se "hereda" el estado final de la tarea (APROBADA/NO_APROBADA).
+ * Contamos cuántas evidencias del obrero terminaron aprobadas vs. rechazadas y
+ * derivamos los 4 scores con calcularScoringObrero.
+ */
+export async function recalcularScoreObrerosDeTarea(tareaId: string): Promise<void> {
+  // Importación tardía para evitar ciclos
+  const { calcularScoringObrero } = await import("@/lib/obrero");
+
+  // Obreros distintos que reportaron evidencia para esta tarea
+  const evidencias = await prisma.evidencia.findMany({
+    where: { tarea_id: tareaId, obrero_id: { not: null } },
+    select: { obrero_id: true },
+  });
+  const obreroIds = Array.from(new Set(evidencias.map((e) => e.obrero_id!).filter(Boolean)));
+  if (obreroIds.length === 0) return;
+
+  for (const obreroId of obreroIds) {
+    // Estados de las tareas a las que el obrero aportó evidencia
+    const tareasDelObrero = await prisma.tarea.findMany({
+      where: { evidencias: { some: { obrero_id: obreroId } } },
+      select: { estado: true, fecha_fin_real: true, tiempo_acordado_dias: true, fecha_inicio: true },
+    });
+
+    const aprobadas = tareasDelObrero.filter((t) => t.estado === "APROBADA").length;
+    const rechazadas = tareasDelObrero.filter((t) => t.estado === "NO_APROBADA").length;
+    const completadas = aprobadas + rechazadas;
+
+    // A tiempo: aprobadas con fecha_fin_real <= fecha_inicio + tiempo_acordado_dias
+    const aTiempo = tareasDelObrero.filter((t) => {
+      if (t.estado !== "APROBADA" || !t.fecha_fin_real || !t.fecha_inicio) return false;
+      const limite = new Date(t.fecha_inicio.getTime() + t.tiempo_acordado_dias * 86400000);
+      return t.fecha_fin_real <= limite;
+    }).length;
+
+    const scores = calcularScoringObrero({
+      evidencias_aprobadas: aprobadas,
+      evidencias_rechazadas: rechazadas,
+      tareas_completadas: completadas,
+      tareas_a_tiempo: aTiempo,
+      tareas_totales: tareasDelObrero.length,
+    });
+
+    await prisma.obrero.update({
+      where: { id: obreroId },
+      data: {
+        evidencias_aprobadas: aprobadas,
+        evidencias_rechazadas: rechazadas,
+        tareas_completadas: completadas,
+        ...scores,
+      },
+    });
+  }
+}

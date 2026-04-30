@@ -25,6 +25,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
 
   // Step 1 state
   const [nombre, setNombre] = useState(initialData?.nombre ?? "");
+  const [numeroRegistro, setNumeroRegistro] = useState(initialData?.numeroRegistro ?? "");
   const [subtipo, setSubtipo] = useState<"APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES">(initialData?.subtipo ?? "APARTAMENTOS");
   const [diasHabiles, setDiasHabiles] = useState(initialData?.diasHabiles ?? 5);
   const [fechaInicio, setFechaInicio] = useState(initialData?.fechaInicio ?? "");
@@ -56,7 +57,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
     : totalUnidades * tareas.length;
 
   // Validation
-  const canProceed1 = nombre.trim().length >= 3 && (
+  const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && (
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
@@ -91,6 +92,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
     const payload = {
       ...(isEditMode ? { password } : {}),
       nombre,
+      numero_registro: numeroRegistro.trim().toUpperCase(),
       subtipo,
       dias_habiles_semana: diasHabiles,
       fecha_inicio: fechaInicio || undefined,
@@ -191,6 +193,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
       {step === 1 && (
         <WizardStep1
           nombre={nombre} setNombre={setNombre}
+          numeroRegistro={numeroRegistro} setNumeroRegistro={setNumeroRegistro}
           subtipo={subtipo} setSubtipo={setSubtipo}
           diasHabiles={diasHabiles} setDiasHabiles={setDiasHabiles}
           fechaInicio={fechaInicio} setFechaInicio={setFechaInicio}

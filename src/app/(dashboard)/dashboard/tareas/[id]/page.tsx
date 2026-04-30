@@ -87,6 +87,11 @@ export default async function TareaDetallePage({
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div className="min-w-0">
+                  {tarea.numero_registro && (
+                    <span className="block font-mono text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded mb-1 w-fit">
+                      {tarea.numero_registro}
+                    </span>
+                  )}
                   <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 break-words">{tarea.nombre}</h2>
                   {tarea.codigo_referencia && (
                     <span className="text-xs font-mono text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">

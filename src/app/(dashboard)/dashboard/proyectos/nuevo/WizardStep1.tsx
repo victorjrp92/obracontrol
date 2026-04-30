@@ -10,6 +10,8 @@ import type { TipoUnidadInput, EdificioInput } from "./wizard-types";
 interface WizardStep1Props {
   nombre: string;
   setNombre: (v: string) => void;
+  numeroRegistro: string;
+  setNumeroRegistro: (v: string) => void;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   setSubtipo: (v: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES") => void;
   diasHabiles: number;
@@ -36,6 +38,7 @@ interface WizardStep1Props {
 
 export default function WizardStep1({
   nombre, setNombre,
+  numeroRegistro, setNumeroRegistro,
   subtipo, setSubtipo,
   diasHabiles, setDiasHabiles,
   fechaInicio, setFechaInicio,
@@ -215,7 +218,7 @@ export default function WizardStep1({
       <h2 className="text-lg font-bold text-slate-900 mb-5">Informacion del proyecto</h2>
 
       <div className="grid sm:grid-cols-2 gap-4 mb-6">
-        <div className="sm:col-span-2">
+        <div>
           <label className="text-sm font-medium text-slate-700 mb-1.5 block">Nombre del proyecto</label>
           <input
             value={nombre}
@@ -223,6 +226,22 @@ export default function WizardStep1({
             placeholder="Ej: Proyecto Olivo"
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            Número de registro <span className="text-red-500">*</span>
+          </label>
+          <input
+            value={numeroRegistro}
+            onChange={(e) => setNumeroRegistro(e.target.value.toUpperCase())}
+            placeholder="Ej: PR-2026-001"
+            maxLength={40}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+          />
+          <p className="text-[10px] text-slate-400 mt-1">
+            Único por empresa. Las tareas heredarán este número (ej. PR-2026-001-T0001).
+          </p>
         </div>
 
         <div>
