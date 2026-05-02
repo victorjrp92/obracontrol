@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { provisionarUsuario } from "@/lib/onboarding";
+import { prisma } from "@/lib/prisma";
+import { getHomePathForRole } from "@/lib/access";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -16,7 +18,14 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/dashboard");
+  // Redirect by role: SUPER_ADMIN → /super-admin, DIRECTIVO → /directivo,
+  // CONTRATISTA → /contratista, ADMIN_* → /dashboard.
+  const usuario = await prisma.usuario.findUnique({
+    where: { email },
+    include: { rol_ref: { select: { nivel_acceso: true } } },
+  });
+  const home = usuario ? getHomePathForRole(usuario.rol_ref.nivel_acceso) : "/dashboard";
+  redirect(home);
 }
 
 export async function registro(formData: FormData) {

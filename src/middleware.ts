@@ -27,10 +27,14 @@ export async function middleware(req: NextRequest) {
 
   const isAuthRoute = req.nextUrl.pathname.startsWith("/login") ||
     req.nextUrl.pathname.startsWith("/registro");
-  const isDashboard = req.nextUrl.pathname.startsWith("/dashboard");
+  const isProtected =
+    req.nextUrl.pathname.startsWith("/dashboard") ||
+    req.nextUrl.pathname.startsWith("/super-admin") ||
+    req.nextUrl.pathname.startsWith("/directivo") ||
+    req.nextUrl.pathname.startsWith("/contratista");
 
-  // Redirigir al login si intenta acceder al dashboard sin sesión
-  if (isDashboard && !user) {
+  // Redirigir al login si intenta acceder a rutas privadas sin sesión
+  if (isProtected && !user) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -43,5 +47,12 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/registro"],
+  matcher: [
+    "/dashboard/:path*",
+    "/super-admin/:path*",
+    "/directivo/:path*",
+    "/contratista/:path*",
+    "/login",
+    "/registro",
+  ],
 };

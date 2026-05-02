@@ -15,7 +15,11 @@ export async function getAccessibleProjectIds(
   constructoraId: string,
   nivelAcceso: NivelAcceso,
 ): Promise<AccessibleProjects> {
-  if (nivelAcceso === "DIRECTIVO" || nivelAcceso === "ADMIN_GENERAL") {
+  if (
+    nivelAcceso === "SUPER_ADMIN" ||
+    nivelAcceso === "DIRECTIVO" ||
+    nivelAcceso === "ADMIN_GENERAL"
+  ) {
     return "ALL";
   }
 
@@ -85,6 +89,10 @@ export function buildProyectoIdInFilter(accessible: AccessibleProjects): Record<
 
 // ─── Role helpers ─────────────────────────────────────────────────────────────
 
+export function isSuperAdmin(nivel: NivelAcceso | string): boolean {
+  return nivel === "SUPER_ADMIN";
+}
+
 export function isGeneralAdmin(nivel: NivelAcceso | string): boolean {
   return nivel === "ADMIN_GENERAL";
 }
@@ -95,15 +103,28 @@ export function isProjectAdmin(nivel: NivelAcceso | string): boolean {
 
 /** Either admin (general or per-project). */
 export function isAnyAdmin(nivel: NivelAcceso | string): boolean {
-  return nivel === "ADMIN_GENERAL" || nivel === "ADMIN_PROYECTO";
+  return nivel === "SUPER_ADMIN" || nivel === "ADMIN_GENERAL" || nivel === "ADMIN_PROYECTO";
 }
 
-/** Can invite/edit/list users: ADMIN_GENERAL + DIRECTIVO; ADMIN_PROYECTO limited. */
+/** Can invite/edit/list users: SUPER_ADMIN + ADMIN_GENERAL + DIRECTIVO; ADMIN_PROYECTO limited. */
 export function canManageUsers(nivel: NivelAcceso | string): boolean {
-  return nivel === "ADMIN_GENERAL" || nivel === "DIRECTIVO";
+  return nivel === "SUPER_ADMIN" || nivel === "ADMIN_GENERAL" || nivel === "DIRECTIVO";
 }
 
-/** Can approve tasks: both admins and directivo. */
+/** Can approve tasks: super admin + ambos admins + directivo. */
 export function canApproveTasks(nivel: NivelAcceso | string): boolean {
-  return nivel === "ADMIN_GENERAL" || nivel === "ADMIN_PROYECTO" || nivel === "DIRECTIVO";
+  return (
+    nivel === "SUPER_ADMIN" ||
+    nivel === "ADMIN_GENERAL" ||
+    nivel === "ADMIN_PROYECTO" ||
+    nivel === "DIRECTIVO"
+  );
+}
+
+/** Returns the path where a user with this role should be redirected after login. */
+export function getHomePathForRole(nivel: NivelAcceso | string): string {
+  if (nivel === "SUPER_ADMIN") return "/super-admin";
+  if (nivel === "DIRECTIVO") return "/directivo";
+  if (nivel === "CONTRATISTA") return "/contratista";
+  return "/dashboard";
 }

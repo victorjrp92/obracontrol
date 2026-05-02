@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { isGeneralAdmin } from "@/lib/access";
+import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
 
 interface WizardPayload {
   // Paso 1
   nombre: string;
+  numero_registro?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   dias_habiles_semana: number;
   fecha_inicio?: string;
@@ -64,6 +66,23 @@ export async function POST(req: NextRequest) {
     const esZonasComunes = body.subtipo === "ZONAS_COMUNES";
     if (!body.nombre || !body.subtipo) {
       return NextResponse.json({ error: "Faltan datos requeridos" }, { status: 400 });
+    }
+
+    // Número de registro del proyecto (obligatorio, único por constructora)
+    const numeroVal = validarNumeroProyecto(body.numero_registro);
+    if (!numeroVal.ok) {
+      return NextResponse.json({ error: numeroVal.error }, { status: 400 });
+    }
+    const numeroRegistro = numeroVal.normalizado!;
+    const numeroDuplicado = await prisma.proyecto.findFirst({
+      where: { constructora_id: currentUser.constructora_id, numero_registro: numeroRegistro },
+      select: { id: true, nombre: true },
+    });
+    if (numeroDuplicado) {
+      return NextResponse.json(
+        { error: `El número de registro "${numeroRegistro}" ya está en uso por el proyecto "${numeroDuplicado.nombre}"` },
+        { status: 409 },
+      );
     }
     if (
       body.dias_habiles_semana != null &&
@@ -179,6 +198,7 @@ export async function POST(req: NextRequest) {
       const proyecto = await tx.proyecto.create({
         data: {
           constructora_id: currentUser.constructora_id,
+          numero_registro: numeroRegistro,
           nombre: body.nombre,
           subtipo: body.subtipo,
           dias_habiles_semana: body.dias_habiles_semana ?? 5,
@@ -187,6 +207,9 @@ export async function POST(req: NextRequest) {
           estado: "ACTIVO",
         },
       });
+
+      // Contador global de tareas para numeración secuencial dentro del proyecto.
+      let tareaSeq = 0;
 
       // 2. Fases
       const fasesCreadas: Record<string, string> = {};
@@ -316,10 +339,12 @@ export async function POST(req: NextRequest) {
                 const tareasDelEspacio = (body.tareas ?? []).filter((t) => t.espacio === nombreEspacio);
                 for (const t of tareasDelEspacio) {
                   const dias = calcDias(t.tiempo_acordado_dias, t.fase);
+                  tareaSeq++;
                   await tx.tarea.create({
                     data: {
                       espacio_id: espacio.id,
                       fase_id: fasesCreadas[t.fase],
+                      numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                       nombre: t.nombre,
                       tiempo_acordado_dias: dias,
                       codigo_referencia: t.codigo_referencia ?? null,
@@ -386,10 +411,12 @@ export async function POST(req: NextRequest) {
           // Crear tareas desde TASK_TEMPLATES["Zonas Comunes"] si existen para esta zona
           const tareasZC = TASK_TEMPLATES["Zonas Comunes"]?.[nombreZona] ?? [];
           for (const t of tareasZC) {
+            tareaSeq++;
             await tx.tarea.create({
               data: {
                 espacio_id: espacioZC.id,
                 fase_id: faseZonasId,
+                numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                 nombre: t.nombre,
                 tiempo_acordado_dias: t.tiempo_acordado_dias,
                 estado: "PENDIENTE",
@@ -403,7 +430,9 @@ export async function POST(req: NextRequest) {
     }, { timeout: 60000 });
 
     return NextResponse.json(proyectoCreado, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Error creando proyecto" }, { status: 500 });
+  } catch (error) {
+    console.error("POST /api/proyectos/wizard failed:", error);
+    const msg = error instanceof Error ? error.message : "Error creando proyecto";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

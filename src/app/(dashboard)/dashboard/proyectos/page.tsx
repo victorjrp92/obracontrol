@@ -93,6 +93,11 @@ export default async function ProyectosPage() {
                   {/* Header */}
                   <div className="flex items-start justify-between gap-2">
                     <div>
+                      {p.numero_registro && (
+                        <span className="inline-block font-mono text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded mb-1">
+                          {p.numero_registro}
+                        </span>
+                      )}
                       <h3 className="font-bold text-slate-900 text-base">{p.nombre}</h3>
                       <div className="text-xs text-slate-500 mt-0.5">
                         {SUBTIPO_LABELS[p.subtipo] ?? p.subtipo}

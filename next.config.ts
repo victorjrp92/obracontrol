@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import withSerwistInit from "@serwist/next";
 
 const withSerwist = withSerwistInit({
@@ -10,7 +11,11 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  turbopack: {},
+  // Anclar el root al directorio del proyecto para que Turbopack
+  // resuelva node_modules locales (tailwindcss, etc.) correctamente.
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   async headers() {
     return [
       {

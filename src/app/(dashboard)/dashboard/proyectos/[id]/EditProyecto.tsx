@@ -7,6 +7,7 @@ import { Pencil, X, History, Eye, EyeOff, Loader2, Trash2, AlertTriangle } from 
 interface ProyectoData {
   id: string;
   nombre: string;
+  numero_registro: string | null;
   dias_habiles_semana: number;
   fecha_inicio: string | null;
   fecha_fin_estimada: string | null;
@@ -25,6 +26,7 @@ interface AuditEntry {
 
 const CAMPO_LABELS: Record<string, string> = {
   nombre: "Nombre",
+  numero_registro: "Número de registro",
   dias_habiles_semana: "Dias habiles/semana",
   fecha_inicio: "Fecha inicio",
   fecha_fin_estimada: "Fecha fin estimada",
@@ -55,6 +57,7 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
 
   // Form state
   const [nombre, setNombre] = useState(proyecto.nombre);
+  const [numeroRegistro, setNumeroRegistro] = useState(proyecto.numero_registro ?? "");
   const [diasHabiles, setDiasHabiles] = useState(proyecto.dias_habiles_semana);
   const [fechaInicio, setFechaInicio] = useState(formatDateInput(proyecto.fecha_inicio));
   const [fechaFin, setFechaFin] = useState(formatDateInput(proyecto.fecha_fin_estimada));
@@ -133,6 +136,9 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
   function buildCambios() {
     const cambios: Record<string, unknown> = {};
     if (nombre !== proyecto.nombre) cambios.nombre = nombre;
+    if (numeroRegistro.trim().toUpperCase() !== (proyecto.numero_registro ?? "")) {
+      cambios.numero_registro = numeroRegistro.trim().toUpperCase();
+    }
     if (diasHabiles !== proyecto.dias_habiles_semana) cambios.dias_habiles_semana = diasHabiles;
     const origInicio = formatDateInput(proyecto.fecha_inicio);
     if (fechaInicio !== origInicio) cambios.fecha_inicio = fechaInicio || null;
@@ -256,6 +262,19 @@ export default function EditProyecto({ proyecto, canEdit = true }: { proyecto: P
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 className="w-full text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Número de registro <span className="text-[10px] text-amber-600">(cambiarlo renumerará todas las tareas)</span>
+              </label>
+              <input
+                type="text"
+                value={numeroRegistro}
+                onChange={(e) => setNumeroRegistro(e.target.value.toUpperCase())}
+                placeholder="Ej: PR-2026-001"
+                maxLength={40}
+                className="w-full text-sm font-mono border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               />
             </div>
             <div>

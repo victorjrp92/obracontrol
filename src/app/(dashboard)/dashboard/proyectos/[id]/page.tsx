@@ -5,7 +5,7 @@ import { getAccessibleProjectIds } from "@/lib/access";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2 } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
@@ -282,7 +282,10 @@ export default async function ProyectoDetallePage({
 
   return (
     <>
-      <Topbar title={proyecto.nombre} subtitle={`${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`} />
+      <Topbar
+        title={proyecto.nombre}
+        subtitle={`${proyecto.numero_registro ? `${proyecto.numero_registro} · ` : ""}${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`}
+      />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Back link */}
         <Link
@@ -300,6 +303,7 @@ export default async function ProyectoDetallePage({
               proyecto={{
                 id,
                 nombre: proyecto.nombre,
+                numero_registro: proyecto.numero_registro,
                 dias_habiles_semana: proyecto.dias_habiles_semana,
                 fecha_inicio: proyecto.fecha_inicio?.toISOString() ?? null,
                 fecha_fin_estimada: proyecto.fecha_fin_estimada?.toISOString() ?? null,
@@ -307,15 +311,24 @@ export default async function ProyectoDetallePage({
               }}
               canEdit={usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL"}
             />
-            {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && (
+                <Link
+                  href={`/dashboard/proyectos/${id}/editar`}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  Edición completa (fases, tipos, tareas)
+                </Link>
+              )}
               <Link
-                href={`/dashboard/proyectos/${id}/editar`}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors mt-2"
+                href={`/dashboard/proyectos/${id}/equipo`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 bg-white border border-violet-200 hover:border-violet-300 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors"
               >
-                <Settings2 className="w-3.5 h-3.5" />
-                Edición completa (fases, tipos, tareas)
+                <Users className="w-3.5 h-3.5" />
+                Gestionar equipo del proyecto
               </Link>
-            )}
+            </div>
           </div>
         )}
 

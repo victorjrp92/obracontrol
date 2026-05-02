@@ -2,18 +2,10 @@
 
 import { useState, useEffect } from "react";
 import {
-  Plus,
-  Copy,
-  Check,
-  Loader2,
-  UserPlus,
-  X,
-  ToggleLeft,
-  ToggleRight,
-  Calendar,
-  Trash2,
-  Users,
+  Plus, Copy, Check, Loader2, UserPlus, X, ToggleLeft, ToggleRight,
+  Calendar, Trash2, Users, Star, Award, Pencil,
 } from "lucide-react";
+import { ESPECIALIDADES, ESPECIALIDAD_LABEL, TIPOS_SANGRE } from "@/lib/obrero";
 
 interface Obrero {
   id: string;
@@ -23,13 +15,58 @@ interface Obrero {
   fecha_inicio: string;
   fecha_expiracion: string;
   created_at: string;
+  cedula?: string | null;
+  telefono?: string | null;
+  especialidad?: string | null;
+  eps?: string | null;
+  arl?: string | null;
+  anos_experiencia?: number | null;
+  score_total?: number;
+  score_calidad?: number;
+  evidencias_aprobadas?: number;
+  evidencias_rechazadas?: number;
+  tareas_completadas?: number;
   _count?: { evidencias: number };
 }
 
-function getEstado(obrero: Obrero): "activo" | "expirado" | "desactivado" {
-  if (!obrero.activo) return "desactivado";
-  const now = new Date();
-  if (now > new Date(obrero.fecha_expiracion)) return "expirado";
+interface FormState {
+  nombre: string;
+  cedula: string;
+  telefono: string;
+  especialidad: string;
+  eps: string;
+  arl: string;
+  fecha_inicio: string;
+  fecha_expiracion: string;
+  // Opcionales
+  fecha_nacimiento: string;
+  direccion: string;
+  contacto_emergencia: string;
+  contacto_emergencia_telefono: string;
+  tipo_sangre: string;
+  anos_experiencia: string;
+}
+
+const EMPTY_FORM: FormState = {
+  nombre: "",
+  cedula: "",
+  telefono: "",
+  especialidad: "",
+  eps: "",
+  arl: "",
+  fecha_inicio: "",
+  fecha_expiracion: "",
+  fecha_nacimiento: "",
+  direccion: "",
+  contacto_emergencia: "",
+  contacto_emergencia_telefono: "",
+  tipo_sangre: "",
+  anos_experiencia: "",
+};
+
+function getEstado(o: Obrero): "activo" | "expirado" | "desactivado" {
+  if (!o.activo) return "desactivado";
+  if (new Date() > new Date(o.fecha_expiracion)) return "expirado";
   return "activo";
 }
 
@@ -39,16 +76,22 @@ function EstadoBadge({ estado }: { estado: "activo" | "expirado" | "desactivado"
     expirado: "bg-amber-50 text-amber-700 border-amber-200",
     desactivado: "bg-slate-50 text-slate-500 border-slate-200",
   };
-  const labels = {
-    activo: "Activo",
-    expirado: "Expirado",
-    desactivado: "Desactivado",
-  };
+  const labels = { activo: "Activo", expirado: "Expirado", desactivado: "Desactivado" };
   return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[estado]}`}
-    >
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[estado]}`}>
       {labels[estado]}
+    </span>
+  );
+}
+
+function ScoreBadge({ score }: { score?: number }) {
+  if (score == null || score === 0) {
+    return <span className="text-[10px] text-slate-400">Sin calificar</span>;
+  }
+  const color = score >= 80 ? "text-green-600" : score >= 60 ? "text-yellow-600" : "text-red-600";
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-bold ${color}`}>
+      <Star className="w-3 h-3 fill-current" /> {score}
     </span>
   );
 }
@@ -58,37 +101,32 @@ export default function ObreroManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Create modal
-  const [showCreate, setShowCreate] = useState(false);
-  const [createName, setCreateName] = useState("");
-  const [createInicio, setCreateInicio] = useState("");
-  const [createExpiracion, setCreateExpiracion] = useState("");
-  const [creating, setCreating] = useState(false);
+  // Modal create / edit
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
-  // Link modal (after creation)
+  // Modal link después de crear
   const [showLink, setShowLink] = useState(false);
   const [generatedLink, setGeneratedLink] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
 
-  // Extend modal
+  // Extender
   const [extendId, setExtendId] = useState<string | null>(null);
   const [extendDate, setExtendDate] = useState("");
   const [extending, setExtending] = useState(false);
 
-  // Copy token feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchObreros();
-  }, []);
+  useEffect(() => { fetchObreros(); }, []);
 
   async function fetchObreros() {
     setLoading(true);
     try {
       const res = await fetch("/api/obreros");
       if (!res.ok) throw new Error("Error cargando obreros");
-      const data = await res.json();
-      setObreros(data);
+      setObreros(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
@@ -96,48 +134,76 @@ export default function ObreroManager() {
     }
   }
 
-  async function handleCreate() {
-    if (!createName.trim() || !createInicio || !createExpiracion) return;
-    setCreating(true);
+  function openCreate() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setError("");
+    setShowForm(true);
+  }
+
+  function openEdit(o: Obrero) {
+    setEditingId(o.id);
+    setForm({
+      nombre: o.nombre,
+      cedula: o.cedula ?? "",
+      telefono: o.telefono ?? "",
+      especialidad: o.especialidad ?? "",
+      eps: o.eps ?? "",
+      arl: o.arl ?? "",
+      fecha_inicio: o.fecha_inicio.slice(0, 10),
+      fecha_expiracion: o.fecha_expiracion.slice(0, 10),
+      fecha_nacimiento: "",
+      direccion: "",
+      contacto_emergencia: "",
+      contacto_emergencia_telefono: "",
+      tipo_sangre: "",
+      anos_experiencia: o.anos_experiencia != null ? String(o.anos_experiencia) : "",
+    });
+    setError("");
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/obreros", {
-        method: "POST",
+      const payload = {
+        ...form,
+        anos_experiencia: form.anos_experiencia === "" ? null : Number(form.anos_experiencia),
+      };
+      const res = await fetch(editingId ? `/api/obreros/${editingId}` : "/api/obreros", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nombre: createName.trim(),
-          fecha_inicio: createInicio,
-          fecha_expiracion: createExpiracion,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error creando obrero");
+      if (!res.ok) throw new Error(data.error ?? "Error");
 
-      setShowCreate(false);
-      setCreateName("");
-      setCreateInicio("");
-      setCreateExpiracion("");
-      setGeneratedLink(data.url);
-      setShowLink(true);
-      setLinkCopied(false);
+      setShowForm(false);
+      setForm(EMPTY_FORM);
+      if (!editingId && data.url) {
+        setGeneratedLink(data.url);
+        setShowLink(true);
+        setLinkCopied(false);
+      }
       await fetchObreros();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
-  async function handleToggleActive(obrero: Obrero) {
+  async function handleToggleActive(o: Obrero) {
     try {
-      const res = await fetch(`/api/obreros/${obrero.id}`, {
+      const res = await fetch(`/api/obreros/${o.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ activo: !obrero.activo }),
+        body: JSON.stringify({ activo: !o.activo }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Error");
+        const d = await res.json();
+        throw new Error(d.error ?? "Error");
       }
       await fetchObreros();
     } catch (err) {
@@ -155,8 +221,8 @@ export default function ObreroManager() {
         body: JSON.stringify({ fecha_expiracion: extendDate }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Error");
+        const d = await res.json();
+        throw new Error(d.error ?? "Error");
       }
       setExtendId(null);
       setExtendDate("");
@@ -169,12 +235,12 @@ export default function ObreroManager() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Estas seguro de eliminar este obrero?")) return;
+    if (!confirm("¿Eliminar este obrero?")) return;
     try {
       const res = await fetch(`/api/obreros/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Error");
+        const d = await res.json();
+        throw new Error(d.error ?? "Error");
       }
       await fetchObreros();
     } catch (err) {
@@ -183,12 +249,8 @@ export default function ObreroManager() {
   }
 
   function copyLink(token: string) {
-    const siteUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://seiricon.com";
-    const url = `${siteUrl}/o/${token}`;
-    navigator.clipboard.writeText(url);
+    const siteUrl = typeof window !== "undefined" ? window.location.origin : "https://seiricon.com";
+    navigator.clipboard.writeText(`${siteUrl}/o/${token}`);
     setCopiedId(token);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -206,16 +268,12 @@ export default function ObreroManager() {
       {error && (
         <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
-          <button
-            onClick={() => setError("")}
-            className="ml-2 text-red-500 hover:text-red-700"
-          >
+          <button onClick={() => setError("")} className="ml-2 text-red-500 hover:text-red-700">
             <X className="w-3 h-3 inline" />
           </button>
         </div>
       )}
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-slate-500" />
@@ -224,7 +282,7 @@ export default function ObreroManager() {
           </span>
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={openCreate}
           className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
@@ -232,13 +290,11 @@ export default function ObreroManager() {
         </button>
       </div>
 
-      {/* Obreros list */}
       {obreros.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
           <UserPlus className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-sm text-slate-500">
-            No tienes obreros registrados. Agrega uno para darle acceso a tus
-            tareas.
+            No tienes obreros registrados. Agrega uno para darle acceso a tus tareas.
           </p>
         </div>
       ) : (
@@ -246,96 +302,65 @@ export default function ObreroManager() {
           <div className="flex flex-col divide-y divide-slate-50">
             {obreros.map((o) => {
               const estado = getEstado(o);
+              const especialidadLabel = o.especialidad
+                ? ESPECIALIDAD_LABEL[o.especialidad as keyof typeof ESPECIALIDAD_LABEL] ?? o.especialidad
+                : null;
               return (
-                <div
-                  key={o.id}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center gap-3"
-                >
-                  {/* Info */}
+                <div key={o.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-slate-900 truncate">
-                        {o.nombre}
-                      </span>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-semibold text-slate-900 truncate">{o.nombre}</span>
                       <EstadoBadge estado={estado} />
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      Expira:{" "}
-                      {new Date(o.fecha_expiracion).toLocaleDateString(
-                        "es-CO",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        }
+                      {especialidadLabel && (
+                        <span className="text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded">
+                          {especialidadLabel}
+                        </span>
                       )}
-                    </p>
+                      <ScoreBadge score={o.score_total} />
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                      {o.cedula && <span>CC {o.cedula}</span>}
+                      {o.telefono && <span>📞 {o.telefono}</span>}
+                      <span>
+                        Expira:{" "}
+                        {new Date(o.fecha_expiracion).toLocaleDateString("es-CO", {
+                          day: "numeric", month: "short", year: "numeric",
+                        })}
+                      </span>
+                      {(o.evidencias_aprobadas != null || o.tareas_completadas != null) && (
+                        <span className="inline-flex items-center gap-1 text-slate-600">
+                          <Award className="w-3 h-3" />
+                          {o.tareas_completadas ?? 0} tareas · {o.evidencias_aprobadas ?? 0}✓ / {o.evidencias_rechazadas ?? 0}✗
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Copy link */}
-                    <button
-                      onClick={() => copyLink(o.token)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-                      title="Copiar enlace"
-                    >
-                      {copiedId === o.token ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-green-600" />
-                          Copiado
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          Enlace
-                        </>
-                      )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                    <button onClick={() => openEdit(o)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                      title="Editar">
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
-
-                    {/* Extend */}
-                    <button
-                      onClick={() => {
-                        setExtendId(o.id);
-                        setExtendDate(
-                          new Date(o.fecha_expiracion)
-                            .toISOString()
-                            .split("T")[0]
-                        );
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-                      title="Extender fecha"
-                    >
+                    <button onClick={() => copyLink(o.token)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                      title="Copiar enlace">
+                      {copiedId === o.token ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <button onClick={() => { setExtendId(o.id); setExtendDate(o.fecha_expiracion.slice(0, 10)); }}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                      title="Extender fecha">
                       <Calendar className="w-3.5 h-3.5" />
-                      Extender
                     </button>
-
-                    {/* Toggle active */}
-                    <button
-                      onClick={() => handleToggleActive(o)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
-                      title={o.activo ? "Desactivar" : "Reactivar"}
-                    >
-                      {o.activo ? (
-                        <>
-                          <ToggleRight className="w-3.5 h-3.5 text-green-600" />
-                          Desactivar
-                        </>
-                      ) : (
-                        <>
-                          <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />
-                          Reactivar
-                        </>
-                      )}
+                    <button onClick={() => handleToggleActive(o)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                      title={o.activo ? "Desactivar" : "Reactivar"}>
+                      {o.activo ? <ToggleRight className="w-3.5 h-3.5 text-green-600" /> : <ToggleLeft className="w-3.5 h-3.5 text-slate-400" />}
                     </button>
-
-                    {/* Delete (only if no evidencias) */}
                     {o._count && o._count.evidencias === 0 && (
-                      <button
-                        onClick={() => handleDelete(o.id)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
-                        title="Eliminar"
-                      >
+                      <button onClick={() => handleDelete(o.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                        title="Eliminar">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -347,107 +372,116 @@ export default function ObreroManager() {
         </div>
       )}
 
-      {/* Create Modal */}
-      {showCreate && (
+      {/* Form Modal — crear / editar */}
+      {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">
-                Agregar obrero
+                {editingId ? "Editar obrero" : "Agregar obrero"}
               </h3>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
+              <button onClick={() => setShowForm(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-sm font-semibold text-slate-700 mb-1 block">
-                  Nombre del obrero
-                </label>
-                <input
-                  type="text"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="Ej: Juan Perez"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                />
-              </div>
+            {error && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+            )}
 
-              <div>
-                <label className="text-sm font-semibold text-slate-700 mb-1 block">
-                  Fecha de inicio
-                </label>
-                <input
-                  type="date"
-                  value={createInicio}
-                  onChange={(e) => setCreateInicio(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            {/* Información obligatoria */}
+            <div className="mb-3">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
+                Información básica <span className="text-red-500">*</span>
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Nombre completo *" value={form.nombre}
+                  onChange={(v) => setForm({ ...form, nombre: v })} placeholder="Juan Pérez" />
+                <Input label="Cédula *" value={form.cedula}
+                  onChange={(v) => setForm({ ...form, cedula: v.replace(/\D/g, "") })} placeholder="1234567890" />
+                <Input label="Teléfono *" value={form.telefono}
+                  onChange={(v) => setForm({ ...form, telefono: v })} placeholder="3001234567" />
+                <Select label="Especialidad *" value={form.especialidad}
+                  onChange={(v) => setForm({ ...form, especialidad: v })}
+                  options={[
+                    { value: "", label: "Selecciona..." },
+                    ...ESPECIALIDADES.map((e) => ({ value: e, label: ESPECIALIDAD_LABEL[e] })),
+                  ]}
                 />
+                <Input label="EPS *" value={form.eps}
+                  onChange={(v) => setForm({ ...form, eps: v })} placeholder="Ej: SURA, SANITAS" />
+                <Input label="ARL *" value={form.arl}
+                  onChange={(v) => setForm({ ...form, arl: v })} placeholder="Ej: SURA, POSITIVA" />
               </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-700 mb-1 block">
-                  Fecha de expiracion
-                </label>
-                <input
-                  type="date"
-                  value={createExpiracion}
-                  onChange={(e) => setCreateExpiracion(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                />
-              </div>
-
-              <button
-                onClick={handleCreate}
-                disabled={
-                  creating ||
-                  !createName.trim() ||
-                  !createInicio ||
-                  !createExpiracion
-                }
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
-              >
-                {creating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                {creating ? "Creando..." : "Crear obrero"}
-              </button>
             </div>
+
+            {/* Vigencia */}
+            <div className="mb-3">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Vigencia del acceso *</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Fecha de inicio *" type="date" value={form.fecha_inicio}
+                  onChange={(v) => setForm({ ...form, fecha_inicio: v })} />
+                <Input label="Fecha de expiración *" type="date" value={form.fecha_expiracion}
+                  onChange={(v) => setForm({ ...form, fecha_expiracion: v })} />
+              </div>
+            </div>
+
+            {/* Información adicional */}
+            <details className="mb-4">
+              <summary className="text-xs font-bold text-slate-500 uppercase tracking-wide cursor-pointer mb-2">
+                Información adicional (opcional)
+              </summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                <Input label="Fecha de nacimiento" type="date" value={form.fecha_nacimiento}
+                  onChange={(v) => setForm({ ...form, fecha_nacimiento: v })} />
+                <Select label="Tipo de sangre" value={form.tipo_sangre}
+                  onChange={(v) => setForm({ ...form, tipo_sangre: v })}
+                  options={[
+                    { value: "", label: "—" },
+                    ...TIPOS_SANGRE.map((t) => ({ value: t, label: t })),
+                  ]}
+                />
+                <Input label="Años de experiencia" type="number" value={form.anos_experiencia}
+                  onChange={(v) => setForm({ ...form, anos_experiencia: v })} placeholder="0" />
+                <Input label="Dirección" value={form.direccion}
+                  onChange={(v) => setForm({ ...form, direccion: v })} placeholder="Calle 1 # 2-3" />
+                <Input label="Contacto de emergencia" value={form.contacto_emergencia}
+                  onChange={(v) => setForm({ ...form, contacto_emergencia: v })} placeholder="Nombre" />
+                <Input label="Tel. contacto emergencia" value={form.contacto_emergencia_telefono}
+                  onChange={(v) => setForm({ ...form, contacto_emergencia_telefono: v })} placeholder="3001234567" />
+              </div>
+            </details>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.nombre.trim() || !form.cedula.trim() || !form.telefono.trim()
+                || !form.especialidad || !form.eps.trim() || !form.arl.trim()
+                || !form.fecha_inicio || !form.fecha_expiracion}
+              className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear obrero"}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Link Modal (after creation) */}
+      {/* Link Modal después de crear */}
       {showLink && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Obrero creado
-              </h3>
-              <button
-                onClick={() => setShowLink(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
+              <h3 className="text-lg font-bold text-slate-900">Obrero creado</h3>
+              <button onClick={() => setShowLink(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <p className="text-sm text-slate-600 mb-4">
-              Comparte este enlace con el obrero para que pueda acceder a sus
-              tareas:
+              Comparte este enlace con el obrero para que pueda acceder a sus tareas:
             </p>
-
             <div className="bg-slate-50 rounded-xl p-3 mb-4 break-all text-sm text-slate-700 font-mono">
               {generatedLink}
             </div>
-
             <button
               onClick={() => {
                 navigator.clipboard.writeText(generatedLink);
@@ -456,68 +490,77 @@ export default function ObreroManager() {
               }}
               className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >
-              {linkCopied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Copiado!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Copiar enlace
-                </>
-              )}
+              {linkCopied ? <><Check className="w-4 h-4" /> ¡Copiado!</> : <><Copy className="w-4 h-4" /> Copiar enlace</>}
             </button>
           </div>
         </div>
       )}
 
-      {/* Extend Modal */}
+      {/* Extender modal */}
       {extendId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">
-                Extender acceso
-              </h3>
-              <button
-                onClick={() => {
-                  setExtendId(null);
-                  setExtendDate("");
-                }}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
+              <h3 className="text-lg font-bold text-slate-900">Extender acceso</h3>
+              <button onClick={() => { setExtendId(null); setExtendDate(""); }}
+                className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            <div className="mb-4">
-              <label className="text-sm font-semibold text-slate-700 mb-1 block">
-                Nueva fecha de expiracion
-              </label>
-              <input
-                type="date"
-                value={extendDate}
-                onChange={(e) => setExtendDate(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-              />
-            </div>
-
+            <Input label="Nueva fecha de expiración" type="date" value={extendDate} onChange={setExtendDate} />
             <button
               onClick={handleExtend}
               disabled={extending || !extendDate}
-              className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >
-              {extending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Calendar className="w-4 h-4" />
-              )}
+              {extending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
               {extending ? "Actualizando..." : "Actualizar fecha"}
             </button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Input({
+  label, value, onChange, type = "text", placeholder,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-slate-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+      />
+    </div>
+  );
+}
+
+function Select({
+  label, value, onChange, options,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium text-slate-700">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
     </div>
   );
 }

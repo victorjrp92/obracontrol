@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { getAccessibleProjectIds, canAccessProject, isAnyAdmin, canManageUsers } from "@/lib/access";
+import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
 
 // PATCH /api/proyectos/[id]/editar — edit project (requires admin password re-confirmation)
 export async function PATCH(
@@ -37,6 +38,7 @@ export async function PATCH(
       password: string;
       cambios: {
         nombre?: string;
+        numero_registro?: string;
         dias_habiles_semana?: number;
         fecha_inicio?: string | null;
         fecha_fin_estimada?: string | null;
@@ -76,6 +78,35 @@ export async function PATCH(
     if (cambios.nombre !== undefined && cambios.nombre !== proyecto.nombre) {
       updateData.nombre = cambios.nombre;
       auditEntries.push({ campo: "nombre", valor_anterior: proyecto.nombre, valor_nuevo: cambios.nombre });
+    }
+    // Cambio del número de registro (con cascada a tareas)
+    let renumerar = false;
+    let nuevoNumero: string | null = null;
+    if (cambios.numero_registro !== undefined && cambios.numero_registro !== proyecto.numero_registro) {
+      const v = validarNumeroProyecto(cambios.numero_registro);
+      if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 });
+      nuevoNumero = v.normalizado!;
+      const dup = await prisma.proyecto.findFirst({
+        where: {
+          constructora_id: currentUser.constructora_id,
+          numero_registro: nuevoNumero,
+          id: { not: id },
+        },
+        select: { id: true },
+      });
+      if (dup) {
+        return NextResponse.json(
+          { error: `El número de registro "${nuevoNumero}" ya está en uso` },
+          { status: 409 },
+        );
+      }
+      updateData.numero_registro = nuevoNumero;
+      auditEntries.push({
+        campo: "numero_registro",
+        valor_anterior: proyecto.numero_registro,
+        valor_nuevo: nuevoNumero,
+      });
+      renumerar = true;
     }
     if (cambios.dias_habiles_semana !== undefined && cambios.dias_habiles_semana !== proyecto.dias_habiles_semana) {
       updateData.dias_habiles_semana = cambios.dias_habiles_semana;
@@ -121,7 +152,26 @@ export async function PATCH(
           },
         });
       }
-    });
+
+      // Renumerar tareas en cascada cuando cambia el número de registro del proyecto.
+      if (renumerar && nuevoNumero) {
+        const tareas = await tx.tarea.findMany({
+          where: {
+            espacio: { unidad: { piso: { edificio: { proyecto_id: id } } } },
+          },
+          select: { id: true, created_at: true },
+          orderBy: { created_at: "asc" },
+        });
+        let seq = 0;
+        for (const t of tareas) {
+          seq++;
+          await tx.tarea.update({
+            where: { id: t.id },
+            data: { numero_registro: generarNumeroTarea(nuevoNumero, seq) },
+          });
+        }
+      }
+    }, { timeout: 60000 });
 
     return NextResponse.json({ ok: true, cambios: auditEntries.length });
   } catch (err) {
