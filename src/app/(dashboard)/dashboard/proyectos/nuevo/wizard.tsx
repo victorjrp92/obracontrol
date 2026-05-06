@@ -26,6 +26,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
   // Step 1 state
   const [nombre, setNombre] = useState(initialData?.nombre ?? "");
   const [numeroRegistro, setNumeroRegistro] = useState(initialData?.numeroRegistro ?? "");
+  const [contratistaDefaultId, setContratistaDefaultId] = useState(initialData?.contratistaDefaultId ?? "");
   const [subtipo, setSubtipo] = useState<"APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES">(initialData?.subtipo ?? "APARTAMENTOS");
   const [diasHabiles, setDiasHabiles] = useState(initialData?.diasHabiles ?? 5);
   const [fechaInicio, setFechaInicio] = useState(initialData?.fechaInicio ?? "");
@@ -57,7 +58,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
     : totalUnidades * tareas.length;
 
   // Validation
-  const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && (
+  const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && contratistaDefaultId.length > 0 && (
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
@@ -93,6 +94,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
       ...(isEditMode ? { password } : {}),
       nombre,
       numero_registro: numeroRegistro.trim().toUpperCase(),
+      contratista_default_id: contratistaDefaultId,
       subtipo,
       dias_habiles_semana: diasHabiles,
       fecha_inicio: fechaInicio || undefined,
@@ -194,6 +196,8 @@ export default function WizardClient({ contratistas, initialData }: { contratist
         <WizardStep1
           nombre={nombre} setNombre={setNombre}
           numeroRegistro={numeroRegistro} setNumeroRegistro={setNumeroRegistro}
+          contratistaDefaultId={contratistaDefaultId} setContratistaDefaultId={setContratistaDefaultId}
+          contratistas={contratistas}
           subtipo={subtipo} setSubtipo={setSubtipo}
           diasHabiles={diasHabiles} setDiasHabiles={setDiasHabiles}
           fechaInicio={fechaInicio} setFechaInicio={setFechaInicio}

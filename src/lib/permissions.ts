@@ -54,9 +54,9 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewAllTasks: true,
         canViewReports: true,
         canViewConfig: true,
-        canViewContractors: true,
+        canViewContractors: false,    // ← Solo Super Admin ve la lista global con scoring
         canViewUsers: true,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes", "usuarios", "configuracion"],
+        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"],
       };
     case "ADMIN_PROYECTO":
       return {
@@ -69,9 +69,9 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewAllTasks: false,
         canViewReports: true,
         canViewConfig: false,
-        canViewContractors: true,
+        canViewContractors: false,    // ← Sólo Super Admin
         canViewUsers: true,
-        sidebarItems: ["dashboard", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes", "usuarios"],
+        sidebarItems: ["dashboard", "proyectos", "tareas", "sugerencias", "reportes", "usuarios"],
       };
     case "DIRECTIVO":
       return {
@@ -84,9 +84,9 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewAllTasks: true,
         canViewReports: true,
         canViewConfig: false,
-        canViewContractors: true,
+        canViewContractors: false,    // ← Sólo Super Admin
         canViewUsers: false,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "contratistas", "obreros", "sugerencias", "reportes"],
+        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes"],
       };
     case "CONTRATISTA":
       return {

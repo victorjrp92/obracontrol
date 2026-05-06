@@ -76,9 +76,13 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
         </button>
       </div>
 
-      {/* User info */}
+      {/* User info — clickeable hacia el perfil */}
       {!collapsed && (
-        <div className="px-4 py-3 border-b border-slate-800">
+        <Link
+          href="/dashboard/perfil"
+          onClick={() => setMobileOpen(false)}
+          className="px-4 py-3 border-b border-slate-800 hover:bg-slate-800/50 transition-colors block"
+        >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
               {initials}
@@ -88,7 +92,7 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
               <div className="text-[10px] text-slate-400 truncate">{rolLabel}</div>
             </div>
           </div>
-        </div>
+        </Link>
       )}
 
       {/* Nav */}

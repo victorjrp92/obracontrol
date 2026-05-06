@@ -51,6 +51,7 @@ export interface EditModeData {
   projectId: string;
   nombre: string;
   numeroRegistro?: string;
+  contratistaDefaultId?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   diasHabiles: number;
   fechaInicio: string;

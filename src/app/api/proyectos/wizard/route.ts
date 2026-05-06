@@ -9,6 +9,7 @@ interface WizardPayload {
   // Paso 1
   nombre: string;
   numero_registro?: string;
+  contratista_default_id?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   dias_habiles_semana: number;
   fecha_inicio?: string;
@@ -82,6 +83,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: `El número de registro "${numeroRegistro}" ya está en uso por el proyecto "${numeroDuplicado.nombre}"` },
         { status: 409 },
+      );
+    }
+
+    // Contratista por defecto del proyecto (obligatorio)
+    if (!body.contratista_default_id) {
+      return NextResponse.json(
+        { error: "Debes seleccionar un contratista por defecto para el proyecto" },
+        { status: 400 },
+      );
+    }
+    const contratistaDefault = await prisma.usuario.findFirst({
+      where: {
+        id: body.contratista_default_id,
+        constructora_id: currentUser.constructora_id,
+        rol_ref: { nivel_acceso: "CONTRATISTA" },
+      },
+      select: { id: true },
+    });
+    if (!contratistaDefault) {
+      return NextResponse.json(
+        { error: "El contratista por defecto no es válido o no pertenece a esta constructora" },
+        { status: 400 },
       );
     }
     if (
@@ -199,6 +222,7 @@ export async function POST(req: NextRequest) {
         data: {
           constructora_id: currentUser.constructora_id,
           numero_registro: numeroRegistro,
+          contratista_default_id: contratistaDefault.id,
           nombre: body.nombre,
           subtipo: body.subtipo,
           dias_habiles_semana: body.dias_habiles_semana ?? 5,
@@ -350,7 +374,7 @@ export async function POST(req: NextRequest) {
                       codigo_referencia: t.codigo_referencia ?? null,
                       marca_linea: t.marca_linea ?? null,
                       componentes: t.componentes ?? null,
-                      asignado_a: t.asignado_a ?? null,
+                      asignado_a: t.asignado_a ?? contratistaDefault.id,
                       estado: "PENDIENTE",
                     },
                   });
@@ -419,6 +443,7 @@ export async function POST(req: NextRequest) {
                 numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                 nombre: t.nombre,
                 tiempo_acordado_dias: t.tiempo_acordado_dias,
+                asignado_a: contratistaDefault.id,
                 estado: "PENDIENTE",
               },
             });

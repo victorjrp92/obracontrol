@@ -5,13 +5,16 @@ import {
   ArrowRight, Check, Plus, Ruler, Trash2, Trees,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
-import type { TipoUnidadInput, EdificioInput } from "./wizard-types";
+import type { TipoUnidadInput, EdificioInput, Contratista } from "./wizard-types";
 
 interface WizardStep1Props {
   nombre: string;
   setNombre: (v: string) => void;
   numeroRegistro: string;
   setNumeroRegistro: (v: string) => void;
+  contratistaDefaultId: string;
+  setContratistaDefaultId: (v: string) => void;
+  contratistas: Contratista[];
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   setSubtipo: (v: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES") => void;
   diasHabiles: number;
@@ -39,6 +42,8 @@ interface WizardStep1Props {
 export default function WizardStep1({
   nombre, setNombre,
   numeroRegistro, setNumeroRegistro,
+  contratistaDefaultId, setContratistaDefaultId,
+  contratistas,
   subtipo, setSubtipo,
   diasHabiles, setDiasHabiles,
   fechaInicio, setFechaInicio,
@@ -241,6 +246,27 @@ export default function WizardStep1({
           />
           <p className="text-[10px] text-slate-400 mt-1">
             Único por empresa. Las tareas heredarán este número (ej. PR-2026-001-T0001).
+          </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            Contratista por defecto <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={contratistaDefaultId}
+            onChange={(e) => setContratistaDefaultId(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+          >
+            <option value="">Selecciona un contratista...</option>
+            {contratistas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre} {c.rol_ref?.nombre ? `· ${c.rol_ref.nombre}` : ""}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Se asignará automáticamente a las tareas del proyecto que no tengan contratista específico. Vinculado al proyecto {numeroRegistro || "(número)"}.
           </p>
         </div>
 
