@@ -234,10 +234,10 @@ export default function WizardStep1({
           </label>
           <input
             value={numeroRegistro}
-            onChange={(e) => setNumeroRegistro(e.target.value.toUpperCase())}
+            onChange={(e) => setNumeroRegistro(e.target.value)}
             placeholder="Ej: PR-2026-001"
             maxLength={40}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
           <p className="text-[10px] text-slate-400 mt-1">
             Único por empresa. Las tareas heredarán este número (ej. PR-2026-001-T0001).

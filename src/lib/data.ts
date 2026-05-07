@@ -371,6 +371,8 @@ export async function getTareasFiltradas(
       plazo: diasRestantes,
       estado: t.estado as "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA",
       faseId: t.fase.id,
+      subfase: t.subfase ?? null,
+      precio: t.precio ?? null,
       faseNombre: t.fase.nombre,
       faseOrden: t.fase.orden,
       fechaInicio: t.fecha_inicio,

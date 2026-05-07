@@ -60,6 +60,7 @@ model Proyecto {
   tareas_sugeridas        TareaSugerida[]
   audit_logs              AuditLog[]
   admins_proyecto          AdminProyectoAccess[]
+  personas_externas        PersonaExternaProyecto[]
 
   @@unique([constructora_id, numero_registro])
   @@map("proyectos")
@@ -155,6 +156,8 @@ model Tarea {
   fase_id                   String
   numero_registro           String?      // {proyecto.numero_registro}-T{seq}
   nombre                    String
+  subfase                   String?
+  precio                    Float?
   codigo_referencia         String?
   nombre_pieza              String?
   marca_linea               String?
@@ -553,6 +556,22 @@ model AdminProyectoAccess {
 
   @@unique([usuario_id, proyecto_id])
   @@map("admin_proyecto_access")
+}
+
+// ─── PERSONAS EXTERNAS ──────────────────────────────────────────────────────
+
+model PersonaExternaProyecto {
+  id           String   @id @default(cuid())
+  proyecto_id  String
+  nombre       String
+  cargo        String?
+  telefono     String?
+  email        String?
+  created_at   DateTime @default(now())
+
+  proyecto     Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+
+  @@map("personas_externas_proyecto")
 }
 
 // ─── ENUMS ───────────────────────────────────────────────────────────────────

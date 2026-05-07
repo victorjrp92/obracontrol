@@ -8,7 +8,7 @@ import {
 import type { TareaInput } from "./wizard-types";
 import { FASES_DISPONIBLES } from "./wizard-types";
 import SuggestedTasksPanel from "./SuggestedTasksPanel";
-import { generatePhaseTemplate, parsePhaseTemplate } from "./ExcelTemplateUtils";
+import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
 
 interface WizardStep2Props {
   allEspacios: string[];
@@ -43,16 +43,20 @@ export default function WizardStep2({
   const [addFormOpenFase, setAddFormOpenFase] = useState<string | null>(null);
   // Manual add form state
   const [newTaskEspacio, setNewTaskEspacio] = useState("");
+  const [newTaskSubfase, setNewTaskSubfase] = useState("");
   const [newTaskNombre, setNewTaskNombre] = useState("");
   const [newTaskDias, setNewTaskDias] = useState(3);
+  const [newTaskPrecio, setNewTaskPrecio] = useState<number | undefined>(undefined);
   // Excel upload state per fase
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState("");
   const [editEspacio, setEditEspacio] = useState("");
+  const [editSubfase, setEditSubfase] = useState("");
   const [editDias, setEditDias] = useState(3);
-  const [excelErrors, setExcelErrors] = useState<Record<string, string[]>>({});
-  const [uploading, setUploading] = useState<Record<string, boolean>>({});
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [editPrecio, setEditPrecio] = useState<number | undefined>(undefined);
+  const [excelErrors, setExcelErrors] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   function toggleFase(fase: string) {
     setFasesSeleccionadas((prev) =>
@@ -73,13 +77,15 @@ export default function WizardStep2({
     setEditingId(t.id);
     setEditNombre(t.nombre);
     setEditEspacio(t.espacio);
+    setEditSubfase(t.subfase ?? "");
     setEditDias(t.tiempo_acordado_dias);
+    setEditPrecio(t.precio);
   }
 
   function saveEdit(id: string) {
     if (!editNombre.trim() || !editEspacio) return;
     setTareas((prev) => prev.map((t) =>
-      t.id === id ? { ...t, nombre: editNombre.trim(), espacio: editEspacio, tiempo_acordado_dias: editDias } : t
+      t.id === id ? { ...t, nombre: editNombre.trim(), espacio: editEspacio, subfase: editSubfase || undefined, tiempo_acordado_dias: editDias, precio: editPrecio } : t
     ));
     setEditingId(null);
   }
@@ -96,6 +102,7 @@ export default function WizardStep2({
   function openAddForm(fase: string) {
     setAddFormOpenFase(fase);
     if (allEspacios.length > 0) setNewTaskEspacio(allEspacios[0]);
+    setNewTaskSubfase("");
     setNewTaskNombre("");
     setNewTaskDias(3);
   }
@@ -106,26 +113,30 @@ export default function WizardStep2({
     setTareas((prev) => [...prev, {
       id,
       fase,
+      subfase: newTaskSubfase || undefined,
       espacio: newTaskEspacio,
       nombre: newTaskNombre.trim(),
       tiempo_acordado_dias: newTaskDias,
+      precio: newTaskPrecio,
     }]);
     setNewTaskNombre("");
+    setNewTaskSubfase("");
     setNewTaskDias(3);
+    setNewTaskPrecio(undefined);
   }
 
-  async function handleExcelDownload(fase: string) {
-    await generatePhaseTemplate(fase, allEspacios);
+  async function handleExcelDownload() {
+    await generateTemplate(fasesSeleccionadas, allEspacios);
   }
 
-  async function handleExcelUpload(fase: string, file: File) {
-    setUploading((prev) => ({ ...prev, [fase]: true }));
-    setExcelErrors((prev) => ({ ...prev, [fase]: [] }));
+  async function handleExcelUpload(file: File) {
+    setUploading(true);
+    setExcelErrors([]);
 
-    const result = await parsePhaseTemplate(file, fase, allEspacios);
+    const result = await parseTemplate(file, fasesSeleccionadas, allEspacios);
 
     if (result.errores.length > 0) {
-      setExcelErrors((prev) => ({ ...prev, [fase]: result.errores }));
+      setExcelErrors(result.errores);
     }
 
     if (result.tareas.length > 0) {
@@ -137,14 +148,14 @@ export default function WizardStep2({
       setTareas((prev) => [...prev, ...withIds]);
     }
 
-    setUploading((prev) => ({ ...prev, [fase]: false }));
+    setUploading(false);
   }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-4xl">
       <h2 className="text-lg font-bold text-slate-900 mb-2">Fases y tareas</h2>
       <p className="text-xs text-slate-500 mb-5">
-        Espacios definidos por tipo: {allEspacios.join(", ") || "\u2014"}
+        Espacios definidos por tipo: {allEspacios.join(", ") || "—"}
       </p>
 
       {/* Fases chips */}
@@ -167,6 +178,55 @@ export default function WizardStep2({
           ))}
         </div>
       </div>
+
+      {/* Excel template toolbar (single for all phases) */}
+      {fasesSeleccionadas.length > 0 && (
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleExcelDownload()}
+              className="inline-flex items-center gap-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Descargar plantilla Excel
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-flex items-center gap-1.5 text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer disabled:opacity-50"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {uploading ? "Importando..." : "Subir plantilla Excel"}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleExcelUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          {/* Excel upload errors */}
+          {excelErrors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mt-3 text-xs text-red-700">
+              <p className="font-semibold mb-1">Errores al importar:</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {excelErrors.slice(0, 5).map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+                {excelErrors.length > 5 && (
+                  <li>...y {excelErrors.length - 5} errores mas</li>
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Phase sections */}
       {fasesSeleccionadas.map((fase) => {
@@ -221,48 +281,7 @@ export default function WizardStep2({
                     <Plus className="w-3.5 h-3.5" />
                     Agregar manual
                   </button>
-                  <button
-                    onClick={() => handleExcelDownload(fase)}
-                    className="inline-flex items-center gap-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Descargar plantilla
-                  </button>
-                  <button
-                    onClick={() => fileInputRefs.current[fase]?.click()}
-                    disabled={uploading[fase]}
-                    className="inline-flex items-center gap-1.5 text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer disabled:opacity-50"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    {uploading[fase] ? "Importando..." : "Subir plantilla"}
-                  </button>
-                  <input
-                    ref={(el) => { fileInputRefs.current[fase] = el; }}
-                    type="file"
-                    accept=".xlsx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleExcelUpload(fase, file);
-                      e.target.value = "";
-                    }}
-                  />
                 </div>
-
-                {/* Excel upload errors */}
-                {excelErrors[fase] && excelErrors[fase].length > 0 && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-xs text-red-700">
-                    <p className="font-semibold mb-1">Errores al importar:</p>
-                    <ul className="list-disc list-inside space-y-0.5">
-                      {excelErrors[fase].slice(0, 5).map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                      {excelErrors[fase].length > 5 && (
-                        <li>...y {excelErrors[fase].length - 5} errores mas</li>
-                      )}
-                    </ul>
-                  </div>
-                )}
 
                 {/* Suggestions panel */}
                 {suggestionsOpenFase === fase && (
@@ -279,7 +298,7 @@ export default function WizardStep2({
                 {addFormOpenFase === fase && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                     <h4 className="text-sm font-bold text-slate-800 mb-3">Nueva tarea - {fase}</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div>
                         <label className="text-xs text-slate-500 mb-1 block">Espacio</label>
                         <select
@@ -289,6 +308,15 @@ export default function WizardStep2({
                         >
                           {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
                         </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 mb-1 block">Subfase</label>
+                        <input
+                          value={newTaskSubfase}
+                          onChange={(e) => setNewTaskSubfase(e.target.value)}
+                          placeholder="Ej: Instalación"
+                          className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                        />
                       </div>
                       <div>
                         <label className="text-xs text-slate-500 mb-1 block">Nombre de la tarea</label>
@@ -307,6 +335,18 @@ export default function WizardStep2({
                           min="1"
                           value={newTaskDias}
                           onChange={(e) => setNewTaskDias(Number(e.target.value) || 1)}
+                          className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 mb-1 block">Valor COP</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={newTaskPrecio ?? ""}
+                          onChange={(e) => setNewTaskPrecio(e.target.value ? Number(e.target.value) : undefined)}
+                          placeholder="Ej: 150000"
                           className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
                         />
                       </div>
@@ -340,6 +380,12 @@ export default function WizardStep2({
                               {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
                             </select>
                             <input
+                              value={editSubfase}
+                              onChange={(e) => setEditSubfase(e.target.value)}
+                              placeholder="Subfase"
+                              className="text-[10px] w-24 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                            />
+                            <input
                               value={editNombre}
                               onChange={(e) => setEditNombre(e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEdit(t.id); } if (e.key === "Escape") setEditingId(null); }}
@@ -353,6 +399,15 @@ export default function WizardStep2({
                               onChange={(e) => setEditDias(Number(e.target.value) || 1)}
                               className="w-14 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
                             />
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={editPrecio ?? ""}
+                              onChange={(e) => setEditPrecio(e.target.value ? Number(e.target.value) : undefined)}
+                              placeholder="COP"
+                              className="w-24 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                            />
                             <button onClick={() => saveEdit(t.id)} className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer">
                               <Check className="w-3.5 h-3.5" />
                             </button>
@@ -363,8 +418,16 @@ export default function WizardStep2({
                         ) : (
                           <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
                             <span className="text-[10px] text-slate-500 w-28 truncate flex-shrink-0">{t.espacio}</span>
+                            {t.subfase && (
+                              <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded flex-shrink-0">{t.subfase}</span>
+                            )}
                             <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
                             <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
+                            {t.precio != null && t.precio > 0 && (
+                              <span className="text-xs text-emerald-600 flex-shrink-0">
+                                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)}
+                              </span>
+                            )}
                             <button onClick={() => startEdit(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer">
                               <Pencil className="w-3.5 h-3.5" />
                             </button>

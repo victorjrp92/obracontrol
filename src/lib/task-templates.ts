@@ -7,6 +7,7 @@ export interface TaskTemplate {
   codigo_referencia?: string;
   marca_linea?: string;
   componentes?: string;
+  subfase?: string;
 }
 
 export const ESPACIOS_SUGERIDOS = [
@@ -91,6 +92,7 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBK01",
         marca_linea: "SAGANO",
         componentes: "estructura + naves",
+        subfase: "Instalación",
       },
       {
         nombre: "Mueble alto cocina",
@@ -98,6 +100,7 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBC01",
         marca_linea: "SAGANO",
         componentes: "estructura + puertas",
+        subfase: "Instalación",
       },
     ],
     "Baño principal": [
@@ -107,11 +110,12 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "PUM01",
         marca_linea: "AUSTRAL",
         componentes: "estructura + puerta",
+        subfase: "Instalación",
       },
-      { nombre: "Gabinete espejo baño principal", tiempo_acordado_dias: 1 },
+      { nombre: "Gabinete espejo baño principal", tiempo_acordado_dias: 1, subfase: "Instalación" },
     ],
     "Baño social": [
-      { nombre: "Mueble lavamanos baño social", tiempo_acordado_dias: 2 },
+      { nombre: "Mueble lavamanos baño social", tiempo_acordado_dias: 2, subfase: "Instalación" },
     ],
     "Habitación principal": [
       {
@@ -120,8 +124,9 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "CLP01",
         marca_linea: "GRAFFO",
         componentes: "estructura + correderas",
+        subfase: "Instalación",
       },
-      { nombre: "Vestier habitación principal", tiempo_acordado_dias: 3 },
+      { nombre: "Vestier habitación principal", tiempo_acordado_dias: 3, subfase: "Instalación" },
     ],
     "Habitación 2": [
       {
@@ -129,13 +134,14 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         tiempo_acordado_dias: 3,
         codigo_referencia: "CLP02",
         marca_linea: "GRAFFO",
+        subfase: "Instalación",
       },
     ],
     "Habitación 3": [
-      { nombre: "Closet habitación 3", tiempo_acordado_dias: 3 },
+      { nombre: "Closet habitación 3", tiempo_acordado_dias: 3, subfase: "Instalación" },
     ],
     "Zona de lavado": [
-      { nombre: "Mueble zona de lavado", tiempo_acordado_dias: 2 },
+      { nombre: "Mueble zona de lavado", tiempo_acordado_dias: 2, subfase: "Instalación" },
     ],
   },
   "Zonas Comunes": {

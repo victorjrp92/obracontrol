@@ -32,9 +32,11 @@ interface WizardPayload {
   fases: (string | { nombre: string; tiempo_estimado_dias?: number })[]; // backward-compatible
   tareas: {
     fase: string;
+    subfase?: string;
     espacio: string;
     nombre: string;
     tiempo_acordado_dias: number;
+    precio?: number;
     codigo_referencia?: string;
     marca_linea?: string;
     componentes?: string;
@@ -123,6 +125,18 @@ export async function POST(req: NextRequest) {
       if (typeof t.tiempo_acordado_dias === "number" && t.tiempo_acordado_dias < 0) {
         return NextResponse.json(
           { error: `La tarea "${t.nombre}" tiene dias negativos` },
+          { status: 400 },
+        );
+      }
+      if (t.subfase && typeof t.subfase === "string" && t.subfase.length > 80) {
+        return NextResponse.json(
+          { error: `Subfase max 80 caracteres` },
+          { status: 400 },
+        );
+      }
+      if (t.precio !== undefined && typeof t.precio === "number" && t.precio < 0) {
+        return NextResponse.json(
+          { error: `La tarea "${t.nombre}" tiene precio negativo` },
           { status: 400 },
         );
       }
@@ -346,11 +360,13 @@ export async function POST(req: NextRequest) {
                       fase_id: fasesCreadas[t.fase],
                       numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                       nombre: t.nombre,
+                      subfase: t.subfase ?? null,
                       tiempo_acordado_dias: dias,
                       codigo_referencia: t.codigo_referencia ?? null,
                       marca_linea: t.marca_linea ?? null,
                       componentes: t.componentes ?? null,
                       asignado_a: t.asignado_a ?? null,
+                      precio: t.precio ?? null,
                       estado: "PENDIENTE",
                     },
                   });
