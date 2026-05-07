@@ -45,6 +45,7 @@ export default function WizardStep2({
   const [newTaskEspacio, setNewTaskEspacio] = useState("");
   const [newTaskNombre, setNewTaskNombre] = useState("");
   const [newTaskDias, setNewTaskDias] = useState(3);
+  const [newTaskPrecio, setNewTaskPrecio] = useState<string>("");
   // Excel upload state per fase
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNombre, setEditNombre] = useState("");
@@ -98,20 +99,24 @@ export default function WizardStep2({
     if (allEspacios.length > 0) setNewTaskEspacio(allEspacios[0]);
     setNewTaskNombre("");
     setNewTaskDias(3);
+    setNewTaskPrecio("");
   }
 
   function addCustomTask(fase: string) {
     if (!newTaskEspacio || !newTaskNombre.trim()) return;
     const id = `custom-${Date.now()}`;
+    const precioNum = newTaskPrecio.trim() === "" ? undefined : Number(newTaskPrecio);
     setTareas((prev) => [...prev, {
       id,
       fase,
       espacio: newTaskEspacio,
       nombre: newTaskNombre.trim(),
       tiempo_acordado_dias: newTaskDias,
+      ...(precioNum !== undefined && !Number.isNaN(precioNum) && precioNum >= 0 ? { precio: precioNum } : {}),
     }]);
     setNewTaskNombre("");
     setNewTaskDias(3);
+    setNewTaskPrecio("");
   }
 
   async function handleExcelDownload(fase: string) {
@@ -307,6 +312,18 @@ export default function WizardStep2({
                           min="1"
                           value={newTaskDias}
                           onChange={(e) => setNewTaskDias(Number(e.target.value) || 1)}
+                          className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 mb-1 block">Precio (COP, opcional)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1000"
+                          value={newTaskPrecio}
+                          onChange={(e) => setNewTaskPrecio(e.target.value)}
+                          placeholder="Ej: 250000"
                           className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
                         />
                       </div>

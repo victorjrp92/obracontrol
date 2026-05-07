@@ -87,13 +87,27 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { proyecto_id, edificio_id, unidades, nombre, descripcion, foto_url } = body;
+    const { proyecto_id, edificio_id, unidades, nombre, descripcion, foto_url, precio } = body as {
+      proyecto_id?: string;
+      edificio_id?: string;
+      unidades?: unknown;
+      nombre?: string;
+      descripcion?: string;
+      foto_url?: string;
+      precio?: number | null;
+    };
 
     if (!proyecto_id || !nombre || !unidades || !Array.isArray(unidades) || unidades.length === 0) {
       return NextResponse.json(
         { error: "proyecto_id, nombre y unidades (array) son requeridos" },
         { status: 400 }
       );
+    }
+
+    if (precio !== null && precio !== undefined) {
+      if (typeof precio !== "number" || !isFinite(precio) || precio < 0 || precio > 1_000_000_000) {
+        return NextResponse.json({ error: "Precio inválido" }, { status: 400 });
+      }
     }
 
     // Validate contratista has tasks in the selected proyecto
@@ -126,6 +140,7 @@ export async function POST(req: NextRequest) {
         nombre,
         descripcion: descripcion ?? null,
         foto_url: foto_url ?? null,
+        precio: precio === null || precio === undefined ? null : Number(precio),
       },
       include: {
         proyecto: { select: { nombre: true, constructora_id: true } },

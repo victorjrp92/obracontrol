@@ -164,6 +164,7 @@ model Tarea {
   componentes               String?
   cantidad_material_planeada Float?
   unidad_material           String?
+  precio                    Float?      // COP. Puede editarse por Admin/Contratista (no Obrero).
   tiempo_acordado_dias      Int
   fecha_inicio              DateTime?
   fecha_fin_real            DateTime?
@@ -494,6 +495,7 @@ model TareaSugerida {
   nombre         String
   descripcion    String?
   foto_url       String?
+  precio         Float?            // Precio propuesto por el contratista al sugerir
   estado         EstadoSugerencia  @default(PENDIENTE)
   motivo_rechazo String?
   revisado_por   String?

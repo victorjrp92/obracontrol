@@ -13,7 +13,9 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:seed-test-users": "npx tsx scripts/seed-test-users.ts",
     "db:seed-roles": "npx tsx scripts/seed-roles-test.ts",
-    "db:backfill-numeros": "npx tsx scripts/backfill-numero-registro.ts"
+    "db:backfill-numeros": "npx tsx scripts/backfill-numero-registro.ts",
+    "db:demo-clean": "npx tsx scripts/demo-clean.ts",
+    "db:demo-seed": "npx tsx scripts/seed-demo-content.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

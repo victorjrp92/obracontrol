@@ -29,6 +29,7 @@ export interface TareaInput {
   espacio: string;
   nombre: string;
   tiempo_acordado_dias: number;
+  precio?: number;
   codigo_referencia?: string;
   marca_linea?: string;
   componentes?: string;

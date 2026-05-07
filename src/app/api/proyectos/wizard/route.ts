@@ -36,6 +36,7 @@ interface WizardPayload {
     espacio: string;
     nombre: string;
     tiempo_acordado_dias: number;
+    precio?: number;
     codigo_referencia?: string;
     marca_linea?: string;
     componentes?: string;
@@ -371,6 +372,7 @@ export async function POST(req: NextRequest) {
                       numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                       nombre: t.nombre,
                       tiempo_acordado_dias: dias,
+                      precio: typeof t.precio === "number" && t.precio >= 0 ? t.precio : null,
                       codigo_referencia: t.codigo_referencia ?? null,
                       marca_linea: t.marca_linea ?? null,
                       componentes: t.componentes ?? null,

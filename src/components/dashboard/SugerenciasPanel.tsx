@@ -4,11 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, X, Loader2, Clock, Building2, User } from "lucide-react";
 
+function formatCOP(n: number | null | undefined): string {
+  if (n == null) return "—";
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
 interface Sugerencia {
   id: string;
   nombre: string;
   descripcion: string | null;
   foto_url: string | null;
+  precio: number | null;
   estado: "PENDIENTE" | "APROBADA" | "RECHAZADA";
   motivo_rechazo: string | null;
   unidades: string[];
@@ -384,6 +394,11 @@ export default function SugerenciasPanel({
                     <span className="text-slate-400">
                       {s.unidades.length} unidad{s.unidades.length !== 1 ? "es" : ""}
                     </span>
+                    {s.precio != null && (
+                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">
+                        💲 {formatCOP(s.precio)}
+                      </span>
+                    )}
                   </div>
 
                   {s.estado === "RECHAZADA" && s.motivo_rechazo && (

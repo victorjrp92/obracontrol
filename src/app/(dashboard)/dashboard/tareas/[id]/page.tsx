@@ -1,13 +1,14 @@
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
-import { getAccessibleProjectIds } from "@/lib/access";
+import { getAccessibleProjectIds, canManageTaskPrice } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import ReportarButton from "@/components/dashboard/ReportarButton";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
 import EvidenceGallery from "@/components/evidencia/EvidenceGallery";
 import TaskActionMenu from "@/components/dashboard/TaskActionMenu";
 import NotasEditor from "@/components/dashboard/NotasEditor";
+import PrecioEditor from "@/components/dashboard/PrecioEditor";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -66,6 +67,15 @@ export default async function TareaDetallePage({
 
   const puedeReportar = tarea.estado === "PENDIENTE" || tarea.estado === "NO_APROBADA";
   const puedeAprobar = tarea.estado === "REPORTADA";
+
+  // Permisos de precio: solo Admin/Directivo y el contratista asignado pueden editarlo.
+  // Obrero no llega a este page (vive en otro layout).
+  const nivel = usuario.rol_ref.nivel_acceso;
+  const esContratistaAsignado =
+    nivel === "CONTRATISTA" && tarea.asignado_a === usuario.id;
+  const puedeEditarPrecio =
+    canManageTaskPrice(nivel) &&
+    (nivel !== "CONTRATISTA" || esContratistaAsignado);
 
   return (
     <>
@@ -151,6 +161,13 @@ export default async function TareaDetallePage({
                 </div>
               )}
             </div>
+
+            {/* Precio de la tarea */}
+            <PrecioEditor
+              tareaId={tarea.id}
+              precioInicial={tarea.precio ?? null}
+              canEdit={puedeEditarPrecio}
+            />
 
             {/* Foto de referencia */}
             {tarea.fotoReferenciaSignedUrl && (

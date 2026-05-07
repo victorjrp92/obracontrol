@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { provisionarUsuario } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
@@ -9,14 +10,18 @@ import { getHomePathForRole } from "@/lib/access";
 export async function login(formData: FormData) {
   const supabase = await createClient();
 
-  const email = formData.get("email") as string;
+  const rawEmail = (formData.get("email") as string | null) ?? "";
   const password = formData.get("password") as string;
+  const email = rawEmail.trim().toLowerCase();
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
+
+  // Invalidar TODOS los layouts cacheados — evita que aparezca el usuario anterior.
+  revalidatePath("/", "layout");
 
   // Redirect by role: SUPER_ADMIN → /super-admin, DIRECTIVO → /directivo,
   // CONTRATISTA → /contratista, ADMIN_* → /dashboard.
@@ -93,7 +98,10 @@ export async function loginConGoogle() {
 
 export async function logout() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // scope: 'local' invalida solo la sesión actual (esta cookie). Suficiente y seguro.
+  await supabase.auth.signOut({ scope: "local" });
+  // Invalidar layouts cacheados para que el próximo login no muestre el usuario viejo.
+  revalidatePath("/", "layout");
   redirect("/login");
 }
 
