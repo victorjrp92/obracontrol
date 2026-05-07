@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { isGeneralAdmin } from "@/lib/access";
 import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
+import { aprenderTareas } from "@/lib/learning";
 
 interface WizardPayload {
   // Paso 1
@@ -444,6 +445,13 @@ export async function POST(req: NextRequest) {
 
       return proyecto;
     }, { timeout: 60000 });
+
+    // Learn tasks for this constructora (fire-and-forget, don't block response)
+    if (body.tareas && body.tareas.length > 0) {
+      aprenderTareas(currentUser.constructora_id, body.tareas).catch((err) =>
+        console.error("Learning failed (non-blocking):", err),
+      );
+    }
 
     return NextResponse.json(proyectoCreado, { status: 201 });
   } catch (error) {

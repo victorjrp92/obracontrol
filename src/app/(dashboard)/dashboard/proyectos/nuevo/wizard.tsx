@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
 import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData } from "./wizard-types";
+import type { TaskTemplate } from "@/lib/task-templates";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
 import WizardStep3 from "./WizardStep3";
 
-export default function WizardClient({ contratistas, initialData }: { contratistas: Contratista[]; initialData?: EditModeData }) {
+export default function WizardClient({ contratistas, initialData, tareasAprendidas }: { contratistas: Contratista[]; initialData?: EditModeData; tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>> }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -221,6 +222,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
           canProceed={canProceed2}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}
+          tareasAprendidas={tareasAprendidas}
         />
       )}
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isGeneralAdmin } from "@/lib/access";
+import { aprenderTareas } from "@/lib/learning";
 
 /**
  * Wizard payload — same shape as the creation wizard POST endpoint.
@@ -34,9 +35,11 @@ interface WizardPayload {
   fases: (string | { nombre: string; tiempo_estimado_dias?: number })[];
   tareas: {
     fase: string;
+    subfase?: string;
     espacio: string;
     nombre: string;
     tiempo_acordado_dias: number;
+    precio?: number;
     codigo_referencia?: string;
     marca_linea?: string;
     componentes?: string;
@@ -978,6 +981,13 @@ export async function POST(
 
       return stats;
     }, { timeout: 60000 });
+
+    // Learn tasks for this constructora (fire-and-forget)
+    if (body.tareas && body.tareas.length > 0) {
+      aprenderTareas(currentUser.constructora_id, body.tareas).catch((e) =>
+        console.error("Learning failed (non-blocking):", e),
+      );
+    }
 
     return NextResponse.json({ updated: true, summary });
   } catch (err) {

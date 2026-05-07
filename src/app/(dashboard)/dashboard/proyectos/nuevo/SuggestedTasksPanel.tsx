@@ -13,9 +13,10 @@ interface SuggestedTask extends TaskTemplate {
 interface SuggestedTasksPanelProps {
   fase: string;
   espacios: string[];
-  existingTareas: TareaInput[]; // current tasks for this phase (to detect duplicates)
+  existingTareas: TareaInput[];
   onAdd: (tareas: Omit<TareaInput, "id">[]) => void;
   onClose: () => void;
+  tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
 }
 
 export default function SuggestedTasksPanel({
@@ -24,21 +25,31 @@ export default function SuggestedTasksPanel({
   existingTareas,
   onAdd,
   onClose,
+  tareasAprendidas,
 }: SuggestedTasksPanelProps) {
-  // Build grouped suggestions
+  // Build grouped suggestions merging static templates + learned tasks
   const grouped = useMemo(() => {
     const result: { espacio: string; tareas: SuggestedTask[] }[] = [];
     for (const espacio of espacios) {
-      const templates = getTareasSugeridas(fase, espacio);
-      if (templates.length > 0) {
+      const staticTemplates = getTareasSugeridas(fase, espacio);
+      const learnedTemplates = tareasAprendidas?.[fase]?.[espacio] ?? [];
+
+      // Merge: static first, then learned that don't duplicate by nombre
+      const seen = new Set(staticTemplates.map((t) => t.nombre));
+      const merged = [
+        ...staticTemplates,
+        ...learnedTemplates.filter((t) => !seen.has(t.nombre)),
+      ];
+
+      if (merged.length > 0) {
         result.push({
           espacio,
-          tareas: templates.map((t) => ({ ...t, espacio })),
+          tareas: merged.map((t) => ({ ...t, espacio })),
         });
       }
     }
     return result;
-  }, [fase, espacios]);
+  }, [fase, espacios, tareasAprendidas]);
 
   const allSuggestions = useMemo(() => grouped.flatMap((g) => g.tareas), [grouped]);
 

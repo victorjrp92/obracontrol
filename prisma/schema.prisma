@@ -23,10 +23,11 @@ model Constructora {
   created_at       DateTime   @default(now())
   updated_at       DateTime   @updatedAt
 
-  usuarios         Usuario[]
-  proyectos        Proyecto[]
-  roles            Rol[]
-  obreros          Obrero[]
+  usuarios           Usuario[]
+  proyectos          Proyecto[]
+  roles              Rol[]
+  obreros            Obrero[]
+  tareas_aprendidas  TareaAprendida[]
 
   @@map("constructoras")
 }
@@ -622,5 +623,28 @@ enum EstadoPago {
   PENDIENTE
   PAGADO
   PARCIAL
+}
+
+// ─── APRENDIZAJE DE TAREAS POR CONSTRUCTORA ─────────────────────────────────
+
+model TareaAprendida {
+  id                             String   @id @default(cuid())
+  constructora_id                String
+  fase                           String
+  subfase                        String?
+  espacio                        String
+  nombre                         String
+  tiempo_acordado_dias           Int
+  precio                         Float?
+  marca_linea                    String?
+  componentes                    String?
+  proyectos_sin_uso_consecutivos Int      @default(0)
+  created_at                     DateTime @default(now())
+  updated_at                     DateTime @updatedAt
+
+  constructora Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+
+  @@unique([constructora_id, fase, espacio, nombre])
+  @@map("tareas_aprendidas")
 }
 

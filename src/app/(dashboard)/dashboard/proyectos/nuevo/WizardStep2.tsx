@@ -6,6 +6,7 @@ import {
   Download, Pencil, Plus, Sparkles, Trash2, Upload, X,
 } from "lucide-react";
 import type { TareaInput } from "./wizard-types";
+import type { TaskTemplate } from "@/lib/task-templates"; // used in WizardStep2Props
 import { FASES_DISPONIBLES } from "./wizard-types";
 import SuggestedTasksPanel from "./SuggestedTasksPanel";
 import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
@@ -21,6 +22,7 @@ interface WizardStep2Props {
   canProceed: boolean;
   onNext: () => void;
   onBack: () => void;
+  tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
 }
 
 export default function WizardStep2({
@@ -34,6 +36,7 @@ export default function WizardStep2({
   canProceed,
   onNext,
   onBack,
+  tareasAprendidas,
 }: WizardStep2Props) {
   // Collapsed state per fase
   const [collapsedFases, setCollapsedFases] = useState<Record<string, boolean>>({});
@@ -291,6 +294,7 @@ export default function WizardStep2({
                     existingTareas={tareas}
                     onAdd={(nuevas) => addSuggestedTareas(fase, nuevas)}
                     onClose={() => setSuggestionsOpenFase(null)}
+                    tareasAprendidas={tareasAprendidas}
                   />
                 )}
 
