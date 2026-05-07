@@ -1,7 +1,7 @@
 import { WifiOff } from "lucide-react";
 
 export const metadata = {
-  title: "Sin conexión — ObraControl",
+  title: "Sin conexión — Seiricon",
 };
 
 export default function OfflinePage() {
