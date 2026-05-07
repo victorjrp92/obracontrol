@@ -423,11 +423,11 @@ export default function WizardStep2({
                             )}
                             <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
                             <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
-                            {t.precio != null && t.precio > 0 && (
-                              <span className="text-xs text-emerald-600 flex-shrink-0">
-                                {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)}
-                              </span>
-                            )}
+                            <span className={`text-xs flex-shrink-0 w-24 text-right ${t.precio != null && t.precio > 0 ? "text-emerald-600" : "text-slate-300"}`}>
+                              {t.precio != null && t.precio > 0
+                                ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)
+                                : "Sin valor"}
+                            </span>
                             <button onClick={() => startEdit(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer">
                               <Pencil className="w-3.5 h-3.5" />
                             </button>

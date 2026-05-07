@@ -8,6 +8,7 @@ export interface TaskTemplate {
   marca_linea?: string;
   componentes?: string;
   subfase?: string;
+  precio?: number;
 }
 
 export const ESPACIOS_SUGERIDOS = [
@@ -102,6 +103,9 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         componentes: "estructura + puertas",
         subfase: "Instalación",
       },
+      { nombre: "Pulir y lustrar mueble bajo cocina", tiempo_acordado_dias: 2, subfase: "Lustro" },
+      { nombre: "Pulir y lustrar mueble alto cocina", tiempo_acordado_dias: 2, subfase: "Lustro" },
+      { nombre: "Limpiar y ajustar muebles cocina", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
     "Baño principal": [
       {
@@ -113,9 +117,12 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         subfase: "Instalación",
       },
       { nombre: "Gabinete espejo baño principal", tiempo_acordado_dias: 1, subfase: "Instalación" },
+      { nombre: "Pulir y lustrar mueble lavamanos", tiempo_acordado_dias: 1, subfase: "Lustro" },
+      { nombre: "Limpiar y ajustar gabinete espejo", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
     "Baño social": [
       { nombre: "Mueble lavamanos baño social", tiempo_acordado_dias: 2, subfase: "Instalación" },
+      { nombre: "Pulir y lustrar mueble baño social", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
     "Habitación principal": [
       {
@@ -127,6 +134,9 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         subfase: "Instalación",
       },
       { nombre: "Vestier habitación principal", tiempo_acordado_dias: 3, subfase: "Instalación" },
+      { nombre: "Pulir y lustrar closet habitación principal", tiempo_acordado_dias: 2, subfase: "Lustro" },
+      { nombre: "Pulir y lustrar vestier habitación principal", tiempo_acordado_dias: 2, subfase: "Lustro" },
+      { nombre: "Limpiar y ajustar closet/vestier hab. principal", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
     "Habitación 2": [
       {
@@ -136,12 +146,15 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         marca_linea: "GRAFFO",
         subfase: "Instalación",
       },
+      { nombre: "Pulir y lustrar closet habitación 2", tiempo_acordado_dias: 2, subfase: "Lustro" },
     ],
     "Habitación 3": [
       { nombre: "Closet habitación 3", tiempo_acordado_dias: 3, subfase: "Instalación" },
+      { nombre: "Pulir y lustrar closet habitación 3", tiempo_acordado_dias: 2, subfase: "Lustro" },
     ],
     "Zona de lavado": [
       { nombre: "Mueble zona de lavado", tiempo_acordado_dias: 2, subfase: "Instalación" },
+      { nombre: "Pulir y lustrar mueble zona de lavado", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
   },
   "Zonas Comunes": {

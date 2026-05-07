@@ -104,12 +104,14 @@ export default function SuggestedTasksPanel({
       if (alreadyExists) continue;
       tareasToAdd.push({
         fase,
+        subfase: s.subfase,
         espacio: s.espacio,
         nombre: s.nombre,
         tiempo_acordado_dias: s.tiempo_acordado_dias,
         codigo_referencia: s.codigo_referencia,
         marca_linea: s.marca_linea,
         componentes: s.componentes,
+        precio: s.precio,
       });
     }
     onAdd(tareasToAdd);
@@ -184,7 +186,15 @@ export default function SuggestedTasksPanel({
                         disabled={isDuplicate}
                         className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                       />
+                      {t.subfase && (
+                        <span className="text-[10px] font-medium text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded flex-shrink-0">{t.subfase}</span>
+                      )}
                       <span className="text-xs text-slate-700 flex-1">{t.nombre}</span>
+                      {t.precio != null && t.precio > 0 && (
+                        <span className="text-[10px] text-emerald-600 flex-shrink-0">
+                          {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)}
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-400">{t.tiempo_acordado_dias}d</span>
                       {isDuplicate && <span className="text-[10px] text-amber-600">ya existe</span>}
                     </label>
