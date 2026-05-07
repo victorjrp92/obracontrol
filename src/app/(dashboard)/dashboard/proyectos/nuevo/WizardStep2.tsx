@@ -11,6 +11,18 @@ import { FASES_DISPONIBLES } from "./wizard-types";
 import SuggestedTasksPanel from "./SuggestedTasksPanel";
 import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
 
+function groupBySubfaseEspacio(tareas: TareaInput[]) {
+  const result = new Map<string, Map<string, TareaInput[]>>();
+  for (const t of tareas) {
+    const sf = t.subfase ?? "__sin_subfase__";
+    if (!result.has(sf)) result.set(sf, new Map());
+    const espacioMap = result.get(sf)!;
+    if (!espacioMap.has(t.espacio)) espacioMap.set(t.espacio, []);
+    espacioMap.get(t.espacio)!.push(t);
+  }
+  return result;
+}
+
 interface WizardStep2Props {
   allEspacios: string[];
   fasesSeleccionadas: string[];
@@ -69,6 +81,10 @@ export default function WizardStep2({
 
   function toggleCollapse(fase: string) {
     setCollapsedFases((prev) => ({ ...prev, [fase]: !prev[fase] }));
+  }
+
+  function updatePrecio(id: string, precio: number | undefined) {
+    setTareas((prev) => prev.map((t) => t.id === id ? { ...t, precio } : t));
   }
 
   function removeTarea(id: string) {
@@ -366,84 +382,104 @@ export default function WizardStep2({
                   </div>
                 )}
 
-                {/* Task list for this phase */}
-                {faseTareas.length > 0 && (
-                  <div className="border border-slate-100 rounded-xl overflow-hidden">
-                    <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-100">
-                      {faseTareas.length} tarea{faseTareas.length !== 1 ? "s" : ""} en {fase}
-                    </div>
-                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-50">
-                      {faseTareas.map((t) => (
-                        editingId === t.id ? (
-                          <div key={t.id} className="flex items-center gap-2 px-4 py-2 bg-blue-50">
-                            <select
-                              value={editEspacio}
-                              onChange={(e) => setEditEspacio(e.target.value)}
-                              className="text-[10px] w-28 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
-                            >
-                              {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
-                            </select>
-                            <input
-                              value={editSubfase}
-                              onChange={(e) => setEditSubfase(e.target.value)}
-                              placeholder="Subfase"
-                              className="text-[10px] w-24 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
-                            />
-                            <input
-                              value={editNombre}
-                              onChange={(e) => setEditNombre(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEdit(t.id); } if (e.key === "Escape") setEditingId(null); }}
-                              className="text-sm flex-1 px-2 py-1 rounded border border-blue-300 bg-white"
-                              autoFocus
-                            />
-                            <input
-                              type="number"
-                              min="1"
-                              value={editDias}
-                              onChange={(e) => setEditDias(Number(e.target.value) || 1)}
-                              className="w-14 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
-                            />
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={editPrecio ?? ""}
-                              onChange={(e) => setEditPrecio(e.target.value ? Number(e.target.value) : undefined)}
-                              placeholder="COP"
-                              className="w-24 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
-                            />
-                            <button onClick={() => saveEdit(t.id)} className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer">
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded cursor-pointer">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
-                            <span className="text-[10px] text-slate-500 w-28 truncate flex-shrink-0">{t.espacio}</span>
-                            {t.subfase && (
-                              <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded flex-shrink-0">{t.subfase}</span>
+                {/* Task list for this phase — grouped by subfase → espacio */}
+                {faseTareas.length > 0 && (() => {
+                  const groups = groupBySubfaseEspacio(faseTareas);
+                  const hasSubfases = Array.from(groups.keys()).some((k) => k !== "__sin_subfase__");
+                  return (
+                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                      <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-100">
+                        {faseTareas.length} tarea{faseTareas.length !== 1 ? "s" : ""} en {fase}
+                      </div>
+                      <div className="max-h-[28rem] overflow-y-auto">
+                        {Array.from(groups.entries()).map(([subfase, espacioMap]) => (
+                          <div key={subfase}>
+                            {hasSubfases && subfase !== "__sin_subfase__" && (
+                              <div className="px-4 py-2 bg-violet-50 border-b border-violet-100 sticky top-0 z-10">
+                                <span className="text-xs font-bold text-violet-700">{subfase}</span>
+                              </div>
                             )}
-                            <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
-                            <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
-                            <span className={`text-xs flex-shrink-0 w-24 text-right ${t.precio != null && t.precio > 0 ? "text-emerald-600" : "text-slate-300"}`}>
-                              {t.precio != null && t.precio > 0
-                                ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)
-                                : "Sin valor"}
-                            </span>
-                            <button onClick={() => startEdit(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => removeTarea(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {Array.from(espacioMap.entries()).map(([espacio, tareasGrupo]) => (
+                              <div key={`${subfase}::${espacio}`}>
+                                <div className="px-4 py-1.5 bg-slate-50/80 border-b border-slate-100">
+                                  <span className="text-[11px] font-semibold text-slate-500">{espacio}</span>
+                                </div>
+                                <div className="divide-y divide-slate-50">
+                                  {tareasGrupo.map((t) => (
+                                    editingId === t.id ? (
+                                      <div key={t.id} className="flex items-center gap-2 px-4 py-2 bg-blue-50">
+                                        <select
+                                          value={editEspacio}
+                                          onChange={(e) => setEditEspacio(e.target.value)}
+                                          className="text-[10px] w-28 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                                        >
+                                          {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
+                                        </select>
+                                        <input
+                                          value={editSubfase}
+                                          onChange={(e) => setEditSubfase(e.target.value)}
+                                          placeholder="Subfase"
+                                          className="text-[10px] w-24 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                                        />
+                                        <input
+                                          value={editNombre}
+                                          onChange={(e) => setEditNombre(e.target.value)}
+                                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEdit(t.id); } if (e.key === "Escape") setEditingId(null); }}
+                                          className="text-sm flex-1 px-2 py-1 rounded border border-blue-300 bg-white"
+                                          autoFocus
+                                        />
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          value={editDias}
+                                          onChange={(e) => setEditDias(Number(e.target.value) || 1)}
+                                          className="w-14 text-xs text-center px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                                        />
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={editPrecio ?? ""}
+                                          onChange={(e) => setEditPrecio(e.target.value ? Number(e.target.value) : undefined)}
+                                          placeholder="COP"
+                                          className="w-24 text-xs text-right px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
+                                        />
+                                        <button onClick={() => saveEdit(t.id)} className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer">
+                                          <Check className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded cursor-pointer">
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
+                                        <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
+                                        <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          value={t.precio ?? ""}
+                                          onChange={(e) => updatePrecio(t.id, e.target.value ? Number(e.target.value) : undefined)}
+                                          placeholder="COP"
+                                          className="w-24 text-xs text-right px-1.5 py-1 rounded border border-slate-200 bg-white flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                                        />
+                                        <button onClick={() => startEdit(t)} className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer">
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button onClick={() => removeTarea(t.id)} className="p-1 text-red-500 hover:bg-red-50 rounded cursor-pointer">
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        )
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {faseTareas.length === 0 && (
                   <p className="text-xs text-slate-400 text-center py-4">
