@@ -45,6 +45,7 @@ interface WizardPayload {
   }[];
   zonas_comunes?: string[]; // nombres de zonas comunes seleccionadas
   zonas_comunes_metrajes?: Record<string, number>;
+  personas?: { nombre: string; cargo: string; email: string }[];
 }
 
 export async function POST(req: NextRequest) {
@@ -445,6 +446,24 @@ export async function POST(req: NextRequest) {
 
       return proyecto;
     }, { timeout: 60000 });
+
+    // Create linked personas (fire-and-forget, non-critical)
+    if (body.personas && body.personas.length > 0) {
+      const personasData = body.personas
+        .filter((p) => p.nombre.trim().length > 0)
+        .slice(0, 20)
+        .map((p) => ({
+          proyecto_id: proyectoCreado.id,
+          nombre: p.nombre.trim().slice(0, 100),
+          cargo: p.cargo.trim().slice(0, 100),
+          email: p.email?.trim().slice(0, 200) || null,
+        }));
+      if (personasData.length > 0) {
+        prisma.personaExternaProyecto.createMany({ data: personasData }).catch((err) =>
+          console.error("Personas creation failed (non-blocking):", err),
+        );
+      }
+    }
 
     // Learn tasks for this constructora (fire-and-forget, don't block response)
     if (body.tareas && body.tareas.length > 0) {

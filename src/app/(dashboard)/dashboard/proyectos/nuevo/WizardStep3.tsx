@@ -3,10 +3,11 @@
 import { useState } from "react";
 import {
   ArrowLeft, Building2, Calendar, ChevronDown, ChevronRight,
-  Layers, Save, X,
+  Layers, Plus, Save, Trash2, UserPlus, X,
 } from "lucide-react";
 import type {
   Contratista, TareaInput, EdificioInput, FaseAssignment, TorreAssignment,
+  PersonaProyectoInput,
 } from "./wizard-types";
 
 interface WizardStep3Props {
@@ -22,6 +23,8 @@ interface WizardStep3Props {
   totalTareasGlobal: number;
   loading: boolean;
   isEditMode?: boolean;
+  personas: PersonaProyectoInput[];
+  setPersonas: React.Dispatch<React.SetStateAction<PersonaProyectoInput[]>>;
   onBack: () => void;
   onSubmit: (resolvedTareas?: TareaInput[]) => void;
 }
@@ -55,6 +58,8 @@ export default function WizardStep3({
   totalTareasGlobal,
   loading,
   isEditMode,
+  personas,
+  setPersonas,
   onBack,
   onSubmit,
 }: WizardStep3Props) {
@@ -346,6 +351,62 @@ export default function WizardStep3({
           No hay contratistas registrados. Puedes invitarlos despues desde Usuarios y asignarlos a las tareas.
         </div>
       )}
+
+      {/* Personal vinculado (opcional) */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <UserPlus className="w-4 h-4 text-slate-500" />
+            <h3 className="text-sm font-bold text-slate-800">Personal vinculado</h3>
+            <span className="text-[10px] text-slate-400 font-medium">(opcional)</span>
+          </div>
+          <button
+            onClick={() => setPersonas([...personas, { id: `p${Date.now()}`, nombre: "", cargo: "", email: "" }])}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar persona
+          </button>
+        </div>
+
+        {personas.length === 0 ? (
+          <p className="text-xs text-slate-400">Puedes vincular personas externas al proyecto (ej: interventor, arquitecto, cliente)</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {personas.map((p, idx) => (
+              <div key={p.id} className="flex items-start gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="flex-1 grid sm:grid-cols-3 gap-2">
+                  <input
+                    value={p.nombre}
+                    onChange={(e) => setPersonas(personas.map((x, i) => i === idx ? { ...x, nombre: e.target.value } : x))}
+                    placeholder="Nombre"
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                  <input
+                    value={p.cargo}
+                    onChange={(e) => setPersonas(personas.map((x, i) => i === idx ? { ...x, cargo: e.target.value } : x))}
+                    placeholder="Cargo (ej: Interventor)"
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                  <input
+                    value={p.email}
+                    onChange={(e) => setPersonas(personas.map((x, i) => i === idx ? { ...x, email: e.target.value } : x))}
+                    placeholder="Email (opcional)"
+                    type="email"
+                    className="px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                </div>
+                <button
+                  onClick={() => setPersonas(personas.filter((_, i) => i !== idx))}
+                  className="p-2 rounded-lg text-red-500 hover:bg-red-50 flex-shrink-0"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Navigation */}
       <div className="flex items-center justify-between">

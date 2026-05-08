@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData } from "./wizard-types";
+import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
@@ -47,6 +47,9 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   const [fasesSeleccionadas, setFasesSeleccionadas] = useState<string[]>(initialData?.fasesSeleccionadas ?? ["Madera", "Obra Blanca"]);
   const [tareas, setTareas] = useState<TareaInput[]>(initialData?.tareas ?? []);
   const [faseDias, setFaseDias] = useState<Record<string, number | undefined>>(initialData?.faseDias ?? {});
+
+  // Step 3 state
+  const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
@@ -124,6 +127,9 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
       ...(metrosEnabled && Object.keys(metrosZonas).length > 0
         ? { zonas_comunes_metrajes: metrosZonas } : {}),
+      personas: personas
+        .filter((p) => p.nombre.trim())
+        .map(({ id: _id, ...rest }) => rest),
     };
 
     try {
@@ -240,6 +246,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           totalTareasGlobal={totalTareasGlobal}
           loading={loading}
           isEditMode={isEditMode}
+          personas={personas}
+          setPersonas={setPersonas}
           onBack={() => setStep(2)}
           onSubmit={handleSubmit}
         />

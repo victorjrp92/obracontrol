@@ -49,6 +49,13 @@ export interface FaseAssignment {
   distribucion: Record<string, TorreAssignment>; // edificio nombre -> assignment
 }
 
+export interface PersonaProyectoInput {
+  id: string;
+  nombre: string;
+  cargo: string;
+  email: string;
+}
+
 export interface EditModeData {
   projectId: string;
   nombre: string;
