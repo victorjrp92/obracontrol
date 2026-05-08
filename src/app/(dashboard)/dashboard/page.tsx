@@ -3,17 +3,32 @@ import Link from "next/link";
 import {
   getDashboardStats,
   getProyectosConProgreso,
-  getTareasRecientes,
-  getTopContratistas,
+  getTareasParaAprobar,
+  getResumenSemanal,
   getUsuarioActual,
 } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
-import ScoreGauge from "@/components/dashboard/ScoreGauge";
-import TaskRow from "@/components/dashboard/TaskRow";
-import { BarChart3, CheckCircle2, Clock, FolderOpen, TrendingUp, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FolderOpen,
+  TrendingUp,
+  XCircle,
+} from "lucide-react";
+
+const semaforoColors: Record<string, string> = {
+  "verde-intenso": "bg-green-700",
+  verde: "bg-green-500",
+  amarillo: "bg-yellow-400",
+  rojo: "bg-red-500",
+  vinotinto: "bg-red-900",
+};
 
 export default async function DashboardPage() {
   const usuario = await getUsuarioActual();
@@ -33,21 +48,18 @@ export default async function DashboardPage() {
   }
 
   const cid = usuario.constructora_id;
-
   const accessible = await getAccessibleProjectIds(
     usuario.id,
     cid,
     usuario.rol_ref.nivel_acceso,
   );
 
-  const [stats, proyectos, tareasRecientes, topContratistas] = await Promise.all([
+  const [stats, proyectos, tareasParaAprobar, resumenSemanal] = await Promise.all([
     getDashboardStats(cid, accessible),
     getProyectosConProgreso(cid, accessible),
-    getTareasRecientes(cid, 8, usuario.id, usuario.rol_ref.nivel_acceso, accessible),
-    getTopContratistas(cid, 3, accessible),
+    getTareasParaAprobar(cid, 6, accessible),
+    getResumenSemanal(cid, accessible),
   ]);
-
-  const total = stats.total;
 
   const statCards = [
     {
@@ -58,48 +70,36 @@ export default async function DashboardPage() {
       value: String(stats.proyectosActivos),
     },
     {
-      icon: CheckCircle2,
-      iconColor: "text-green-600",
-      iconBg: "bg-green-50",
-      label: "Tareas aprobadas",
-      value: String(stats.tareasAprobadas),
+      icon: AlertTriangle,
+      iconColor: "text-amber-600",
+      iconBg: "bg-amber-50",
+      label: "Esperando aprobación",
+      value: String(stats.tareasReportadas),
+      sub: "Tareas reportadas",
     },
     {
       icon: Clock,
-      iconColor: "text-orange-500",
-      iconBg: "bg-orange-50",
-      label: "Tareas reportadas",
-      value: String(stats.tareasReportadas),
-      sub: "Pendientes de revisión",
+      iconColor: "text-red-600",
+      iconBg: "bg-red-50",
+      label: "Tareas en riesgo",
+      value: String(stats.tareasEnRiesgo),
+      sub: "Fuera de tiempo",
     },
     {
       icon: TrendingUp,
-      iconColor: "text-violet-600",
-      iconBg: "bg-violet-50",
-      label: "Progreso promedio",
+      iconColor: "text-emerald-600",
+      iconBg: "bg-emerald-50",
+      label: "Progreso global",
       value: `${stats.porcentajeAprobado}%`,
-    },
-    {
-      icon: Users,
-      iconColor: "text-sky-600",
-      iconBg: "bg-sky-50",
-      label: "Contratistas activos",
-      value: String(stats.contratistasActivos),
-    },
-    {
-      icon: BarChart3,
-      iconColor: "text-rose-600",
-      iconBg: "bg-rose-50",
-      label: "Tareas en riesgo",
-      value: String(stats.tareasEnRiesgo),
+      sub: `${stats.tareasAprobadas} de ${stats.total} aprobadas`,
     },
   ];
 
   const taskBreakdown = [
-    { label: "Aprobadas", value: stats.tareasAprobadas, color: "bg-green-500", pct: total > 0 ? Math.round((stats.tareasAprobadas / total) * 100) : 0 },
-    { label: "Reportadas", value: stats.tareasReportadas, color: "bg-blue-500", pct: total > 0 ? Math.round((stats.tareasReportadas / total) * 100) : 0 },
-    { label: "Pendientes", value: stats.tareasPendientes, color: "bg-slate-300", pct: total > 0 ? Math.round((stats.tareasPendientes / total) * 100) : 0 },
-    { label: "No aprobadas", value: stats.tareasNoAprobadas, color: "bg-red-500", pct: total > 0 ? Math.round((stats.tareasNoAprobadas / total) * 100) : 0 },
+    { label: "Aprobadas", value: stats.tareasAprobadas, color: "bg-green-500", pct: stats.total > 0 ? Math.round((stats.tareasAprobadas / stats.total) * 100) : 0 },
+    { label: "Reportadas", value: stats.tareasReportadas, color: "bg-blue-500", pct: stats.total > 0 ? Math.round((stats.tareasReportadas / stats.total) * 100) : 0 },
+    { label: "Pendientes", value: stats.tareasPendientes, color: "bg-slate-300", pct: stats.total > 0 ? Math.round((stats.tareasPendientes / stats.total) * 100) : 0 },
+    { label: "No aprobadas", value: stats.tareasNoAprobadas, color: "bg-red-500", pct: stats.total > 0 ? Math.round((stats.tareasNoAprobadas / stats.total) * 100) : 0 },
   ];
 
   return (
@@ -110,104 +110,161 @@ export default async function DashboardPage() {
       />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 mb-6">
+        {/* Stats grid — 4 cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {statCards.map((s) => (
             <StatCard key={s.label} {...s} />
           ))}
         </div>
 
+        {/* Row 2: Projects + Task breakdown */}
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-          {/* Project progress */}
+          {/* Project cards */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
-            <h2 className="font-bold text-slate-800 mb-5">Progreso por proyecto</h2>
-            <div className="flex flex-col gap-6">
-              {proyectos.map((p) => (
-                <ProgressBar
-                  key={p.id}
-                  label={p.nombre}
-                  reported={p.progreso.porcentajeReportado}
-                  approved={p.progreso.porcentajeAprobado}
-                  semaforoColor={p.semaforo}
-                />
-              ))}
-              {proyectos.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Sin proyectos activos</p>
-              )}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-slate-800">Proyectos</h2>
+              <Link
+                href="/dashboard/proyectos"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+              >
+                Ver todos <ArrowRight className="w-3 h-3" />
+              </Link>
             </div>
+
+            {proyectos.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm text-slate-400 mb-3">Sin proyectos activos</p>
+                <Link
+                  href="/dashboard/proyectos/nuevo"
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Crear primer proyecto
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {proyectos.map((p) => (
+                  <Link
+                    key={p.id}
+                    href={`/dashboard/proyectos/${p.id}`}
+                    className="block p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${semaforoColors[p.semaforo] ?? "bg-green-500"}`} />
+                        <span className="text-sm font-semibold text-slate-800 truncate">{p.nombre}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-xs text-slate-500 tabular-nums">{p.totalUnidades} uds</span>
+                        <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                      </div>
+                    </div>
+                    <ProgressBar
+                      label=""
+                      reported={p.progreso.porcentajeReportado}
+                      approved={p.progreso.porcentajeAprobado}
+                      semaforoColor={p.semaforo}
+                    />
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Task breakdown */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
-            <h2 className="font-bold text-slate-800 mb-4">Estado de tareas</h2>
-            <div className="flex flex-col gap-3">
-              {taskBreakdown.map((item) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${item.color} flex-shrink-0`} />
-                  <span className="text-sm text-slate-600 flex-1">{item.label}</span>
-                  <span className="text-sm font-semibold text-slate-800 tabular-nums">{item.value}</span>
-                  <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.pct}%` }} />
+          {/* Task breakdown + weekly summary */}
+          <div className="flex flex-col gap-4 sm:gap-6">
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+              <h2 className="font-bold text-slate-800 mb-4">Estado de tareas</h2>
+              <div className="flex flex-col gap-3">
+                {taskBreakdown.map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${item.color} flex-shrink-0`} />
+                    <span className="text-sm text-slate-600 flex-1">{item.label}</span>
+                    <span className="text-sm font-semibold text-slate-800 tabular-nums">{item.value}</span>
+                    <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.pct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Weekly summary */}
+            <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+              <h2 className="font-bold text-slate-800 mb-3">Últimos 7 días</h2>
+              {resumenSemanal.total === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Sin actividad esta semana</p>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-600 flex-1">Aprobadas</span>
+                    <span className="text-sm font-bold text-green-600 tabular-nums">{resumenSemanal.aprobadas}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-600 flex-1">Reportadas</span>
+                    <span className="text-sm font-bold text-blue-600 tabular-nums">{resumenSemanal.reportadas}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <span className="text-sm text-slate-600 flex-1">Rechazadas</span>
+                    <span className="text-sm font-bold text-red-600 tabular-nums">{resumenSemanal.rechazadas}</span>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
-          {/* Score de contratistas */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-slate-800">Score de contratistas</h2>
-              <span className="text-xs text-slate-500 bg-slate-50 border border-slate-100 px-2 py-1 rounded-lg">
-                Top {topContratistas.length}
-              </span>
-            </div>
-            <div className="flex flex-col gap-3">
-              {topContratistas.map((c) => (
-                <ScoreGauge
-                  key={c.id}
-                  name={c.usuario.nombre}
-                  score={c.score_total}
-                  cumplimiento={c.score_cumplimiento}
-                  calidad={c.score_calidad}
-                  velocidad={c.score_velocidad_correccion}
-                />
-              ))}
-              {topContratistas.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Sin contratistas registrados</p>
-              )}
-            </div>
+        {/* Row 3: Require action */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-slate-800">Requieren tu aprobación</h2>
+            <Link
+              href="/dashboard/tareas"
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Ver todas
+            </Link>
           </div>
 
-          {/* Recent tasks */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-slate-800">Actividad reciente</h2>
-              <Link href="/dashboard/tareas" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                Ver todas
-              </Link>
-            </div>
-            <div className="flex flex-col divide-y divide-slate-50">
-              {tareasRecientes.map((t) => (
-                <TaskRow
+          {tareasParaAprobar.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-6">No hay tareas pendientes de aprobación</p>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {tareasParaAprobar.map((t) => (
+                <Link
                   key={t.id}
-                  id={t.id}
-                  name={t.nombre}
-                  project={t.proyecto}
-                  unit={t.unidad}
-                  status={t.status as "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA"}
-                  semaforo={t.semaforo as "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto"}
-                  daysLeft={t.daysLeft}
-                  contractor={t.contractor}
-                />
+                  href={`/dashboard/tareas/${t.id}`}
+                  className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors group"
+                >
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${semaforoColors[t.semaforo] ?? "bg-green-500"}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-800 truncate">{t.nombre}</div>
+                    <div className="text-xs text-slate-500 truncate mt-0.5">
+                      {t.proyecto} · {t.unidad}
+                    </div>
+                    {t.contratista && (
+                      <div className="text-xs text-slate-400 truncate">{t.contratista}</div>
+                    )}
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200">
+                        <AlertTriangle className="w-3 h-3" />
+                        Reportada
+                      </span>
+                      {t.diasRestantes < 0 && (
+                        <span className="text-[10px] font-medium text-red-500">
+                          {Math.abs(t.diasRestantes)}d atraso
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-1" />
+                </Link>
               ))}
-              {tareasRecientes.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-6">Sin actividad reciente</p>
-              )}
             </div>
-          </div>
+          )}
         </div>
       </main>
     </>

@@ -251,6 +251,98 @@ export async function getTopContratistas(
   });
 }
 
+// Tareas reportadas pendientes de aprobación (requieren acción del admin)
+export async function getTareasParaAprobar(
+  constructoraId: string,
+  limite = 6,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  const ahora = new Date();
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
+
+  const tareas = await prisma.tarea.findMany({
+    where: {
+      estado: "REPORTADA",
+      espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } },
+    },
+    select: {
+      id: true,
+      nombre: true,
+      tiempo_acordado_dias: true,
+      fecha_inicio: true,
+      created_at: true,
+      asignado_usuario: { select: { nombre: true } },
+      espacio: {
+        select: {
+          nombre: true,
+          unidad: {
+            select: {
+              nombre: true,
+              piso: {
+                select: {
+                  edificio: {
+                    select: {
+                      nombre: true,
+                      proyecto: { select: { nombre: true, dias_habiles_semana: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { updated_at: "desc" },
+    take: limite,
+  });
+
+  return tareas.map((t) => {
+    const proyecto = t.espacio.unidad.piso.edificio.proyecto;
+    const inicio = t.fecha_inicio ?? t.created_at;
+    const diasTranscurridos = calcularDiasHabiles(inicio, ahora, proyecto.dias_habiles_semana);
+    const diasRestantes = t.tiempo_acordado_dias - diasTranscurridos;
+    const semaforo = calcularSemaforo(t.tiempo_acordado_dias, diasTranscurridos, false);
+
+    return {
+      id: t.id,
+      nombre: t.nombre,
+      proyecto: proyecto.nombre,
+      unidad: `${t.espacio.unidad.piso.edificio.nombre} · Apto ${t.espacio.unidad.nombre}`,
+      espacio: t.espacio.nombre,
+      contratista: t.asignado_usuario?.nombre,
+      diasRestantes,
+      semaforo,
+    };
+  });
+}
+
+// Resumen de actividad de los últimos 7 días
+export async function getResumenSemanal(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+) {
+  const hace7Dias = new Date();
+  hace7Dias.setDate(hace7Dias.getDate() - 7);
+
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
+  const proyectoPathFilter = { espacio: { unidad: { piso: { edificio: { proyecto: proyectoWhere } } } } };
+
+  const [aprobadas, reportadas, rechazadas] = await Promise.all([
+    prisma.tarea.count({
+      where: { estado: "APROBADA", updated_at: { gte: hace7Dias }, ...proyectoPathFilter },
+    }),
+    prisma.tarea.count({
+      where: { estado: "REPORTADA", updated_at: { gte: hace7Dias }, ...proyectoPathFilter },
+    }),
+    prisma.tarea.count({
+      where: { estado: "NO_APROBADA", updated_at: { gte: hace7Dias }, ...proyectoPathFilter },
+    }),
+  ]);
+
+  return { aprobadas, reportadas, rechazadas, total: aprobadas + reportadas + rechazadas };
+}
+
 // Todos los contratistas con conteo de tareas
 export async function getContratistas(constructoraId: string) {
   const contratistas = await prisma.contratista.findMany({
