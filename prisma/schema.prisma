@@ -101,7 +101,9 @@ model Unidad {
   nombre           String
   tipo_unidad_id   String?
   metraje_total    Float?
-  created_at       DateTime @default(now())
+  sentido               String?
+  nombre_personalizado  String?
+  created_at            DateTime @default(now())
 
   piso             Piso       @relation(fields: [piso_id], references: [id], onDelete: Cascade)
   tipo_unidad      TipoUnidad? @relation(fields: [tipo_unidad_id], references: [id])
@@ -165,6 +167,10 @@ model Tarea {
   componentes               String?
   cantidad_material_planeada Float?
   unidad_material           String?
+  tiene_estructura          Boolean      @default(true)
+  tiene_nave                Boolean      @default(true)
+  tiene_chapa               Boolean      @default(false)
+  tiene_cartera             Boolean      @default(false)
   tiempo_acordado_dias      Int
   fecha_inicio              DateTime?
   fecha_fin_real            DateTime?

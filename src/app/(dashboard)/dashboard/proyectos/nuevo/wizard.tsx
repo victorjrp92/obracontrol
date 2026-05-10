@@ -35,7 +35,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
   const [edificios, setEdificios] = useState<EdificioInput[]>(initialData?.edificios ?? [
-    { nombre: "Torre 1", pisos: 5, distribucion: { "t1": 4 } },
+    { nombre: "Torre 1", pisos: 5, distribucion: { "t1": { derecha: 2, izquierda: 2 } } },
   ]);
   const [tieneZonasComunes, setTieneZonasComunes] = useState(initialData?.tieneZonasComunes ?? false);
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>(initialData?.zonasSeleccionadas ?? []);
@@ -50,10 +50,11 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
   // Step 3 state
   const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
+  const [asignacionesSubfase, setAsignacionesSubfase] = useState<Record<string, Record<string, Record<string, string | null>>>>({});
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, n) => s + n, 0);
+    const perFloor = Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
     return acc + e.pisos * perFloor;
   }, 0);
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"
@@ -65,7 +66,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
-        && edificios.every((e) => e.nombre && e.pisos > 0 && Object.values(e.distribucion).some((n) => n > 0))
+        && edificios.every((e) => e.nombre && e.pisos > 0 && Object.values(e.distribucion).some((d) => d.derecha + d.izquierda > 0))
         && tiposUnidad.every((t) => t.espacios.length > 0)
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
@@ -112,11 +113,24 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
         nombre: e.nombre,
         pisos: e.pisos,
         distribucion: Object.fromEntries(
-          Object.entries(e.distribucion).map(([tipoId, count]) => {
+          Object.entries(e.distribucion).map(([tipoId, dist]) => {
             const tipo = tiposUnidad.find((t) => t.id === tipoId);
-            return [tipo?.nombre ?? tipoId, count];
+            return [tipo?.nombre ?? tipoId, dist];
           })
         ),
+        ...(e.unidades_detalle ? {
+          unidades_detalle: Object.fromEntries(
+            Object.entries(e.unidades_detalle).map(([piso, units]) => [
+              piso,
+              units.map((u) => ({
+                nombre: u.nombre,
+                tipo_unidad: tiposUnidad.find((t) => t.id === u.tipo_unidad_id)?.nombre ?? u.tipo_unidad_id,
+                sentido: u.sentido,
+                nombre_personalizado: u.nombre_personalizado,
+              })),
+            ])
+          ),
+        } : {}),
       })),
       espacios: allEspacios,
       fases: fasesSeleccionadas.map((f) => ({
@@ -130,6 +144,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       personas: personas
         .filter((p) => p.nombre.trim())
         .map(({ id: _id, ...rest }) => rest),
+      asignaciones_subfase: asignacionesSubfase,
     };
 
     try {
@@ -229,6 +244,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}
           tareasAprendidas={tareasAprendidas}
+          tiposUnidad={tiposUnidad}
         />
       )}
 
@@ -248,6 +264,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           isEditMode={isEditMode}
           personas={personas}
           setPersonas={setPersonas}
+          asignacionesSubfase={asignacionesSubfase}
+          setAsignacionesSubfase={setAsignacionesSubfase}
           onBack={() => setStep(2)}
           onSubmit={handleSubmit}
         />

@@ -9,6 +9,10 @@ export interface TaskTemplate {
   componentes?: string;
   subfase?: string;
   precio?: number;
+  tiene_estructura?: boolean;
+  tiene_nave?: boolean;
+  tiene_chapa?: boolean;
+  tiene_cartera?: boolean;
 }
 
 export const ESPACIOS_SUGERIDOS = [
@@ -93,7 +97,10 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBK01",
         marca_linea: "SAGANO",
         componentes: "estructura + naves",
-        subfase: "Instalación",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
       {
         nombre: "Mueble alto cocina",
@@ -101,11 +108,11 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBC01",
         marca_linea: "SAGANO",
         componentes: "estructura + puertas",
-        subfase: "Instalación",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Pulir y lustrar mueble bajo cocina", tiempo_acordado_dias: 2, subfase: "Lustro" },
-      { nombre: "Pulir y lustrar mueble alto cocina", tiempo_acordado_dias: 2, subfase: "Lustro" },
-      { nombre: "Limpiar y ajustar muebles cocina", tiempo_acordado_dias: 1, subfase: "Lustro" },
     ],
     "Baño principal": [
       {
@@ -114,15 +121,29 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "PUM01",
         marca_linea: "AUSTRAL",
         componentes: "estructura + puerta",
-        subfase: "Instalación",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Gabinete espejo baño principal", tiempo_acordado_dias: 1, subfase: "Instalación" },
-      { nombre: "Pulir y lustrar mueble lavamanos", tiempo_acordado_dias: 1, subfase: "Lustro" },
-      { nombre: "Limpiar y ajustar gabinete espejo", tiempo_acordado_dias: 1, subfase: "Lustro" },
+      {
+        nombre: "Gabinete espejo baño principal",
+        tiempo_acordado_dias: 1,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Baño social": [
-      { nombre: "Mueble lavamanos baño social", tiempo_acordado_dias: 2, subfase: "Instalación" },
-      { nombre: "Pulir y lustrar mueble baño social", tiempo_acordado_dias: 1, subfase: "Lustro" },
+      {
+        nombre: "Mueble lavamanos baño social",
+        tiempo_acordado_dias: 2,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Habitación principal": [
       {
@@ -131,12 +152,19 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "CLP01",
         marca_linea: "GRAFFO",
         componentes: "estructura + correderas",
-        subfase: "Instalación",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Vestier habitación principal", tiempo_acordado_dias: 3, subfase: "Instalación" },
-      { nombre: "Pulir y lustrar closet habitación principal", tiempo_acordado_dias: 2, subfase: "Lustro" },
-      { nombre: "Pulir y lustrar vestier habitación principal", tiempo_acordado_dias: 2, subfase: "Lustro" },
-      { nombre: "Limpiar y ajustar closet/vestier hab. principal", tiempo_acordado_dias: 1, subfase: "Lustro" },
+      {
+        nombre: "Vestier habitación principal",
+        tiempo_acordado_dias: 3,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Habitación 2": [
       {
@@ -144,17 +172,31 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         tiempo_acordado_dias: 3,
         codigo_referencia: "CLP02",
         marca_linea: "GRAFFO",
-        subfase: "Instalación",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Pulir y lustrar closet habitación 2", tiempo_acordado_dias: 2, subfase: "Lustro" },
     ],
     "Habitación 3": [
-      { nombre: "Closet habitación 3", tiempo_acordado_dias: 3, subfase: "Instalación" },
-      { nombre: "Pulir y lustrar closet habitación 3", tiempo_acordado_dias: 2, subfase: "Lustro" },
+      {
+        nombre: "Closet habitación 3",
+        tiempo_acordado_dias: 3,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Zona de lavado": [
-      { nombre: "Mueble zona de lavado", tiempo_acordado_dias: 2, subfase: "Instalación" },
-      { nombre: "Pulir y lustrar mueble zona de lavado", tiempo_acordado_dias: 1, subfase: "Lustro" },
+      {
+        nombre: "Mueble zona de lavado",
+        tiempo_acordado_dias: 2,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
   },
   "Zonas Comunes": {

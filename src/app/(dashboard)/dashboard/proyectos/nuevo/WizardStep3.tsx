@@ -9,6 +9,7 @@ import type {
   Contratista, TareaInput, EdificioInput, FaseAssignment, TorreAssignment,
   PersonaProyectoInput,
 } from "./wizard-types";
+import { SUBFASES_MADERA } from "./wizard-types";
 
 interface WizardStep3Props {
   nombre: string;
@@ -25,6 +26,8 @@ interface WizardStep3Props {
   isEditMode?: boolean;
   personas: PersonaProyectoInput[];
   setPersonas: React.Dispatch<React.SetStateAction<PersonaProyectoInput[]>>;
+  asignacionesSubfase: Record<string, Record<string, Record<string, string | null>>>;
+  setAsignacionesSubfase: React.Dispatch<React.SetStateAction<Record<string, Record<string, Record<string, string | null>>>>>;
   onBack: () => void;
   onSubmit: (resolvedTareas?: TareaInput[]) => void;
 }
@@ -60,6 +63,8 @@ export default function WizardStep3({
   isEditMode,
   personas,
   setPersonas,
+  asignacionesSubfase,
+  setAsignacionesSubfase,
   onBack,
   onSubmit,
 }: WizardStep3Props) {
@@ -267,9 +272,49 @@ export default function WizardStep3({
                 {/* Distribution by tower */}
                 {faseAssign.contratistas.length > 0 && subtipo !== "ZONAS_COMUNES" && (
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 mb-2 block">Distribucion:</label>
+                    <label className="text-xs font-semibold text-slate-700 mb-2 block">Distribución:</label>
                     <div className="grid gap-3">
                       {edificios.map((edif) => {
+                        const isMadera = faseAssign.fase === "Madera";
+
+                        if (isMadera) {
+                          const subfaseAssign = asignacionesSubfase[faseAssign.fase]?.[edif.nombre] ?? {};
+                          return (
+                            <div key={edif.nombre} className="border border-violet-100 rounded-lg p-3 bg-violet-50/30">
+                              <span className="text-xs font-bold text-slate-700 mb-2 block">{edif.nombre}</span>
+                              <div className="space-y-1.5">
+                                {SUBFASES_MADERA.map((subfase) => (
+                                  <div key={subfase} className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-600 w-36 truncate">{subfase}:</span>
+                                    <select
+                                      value={subfaseAssign[subfase] ?? ""}
+                                      onChange={(e) => {
+                                        setAsignacionesSubfase((prev) => ({
+                                          ...prev,
+                                          [faseAssign.fase]: {
+                                            ...prev[faseAssign.fase],
+                                            [edif.nombre]: {
+                                              ...prev[faseAssign.fase]?.[edif.nombre],
+                                              [subfase]: e.target.value || null,
+                                            },
+                                          },
+                                        }));
+                                      }}
+                                      className="text-xs px-2 py-1 rounded-lg border border-slate-200 bg-white max-w-[180px]"
+                                    >
+                                      <option value="">Sin asignar</option>
+                                      {faseAssign.contratistas.map((cId) => {
+                                        const c = contratistas.find((x) => x.id === cId);
+                                        return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
+                                      })}
+                                    </select>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        }
+
                         const torreAssign = faseAssign.distribucion[edif.nombre] ?? {
                           contratista_global: null,
                           desglosado: false,
@@ -300,7 +345,6 @@ export default function WizardStep3({
                             ) : (
                               <div className="space-y-1.5">
                                 {allEspacios.map((espacio) => {
-                                  // Only show spaces that have tasks in this phase
                                   const hasTasks = tareas.some((t) => t.fase === faseAssign.fase && t.espacio === espacio);
                                   if (!hasTasks) return null;
                                   return (

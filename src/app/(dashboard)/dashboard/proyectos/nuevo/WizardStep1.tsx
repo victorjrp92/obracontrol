@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import {
-  ArrowRight, Check, Plus, Ruler, Trash2, Trees,
+  ArrowRight, Check, ChevronDown, ChevronRight, Plus, Ruler, Trash2, Trees,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
-import type { TipoUnidadInput, EdificioInput } from "./wizard-types";
+import type { TipoUnidadInput, EdificioInput, UnidadDetailInput } from "./wizard-types";
 
 interface WizardStep1Props {
   nombre: string;
@@ -51,19 +51,18 @@ export default function WizardStep1({
   metrosZonas, onMetrosZonasChange,
   canProceed, onNext,
 }: WizardStep1Props) {
-  // Custom space input per tipo (keyed by tipo.id)
   const [customSpaceInputs, setCustomSpaceInputs] = useState<Record<string, string>>({});
-  // Zonas comunes custom input
   const [zonaPersonalizada, setZonaPersonalizada] = useState("");
-  // String-based numeric inputs to allow empty field (keyed by "edificio-idx:field")
   const [numericStrings, setNumericStrings] = useState<Record<string, string>>({});
+  const [detalleExpandido, setDetalleExpandido] = useState<Record<number, boolean>>({});
+  const [pisosExpandidos, setPisosExpandidos] = useState<Record<string, boolean>>({});
 
   // --- Tipo management ---
   function addTipoUnidad() {
     const newId = `t${Date.now()}`;
     const newTipo: TipoUnidadInput = { id: newId, nombre: `Tipo ${tiposUnidad.length + 1}`, espacios: [] };
     setTiposUnidad([...tiposUnidad, newTipo]);
-    setEdificios(edificios.map((e) => ({ ...e, distribucion: { ...e.distribucion, [newId]: 0 } })));
+    setEdificios(edificios.map((e) => ({ ...e, distribucion: { ...e.distribucion, [newId]: { derecha: 0, izquierda: 0 } } })));
   }
 
   function removeTipoUnidad(tipoId: string) {
@@ -132,8 +131,8 @@ export default function WizardStep1({
 
   // --- Edificio management ---
   function addEdificio() {
-    const dist: Record<string, number> = {};
-    tiposUnidad.forEach((t) => { dist[t.id] = 2; });
+    const dist: Record<string, import("./wizard-types").DistribucionSentido> = {};
+    tiposUnidad.forEach((t) => { dist[t.id] = { derecha: 1, izquierda: 1 }; });
     setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: 5, distribucion: dist }]);
   }
 
@@ -186,9 +185,10 @@ export default function WizardStep1({
     setEdificios(next);
   }
 
-  function updateEdificioDistribucion(idx: number, tipoId: string, count: number) {
+  function updateEdificioDistribucion(idx: number, tipoId: string, sentido: "derecha" | "izquierda", count: number) {
     const next = [...edificios];
-    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: count } };
+    const prev = next[idx].distribucion[tipoId] ?? { derecha: 0, izquierda: 0 };
+    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } } };
     setEdificios(next);
   }
 
@@ -209,9 +209,65 @@ export default function WizardStep1({
 
   // --- Computed ---
   const totalUnidades = edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, n) => s + n, 0);
+    const perFloor = Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
     return acc + e.pisos * perFloor;
   }, 0);
+
+  function generateUnidadesDetalle(e: EdificioInput): Record<number, UnidadDetailInput[]> {
+    const result: Record<number, UnidadDetailInput[]> = {};
+    for (let piso = 1; piso <= e.pisos; piso++) {
+      const units: UnidadDetailInput[] = [];
+      let counter = 1;
+      for (const tipo of tiposUnidad) {
+        const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+        for (let i = 0; i < dist.derecha; i++) {
+          units.push({ nombre: `${piso}0${counter}`, tipo_unidad_id: tipo.id, sentido: "derecha" });
+          counter++;
+        }
+        for (let i = 0; i < dist.izquierda; i++) {
+          units.push({ nombre: `${piso}0${counter}`, tipo_unidad_id: tipo.id, sentido: "izquierda" });
+          counter++;
+        }
+      }
+      result[piso] = units;
+    }
+    return result;
+  }
+
+  function toggleDetalleEdificio(idx: number) {
+    const next = { ...detalleExpandido, [idx]: !detalleExpandido[idx] };
+    setDetalleExpandido(next);
+    if (next[idx] && !edificios[idx].unidades_detalle) {
+      const updated = [...edificios];
+      updated[idx] = { ...updated[idx], unidades_detalle: generateUnidadesDetalle(updated[idx]) };
+      setEdificios(updated);
+    }
+  }
+
+  function togglePisoExpandido(edIdx: number, piso: number) {
+    const key = `${edIdx}-${piso}`;
+    setPisosExpandidos((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function updateUnidadDetalle(edIdx: number, piso: number, uIdx: number, field: string, value: string) {
+    const updated = [...edificios];
+    const detalle = { ...(updated[edIdx].unidades_detalle ?? {}) };
+    const pisoUnits = [...(detalle[piso] ?? [])];
+    pisoUnits[uIdx] = { ...pisoUnits[uIdx], [field]: value };
+    detalle[piso] = pisoUnits;
+    updated[edIdx] = { ...updated[edIdx], unidades_detalle: detalle };
+    setEdificios(updated);
+  }
+
+  function buildFloorSummary(e: EdificioInput, piso: number): string {
+    const parts: string[] = [];
+    for (const tipo of tiposUnidad) {
+      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+      const total = dist.derecha + dist.izquierda;
+      if (total > 0) parts.push(`${total} ${tipo.nombre} (${dist.derecha}D/${dist.izquierda}I)`);
+    }
+    return `Piso ${piso}: ${parts.join(", ") || "sin unidades"}`;
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-3xl">
@@ -477,24 +533,141 @@ export default function WizardStep1({
                       </button>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {tiposUnidad.map((tipo) => {
-                      const distKey = `e${idx}:dist:${tipo.id}`;
+                      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+                      const keyD = `e${idx}:dist:${tipo.id}:d`;
+                      const keyI = `e${idx}:dist:${tipo.id}:i`;
                       return (
                         <div key={tipo.id} className="flex items-center gap-1.5">
-                          <label className="text-xs text-slate-600">{tipo.nombre}:</label>
+                          <label className="text-xs text-slate-600 font-medium">{tipo.nombre}:</label>
+                          <span className="text-[10px] text-slate-400">Der</span>
                           <input
                             type="text"
                             inputMode="numeric"
-                            value={getNumericDisplay(distKey, e.distribucion[tipo.id] ?? 0)}
-                            onChange={(ev) => handleNumericChange(distKey, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, n))}
-                            onBlur={() => handleNumericBlur(distKey, e.distribucion[tipo.id] ?? 0)}
-                            className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            value={getNumericDisplay(keyD, dist.derecha)}
+                            onChange={(ev) => handleNumericChange(keyD, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, "derecha", n))}
+                            onBlur={() => handleNumericBlur(keyD, dist.derecha)}
+                            className="w-12 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                          />
+                          <span className="text-[10px] text-slate-400">Izq</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={getNumericDisplay(keyI, dist.izquierda)}
+                            onChange={(ev) => handleNumericChange(keyI, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, "izquierda", n))}
+                            onBlur={() => handleNumericBlur(keyI, dist.izquierda)}
+                            className="w-12 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                           />
                           <span className="text-[11px] text-slate-400">/piso</span>
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Per-floor summary */}
+                  <div className="mt-2 space-y-0.5">
+                    {Array.from({ length: Math.min(e.pisos, 3) }, (_, i) => i + 1).map((piso) => (
+                      <p key={piso} className="text-[11px] text-slate-500">
+                        {buildFloorSummary(e, piso)}
+                      </p>
+                    ))}
+                    {e.pisos > 3 && (
+                      <p className="text-[11px] text-slate-400 italic">
+                        ...y {e.pisos - 3} piso{e.pisos - 3 !== 1 ? "s" : ""} más con la misma distribución
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Expandable detail section */}
+                  <div className="mt-3 border-t border-slate-200 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleDetalleEdificio(idx)}
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      {detalleExpandido[idx] ? (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      )}
+                      Ver detalle por piso
+                    </button>
+
+                    {detalleExpandido[idx] && e.unidades_detalle && (
+                      <div className="mt-2 space-y-1">
+                        {Array.from({ length: e.pisos }, (_, i) => i + 1).map((piso) => {
+                          const pisoKey = `${idx}-${piso}`;
+                          const isOpen = pisosExpandidos[pisoKey];
+                          const unidades = e.unidades_detalle?.[piso] ?? [];
+                          return (
+                            <div key={piso} className="rounded-lg border border-slate-200 bg-white">
+                              <button
+                                type="button"
+                                onClick={() => togglePisoExpandido(idx, piso)}
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                              >
+                                <span>Piso {piso} ({unidades.length} unidades)</span>
+                                {isOpen ? (
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                ) : (
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                )}
+                              </button>
+
+                              {isOpen && (
+                                <div className="px-3 pb-2">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-[10px] text-slate-400 uppercase">
+                                        <th className="text-left py-1 font-medium">Apto</th>
+                                        <th className="text-left py-1 font-medium">Tipo</th>
+                                        <th className="text-left py-1 font-medium">Sentido</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {unidades.map((unidad, uIdx) => (
+                                        <tr key={uIdx} className="border-t border-slate-100">
+                                          <td className="py-1 pr-2">
+                                            <input
+                                              type="text"
+                                              value={unidad.nombre}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "nombre", ev.target.value)}
+                                              className="w-16 px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400"
+                                            />
+                                          </td>
+                                          <td className="py-1 pr-2">
+                                            <select
+                                              value={unidad.tipo_unidad_id}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "tipo_unidad_id", ev.target.value)}
+                                              className="w-full px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                            >
+                                              {tiposUnidad.map((t) => (
+                                                <option key={t.id} value={t.id}>{t.nombre}</option>
+                                              ))}
+                                            </select>
+                                          </td>
+                                          <td className="py-1">
+                                            <select
+                                              value={unidad.sentido}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "sentido", ev.target.value)}
+                                              className="w-full px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                            >
+                                              <option value="derecha">Derecha</option>
+                                              <option value="izquierda">Izquierda</option>
+                                            </select>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -504,7 +677,10 @@ export default function WizardStep1({
               Total: <strong>{totalUnidades}</strong> unidades en {edificios.length} torre{edificios.length !== 1 ? "s" : ""}
               {tiposUnidad.length > 1 && (
                 <> ({tiposUnidad.map((t) => {
-                  const count = edificios.reduce((acc, e) => acc + e.pisos * (e.distribucion[t.id] ?? 0), 0);
+                  const count = edificios.reduce((acc, e) => {
+                    const d = e.distribucion[t.id] ?? { derecha: 0, izquierda: 0 };
+                    return acc + e.pisos * (d.derecha + d.izquierda);
+                  }, 0);
                   return `${count} ${t.nombre}`;
                 }).join(", ")})</>
               )}

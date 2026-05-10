@@ -5,8 +5,8 @@ import {
   ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight,
   Download, Pencil, Plus, Sparkles, Trash2, Upload, X,
 } from "lucide-react";
-import type { TareaInput } from "./wizard-types";
-import type { TaskTemplate } from "@/lib/task-templates"; // used in WizardStep2Props
+import type { TareaInput, TipoUnidadInput } from "./wizard-types";
+import type { TaskTemplate } from "@/lib/task-templates";
 import { FASES_DISPONIBLES } from "./wizard-types";
 import SuggestedTasksPanel from "./SuggestedTasksPanel";
 import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
@@ -35,6 +35,7 @@ interface WizardStep2Props {
   onNext: () => void;
   onBack: () => void;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
+  tiposUnidad?: TipoUnidadInput[];
 }
 
 export default function WizardStep2({
@@ -49,6 +50,7 @@ export default function WizardStep2({
   onNext,
   onBack,
   tareasAprendidas,
+  tiposUnidad,
 }: WizardStep2Props) {
   // Collapsed state per fase
   const [collapsedFases, setCollapsedFases] = useState<Record<string, boolean>>({});
@@ -72,6 +74,11 @@ export default function WizardStep2({
   const [excelErrors, setExcelErrors] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedTipoPerFase, setSelectedTipoPerFase] = useState<Record<string, string>>({});
+  const [newTaskEstructura, setNewTaskEstructura] = useState(true);
+  const [newTaskNave, setNewTaskNave] = useState(true);
+  const [newTaskChapa, setNewTaskChapa] = useState(false);
+  const [newTaskCartera, setNewTaskCartera] = useState(false);
 
   function toggleFase(fase: string) {
     setFasesSeleccionadas((prev) =>
@@ -85,6 +92,22 @@ export default function WizardStep2({
 
   function updatePrecio(id: string, precio: number | undefined) {
     setTareas((prev) => prev.map((t) => t.id === id ? { ...t, precio } : t));
+  }
+
+  function getSelectedTipoId(fase: string): string | undefined {
+    if (fase !== "Madera" || !tiposUnidad?.length) return undefined;
+    return selectedTipoPerFase[fase] ?? tiposUnidad[0].id;
+  }
+
+  function getEspaciosForFase(fase: string): string[] {
+    if (fase !== "Madera" || !tiposUnidad?.length) return allEspacios;
+    const tipoId = getSelectedTipoId(fase);
+    const tipo = tiposUnidad.find((t) => t.id === tipoId);
+    return tipo?.espacios ?? allEspacios;
+  }
+
+  function updateComponent(id: string, field: string, value: boolean) {
+    setTareas((prev) => prev.map((t) => t.id === id ? { ...t, [field]: value } : t));
   }
 
   function removeTarea(id: string) {
@@ -111,37 +134,61 @@ export default function WizardStep2({
 
   function addSuggestedTareas(fase: string, nuevas: Omit<TareaInput, "id">[]) {
     let counter = Date.now();
+    const tipoId = getSelectedTipoId(fase);
     const withIds: TareaInput[] = nuevas.map((t) => ({
       ...t,
       id: `sug-${counter++}`,
+      ...(fase === "Madera" && tipoId ? { tipo_unidad_id: tipoId } : {}),
     }));
     setTareas((prev) => [...prev, ...withIds]);
   }
 
   function openAddForm(fase: string) {
     setAddFormOpenFase(fase);
-    if (allEspacios.length > 0) setNewTaskEspacio(allEspacios[0]);
+    const espacios = getEspaciosForFase(fase);
+    if (espacios.length > 0) setNewTaskEspacio(espacios[0]);
     setNewTaskSubfase("");
     setNewTaskNombre("");
     setNewTaskDias(3);
+    setNewTaskPrecio(undefined);
+    if (fase === "Madera") {
+      setNewTaskEstructura(true);
+      setNewTaskNave(true);
+      setNewTaskChapa(false);
+      setNewTaskCartera(false);
+    }
   }
 
   function addCustomTask(fase: string) {
     if (!newTaskEspacio || !newTaskNombre.trim()) return;
     const id = `custom-${Date.now()}`;
+    const isMadera = fase === "Madera";
     setTareas((prev) => [...prev, {
       id,
       fase,
-      subfase: newTaskSubfase || undefined,
+      subfase: isMadera ? undefined : (newTaskSubfase || undefined),
       espacio: newTaskEspacio,
       nombre: newTaskNombre.trim(),
       tiempo_acordado_dias: newTaskDias,
       precio: newTaskPrecio,
+      ...(isMadera ? {
+        tipo_unidad_id: getSelectedTipoId(fase),
+        tiene_estructura: newTaskEstructura,
+        tiene_nave: newTaskNave,
+        tiene_chapa: newTaskChapa,
+        tiene_cartera: newTaskCartera,
+      } : {}),
     }]);
     setNewTaskNombre("");
     setNewTaskSubfase("");
     setNewTaskDias(3);
     setNewTaskPrecio(undefined);
+    if (isMadera) {
+      setNewTaskEstructura(true);
+      setNewTaskNave(true);
+      setNewTaskChapa(false);
+      setNewTaskCartera(false);
+    }
   }
 
   async function handleExcelDownload() {
@@ -251,6 +298,12 @@ export default function WizardStep2({
       {fasesSeleccionadas.map((fase) => {
         const faseTareas = tareas.filter((t) => t.fase === fase);
         const isCollapsed = collapsedFases[fase] ?? false;
+        const isMadera = fase === "Madera";
+        const selectedTipoId = isMadera ? getSelectedTipoId(fase) : undefined;
+        const espaciosForFase = getEspaciosForFase(fase);
+        const displayTareas = isMadera && selectedTipoId
+          ? faseTareas.filter((t) => t.tipo_unidad_id === selectedTipoId)
+          : faseTareas;
 
         return (
           <div key={fase} className="mb-6 border border-slate-200 rounded-xl overflow-hidden">
@@ -302,11 +355,39 @@ export default function WizardStep2({
                   </button>
                 </div>
 
+                {/* Tipo tabs for Madera */}
+                {isMadera && tiposUnidad && tiposUnidad.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {tiposUnidad.map((tipo) => {
+                      const isSelected = selectedTipoId === tipo.id;
+                      const count = faseTareas.filter((t) => t.tipo_unidad_id === tipo.id).length;
+                      return (
+                        <button
+                          key={tipo.id}
+                          onClick={() => setSelectedTipoPerFase((prev) => ({ ...prev, [fase]: tipo.id }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            isSelected
+                              ? "bg-violet-600 text-white border-violet-600"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-violet-300"
+                          }`}
+                        >
+                          {tipo.nombre}
+                          {count > 0 && (
+                            <span className={`ml-1.5 text-[10px] ${isSelected ? "text-violet-200" : "text-slate-400"}`}>
+                              ({count})
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Suggestions panel */}
                 {suggestionsOpenFase === fase && (
                   <SuggestedTasksPanel
                     fase={fase}
-                    espacios={allEspacios}
+                    espacios={espaciosForFase}
                     existingTareas={tareas}
                     onAdd={(nuevas) => addSuggestedTareas(fase, nuevas)}
                     onClose={() => setSuggestionsOpenFase(null)}
@@ -316,8 +397,15 @@ export default function WizardStep2({
 
                 {/* Manual add form */}
                 {addFormOpenFase === fase && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-                    <h4 className="text-sm font-bold text-slate-800 mb-3">Nueva tarea - {fase}</h4>
+                  <div className={`${isMadera ? "bg-violet-50 border-violet-200" : "bg-blue-50 border-blue-200"} border rounded-xl p-4 mb-4`}>
+                    <h4 className="text-sm font-bold text-slate-800 mb-3">
+                      Nueva tarea - {fase}
+                      {isMadera && selectedTipoId && tiposUnidad && (
+                        <span className="ml-2 text-xs font-medium text-violet-600">
+                          ({tiposUnidad.find((t) => t.id === selectedTipoId)?.nombre})
+                        </span>
+                      )}
+                    </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                       <div>
                         <label className="text-xs text-slate-500 mb-1 block">Espacio</label>
@@ -326,18 +414,20 @@ export default function WizardStep2({
                           onChange={(e) => setNewTaskEspacio(e.target.value)}
                           className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm bg-white"
                         >
-                          {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
+                          {espaciosForFase.map((e) => <option key={e} value={e}>{e}</option>)}
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs text-slate-500 mb-1 block">Subfase</label>
-                        <input
-                          value={newTaskSubfase}
-                          onChange={(e) => setNewTaskSubfase(e.target.value)}
-                          placeholder="Ej: Instalación"
-                          className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
-                        />
-                      </div>
+                      {!isMadera && (
+                        <div>
+                          <label className="text-xs text-slate-500 mb-1 block">Subfase</label>
+                          <input
+                            value={newTaskSubfase}
+                            onChange={(e) => setNewTaskSubfase(e.target.value)}
+                            placeholder="Ej: Instalación"
+                            className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                          />
+                        </div>
+                      )}
                       <div>
                         <label className="text-xs text-slate-500 mb-1 block">Nombre de la tarea</label>
                         <input
@@ -371,10 +461,31 @@ export default function WizardStep2({
                         />
                       </div>
                     </div>
+                    {/* Component checkboxes for Madera */}
+                    {isMadera && (
+                      <div className="flex flex-wrap gap-3 mb-3">
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={newTaskEstructura} onChange={(e) => setNewTaskEstructura(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+                          Estructura
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={newTaskNave} onChange={(e) => setNewTaskNave(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+                          Nave
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={newTaskChapa} onChange={(e) => setNewTaskChapa(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+                          Chapa
+                        </label>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={newTaskCartera} onChange={(e) => setNewTaskCartera(e.target.checked)} className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500" />
+                          Cartera
+                        </label>
+                      </div>
+                    )}
                     <button
                       onClick={() => addCustomTask(fase)}
                       disabled={!newTaskEspacio || !newTaskNombre.trim()}
-                      className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer"
+                      className={`inline-flex items-center gap-1.5 ${isMadera ? "bg-violet-600 hover:bg-violet-700" : "bg-blue-600 hover:bg-blue-700"} disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-lg text-xs cursor-pointer`}
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Agregar
@@ -383,13 +494,18 @@ export default function WizardStep2({
                 )}
 
                 {/* Task list for this phase — grouped by subfase → espacio */}
-                {faseTareas.length > 0 && (() => {
-                  const groups = groupBySubfaseEspacio(faseTareas);
+                {displayTareas.length > 0 && (() => {
+                  const groups = groupBySubfaseEspacio(displayTareas);
                   const hasSubfases = Array.from(groups.keys()).some((k) => k !== "__sin_subfase__");
                   return (
                     <div className="border border-slate-100 rounded-xl overflow-hidden">
                       <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-100">
-                        {faseTareas.length} tarea{faseTareas.length !== 1 ? "s" : ""} en {fase}
+                        {displayTareas.length} tarea{displayTareas.length !== 1 ? "s" : ""} en {fase}
+                        {isMadera && selectedTipoId && tiposUnidad && (
+                          <span className="ml-1 text-violet-600">
+                            — {tiposUnidad.find((t) => t.id === selectedTipoId)?.nombre}
+                          </span>
+                        )}
                       </div>
                       <div className="max-h-[28rem] overflow-y-auto">
                         {Array.from(groups.entries()).map(([subfase, espacioMap]) => (
@@ -413,7 +529,7 @@ export default function WizardStep2({
                                           onChange={(e) => setEditEspacio(e.target.value)}
                                           className="text-[10px] w-28 px-1.5 py-1 rounded border border-blue-300 bg-white flex-shrink-0"
                                         >
-                                          {allEspacios.map((e) => <option key={e} value={e}>{e}</option>)}
+                                          {espaciosForFase.map((e) => <option key={e} value={e}>{e}</option>)}
                                         </select>
                                         <input
                                           value={editSubfase}
@@ -453,6 +569,24 @@ export default function WizardStep2({
                                     ) : (
                                       <div key={t.id} className="flex items-center gap-2 px-4 py-2.5 hover:bg-slate-50/50">
                                         <span className="text-sm font-medium text-slate-800 flex-1 truncate">{t.nombre}</span>
+                                        {isMadera && (
+                                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            {(["tiene_estructura", "tiene_nave", "tiene_chapa", "tiene_cartera"] as const).map((field) => {
+                                              const label = { tiene_estructura: "Est", tiene_nave: "Nav", tiene_chapa: "Cha", tiene_cartera: "Car" }[field];
+                                              return (
+                                                <label key={field} className="flex items-center gap-0.5 text-[10px] text-slate-500">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={t[field] ?? false}
+                                                    onChange={(e) => updateComponent(t.id, field, e.target.checked)}
+                                                    className="w-3 h-3 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                                                  />
+                                                  {label}
+                                                </label>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
                                         <span className="text-xs text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias} {t.tiempo_acordado_dias === 1 ? "Día" : "Días"}</span>
                                         <input
                                           type="number"
@@ -481,9 +615,11 @@ export default function WizardStep2({
                   );
                 })()}
 
-                {faseTareas.length === 0 && (
+                {displayTareas.length === 0 && (
                   <p className="text-xs text-slate-400 text-center py-4">
-                    No hay tareas en esta fase. Genera sugeridas, agrega manualmente o sube una plantilla Excel.
+                    {isMadera && selectedTipoId && tiposUnidad
+                      ? `No hay tareas para ${tiposUnidad.find((t) => t.id === selectedTipoId)?.nombre ?? "este tipo"}. Genera sugeridas o agrega manualmente.`
+                      : "No hay tareas en esta fase. Genera sugeridas, agrega manualmente o sube una plantilla Excel."}
                   </p>
                 )}
               </div>
