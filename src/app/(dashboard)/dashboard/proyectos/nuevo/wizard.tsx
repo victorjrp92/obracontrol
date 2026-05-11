@@ -54,7 +54,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+    const perFloor = e.unidades_por_piso ?? Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
     return acc + e.pisos * perFloor;
   }, 0);
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"

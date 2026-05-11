@@ -135,7 +135,8 @@ export default function WizardStep1({
   function addEdificio() {
     const dist: Record<string, import("./wizard-types").DistribucionSentido> = {};
     tiposUnidad.forEach((t) => { dist[t.id] = { derecha: 1, izquierda: 1 }; });
-    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: 5, distribucion: dist }]);
+    const defaultUpiso = tiposUnidad.length * 2;
+    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: 5, unidades_por_piso: defaultUpiso, distribucion: dist }]);
   }
 
   function removeEdificio(idx: number) {
@@ -190,7 +191,7 @@ export default function WizardStep1({
   function updateEdificioDistribucion(idx: number, tipoId: string, sentido: "derecha" | "izquierda", count: number) {
     const next = [...edificios];
     const prev = next[idx].distribucion[tipoId] ?? { derecha: 0, izquierda: 0 };
-    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } } };
+    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } }, unidades_detalle: undefined };
     setEdificios(next);
   }
 
@@ -211,8 +212,7 @@ export default function WizardStep1({
 
   // --- Computed ---
   const totalUnidades = edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
-    return acc + e.pisos * perFloor;
+    return acc + e.pisos * getUnidadesPorPiso(e);
   }, 0);
 
   function generateUnidadesDetalle(e: EdificioInput): Record<number, UnidadDetailInput[]> {
@@ -272,26 +272,16 @@ export default function WizardStep1({
   }
 
   function getUnidadesPorPiso(e: EdificioInput): number {
+    return e.unidades_por_piso ?? Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+  }
+
+  function getDistribucionSum(e: EdificioInput): number {
     return Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
   }
 
   function updateUnidadesPorPiso(idx: number, total: number) {
-    const e = edificios[idx];
-    const current = getUnidadesPorPiso(e);
-    const delta = total - current;
-    if (delta === 0) return;
-
-    const firstTipoId = tiposUnidad[0]?.id;
-    if (!firstTipoId) return;
-
     const updated = [...edificios];
-    const prev = updated[idx].distribucion[firstTipoId] ?? { derecha: 0, izquierda: 0 };
-    const newDerecha = Math.max(0, prev.derecha + delta);
-    updated[idx] = {
-      ...updated[idx],
-      distribucion: { ...updated[idx].distribucion, [firstTipoId]: { ...prev, derecha: newDerecha } },
-      unidades_detalle: undefined,
-    };
+    updated[idx] = { ...updated[idx], unidades_por_piso: total, unidades_detalle: undefined };
     setEdificios(updated);
   }
 
@@ -676,6 +666,13 @@ export default function WizardStep1({
                       );
                     })}
                   </div>
+
+                  {/* Distribution mismatch warning */}
+                  {e.unidades_por_piso != null && getDistribucionSum(e) !== e.unidades_por_piso && (
+                    <p className="mt-2 text-[11px] text-amber-600 font-medium">
+                      La distribución suma {getDistribucionSum(e)} pero Uds/piso es {e.unidades_por_piso}. Ajusta la distribución para que coincida.
+                    </p>
+                  )}
 
                   {/* Per-floor summary */}
                   <div className="mt-2 space-y-0.5">

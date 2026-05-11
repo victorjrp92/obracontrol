@@ -32,6 +32,7 @@ export interface DistribucionSentido {
 export interface EdificioInput {
   nombre: string;
   pisos: number;
+  unidades_por_piso?: number; // user-defined, independent from distribucion sum
   distribucion: Record<string, DistribucionSentido>; // tipo.id -> { derecha, izquierda } per floor
   unidades_detalle?: Record<number, UnidadDetailInput[]>; // keyed by floor number
 }
