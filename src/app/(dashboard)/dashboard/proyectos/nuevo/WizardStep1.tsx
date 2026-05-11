@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRef } from "react";
 import {
-  ArrowRight, Check, ChevronDown, ChevronRight, Plus, Ruler, Trash2, Trees,
+  ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
 import type { TipoUnidadInput, EdificioInput, UnidadDetailInput } from "./wizard-types";
@@ -56,6 +57,7 @@ export default function WizardStep1({
   const [numericStrings, setNumericStrings] = useState<Record<string, string>>({});
   const [detalleExpandido, setDetalleExpandido] = useState<Record<number, boolean>>({});
   const [pisosExpandidos, setPisosExpandidos] = useState<Record<string, boolean>>({});
+  const excelInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // --- Tipo management ---
   function addTipoUnidad() {
@@ -267,6 +269,105 @@ export default function WizardStep1({
       if (total > 0) parts.push(`${total} ${tipo.nombre} (${dist.derecha}D/${dist.izquierda}I)`);
     }
     return `Piso ${piso}: ${parts.join(", ") || "sin unidades"}`;
+  }
+
+  function getUnidadesPorPiso(e: EdificioInput): number {
+    return Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+  }
+
+  function updateUnidadesPorPiso(idx: number, total: number) {
+    const e = edificios[idx];
+    const current = getUnidadesPorPiso(e);
+    const delta = total - current;
+    if (delta === 0) return;
+
+    const firstTipoId = tiposUnidad[0]?.id;
+    if (!firstTipoId) return;
+
+    const updated = [...edificios];
+    const prev = updated[idx].distribucion[firstTipoId] ?? { derecha: 0, izquierda: 0 };
+    const newDerecha = Math.max(0, prev.derecha + delta);
+    updated[idx] = {
+      ...updated[idx],
+      distribucion: { ...updated[idx].distribucion, [firstTipoId]: { ...prev, derecha: newDerecha } },
+      unidades_detalle: undefined,
+    };
+    setEdificios(updated);
+  }
+
+  async function downloadDetalleExcel(idx: number) {
+    const e = edificios[idx];
+    const detalle = e.unidades_detalle ?? generateUnidadesDetalle(e);
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Detalle " + e.nombre);
+
+    ws.columns = [
+      { header: "Piso", key: "piso", width: 8 },
+      { header: "Apto", key: "apto", width: 12 },
+      { header: "Tipo", key: "tipo", width: 20 },
+      { header: "Sentido", key: "sentido", width: 14 },
+    ];
+    ws.getRow(1).font = { bold: true };
+
+    for (let p = 1; p <= e.pisos; p++) {
+      const units = detalle[p] ?? [];
+      for (const u of units) {
+        const tipoNombre = tiposUnidad.find((t) => t.id === u.tipo_unidad_id)?.nombre ?? u.tipo_unidad_id;
+        ws.addRow({ piso: p, apto: u.nombre, tipo: tipoNombre, sentido: u.sentido });
+      }
+    }
+
+    // Add data validation for Tipo and Sentido columns
+    const tipoNames = tiposUnidad.map((t) => t.nombre);
+    const lastRow = ws.rowCount;
+    if (lastRow > 1) {
+      for (let r = 2; r <= lastRow; r++) {
+        ws.getCell(`C${r}`).dataValidation = { type: "list", formulae: [`"${tipoNames.join(",")}"`] };
+        ws.getCell(`D${r}`).dataValidation = { type: "list", formulae: ['"derecha,izquierda"'] };
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `detalle_${e.nombre.replace(/\s+/g, "_")}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function uploadDetalleExcel(idx: number, file: File) {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await file.arrayBuffer());
+    const ws = wb.worksheets[0];
+    if (!ws) return;
+
+    const tipoNameToId: Record<string, string> = {};
+    for (const t of tiposUnidad) tipoNameToId[t.nombre.toLowerCase()] = t.id;
+
+    const result: Record<number, UnidadDetailInput[]> = {};
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return;
+      const piso = Number(row.getCell(1).value) || 0;
+      const apto = String(row.getCell(2).value ?? "").trim();
+      const tipoRaw = String(row.getCell(3).value ?? "").trim();
+      const sentidoRaw = String(row.getCell(4).value ?? "").trim().toLowerCase();
+      if (!piso || !apto) return;
+
+      const tipoId = tipoNameToId[tipoRaw.toLowerCase()] ?? tiposUnidad[0]?.id ?? "";
+      const sentido: "derecha" | "izquierda" = sentidoRaw === "izquierda" ? "izquierda" : "derecha";
+
+      if (!result[piso]) result[piso] = [];
+      result[piso].push({ nombre: apto, tipo_unidad_id: tipoId, sentido });
+    });
+
+    const updated = [...edificios];
+    updated[idx] = { ...updated[idx], unidades_detalle: result };
+    setEdificios(updated);
+    setDetalleExpandido((prev) => ({ ...prev, [idx]: true }));
   }
 
   return (
@@ -524,6 +625,17 @@ export default function WizardStep1({
                         className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                       />
                     </div>
+                    <div className="w-28">
+                      <label className="text-xs text-slate-500 mb-1 block">Uds/piso</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={getNumericDisplay(`e${idx}:upiso`, getUnidadesPorPiso(e))}
+                        onChange={(ev) => handleNumericChange(`e${idx}:upiso`, ev.target.value, (n) => updateUnidadesPorPiso(idx, Math.max(1, n)))}
+                        onBlur={() => handleNumericBlur(`e${idx}:upiso`, getUnidadesPorPiso(e))}
+                        className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                      />
+                    </div>
                     {edificios.length > 1 && (
                       <button
                         onClick={() => removeEdificio(idx)}
@@ -581,18 +693,47 @@ export default function WizardStep1({
 
                   {/* Expandable detail section */}
                   <div className="mt-3 border-t border-slate-200 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleDetalleEdificio(idx)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                    >
-                      {detalleExpandido[idx] ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      )}
-                      Ver detalle por piso
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleDetalleEdificio(idx)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        {detalleExpandido[idx] ? (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        )}
+                        Ver detalle por piso
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadDetalleExcel(idx)}
+                        className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        Descargar Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => excelInputRefs.current[idx]?.click()}
+                        className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <Upload className="w-3 h-3" />
+                        Subir Excel
+                      </button>
+                      <input
+                        ref={(el) => { excelInputRefs.current[idx] = el; }}
+                        type="file"
+                        accept=".xlsx"
+                        className="hidden"
+                        onChange={(ev) => {
+                          const file = ev.target.files?.[0];
+                          if (file) uploadDetalleExcel(idx, file);
+                          ev.target.value = "";
+                        }}
+                      />
+                    </div>
 
                     {detalleExpandido[idx] && e.unidades_detalle && (
                       <div className="mt-2 space-y-1">
