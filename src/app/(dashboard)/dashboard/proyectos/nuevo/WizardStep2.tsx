@@ -392,6 +392,7 @@ export default function WizardStep2({
                     onAdd={(nuevas) => addSuggestedTareas(fase, nuevas)}
                     onClose={() => setSuggestionsOpenFase(null)}
                     tareasAprendidas={tareasAprendidas}
+                    tipoUnidadId={selectedTipoId}
                   />
                 )}
 

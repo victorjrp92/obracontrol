@@ -17,6 +17,7 @@ interface SuggestedTasksPanelProps {
   onAdd: (tareas: Omit<TareaInput, "id">[]) => void;
   onClose: () => void;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
+  tipoUnidadId?: string;
 }
 
 export default function SuggestedTasksPanel({
@@ -26,6 +27,7 @@ export default function SuggestedTasksPanel({
   onAdd,
   onClose,
   tareasAprendidas,
+  tipoUnidadId,
 }: SuggestedTasksPanelProps) {
   // Build grouped suggestions merging static templates + learned tasks
   const grouped = useMemo(() => {
@@ -61,6 +63,7 @@ export default function SuggestedTasksPanel({
       const key = `${s.espacio}::${s.nombre}`;
       const alreadyExists = existingTareas.some(
         (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
+          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
       );
       if (!alreadyExists) {
         keys.add(key);
@@ -111,6 +114,7 @@ export default function SuggestedTasksPanel({
       // Skip duplicates
       const alreadyExists = existingTareas.some(
         (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
+          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
       );
       if (alreadyExists) continue;
       tareasToAdd.push({
@@ -184,6 +188,7 @@ export default function SuggestedTasksPanel({
                   const isSelected = selected.has(key);
                   const isDuplicate = existingTareas.some(
                     (ex) => ex.fase === fase && ex.espacio === t.espacio && ex.nombre === t.nombre
+                      && (!tipoUnidadId || ex.tipo_unidad_id === tipoUnidadId)
                   );
                   return (
                     <label
