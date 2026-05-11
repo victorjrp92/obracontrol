@@ -192,14 +192,16 @@ export default function WizardStep2({
   }
 
   async function handleExcelDownload() {
-    await generateTemplate(fasesSeleccionadas, allEspacios);
+    const tipoNames = tiposUnidad?.map((t) => t.nombre);
+    await generateTemplate(fasesSeleccionadas, allEspacios, tipoNames);
   }
 
   async function handleExcelUpload(file: File) {
     setUploading(true);
     setExcelErrors([]);
 
-    const result = await parseTemplate(file, fasesSeleccionadas, allEspacios);
+    const tipoMap = tiposUnidad?.map((t) => ({ id: t.id, nombre: t.nombre }));
+    const result = await parseTemplate(file, fasesSeleccionadas, allEspacios, tipoMap);
 
     if (result.errores.length > 0) {
       setExcelErrors(result.errores);
