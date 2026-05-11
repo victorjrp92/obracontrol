@@ -272,7 +272,7 @@ export default function WizardStep1({
   }
 
   function getUnidadesPorPiso(e: EdificioInput): number {
-    return e.unidades_por_piso ?? Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+    return e.unidades_por_piso ?? 0;
   }
 
   function getDistribucionSum(e: EdificioInput): number {

@@ -35,7 +35,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
   const [edificios, setEdificios] = useState<EdificioInput[]>(initialData?.edificios ?? [
-    { nombre: "Torre 1", pisos: 5, distribucion: { "t1": { derecha: 2, izquierda: 2 } } },
+    { nombre: "Torre 1", pisos: 5, unidades_por_piso: 4, distribucion: { "t1": { derecha: 2, izquierda: 2 } } },
   ]);
   const [tieneZonasComunes, setTieneZonasComunes] = useState(initialData?.tieneZonasComunes ?? false);
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>(initialData?.zonasSeleccionadas ?? []);
@@ -54,7 +54,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
-    const perFloor = e.unidades_por_piso ?? Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+    const perFloor = e.unidades_por_piso ?? 0;
     return acc + e.pisos * perFloor;
   }, 0);
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"
