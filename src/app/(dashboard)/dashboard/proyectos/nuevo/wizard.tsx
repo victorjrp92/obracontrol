@@ -35,7 +35,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
   const [edificios, setEdificios] = useState<EdificioInput[]>(initialData?.edificios ?? [
-    { nombre: "Torre 1", pisos: 5, unidades_por_piso: 4, distribucion: { "t1": { derecha: 2, izquierda: 2 } } },
+    { nombre: "Torre 1", pisos: 5, unidades_por_piso: 4, distribucion: { "t1": { derecha: 10, izquierda: 10 } } },
   ]);
   const [tieneZonasComunes, setTieneZonasComunes] = useState(initialData?.tieneZonasComunes ?? false);
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>(initialData?.zonasSeleccionadas ?? []);
@@ -66,7 +66,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
-        && edificios.every((e) => e.nombre && e.pisos > 0 && Object.values(e.distribucion).some((d) => d.derecha + d.izquierda > 0))
+        && edificios.every((e) => e.nombre && e.pisos > 0 && (e.unidades_por_piso ?? 0) > 0 && Object.values(e.distribucion).some((d) => d.derecha + d.izquierda > 0))
         && tiposUnidad.every((t) => t.espacios.length > 0)
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
@@ -112,6 +112,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       edificios: esZonasComunes ? [] : edificios.map((e) => ({
         nombre: e.nombre,
         pisos: e.pisos,
+        unidadesPorPiso: e.unidades_por_piso,
         distribucion: Object.fromEntries(
           Object.entries(e.distribucion).map(([tipoId, dist]) => {
             const tipo = tiposUnidad.find((t) => t.id === tipoId);

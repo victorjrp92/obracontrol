@@ -201,16 +201,17 @@ export async function POST(req: NextRequest) {
           }
         }
         if (ed.distribucion) {
-          const total = Object.values(ed.distribucion).reduce<number>(
+          const distTotal = Object.values(ed.distribucion).reduce<number>(
             (a, b) => {
               if (typeof b === "number") return a + b;
               return a + (b.derecha ?? 0) + (b.izquierda ?? 0);
             },
             0,
           );
-          if (total > MAX_UNIDADES_POR_PISO) {
+          const maxTotal = ed.pisos * MAX_UNIDADES_POR_PISO;
+          if (distTotal > maxTotal) {
             return NextResponse.json(
-              { error: `La distribucion por piso no puede superar ${MAX_UNIDADES_POR_PISO} unidades` },
+              { error: `La distribución total (${distTotal}) supera el máximo de ${maxTotal} unidades para ${ed.pisos} pisos` },
               { status: 400 },
             );
           }
@@ -323,34 +324,35 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Build distribution: [tipoNombre, count, sentido][]
-        type DistEntry = [string, number, string | null];
-        let distribution: DistEntry[];
+        // Build flat list of all units for the tower (distribution = torre totals)
+        type UnitSpec = { tipoNombre: string; sentido: string | null };
+        const allTowerUnits: UnitSpec[] = [];
         if (edificioInput.distribucion) {
-          distribution = [];
           for (const [tipoNombre, val] of Object.entries(edificioInput.distribucion)) {
             if (typeof val === "number") {
-              distribution.push([tipoNombre, val, null]);
+              for (let i = 0; i < val; i++) allTowerUnits.push({ tipoNombre, sentido: null });
             } else {
-              if (val.derecha > 0) distribution.push([tipoNombre, val.derecha, "derecha"]);
-              if (val.izquierda > 0) distribution.push([tipoNombre, val.izquierda, "izquierda"]);
+              for (let i = 0; i < (val.derecha ?? 0); i++) allTowerUnits.push({ tipoNombre, sentido: "derecha" });
+              for (let i = 0; i < (val.izquierda ?? 0); i++) allTowerUnits.push({ tipoNombre, sentido: "izquierda" });
             }
           }
         } else {
           const firstTipo = Object.keys(tipoMap)[0];
-          distribution = [[firstTipo, edificioInput.unidadesPorPiso ?? 4, null]];
+          const total = (edificioInput.unidadesPorPiso ?? 4) * edificioInput.pisos;
+          for (let i = 0; i < total; i++) allTowerUnits.push({ tipoNombre: firstTipo, sentido: null });
         }
+
+        const udsPerFloor = edificioInput.unidadesPorPiso ?? (allTowerUnits.length > 0 ? Math.ceil(allTowerUnits.length / edificioInput.pisos) : 4);
+        let unitIdx = 0;
 
         for (let p = 1; p <= edificioInput.pisos; p++) {
           const piso = await tx.piso.create({
             data: { edificio_id: edificio.id, numero: p },
           });
 
-          // Check for custom unit detail for this floor
           const customUnits = edificioInput.unidades_detalle?.[String(p)];
 
           if (customUnits && customUnits.length > 0) {
-            // Use custom unit details
             for (const cu of customUnits) {
               const tipoInfo = tipoMap[cu.tipo_unidad];
               if (!tipoInfo) continue;
@@ -367,25 +369,22 @@ export async function POST(req: NextRequest) {
               await createEspaciosYTareas(tx, unidad.id, tipoInfo, cu.tipo_unidad);
             }
           } else {
-            // Auto-generate from distribution
-            let unitCounter = 1;
-            for (const [tipoNombre, count, sentido] of distribution) {
-              const tipoInfo = tipoMap[tipoNombre];
-              if (!tipoInfo || count <= 0) continue;
-
-              for (let u = 0; u < count; u++) {
-                const unidad = await tx.unidad.create({
-                  data: {
-                    piso_id: piso.id,
-                    nombre: `${p}0${unitCounter}`,
-                    tipo_unidad_id: tipoInfo.id,
-                    sentido,
-                    ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
-                  },
-                });
-                unitCounter++;
-                await createEspaciosYTareas(tx, unidad.id, tipoInfo, tipoNombre);
-              }
+            for (let slot = 0; slot < udsPerFloor; slot++) {
+              const spec = allTowerUnits[unitIdx];
+              if (!spec) break;
+              const tipoInfo = tipoMap[spec.tipoNombre];
+              if (!tipoInfo) { unitIdx++; continue; }
+              const unidad = await tx.unidad.create({
+                data: {
+                  piso_id: piso.id,
+                  nombre: `${p}0${slot + 1}`,
+                  tipo_unidad_id: tipoInfo.id,
+                  sentido: spec.sentido,
+                  ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
+                },
+              });
+              unitIdx++;
+              await createEspaciosYTareas(tx, unidad.id, tipoInfo, spec.tipoNombre);
             }
           }
         }

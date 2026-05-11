@@ -133,10 +133,14 @@ export default function WizardStep1({
 
   // --- Edificio management ---
   function addEdificio() {
+    const defaultPisos = 5;
+    const defaultUpiso = 4;
+    const totalUnits = defaultPisos * defaultUpiso;
+    const perTipo = tiposUnidad.length > 0 ? Math.floor(totalUnits / tiposUnidad.length) : 0;
+    const half = Math.floor(perTipo / 2);
     const dist: Record<string, import("./wizard-types").DistribucionSentido> = {};
-    tiposUnidad.forEach((t) => { dist[t.id] = { derecha: 1, izquierda: 1 }; });
-    const defaultUpiso = tiposUnidad.length * 2;
-    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: 5, unidades_por_piso: defaultUpiso, distribucion: dist }]);
+    tiposUnidad.forEach((t) => { dist[t.id] = { derecha: half, izquierda: perTipo - half }; });
+    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: defaultPisos, unidades_por_piso: defaultUpiso, distribucion: dist }]);
   }
 
   function removeEdificio(idx: number) {
@@ -184,7 +188,7 @@ export default function WizardStep1({
 
   function updateEdificioPisos(idx: number, pisos: number) {
     const next = [...edificios];
-    next[idx] = { ...next[idx], pisos };
+    next[idx] = { ...next[idx], pisos, unidades_detalle: undefined };
     setEdificios(next);
   }
 
@@ -216,20 +220,29 @@ export default function WizardStep1({
   }, 0);
 
   function generateUnidadesDetalle(e: EdificioInput): Record<number, UnidadDetailInput[]> {
+    const udsPerFloor = e.unidades_por_piso ?? 0;
+    if (udsPerFloor === 0 || e.pisos === 0) return {};
+
+    // Build a flat list of all units for the tower from the distribution (torre totals)
+    const allUnits: { tipo_unidad_id: string; sentido: "derecha" | "izquierda" }[] = [];
+    for (const tipo of tiposUnidad) {
+      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+      for (let i = 0; i < dist.derecha; i++) allUnits.push({ tipo_unidad_id: tipo.id, sentido: "derecha" });
+      for (let i = 0; i < dist.izquierda; i++) allUnits.push({ tipo_unidad_id: tipo.id, sentido: "izquierda" });
+    }
+
     const result: Record<number, UnidadDetailInput[]> = {};
+    let unitIdx = 0;
     for (let piso = 1; piso <= e.pisos; piso++) {
       const units: UnidadDetailInput[] = [];
-      let counter = 1;
-      for (const tipo of tiposUnidad) {
-        const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
-        for (let i = 0; i < dist.derecha; i++) {
-          units.push({ nombre: `${piso}0${counter}`, tipo_unidad_id: tipo.id, sentido: "derecha" });
-          counter++;
-        }
-        for (let i = 0; i < dist.izquierda; i++) {
-          units.push({ nombre: `${piso}0${counter}`, tipo_unidad_id: tipo.id, sentido: "izquierda" });
-          counter++;
-        }
+      for (let slot = 0; slot < udsPerFloor; slot++) {
+        const src = allUnits[unitIdx];
+        units.push({
+          nombre: `${piso}0${slot + 1}`,
+          tipo_unidad_id: src?.tipo_unidad_id ?? tiposUnidad[0]?.id ?? "",
+          sentido: src?.sentido ?? "derecha",
+        });
+        unitIdx++;
       }
       result[piso] = units;
     }
@@ -262,11 +275,18 @@ export default function WizardStep1({
   }
 
   function buildFloorSummary(e: EdificioInput, piso: number): string {
+    const detalle = e.unidades_detalle ?? generateUnidadesDetalle(e);
+    const units = detalle[piso] ?? [];
+    const counts: Record<string, { d: number; i: number }> = {};
+    for (const u of units) {
+      if (!counts[u.tipo_unidad_id]) counts[u.tipo_unidad_id] = { d: 0, i: 0 };
+      if (u.sentido === "derecha") counts[u.tipo_unidad_id].d++;
+      else counts[u.tipo_unidad_id].i++;
+    }
     const parts: string[] = [];
     for (const tipo of tiposUnidad) {
-      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
-      const total = dist.derecha + dist.izquierda;
-      if (total > 0) parts.push(`${total} ${tipo.nombre} (${dist.derecha}D/${dist.izquierda}I)`);
+      const c = counts[tipo.id];
+      if (c && (c.d + c.i) > 0) parts.push(`${c.d + c.i} ${tipo.nombre} (${c.d}D/${c.i}I)`);
     }
     return `Piso ${piso}: ${parts.join(", ") || "sin unidades"}`;
   }
@@ -661,16 +681,16 @@ export default function WizardStep1({
                             onBlur={() => handleNumericBlur(keyI, dist.izquierda)}
                             className="w-12 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                           />
-                          <span className="text-[11px] text-slate-400">/piso</span>
+                          <span className="text-[11px] text-slate-400">total</span>
                         </div>
                       );
                     })}
                   </div>
 
                   {/* Distribution mismatch warning */}
-                  {e.unidades_por_piso != null && getDistribucionSum(e) !== e.unidades_por_piso && (
+                  {e.unidades_por_piso != null && e.unidades_por_piso > 0 && getDistribucionSum(e) !== e.pisos * e.unidades_por_piso && (
                     <p className="mt-2 text-[11px] text-amber-600 font-medium">
-                      La distribución suma {getDistribucionSum(e)} pero Uds/piso es {e.unidades_por_piso}. Ajusta la distribución para que coincida.
+                      La distribución suma {getDistribucionSum(e)} unidades pero el total de la torre es {e.pisos * e.unidades_por_piso} ({e.pisos} pisos × {e.unidades_por_piso} uds/piso). Ajusta para que coincida.
                     </p>
                   )}
 
@@ -817,7 +837,7 @@ export default function WizardStep1({
                 <> ({tiposUnidad.map((t) => {
                   const count = edificios.reduce((acc, e) => {
                     const d = e.distribucion[t.id] ?? { derecha: 0, izquierda: 0 };
-                    return acc + e.pisos * (d.derecha + d.izquierda);
+                    return acc + d.derecha + d.izquierda;
                   }, 0);
                   return `${count} ${t.nombre}`;
                 }).join(", ")})</>
