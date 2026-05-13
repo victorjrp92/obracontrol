@@ -8,10 +8,8 @@
  *     para mantener la trazabilidad sin errores tipográficos.
  */
 
-const PROYECTO_PATTERN = /^[A-Z0-9][A-Z0-9\-_/]{1,39}$/;
-
 export function normalizarNumeroProyecto(input: string): string {
-  return input.trim().toUpperCase().replace(/\s+/g, "-");
+  return input.trim();
 }
 
 export interface NumeroValidationResult {
@@ -25,10 +23,10 @@ export function validarNumeroProyecto(input: string | undefined | null): NumeroV
     return { ok: false, error: "El número de registro del proyecto es obligatorio" };
   }
   const normalizado = normalizarNumeroProyecto(input);
-  if (!PROYECTO_PATTERN.test(normalizado)) {
+  if (normalizado.length > 40) {
     return {
       ok: false,
-      error: "Solo letras, números y los símbolos - _ /. Mínimo 2 y máximo 40 caracteres.",
+      error: "Máximo 40 caracteres.",
     };
   }
   return { ok: true, normalizado };

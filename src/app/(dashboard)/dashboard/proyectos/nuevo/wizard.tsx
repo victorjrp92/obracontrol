@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData } from "./wizard-types";
+import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput } from "./wizard-types";
+import type { TaskTemplate } from "@/lib/task-templates";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
 import WizardStep3 from "./WizardStep3";
 
-export default function WizardClient({ contratistas, initialData }: { contratistas: Contratista[]; initialData?: EditModeData }) {
+export default function WizardClient({ contratistas, initialData, tareasAprendidas }: { contratistas: Contratista[]; initialData?: EditModeData; tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>> }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -35,7 +36,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
     { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
   const [edificios, setEdificios] = useState<EdificioInput[]>(initialData?.edificios ?? [
-    { nombre: "Torre 1", pisos: 5, distribucion: { "t1": 4 } },
+    { nombre: "Torre 1", pisos: 5, unidades_por_piso: 4, distribucion: { "t1": { derecha: 10, izquierda: 10 } } },
   ]);
   const [tieneZonasComunes, setTieneZonasComunes] = useState(initialData?.tieneZonasComunes ?? false);
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>(initialData?.zonasSeleccionadas ?? []);
@@ -48,9 +49,13 @@ export default function WizardClient({ contratistas, initialData }: { contratist
   const [tareas, setTareas] = useState<TareaInput[]>(initialData?.tareas ?? []);
   const [faseDias, setFaseDias] = useState<Record<string, number | undefined>>(initialData?.faseDias ?? {});
 
+  // Step 3 state
+  const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
+  const [asignacionesSubfase, setAsignacionesSubfase] = useState<Record<string, Record<string, Record<string, string | null>>>>({});
+
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, n) => s + n, 0);
+    const perFloor = e.unidades_por_piso ?? 0;
     return acc + e.pisos * perFloor;
   }, 0);
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"
@@ -62,7 +67,7 @@ export default function WizardClient({ contratistas, initialData }: { contratist
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
-        && edificios.every((e) => e.nombre && e.pisos > 0 && Object.values(e.distribucion).some((n) => n > 0))
+        && edificios.every((e) => e.nombre && e.pisos > 0 && (e.unidades_por_piso ?? 0) > 0 && Object.values(e.distribucion).some((d) => d.derecha + d.izquierda > 0))
         && tiposUnidad.every((t) => t.espacios.length > 0)
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
@@ -109,12 +114,26 @@ export default function WizardClient({ contratistas, initialData }: { contratist
       edificios: esZonasComunes ? [] : edificios.map((e) => ({
         nombre: e.nombre,
         pisos: e.pisos,
+        unidadesPorPiso: e.unidades_por_piso,
         distribucion: Object.fromEntries(
-          Object.entries(e.distribucion).map(([tipoId, count]) => {
+          Object.entries(e.distribucion).map(([tipoId, dist]) => {
             const tipo = tiposUnidad.find((t) => t.id === tipoId);
-            return [tipo?.nombre ?? tipoId, count];
+            return [tipo?.nombre ?? tipoId, dist];
           })
         ),
+        ...(e.unidades_detalle ? {
+          unidades_detalle: Object.fromEntries(
+            Object.entries(e.unidades_detalle).map(([piso, units]) => [
+              piso,
+              units.map((u) => ({
+                nombre: u.nombre,
+                tipo_unidad: tiposUnidad.find((t) => t.id === u.tipo_unidad_id)?.nombre ?? u.tipo_unidad_id,
+                sentido: u.sentido,
+                nombre_personalizado: u.nombre_personalizado,
+              })),
+            ])
+          ),
+        } : {}),
       })),
       espacios: allEspacios,
       fases: fasesSeleccionadas.map((f) => ({
@@ -125,6 +144,10 @@ export default function WizardClient({ contratistas, initialData }: { contratist
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
       ...(metrosEnabled && Object.keys(metrosZonas).length > 0
         ? { zonas_comunes_metrajes: metrosZonas } : {}),
+      personas: personas
+        .filter((p) => p.nombre.trim())
+        .map(({ id: _id, ...rest }) => rest),
+      asignaciones_subfase: asignacionesSubfase,
     };
 
     try {
@@ -225,6 +248,8 @@ export default function WizardClient({ contratistas, initialData }: { contratist
           canProceed={canProceed2}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}
+          tareasAprendidas={tareasAprendidas}
+          tiposUnidad={tiposUnidad}
         />
       )}
 
@@ -242,6 +267,10 @@ export default function WizardClient({ contratistas, initialData }: { contratist
           totalTareasGlobal={totalTareasGlobal}
           loading={loading}
           isEditMode={isEditMode}
+          personas={personas}
+          setPersonas={setPersonas}
+          asignacionesSubfase={asignacionesSubfase}
+          setAsignacionesSubfase={setAsignacionesSubfase}
           onBack={() => setStep(2)}
           onSubmit={handleSubmit}
         />

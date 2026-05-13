@@ -1,18 +1,7 @@
 import type { NextConfig } from "next";
 import path from "node:path";
-import withSerwistInit from "@serwist/next";
-
-const withSerwist = withSerwistInit({
-  swSrc: "src/app/sw.ts",
-  swDest: "public/sw.js",
-  cacheOnNavigation: true,
-  reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
-});
 
 const nextConfig: NextConfig = {
-  // Anclar el root al directorio del proyecto para que Turbopack
-  // resuelva node_modules locales (tailwindcss, etc.) correctamente.
   turbopack: {
     root: path.resolve(__dirname),
   },
@@ -34,4 +23,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+// Serwist PWA wrapper — solo en production build (incompatible con Turbopack en dev)
+if (process.env.NODE_ENV === "production") {
+  const withSerwistInit = require("@serwist/next").default;
+  const withSerwist = withSerwistInit({
+    swSrc: "src/app/sw.ts",
+    swDest: "public/sw.js",
+    cacheOnNavigation: true,
+    reloadOnOnline: true,
+  });
+  module.exports = withSerwist(nextConfig);
+} else {
+  module.exports = nextConfig;
+}

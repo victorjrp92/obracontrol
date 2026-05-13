@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { isGeneralAdmin } from "@/lib/access";
 import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
+import { aprenderTareas } from "@/lib/learning";
 
 interface WizardPayload {
   // Paso 1
@@ -26,13 +27,15 @@ interface WizardPayload {
     nombre: string;
     pisos: number;
     unidadesPorPiso?: number; // legacy
-    distribucion?: Record<string, number>; // tipo nombre -> count per floor
+    distribucion?: Record<string, number | { derecha: number; izquierda: number }>;
+    unidades_detalle?: Record<string, { nombre: string; tipo_unidad: string; sentido: string; nombre_personalizado?: string }[]>;
   }[];
   // Paso 3 — espacios y tareas
-  espacios: string[]; // espacios que tendrá cada unidad (union of all tipos)
-  fases: (string | { nombre: string; tiempo_estimado_dias?: number })[]; // backward-compatible
+  espacios: string[];
+  fases: (string | { nombre: string; tiempo_estimado_dias?: number })[];
   tareas: {
     fase: string;
+    subfase?: string;
     espacio: string;
     nombre: string;
     tiempo_acordado_dias: number;
@@ -40,10 +43,17 @@ interface WizardPayload {
     codigo_referencia?: string;
     marca_linea?: string;
     componentes?: string;
-    asignado_a?: string; // usuario_id del contratista
+    asignado_a?: string;
+    tipo_unidad_id?: string;
+    tiene_estructura?: boolean;
+    tiene_nave?: boolean;
+    tiene_chapa?: boolean;
+    tiene_cartera?: boolean;
   }[];
-  zonas_comunes?: string[]; // nombres de zonas comunes seleccionadas
+  zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
+  personas?: { nombre: string; cargo: string; email: string }[];
+  asignaciones_subfase?: Record<string, Record<string, Record<string, string | null>>>;
 }
 
 export async function POST(req: NextRequest) {
@@ -150,6 +160,18 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
+      if (t.subfase && typeof t.subfase === "string" && t.subfase.length > 80) {
+        return NextResponse.json(
+          { error: `Subfase max 80 caracteres` },
+          { status: 400 },
+        );
+      }
+      if (t.precio !== undefined && typeof t.precio === "number" && t.precio < 0) {
+        return NextResponse.json(
+          { error: `La tarea "${t.nombre}" tiene precio negativo` },
+          { status: 400 },
+        );
+      }
     }
 
     // Tenant isolation: verify all `asignado_a` user IDs referenced in tareas
@@ -202,13 +224,17 @@ export async function POST(req: NextRequest) {
           }
         }
         if (ed.distribucion) {
-          const total = Object.values(ed.distribucion).reduce(
-            (a, b) => a + (typeof b === "number" ? b : 0),
+          const distTotal = Object.values(ed.distribucion).reduce<number>(
+            (a, b) => {
+              if (typeof b === "number") return a + b;
+              return a + (b.derecha ?? 0) + (b.izquierda ?? 0);
+            },
             0,
           );
-          if (total > MAX_UNIDADES_POR_PISO) {
+          const maxTotal = ed.pisos * MAX_UNIDADES_POR_PISO;
+          if (distTotal > maxTotal) {
             return NextResponse.json(
-              { error: `La distribucion por piso no puede superar ${MAX_UNIDADES_POR_PISO} unidades` },
+              { error: `La distribución total (${distTotal}) supera el máximo de ${maxTotal} unidades para ${ed.pisos} pisos` },
               { status: 400 },
             );
           }
@@ -322,65 +348,118 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Build distribution: tipo name -> count per floor
-        let distribution: [string, number][];
+        // Build flat list of all units for the tower (distribution = torre totals)
+        type UnitSpec = { tipoNombre: string; sentido: string | null };
+        const allTowerUnits: UnitSpec[] = [];
         if (edificioInput.distribucion) {
-          distribution = Object.entries(edificioInput.distribucion);
+          for (const [tipoNombre, val] of Object.entries(edificioInput.distribucion)) {
+            if (typeof val === "number") {
+              for (let i = 0; i < val; i++) allTowerUnits.push({ tipoNombre, sentido: null });
+            } else {
+              for (let i = 0; i < (val.derecha ?? 0); i++) allTowerUnits.push({ tipoNombre, sentido: "derecha" });
+              for (let i = 0; i < (val.izquierda ?? 0); i++) allTowerUnits.push({ tipoNombre, sentido: "izquierda" });
+            }
+          }
         } else {
-          // Legacy: all units are the first type
           const firstTipo = Object.keys(tipoMap)[0];
-          distribution = [[firstTipo, edificioInput.unidadesPorPiso ?? 4]];
+          const total = (edificioInput.unidadesPorPiso ?? 4) * edificioInput.pisos;
+          for (let i = 0; i < total; i++) allTowerUnits.push({ tipoNombre: firstTipo, sentido: null });
         }
+
+        const udsPerFloor = edificioInput.unidadesPorPiso ?? (allTowerUnits.length > 0 ? Math.ceil(allTowerUnits.length / edificioInput.pisos) : 4);
+        let unitIdx = 0;
 
         for (let p = 1; p <= edificioInput.pisos; p++) {
           const piso = await tx.piso.create({
             data: { edificio_id: edificio.id, numero: p },
           });
 
-          let unitCounter = 1;
-          for (const [tipoNombre, count] of distribution) {
-            const tipoInfo = tipoMap[tipoNombre];
-            if (!tipoInfo || count <= 0) continue;
+          const customUnits = edificioInput.unidades_detalle?.[String(p)];
 
-            for (let u = 0; u < count; u++) {
+          if (customUnits && customUnits.length > 0) {
+            for (const cu of customUnits) {
+              const tipoInfo = tipoMap[cu.tipo_unidad];
+              if (!tipoInfo) continue;
               const unidad = await tx.unidad.create({
                 data: {
                   piso_id: piso.id,
-                  nombre: `${p}0${unitCounter}`,
+                  nombre: cu.nombre,
                   tipo_unidad_id: tipoInfo.id,
+                  sentido: cu.sentido || null,
+                  nombre_personalizado: cu.nombre_personalizado || null,
                   ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
                 },
               });
-              unitCounter++;
+              await createEspaciosYTareas(tx, unidad.id, tipoInfo, cu.tipo_unidad);
+            }
+          } else {
+            for (let slot = 0; slot < udsPerFloor; slot++) {
+              const spec = allTowerUnits[unitIdx];
+              if (!spec) break;
+              const tipoInfo = tipoMap[spec.tipoNombre];
+              if (!tipoInfo) { unitIdx++; continue; }
+              const unidad = await tx.unidad.create({
+                data: {
+                  piso_id: piso.id,
+                  nombre: `${p}0${slot + 1}`,
+                  tipo_unidad_id: tipoInfo.id,
+                  sentido: spec.sentido,
+                  ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
+                },
+              });
+              unitIdx++;
+              await createEspaciosYTareas(tx, unidad.id, tipoInfo, spec.tipoNombre);
+            }
+          }
+        }
 
-              // Only create spaces that belong to this unit's type
-              for (const nombreEspacio of tipoInfo.espacios) {
-                const espacioMetraje = tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
-                const espacio = await tx.espacio.create({
-                  data: { unidad_id: unidad.id, nombre: nombreEspacio, metraje: espacioMetraje },
+        // Helper: create espacios and tareas for a unit
+        async function createEspaciosYTareas(
+          tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+          unidadId: string,
+          tipoInfo: { id: string; espacios: string[]; metrajes_espacios?: Record<string, number> },
+          tipoNombre: string,
+        ) {
+          for (const nombreEspacio of tipoInfo.espacios) {
+            const espacioMetraje = tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
+            const espacio = await tx.espacio.create({
+              data: { unidad_id: unidadId, nombre: nombreEspacio, metraje: espacioMetraje },
+            });
+
+            // Filter tasks: for Madera tasks with tipo_unidad_id, only apply if matching
+            const tareasDelEspacio = (body.tareas ?? []).filter((t) => {
+              if (t.espacio !== nombreEspacio) return false;
+              if (t.tipo_unidad_id && t.tipo_unidad_id !== tipoNombre) return false;
+              return true;
+            });
+
+            for (const t of tareasDelEspacio) {
+              const isMadera = t.fase === "Madera";
+              const subfases = isMadera ? ["Instalación", "Detallado y lustro"] : [t.subfase ?? null];
+
+              for (const subfase of subfases) {
+                const dias = calcDias(t.tiempo_acordado_dias, t.fase);
+                tareaSeq++;
+                await tx.tarea.create({
+                  data: {
+                    espacio_id: espacio.id,
+                    fase_id: fasesCreadas[t.fase],
+                    numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
+                    nombre: t.nombre,
+                    subfase: subfase,
+                    tiempo_acordado_dias: dias,
+                    codigo_referencia: t.codigo_referencia ?? null,
+                    marca_linea: t.marca_linea ?? null,
+                    componentes: t.componentes ?? null,
+                    asignado_a: t.asignado_a ?? contratistaDefault!.id,
+                    precio: t.precio ?? null,
+                    tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
+                    tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
+                    tiene_chapa: t.tiene_chapa ?? false,
+                    tiene_cartera: t.tiene_cartera ?? false,
+                    estado: "PENDIENTE",
+                  },
                 });
-
-                // Create tasks for this space
-                const tareasDelEspacio = (body.tareas ?? []).filter((t) => t.espacio === nombreEspacio);
-                for (const t of tareasDelEspacio) {
-                  const dias = calcDias(t.tiempo_acordado_dias, t.fase);
-                  tareaSeq++;
-                  await tx.tarea.create({
-                    data: {
-                      espacio_id: espacio.id,
-                      fase_id: fasesCreadas[t.fase],
-                      numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
-                      nombre: t.nombre,
-                      tiempo_acordado_dias: dias,
-                      precio: typeof t.precio === "number" && t.precio >= 0 ? t.precio : null,
-                      codigo_referencia: t.codigo_referencia ?? null,
-                      marca_linea: t.marca_linea ?? null,
-                      componentes: t.componentes ?? null,
-                      asignado_a: t.asignado_a ?? contratistaDefault.id,
-                      estado: "PENDIENTE",
-                    },
-                  });
-                }
               }
             }
           }
@@ -455,6 +534,31 @@ export async function POST(req: NextRequest) {
 
       return proyecto;
     }, { timeout: 60000 });
+
+    // Create linked personas (fire-and-forget, non-critical)
+    if (body.personas && body.personas.length > 0) {
+      const personasData = body.personas
+        .filter((p) => p.nombre.trim().length > 0)
+        .slice(0, 20)
+        .map((p) => ({
+          proyecto_id: proyectoCreado.id,
+          nombre: p.nombre.trim().slice(0, 100),
+          cargo: p.cargo.trim().slice(0, 100),
+          email: p.email?.trim().slice(0, 200) || null,
+        }));
+      if (personasData.length > 0) {
+        prisma.personaExternaProyecto.createMany({ data: personasData }).catch((err) =>
+          console.error("Personas creation failed (non-blocking):", err),
+        );
+      }
+    }
+
+    // Learn tasks for this constructora (fire-and-forget, don't block response)
+    if (body.tareas && body.tareas.length > 0) {
+      aprenderTareas(currentUser.constructora_id, body.tareas).catch((err) =>
+        console.error("Learning failed (non-blocking):", err),
+      );
+    }
 
     return NextResponse.json(proyectoCreado, { status: 201 });
   } catch (error) {

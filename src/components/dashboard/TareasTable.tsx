@@ -1,9 +1,13 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, AlertTriangle, XCircle } from "lucide-react";
 
 type TaskStatus = "PENDIENTE" | "REPORTADA" | "APROBADA" | "NO_APROBADA";
+
+const formatCOP = (value: number) =>
+  new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(value);
 
 interface TareaRow {
   id: string;
@@ -11,13 +15,20 @@ interface TareaRow {
   nombre: string;
   contratista: string | null;
   diasEstimados: number;
+  precio?: number | null;
   plazo: number;
   estado: TaskStatus;
   faseNombre: string;
   faseOrden: number;
+  subfase?: string | null;
 }
 
 interface TareasTableProps {
+  tareas: TareaRow[];
+}
+
+interface SubfaseGroup {
+  subfase: string | null;
   tareas: TareaRow[];
 }
 
@@ -94,6 +105,22 @@ function groupByPhase(tareas: TareaRow[]) {
   return groups;
 }
 
+/** Sub-group tareas within a phase by subfase, preserving insertion order */
+function groupBySubfase(tareas: TareaRow[]): SubfaseGroup[] {
+  const groups: SubfaseGroup[] = [];
+  const seen = new Map<string | null, number>();
+  for (const t of tareas) {
+    const key = t.subfase ?? null;
+    if (seen.has(key)) {
+      groups[seen.get(key)!].tareas.push(t);
+    } else {
+      seen.set(key, groups.length);
+      groups.push({ subfase: key, tareas: [t] });
+    }
+  }
+  return groups;
+}
+
 export default function TareasTable({ tareas }: TareasTableProps) {
   const groups = groupByPhase(tareas);
 
@@ -122,6 +149,9 @@ export default function TareasTable({ tareas }: TareasTableProps) {
                 Dias est.
               </th>
               <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
+                Valor
+              </th>
+              <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
                 Plazo
               </th>
               <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
@@ -139,24 +169,38 @@ export default function TareasTable({ tareas }: TareasTableProps) {
 
       {/* ── Mobile cards (below md) ── */}
       <div className="md:hidden space-y-1">
-        {groups.map((group) => (
-          <div key={group.faseNombre}>
-            {/* Phase divider */}
-            <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
-              <span className="text-sm font-semibold text-slate-700">
-                {group.faseNombre}
-              </span>
-              <span className="ml-2 text-xs text-slate-400">
-                ({group.tareas.length} tarea{group.tareas.length !== 1 ? "s" : ""})
-              </span>
+        {groups.map((group) => {
+          const subfaseGroups = groupBySubfase(group.tareas);
+          const hasSubfases = subfaseGroups.some((sg) => sg.subfase !== null);
+
+          return (
+            <div key={group.faseNombre}>
+              {/* Phase divider */}
+              <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <span className="text-sm font-semibold text-slate-700">
+                  {group.faseNombre}
+                </span>
+                <span className="ml-2 text-xs text-slate-400">
+                  ({group.tareas.length} tarea{group.tareas.length !== 1 ? "s" : ""})
+                </span>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {subfaseGroups.map((sg) => (
+                  <div key={sg.subfase ?? "__none__"}>
+                    {hasSubfases && sg.subfase && (
+                      <div className="px-4 py-1.5 bg-slate-25 border-b border-slate-50">
+                        <span className="text-xs font-medium text-slate-600">{sg.subfase}</span>
+                      </div>
+                    )}
+                    {sg.tareas.map((t) => (
+                      <MobileCard key={t.id} tarea={t} />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-slate-50">
-              {group.tareas.map((t) => (
-                <MobileCard key={t.id} tarea={t} />
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
@@ -167,12 +211,15 @@ function PhaseGroup({
 }: {
   group: { faseNombre: string; faseOrden: number; tareas: TareaRow[] };
 }) {
+  const subfaseGroups = groupBySubfase(group.tareas);
+  const hasSubfases = subfaseGroups.some((sg) => sg.subfase !== null);
+
   return (
     <>
       {/* Phase header row */}
       <tr>
         <td
-          colSpan={5}
+          colSpan={6}
           className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 border-b border-slate-100"
         >
           {group.faseNombre}{" "}
@@ -181,40 +228,56 @@ function PhaseGroup({
           </span>
         </td>
       </tr>
-      {/* Task rows */}
-      {group.tareas.map((t) => (
-        <tr
-          key={t.id}
-          className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors"
-        >
-          <td className="px-4 py-2.5">
-            <Link
-              href={`/dashboard/tareas/${t.id}`}
-              className="block text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
+      {/* Subfase groups and task rows */}
+      {subfaseGroups.map((sg) => (
+        <Fragment key={sg.subfase ?? "__none__"}>
+          {hasSubfases && sg.subfase && (
+            <tr>
+              <td colSpan={6} className="bg-slate-50/50 px-6 py-1.5 text-xs font-medium text-slate-600 border-b border-slate-50">
+                {sg.subfase}
+              </td>
+            </tr>
+          )}
+          {sg.tareas.map((t) => (
+            <tr
+              key={t.id}
+              className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors"
             >
-              {t.numeroRegistro && (
-                <span className="block font-mono text-[10px] font-bold text-blue-700">
-                  {t.numeroRegistro}
+              <td className="px-4 py-2.5">
+                <Link
+                  href={`/dashboard/tareas/${t.id}`}
+                  className="block text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
+                >
+                  {t.numeroRegistro && (
+                    <span className="block font-mono text-[10px] font-bold text-blue-700">
+                      {t.numeroRegistro}
+                    </span>
+                  )}
+                  {t.nombre}
+                </Link>
+              </td>
+              <td className="px-4 py-2.5 text-sm text-slate-500">
+                {t.contratista ?? "—"}
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <span className="text-sm text-slate-600 tabular-nums">
+                  {t.diasEstimados} Días
                 </span>
-              )}
-              {t.nombre}
-            </Link>
-          </td>
-          <td className="px-4 py-2.5 text-sm text-slate-500">
-            {t.contratista ?? "—"}
-          </td>
-          <td className="px-4 py-2.5 text-right">
-            <span className="text-sm text-slate-600 tabular-nums">
-              {t.diasEstimados} Días
-            </span>
-          </td>
-          <td className="px-4 py-2.5 text-right">
-            <PlazoCell plazo={t.plazo} estado={t.estado} />
-          </td>
-          <td className="px-4 py-2.5 text-right">
-            <StatusBadge estado={t.estado} />
-          </td>
-        </tr>
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <span className="text-sm text-slate-600 tabular-nums">
+                  {t.precio != null && t.precio > 0 ? formatCOP(t.precio) : "—"}
+                </span>
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <PlazoCell plazo={t.plazo} estado={t.estado} />
+              </td>
+              <td className="px-4 py-2.5 text-right">
+                <StatusBadge estado={t.estado} />
+              </td>
+            </tr>
+          ))}
+        </Fragment>
       ))}
     </>
   );
@@ -239,6 +302,12 @@ function MobileCard({ tarea: t }: { tarea: TareaRow }) {
         <span className="text-slate-500">{t.contratista ?? "—"}</span>
         <span className="text-slate-400">·</span>
         <span className="text-slate-600 tabular-nums">{t.diasEstimados} Días est.</span>
+        {t.precio != null && t.precio > 0 && (
+          <>
+            <span className="text-slate-400">·</span>
+            <span className="text-emerald-600 tabular-nums">{formatCOP(t.precio)}</span>
+          </>
+        )}
         <span className="text-slate-400">·</span>
         <PlazoCell plazo={t.plazo} estado={t.estado} />
         <span className="text-slate-400">·</span>

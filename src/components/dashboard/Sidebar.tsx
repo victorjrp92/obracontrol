@@ -10,7 +10,6 @@ import {
   Building2,
   FolderOpen,
   ClipboardList,
-  Users,
   UsersRound,
   BarChart3,
   Settings,
@@ -20,8 +19,6 @@ import {
   Menu,
   X,
   Lightbulb,
-  Bell,
-  HardHat,
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
@@ -30,8 +27,6 @@ const allNavItems = [
   { key: "empresa", icon: Building2, label: "Empresa", href: "/dashboard/empresa" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
-  { key: "contratistas", icon: Users, label: "Contratistas", href: "/dashboard/contratistas" },
-  { key: "obreros", icon: HardHat, label: "Obreros", href: "/dashboard/obreros" },
   { key: "sugerencias", icon: Lightbulb, label: "Sugerencias", href: "/dashboard/sugerencias" },
   { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes" },
   { key: "usuarios", icon: UsersRound, label: "Usuarios", href: "/dashboard/usuarios" },
@@ -81,7 +76,7 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
         <Link
           href="/dashboard/perfil"
           onClick={() => setMobileOpen(false)}
-          className="px-4 py-3 border-b border-slate-800 hover:bg-slate-800/50 transition-colors block"
+          className="block px-4 py-3 border-b border-slate-800 hover:bg-slate-800 transition-colors"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">

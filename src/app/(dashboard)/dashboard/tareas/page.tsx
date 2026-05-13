@@ -118,11 +118,14 @@ export default async function TareasPage({
           <TareasTable
             tareas={tareas.map((t) => ({
               id: t.id,
+              numeroRegistro: t.numeroRegistro,
               nombre: t.nombre,
               contratista: t.contratista,
               diasEstimados: t.diasEstimados,
+              precio: t.precio,
               plazo: t.plazo,
               estado: t.estado,
+              subfase: t.subfase,
               faseNombre: t.faseNombre,
               faseOrden: t.faseOrden,
             }))}

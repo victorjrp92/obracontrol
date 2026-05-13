@@ -65,7 +65,7 @@ export default function InstallPrompt() {
         </div>
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-slate-900">
-            Instalar ObraControl
+            Instalar Seiricon
           </h3>
           <p className="mt-1 text-xs text-slate-600">
             Acceso directo desde tu celular, funciona sin conexión y sube

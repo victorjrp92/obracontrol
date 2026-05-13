@@ -1,90 +1,122 @@
 import type { TareaInput } from "./wizard-types";
 
 /**
- * Generate an .xlsx template for a specific phase.
- * ExcelJS is dynamically imported to avoid bundle bloat.
+ * Generate a single .xlsx template for ALL phases.
+ * 12 columns: Fase | Tipo unidad | Subfase | Espacio | Nombre | Días | Valor COP | Estructura | Nave | Chapa | Cartera | Marca/Línea
  */
-export async function generatePhaseTemplate(
-  fase: string,
+export async function generateTemplate(
+  fases: string[],
   espacios: string[],
+  tiposUnidad?: string[],
 ): Promise<void> {
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = "Seiricon";
 
-  // --- Sheet 1: Tareas ---
   const ws = wb.addWorksheet("Tareas");
 
   ws.columns = [
+    { header: "Fase", key: "fase", width: 18 },
+    { header: "Tipo unidad (Madera)", key: "tipo_unidad", width: 22 },
+    { header: "Subfase (opcional)", key: "subfase", width: 20 },
     { header: "Espacio", key: "espacio", width: 22 },
     { header: "Nombre de la tarea", key: "nombre", width: 35 },
-    { header: "Dias acordados", key: "dias", width: 15 },
-    { header: "Codigo referencia (opcional)", key: "codigo", width: 25 },
+    { header: "Dias acordados", key: "dias", width: 16 },
+    { header: "Valor COP (opcional)", key: "valor", width: 18 },
+    { header: "Estructura", key: "estructura", width: 12 },
+    { header: "Nave", key: "nave", width: 10 },
+    { header: "Chapa", key: "chapa", width: 10 },
+    { header: "Cartera", key: "cartera", width: 10 },
     { header: "Marca/Linea (opcional)", key: "marca", width: 20 },
-    { header: "Componentes (opcional)", key: "componentes", width: 25 },
-    { header: "Notas (opcional)", key: "notas", width: 30 },
   ];
 
-  // Style header row
   ws.getRow(1).eachCell((cell) => {
     cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
     cell.alignment = { horizontal: "center" };
   });
 
-  // 3 example rows
+  const exampleFase1 = fases[0] ?? "Madera";
+  const exampleFase2 = fases[1] ?? fases[0] ?? "Obra Blanca";
+  const exampleEsp1 = espacios[0] ?? "Cocina";
+  const exampleEsp2 = espacios[1] ?? espacios[0] ?? "Bano principal";
+  const exampleTipo = tiposUnidad?.[0] ?? "Tipo estándar";
+
   const examples = [
-    { espacio: espacios[0] ?? "Cocina", nombre: "[EJEMPLO] Instalar meson de cocina", dias: 3, codigo: "MK01", marca: "SAGANO", componentes: "estructura + cubierta", notas: "" },
-    { espacio: espacios[1] ?? "Bano principal", nombre: "[EJEMPLO] Instalar mueble lavamanos", dias: 2, codigo: "", marca: "", componentes: "", notas: "Verificar plomeria" },
-    { espacio: espacios[0] ?? "Cocina", nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, codigo: "", marca: "", componentes: "", notas: "" },
+    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp1, nombre: "[EJEMPLO] Mueble bajo cocina", dias: 3, valor: 450000, estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "SAGANO" },
+    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp2, nombre: "[EJEMPLO] Mueble lavamanos", dias: 2, valor: "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "" },
+    { fase: exampleFase2, tipo_unidad: "", subfase: "Pintura", espacio: exampleEsp1, nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, valor: 120000, estructura: "", nave: "", chapa: "", cartera: "", marca: "Corona" },
   ];
 
   for (const ex of examples) {
-    const row = ws.addRow({
-      espacio: ex.espacio,
-      nombre: ex.nombre,
-      dias: ex.dias,
-      codigo: ex.codigo,
-      marca: ex.marca,
-      componentes: ex.componentes,
-      notas: ex.notas,
-    });
+    const row = ws.addRow(ex);
     row.eachCell((cell) => {
       cell.font = { italic: true, color: { argb: "FF94A3B8" } };
     });
   }
 
-  // Data validation for "Espacio" column (rows 2-200)
-  if (espacios.length > 0) {
+  const sanitize = (v: string) => v.replace(/[",]/g, "");
+
+  // Data validation: Fase (col A)
+  if (fases.length > 0) {
+    const safeList = fases.map(sanitize).join(",");
     for (let r = 2; r <= 200; r++) {
-      ws.getCell(`A${r}`).dataValidation = {
-        type: "list",
-        formulae: [`"${espacios.join(",")}"`],
-        showErrorMessage: true,
-        errorTitle: "Espacio invalido",
-        error: "Selecciona un espacio de la lista",
-      };
+      ws.getCell(`A${r}`).dataValidation = { type: "list", formulae: [`"${safeList}"`], showErrorMessage: true, errorTitle: "Fase invalida", error: "Selecciona una fase de la lista" };
     }
   }
 
-  // --- Sheet 2: Instrucciones ---
+  // Data validation: Tipo unidad (col B)
+  if (tiposUnidad && tiposUnidad.length > 0) {
+    const safeList = tiposUnidad.map(sanitize).join(",");
+    for (let r = 2; r <= 200; r++) {
+      ws.getCell(`B${r}`).dataValidation = { type: "list", formulae: [`"${safeList}"`] };
+    }
+  }
+
+  // Data validation: Espacio (col D)
+  if (espacios.length > 0) {
+    const safeList = espacios.map(sanitize).join(",");
+    for (let r = 2; r <= 200; r++) {
+      ws.getCell(`D${r}`).dataValidation = { type: "list", formulae: [`"${safeList}"`], showErrorMessage: true, errorTitle: "Espacio invalido", error: "Selecciona un espacio de la lista" };
+    }
+  }
+
+  // Data validation: Sí/No for component columns (H, I, J, K)
+  for (const col of ["H", "I", "J", "K"]) {
+    for (let r = 2; r <= 200; r++) {
+      ws.getCell(`${col}${r}`).dataValidation = { type: "list", formulae: ['"Sí,No"'] };
+    }
+  }
+
+  // --- Instrucciones ---
   const instrWs = wb.addWorksheet("Instrucciones");
-  instrWs.getColumn(1).width = 60;
+  instrWs.getColumn(1).width = 70;
 
   const instrucciones = [
-    `Plantilla de tareas - Fase: ${fase}`,
+    "Plantilla de tareas - Todas las fases",
     "",
     "Como llenar esta plantilla:",
-    "1. En la hoja 'Tareas', cada fila es una tarea.",
-    "2. 'Espacio' es obligatorio: selecciona del dropdown (o escribe exacto).",
-    "3. 'Nombre de la tarea' es obligatorio.",
-    "4. 'Dias acordados' es obligatorio y debe ser mayor a 0.",
-    "5. Las columnas 'Codigo referencia', 'Marca/Linea', 'Componentes' y 'Notas' son opcionales.",
+    "1. 'Fase' es obligatorio: selecciona del dropdown.",
+    "2. 'Tipo unidad' solo para Madera: indica a qué tipo de apartamento aplica la tarea.",
+    "3. 'Subfase' es opcional (no se usa para Madera, se genera automáticamente).",
+    "4. 'Espacio' es obligatorio: selecciona del dropdown.",
+    "5. 'Nombre de la tarea' es obligatorio.",
+    "6. 'Dias acordados' es obligatorio y debe ser mayor a 0.",
+    "7. 'Valor COP' es opcional: precio en pesos colombianos.",
+    "8. Estructura/Nave/Chapa/Cartera: componentes del mueble (solo Madera). Sí o No.",
+    "9. 'Marca/Linea' es opcional.",
+    "",
+    "Fases validas:",
+    ...fases.map((f) => `  - ${f}`),
+    "",
+    "Tipos de unidad:",
+    ...(tiposUnidad ?? []).map((t) => `  - ${t}`),
     "",
     "Espacios validos:",
     ...espacios.map((e) => `  - ${e}`),
     "",
     "NOTA: Las filas que empiecen con [EJEMPLO] seran ignoradas al importar.",
+    "NOTA: Para Madera, el sistema crea automáticamente 2 registros por tarea (Instalación + Detallado y lustro).",
   ];
 
   instrucciones.forEach((line, i) => {
@@ -92,18 +124,17 @@ export async function generatePhaseTemplate(
     cell.value = line;
     if (i === 0) {
       cell.font = { bold: true, size: 14, color: { argb: "FF2563EB" } };
-    } else if (line.startsWith("Como llenar") || line.startsWith("Espacios validos") || line.startsWith("NOTA:")) {
+    } else if (line.startsWith("Como llenar") || line.startsWith("Fases validas") || line.startsWith("Tipos de unidad") || line.startsWith("Espacios validos") || line.startsWith("NOTA:")) {
       cell.font = { bold: true };
     }
   });
 
-  // Generate and download
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `plantilla-${fase.replace(/\s+/g, "-").toLowerCase()}.xlsx`;
+  a.download = "plantilla-tareas.xlsx";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -111,13 +142,28 @@ export async function generatePhaseTemplate(
 }
 
 /**
- * Parse an uploaded .xlsx template for a specific phase.
+ * Parse an uploaded .xlsx template with the 12-column format.
  * Returns { tareas, errores }.
+ *
+ * Columns:
+ *  1: Fase (required)
+ *  2: Tipo unidad (optional, Madera only)
+ *  3: Subfase (optional)
+ *  4: Espacio (required)
+ *  5: Nombre (required)
+ *  6: Días acordados (required, > 0)
+ *  7: Valor COP (optional)
+ *  8: Estructura (Sí/No)
+ *  9: Nave (Sí/No)
+ * 10: Chapa (Sí/No)
+ * 11: Cartera (Sí/No)
+ * 12: Marca/Línea (optional)
  */
-export async function parsePhaseTemplate(
+export async function parseTemplate(
   file: File,
-  fase: string,
+  validFases: string[],
   validEspacios: string[],
+  tiposUnidad?: { id: string; nombre: string }[],
 ): Promise<{ tareas: Omit<TareaInput, "id">[]; errores: string[] }> {
   const ExcelJS = (await import("exceljs")).default;
   const arrayBuffer = await file.arrayBuffer();
@@ -131,25 +177,43 @@ export async function parsePhaseTemplate(
 
   const errores: string[] = [];
   const tareas: Omit<TareaInput, "id">[] = [];
+  const validFasesLower = validFases.map((f) => f.toLowerCase());
   const validEspaciosLower = validEspacios.map((e) => e.toLowerCase());
 
+  const parseSiNo = (v: unknown): boolean => {
+    const s = String(v ?? "").trim().toLowerCase();
+    return s === "sí" || s === "si" || s === "yes" || s === "1";
+  };
+
   ws.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return; // skip header
+    if (rowNumber === 1) return;
 
-    const espacio = String(row.getCell(1).value ?? "").trim();
-    const nombre = String(row.getCell(2).value ?? "").trim();
-    const dias = Number(row.getCell(3).value);
-    const codigo = String(row.getCell(4).value ?? "").trim() || undefined;
-    const marca = String(row.getCell(5).value ?? "").trim() || undefined;
-    const componentes = String(row.getCell(6).value ?? "").trim() || undefined;
+    const fase = String(row.getCell(1).value ?? "").trim();
+    const tipoUnidadNombre = String(row.getCell(2).value ?? "").trim();
+    const subfase = String(row.getCell(3).value ?? "").trim() || undefined;
+    const espacio = String(row.getCell(4).value ?? "").trim();
+    const nombre = String(row.getCell(5).value ?? "").trim();
+    const dias = Number(row.getCell(6).value);
+    const valorRaw = row.getCell(7).value;
+    const precio = valorRaw != null && String(valorRaw).trim() !== "" ? Number(valorRaw) : undefined;
+    const estructura = row.getCell(8).value;
+    const nave = row.getCell(9).value;
+    const chapa = row.getCell(10).value;
+    const cartera = row.getCell(11).value;
+    const marca = String(row.getCell(12).value ?? "").trim() || undefined;
 
-    // Skip empty rows
-    if (!espacio && !nombre) return;
-
-    // Skip example rows
+    if (!fase && !espacio && !nombre) return;
     if (nombre.startsWith("[EJEMPLO]")) return;
 
-    // Validate espacio
+    if (!fase) {
+      errores.push(`Fila ${rowNumber}: falta la fase`);
+      return;
+    }
+    if (!validFasesLower.includes(fase.toLowerCase())) {
+      errores.push(`Fila ${rowNumber}: fase "${fase}" no es valida. Opciones: ${validFases.join(", ")}`);
+      return;
+    }
+
     if (!espacio) {
       errores.push(`Fila ${rowNumber}: falta el espacio`);
       return;
@@ -159,29 +223,51 @@ export async function parsePhaseTemplate(
       return;
     }
 
-    // Validate nombre
     if (!nombre) {
       errores.push(`Fila ${rowNumber}: falta el nombre de la tarea`);
       return;
     }
 
-    // Validate dias
     if (!dias || dias < 1) {
       errores.push(`Fila ${rowNumber}: dias acordados debe ser mayor a 0`);
       return;
     }
 
-    // Normalize espacio casing to match the valid list
+    if (precio !== undefined && isNaN(precio)) {
+      errores.push(`Fila ${rowNumber}: valor COP debe ser un numero`);
+      return;
+    }
+
+    const matchedFase = validFases.find((f) => f.toLowerCase() === fase.toLowerCase()) ?? fase;
     const matchedEspacio = validEspacios.find((e) => e.toLowerCase() === espacio.toLowerCase()) ?? espacio;
 
+    let tipoUnidadId: string | undefined;
+    if (tipoUnidadNombre && tiposUnidad && tiposUnidad.length > 0) {
+      const match = tiposUnidad.find((t) => t.nombre.toLowerCase() === tipoUnidadNombre.toLowerCase());
+      if (match) {
+        tipoUnidadId = match.id;
+      } else {
+        errores.push(`Fila ${rowNumber}: tipo unidad "${tipoUnidadNombre}" no existe. Opciones: ${tiposUnidad.map((t) => t.nombre).join(", ")}`);
+        return;
+      }
+    }
+
+    const isMadera = matchedFase.toLowerCase() === "madera";
+    const hasComponents = estructura != null || nave != null || chapa != null || cartera != null;
+
     tareas.push({
-      fase,
+      fase: matchedFase,
+      subfase,
       espacio: matchedEspacio,
       nombre,
       tiempo_acordado_dias: dias,
-      codigo_referencia: codigo,
+      precio: precio !== undefined && !isNaN(precio) ? precio : undefined,
       marca_linea: marca,
-      componentes,
+      tipo_unidad_id: tipoUnidadId,
+      tiene_estructura: isMadera && hasComponents ? parseSiNo(estructura) : undefined,
+      tiene_nave: isMadera && hasComponents ? parseSiNo(nave) : undefined,
+      tiene_chapa: isMadera && hasComponents ? parseSiNo(chapa) : undefined,
+      tiene_cartera: isMadera && hasComponents ? parseSiNo(cartera) : undefined,
     });
   });
 

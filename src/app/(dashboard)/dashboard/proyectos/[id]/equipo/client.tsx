@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Trash2, Users, ClipboardList } from "lucide-react";
+import { UserPlus, Trash2, Users, ClipboardList, UserRound, Phone, Mail } from "lucide-react";
 
 interface AdminAsignado {
   usuario_id: string;
@@ -23,6 +23,13 @@ interface ContratistaRow {
   tareas: number;
   obreros: number;
 }
+interface PersonaExterna {
+  id: string;
+  nombre: string;
+  cargo: string | null;
+  telefono: string | null;
+  email: string | null;
+}
 
 interface Props {
   proyectoId: string;
@@ -30,6 +37,7 @@ interface Props {
   adminsAsignados: AdminAsignado[];
   adminsDisponibles: AdminDisponible[];
   contratistas: ContratistaRow[];
+  personasExternas: PersonaExterna[];
 }
 
 export default function EquipoAdminGeneral({
@@ -38,10 +46,19 @@ export default function EquipoAdminGeneral({
   adminsAsignados,
   adminsDisponibles,
   contratistas,
+  personasExternas,
 }: Props) {
   const router = useRouter();
   const [asignar, setAsignar] = useState("");
   const [error, setError] = useState("");
+
+  // Personas externas state
+  const [personaForm, setPersonaForm] = useState({ nombre: "", cargo: "", telefono: "", email: "" });
+  const [personaError, setPersonaError] = useState("");
+  const [personaLoading, setPersonaLoading] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   async function handleAsignar() {
     if (!asignar) return;
@@ -72,9 +89,54 @@ export default function EquipoAdminGeneral({
     }
   }
 
+  async function handleAddPersona() {
+    if (!personaForm.nombre.trim()) return;
+    setPersonaError("");
+    setPersonaLoading(true);
+    try {
+      const res = await fetch(`/api/proyectos/${proyectoId}/personas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: personaForm.nombre.trim(),
+          cargo: personaForm.cargo.trim() || undefined,
+          telefono: personaForm.telefono.trim() || undefined,
+          email: personaForm.email.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setPersonaForm({ nombre: "", cargo: "", telefono: "", email: "" });
+        router.refresh();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setPersonaError(d.error ?? "Error al agregar persona");
+      }
+    } finally {
+      setPersonaLoading(false);
+    }
+  }
+
+  async function handleDeletePersona() {
+    if (!deleteId || !deletePassword) return;
+    setDeleteError("");
+    const res = await fetch(`/api/proyectos/${proyectoId}/personas`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: deleteId, password: deletePassword }),
+    });
+    if (res.ok) {
+      setDeleteId(null);
+      setDeletePassword("");
+      router.refresh();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      setDeleteError(d.error ?? "Error al eliminar");
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Admin Juniors */}
+      {/* Admin Juniors -- first col */}
       <Section title={`Admin Juniors asignados (${adminsAsignados.length})`} icon={Users}>
         {error && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
@@ -154,6 +216,132 @@ export default function EquipoAdminGeneral({
           </div>
         )}
       </Section>
+
+      {/* Personas externas -- spans both columns */}
+      <div className="lg:col-span-2">
+      <Section title={`Personas externas (${personasExternas.length})`} icon={UserRound}>
+        {personaError && (
+          <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{personaError}</div>
+        )}
+
+        {canAssign && (
+          <div className="mb-3 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder="Nombre *"
+                value={personaForm.nombre}
+                onChange={(e) => setPersonaForm((f) => ({ ...f, nombre: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+              <input
+                type="text"
+                placeholder="Cargo"
+                value={personaForm.cargo}
+                onChange={(e) => setPersonaForm((f) => ({ ...f, cargo: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+              <input
+                type="tel"
+                placeholder="Telefono"
+                value={personaForm.telefono}
+                onChange={(e) => setPersonaForm((f) => ({ ...f, telefono: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={personaForm.email}
+                onChange={(e) => setPersonaForm((f) => ({ ...f, email: e.target.value }))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              />
+            </div>
+            <button
+              onClick={handleAddPersona}
+              disabled={!personaForm.nombre.trim() || personaLoading}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-3 py-2 rounded-lg inline-flex items-center gap-1"
+            >
+              <UserPlus className="w-4 h-4" /> {personaLoading ? "Agregando..." : "Agregar persona"}
+            </button>
+          </div>
+        )}
+
+        {personasExternas.length === 0 ? (
+          <Empty>Sin personas externas vinculadas.</Empty>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {personasExternas.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 bg-slate-50 rounded-lg p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm text-slate-800 truncate">{p.nombre}</div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                    {p.cargo && <span>{p.cargo}</span>}
+                    {p.telefono && (
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="w-3 h-3" /> {p.telefono}
+                      </span>
+                    )}
+                    {p.email && (
+                      <span className="inline-flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {p.email}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {canAssign && (
+                  <button
+                    onClick={() => { setDeleteId(p.id); setDeletePassword(""); setDeleteError(""); }}
+                    className="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 flex-shrink-0"
+                    title="Eliminar persona"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Delete confirmation dialog */}
+        {deleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+              <h4 className="font-bold text-slate-800 mb-2">Confirmar eliminacion</h4>
+              <p className="text-sm text-slate-600 mb-4">
+                Ingresa tu contrasena para confirmar la eliminacion de esta persona.
+              </p>
+              {deleteError && (
+                <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{deleteError}</div>
+              )}
+              <input
+                type="password"
+                placeholder="Contrasena"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white mb-3"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleDeletePersona(); }}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setDeleteId(null); setDeletePassword(""); setDeleteError(""); }}
+                  className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeletePersona}
+                  disabled={!deletePassword}
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold px-3 py-2 rounded-lg"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Section>
+      </div>
     </div>
   );
 }

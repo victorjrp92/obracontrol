@@ -7,6 +7,12 @@ export interface TaskTemplate {
   codigo_referencia?: string;
   marca_linea?: string;
   componentes?: string;
+  subfase?: string;
+  precio?: number;
+  tiene_estructura?: boolean;
+  tiene_nave?: boolean;
+  tiene_chapa?: boolean;
+  tiene_cartera?: boolean;
 }
 
 export const ESPACIOS_SUGERIDOS = [
@@ -91,6 +97,10 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBK01",
         marca_linea: "SAGANO",
         componentes: "estructura + naves",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
       {
         nombre: "Mueble alto cocina",
@@ -98,6 +108,10 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "MBC01",
         marca_linea: "SAGANO",
         componentes: "estructura + puertas",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
     ],
     "Baño principal": [
@@ -107,11 +121,29 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "PUM01",
         marca_linea: "AUSTRAL",
         componentes: "estructura + puerta",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Gabinete espejo baño principal", tiempo_acordado_dias: 1 },
+      {
+        nombre: "Gabinete espejo baño principal",
+        tiempo_acordado_dias: 1,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Baño social": [
-      { nombre: "Mueble lavamanos baño social", tiempo_acordado_dias: 2 },
+      {
+        nombre: "Mueble lavamanos baño social",
+        tiempo_acordado_dias: 2,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Habitación principal": [
       {
@@ -120,8 +152,19 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         codigo_referencia: "CLP01",
         marca_linea: "GRAFFO",
         componentes: "estructura + correderas",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
-      { nombre: "Vestier habitación principal", tiempo_acordado_dias: 3 },
+      {
+        nombre: "Vestier habitación principal",
+        tiempo_acordado_dias: 3,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Habitación 2": [
       {
@@ -129,13 +172,31 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
         tiempo_acordado_dias: 3,
         codigo_referencia: "CLP02",
         marca_linea: "GRAFFO",
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
       },
     ],
     "Habitación 3": [
-      { nombre: "Closet habitación 3", tiempo_acordado_dias: 3 },
+      {
+        nombre: "Closet habitación 3",
+        tiempo_acordado_dias: 3,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
     "Zona de lavado": [
-      { nombre: "Mueble zona de lavado", tiempo_acordado_dias: 2 },
+      {
+        nombre: "Mueble zona de lavado",
+        tiempo_acordado_dias: 2,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
     ],
   },
   "Zonas Comunes": {

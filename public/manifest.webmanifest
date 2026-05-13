@@ -1,6 +1,6 @@
 {
-  "name": "ObraControl",
-  "short_name": "ObraControl",
+  "name": "Seiricon",
+  "short_name": "Seiricon",
   "description": "Control de obra inteligente para constructoras — evidencia en obra, aprobaciones y métricas en tiempo real.",
   "start_url": "/?source=pwa",
   "scope": "/",

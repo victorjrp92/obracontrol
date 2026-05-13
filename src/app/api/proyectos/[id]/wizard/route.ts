@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isGeneralAdmin } from "@/lib/access";
+import { aprenderTareas } from "@/lib/learning";
 
 /**
  * Wizard payload — same shape as the creation wizard POST endpoint.
@@ -27,16 +28,18 @@ interface WizardPayload {
     nombre: string;
     pisos: number;
     unidadesPorPiso?: number;
-    distribucion?: Record<string, number>;
+    distribucion?: Record<string, number | { derecha: number; izquierda: number }>;
   }[];
   // Paso 3 — espacios y tareas
   espacios: string[];
   fases: (string | { nombre: string; tiempo_estimado_dias?: number })[];
   tareas: {
     fase: string;
+    subfase?: string;
     espacio: string;
     nombre: string;
     tiempo_acordado_dias: number;
+    precio?: number;
     codigo_referencia?: string;
     marca_linea?: string;
     componentes?: string;
@@ -204,8 +207,11 @@ export async function POST(
           }
         }
         if (ed.distribucion) {
-          const total = Object.values(ed.distribucion).reduce(
-            (a, b) => a + (typeof b === "number" ? b : 0),
+          const total = Object.values(ed.distribucion).reduce<number>(
+            (a, b) => {
+              if (typeof b === "number") return a + b;
+              return a + (b.derecha ?? 0) + (b.izquierda ?? 0);
+            },
             0,
           );
           if (total > MAX_UNIDADES_POR_PISO) {
@@ -423,12 +429,21 @@ export async function POST(
           },
         });
 
-        let distribution: [string, number][];
+        type DistEntry = [string, number, string | null];
+        let distribution: DistEntry[];
         if (edificioInput.distribucion) {
-          distribution = Object.entries(edificioInput.distribucion);
+          distribution = [];
+          for (const [tipoNombre, val] of Object.entries(edificioInput.distribucion)) {
+            if (typeof val === "number") {
+              distribution.push([tipoNombre, val, null]);
+            } else {
+              if (val.derecha > 0) distribution.push([tipoNombre, val.derecha, "derecha"]);
+              if (val.izquierda > 0) distribution.push([tipoNombre, val.izquierda, "izquierda"]);
+            }
+          }
         } else {
           const firstTipo = Object.keys(tipoMap)[0];
-          distribution = [[firstTipo, edificioInput.unidadesPorPiso ?? 4]];
+          distribution = [[firstTipo, edificioInput.unidadesPorPiso ?? 4, null]];
         }
 
         let totalUnitsCreated = 0;
@@ -440,7 +455,7 @@ export async function POST(
           });
 
           let unitCounter = 1;
-          for (const [tipoNombre, count] of distribution) {
+          for (const [tipoNombre, count, sentido] of distribution) {
             const tipoInfo = tipoMap[tipoNombre];
             if (!tipoInfo || count <= 0) continue;
 
@@ -450,6 +465,7 @@ export async function POST(
                   piso_id: piso.id,
                   nombre: `${p}0${unitCounter}`,
                   tipo_unidad_id: tipoInfo.id,
+                  sentido,
                   ...(tipoInfo.metraje_total != null
                     ? { metraje_total: tipoInfo.metraje_total }
                     : {}),
@@ -522,27 +538,39 @@ export async function POST(
           const pisosChanged = existing.num_pisos !== edificioInput.pisos;
 
           // Check distribution change
-          let incomingDist: [string, number][];
+          type DistEntryEdit = [string, number, string | null];
+          let incomingDist: DistEntryEdit[];
           if (edificioInput.distribucion) {
-            incomingDist = Object.entries(edificioInput.distribucion);
+            incomingDist = [];
+            for (const [tipoNombre, val] of Object.entries(edificioInput.distribucion)) {
+              if (typeof val === "number") {
+                incomingDist.push([tipoNombre, val, null]);
+              } else {
+                if (val.derecha > 0) incomingDist.push([tipoNombre, val.derecha, "derecha"]);
+                if (val.izquierda > 0) incomingDist.push([tipoNombre, val.izquierda, "izquierda"]);
+              }
+            }
           } else {
             const firstTipo = Object.keys(tipoMap)[0];
-            incomingDist = [[firstTipo, edificioInput.unidadesPorPiso ?? 4]];
+            incomingDist = [[firstTipo, edificioInput.unidadesPorPiso ?? 4, null]];
           }
 
-          // Build existing distribution from actual data
+          // Build existing distribution from actual data (keyed by "tipo:sentido")
           let distributionChanged = false;
           if (!pisosChanged && existing.pisos.length > 0) {
             const existingPiso = existing.pisos[0];
             const existingDistMap: Record<string, number> = {};
             for (const unidad of existingPiso.unidades) {
               const tipoName = unidad.tipo_unidad?.nombre ?? "Tipo estandar";
-              existingDistMap[tipoName] = (existingDistMap[tipoName] ?? 0) + 1;
+              const s = (unidad as { sentido?: string | null }).sentido ?? null;
+              const key = s ? `${tipoName}:${s}` : tipoName;
+              existingDistMap[key] = (existingDistMap[key] ?? 0) + 1;
             }
 
             const incomingDistMap: Record<string, number> = {};
-            for (const [name, count] of incomingDist) {
-              incomingDistMap[name] = count;
+            for (const [name, count, sentido] of incomingDist) {
+              const key = sentido ? `${name}:${sentido}` : name;
+              incomingDistMap[key] = count;
             }
 
             // Compare
@@ -567,14 +595,7 @@ export async function POST(
             // Delete all pisos (CASCADE removes unidades -> espacios -> tareas)
             await tx.piso.deleteMany({ where: { edificio_id: existing.id } });
 
-            // Recreate structure under the existing edificio
-            let recDist: [string, number][];
-            if (edificioInput.distribucion) {
-              recDist = Object.entries(edificioInput.distribucion);
-            } else {
-              const firstTipo = Object.keys(tipoMap)[0];
-              recDist = [[firstTipo, edificioInput.unidadesPorPiso ?? 4]];
-            }
+            // Recreate structure under the existing edificio (reuse incomingDist)
 
             let totalTareasCreated = 0;
             for (let p = 1; p <= edificioInput.pisos; p++) {
@@ -583,7 +604,7 @@ export async function POST(
               });
 
               let unitCounter = 1;
-              for (const [tipoNombre, count] of recDist) {
+              for (const [tipoNombre, count, sentido] of incomingDist) {
                 const tipoInfo = tipoMap[tipoNombre];
                 if (!tipoInfo || count <= 0) continue;
 
@@ -593,6 +614,7 @@ export async function POST(
                       piso_id: piso.id,
                       nombre: `${p}0${unitCounter}`,
                       tipo_unidad_id: tipoInfo.id,
+                      sentido,
                       ...(tipoInfo.metraje_total != null
                         ? { metraje_total: tipoInfo.metraje_total }
                         : {}),
@@ -978,6 +1000,13 @@ export async function POST(
 
       return stats;
     }, { timeout: 60000 });
+
+    // Learn tasks for this constructora (fire-and-forget)
+    if (body.tareas && body.tareas.length > 0) {
+      aprenderTareas(currentUser.constructora_id, body.tareas).catch((e) =>
+        console.error("Learning failed (non-blocking):", e),
+      );
+    }
 
     return NextResponse.json({ updated: true, summary });
   } catch (err) {

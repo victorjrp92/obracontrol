@@ -18,7 +18,7 @@ import {
   X,
   Shield,
   KeyRound,
-  Users,
+  Briefcase,
   HardHat,
 } from "lucide-react";
 
@@ -27,7 +27,7 @@ const navItems = [
   { key: "sa-constructoras", icon: Building2, label: "Constructoras", href: "/super-admin/constructoras" },
   { key: "sa-proyectos", icon: FolderOpen, label: "Proyectos", href: "/super-admin/proyectos" },
   { key: "sa-admins", icon: UsersRound, label: "Admin Generales", href: "/super-admin/admins-generales" },
-  { key: "sa-contratistas", icon: Users, label: "Contratistas", href: "/super-admin/contratistas" },
+  { key: "sa-contratistas", icon: Briefcase, label: "Contratistas", href: "/super-admin/contratistas" },
   { key: "sa-obreros", icon: HardHat, label: "Obreros", href: "/super-admin/obreros" },
   { key: "sa-roles", icon: KeyRound, label: "Roles del sistema", href: "/super-admin/roles" },
   { key: "sa-reportes", icon: BarChart3, label: "Reportes globales", href: "/super-admin/reportes" },

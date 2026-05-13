@@ -23,10 +23,11 @@ model Constructora {
   created_at       DateTime   @default(now())
   updated_at       DateTime   @updatedAt
 
-  usuarios         Usuario[]
-  proyectos        Proyecto[]
-  roles            Rol[]
-  obreros          Obrero[]
+  usuarios           Usuario[]
+  proyectos          Proyecto[]
+  roles              Rol[]
+  obreros            Obrero[]
+  tareas_aprendidas  TareaAprendida[]
 
   @@map("constructoras")
 }
@@ -62,6 +63,7 @@ model Proyecto {
   audit_logs              AuditLog[]
   admins_proyecto          AdminProyectoAccess[]
   contratista_default      Usuario?       @relation("ContratistaDefaultProyectos", fields: [contratista_default_id], references: [id], onDelete: SetNull)
+  personas_externas        PersonaExternaProyecto[]
 
   @@unique([constructora_id, numero_registro])
   @@index([contratista_default_id])
@@ -102,7 +104,9 @@ model Unidad {
   nombre           String
   tipo_unidad_id   String?
   metraje_total    Float?
-  created_at       DateTime @default(now())
+  sentido               String?
+  nombre_personalizado  String?
+  created_at            DateTime @default(now())
 
   piso             Piso       @relation(fields: [piso_id], references: [id], onDelete: Cascade)
   tipo_unidad      TipoUnidad? @relation(fields: [tipo_unidad_id], references: [id])
@@ -158,13 +162,18 @@ model Tarea {
   fase_id                   String
   numero_registro           String?      // {proyecto.numero_registro}-T{seq}
   nombre                    String
+  subfase                   String?
+  precio                    Float?
   codigo_referencia         String?
   nombre_pieza              String?
   marca_linea               String?
   componentes               String?
   cantidad_material_planeada Float?
   unidad_material           String?
-  precio                    Float?      // COP. Puede editarse por Admin/Contratista (no Obrero).
+  tiene_estructura          Boolean      @default(true)
+  tiene_nave                Boolean      @default(true)
+  tiene_chapa               Boolean      @default(false)
+  tiene_cartera             Boolean      @default(false)
   tiempo_acordado_dias      Int
   fecha_inicio              DateTime?
   fecha_fin_real            DateTime?
@@ -329,6 +338,8 @@ model Usuario {
   id              String      @id @default(cuid())
   email           String      @unique
   nombre          String
+  telefono        String?
+  avatar_url      String?
   constructora_id String
   rol_id          String
   invitado        Boolean     @default(true)
@@ -566,6 +577,22 @@ model AdminProyectoAccess {
   @@map("admin_proyecto_access")
 }
 
+// ─── PERSONAS EXTERNAS ──────────────────────────────────────────────────────
+
+model PersonaExternaProyecto {
+  id           String   @id @default(cuid())
+  proyecto_id  String
+  nombre       String
+  cargo        String?
+  telefono     String?
+  email        String?
+  created_at   DateTime @default(now())
+
+  proyecto     Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+
+  @@map("personas_externas_proyecto")
+}
+
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
 enum PlanTipo {
@@ -614,5 +641,28 @@ enum EstadoPago {
   PENDIENTE
   PAGADO
   PARCIAL
+}
+
+// ─── APRENDIZAJE DE TAREAS POR CONSTRUCTORA ─────────────────────────────────
+
+model TareaAprendida {
+  id                             String   @id @default(cuid())
+  constructora_id                String
+  fase                           String
+  subfase                        String?
+  espacio                        String
+  nombre                         String
+  tiempo_acordado_dias           Int
+  precio                         Float?
+  marca_linea                    String?
+  componentes                    String?
+  proyectos_sin_uso_consecutivos Int      @default(0)
+  created_at                     DateTime @default(now())
+  updated_at                     DateTime @updatedAt
+
+  constructora Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+
+  @@unique([constructora_id, fase, espacio, nombre])
+  @@map("tareas_aprendidas")
 }
 

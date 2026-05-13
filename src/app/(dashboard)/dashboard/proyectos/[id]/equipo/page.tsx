@@ -45,6 +45,12 @@ export default async function EquipoProyectoPage({
 
   if (!proyecto) notFound();
 
+  // Personas externas vinculadas al proyecto
+  const personasExternas = await prisma.personaExternaProyecto.findMany({
+    where: { proyecto_id: id },
+    orderBy: { created_at: "desc" },
+  });
+
   // Contratistas con tareas en el proyecto
   const contratistas = await prisma.usuario.findMany({
     where: {
@@ -88,7 +94,7 @@ export default async function EquipoProyectoPage({
     <>
       <Topbar
         title={`Equipo · ${proyecto.nombre}`}
-        subtitle={`${proyecto.admins_proyecto.length} admin junior · ${contratistas.length} contratistas`}
+        subtitle={`${proyecto.admins_proyecto.length} admin junior · ${contratistas.length} contratistas · ${personasExternas.length} externos`}
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Link
@@ -115,6 +121,13 @@ export default async function EquipoProyectoPage({
             rol: c.rol_ref.nombre,
             tareas: c._count.tareas_asignadas,
             obreros: c._count.obreros_a_cargo,
+          }))}
+          personasExternas={personasExternas.map((p) => ({
+            id: p.id,
+            nombre: p.nombre,
+            cargo: p.cargo,
+            telefono: p.telefono,
+            email: p.email,
           }))}
         />
       </main>

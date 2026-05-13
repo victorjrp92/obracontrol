@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRef } from "react";
 import {
-  ArrowRight, Check, Plus, Ruler, Trash2, Trees,
+  ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
-import type { TipoUnidadInput, EdificioInput, Contratista } from "./wizard-types";
+import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista } from "./wizard-types";
 
 interface WizardStep1Props {
   nombre: string;
@@ -56,19 +57,19 @@ export default function WizardStep1({
   metrosZonas, onMetrosZonasChange,
   canProceed, onNext,
 }: WizardStep1Props) {
-  // Custom space input per tipo (keyed by tipo.id)
   const [customSpaceInputs, setCustomSpaceInputs] = useState<Record<string, string>>({});
-  // Zonas comunes custom input
   const [zonaPersonalizada, setZonaPersonalizada] = useState("");
-  // String-based numeric inputs to allow empty field (keyed by "edificio-idx:field")
   const [numericStrings, setNumericStrings] = useState<Record<string, string>>({});
+  const [detalleExpandido, setDetalleExpandido] = useState<Record<number, boolean>>({});
+  const [pisosExpandidos, setPisosExpandidos] = useState<Record<string, boolean>>({});
+  const excelInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // --- Tipo management ---
   function addTipoUnidad() {
     const newId = `t${Date.now()}`;
     const newTipo: TipoUnidadInput = { id: newId, nombre: `Tipo ${tiposUnidad.length + 1}`, espacios: [] };
     setTiposUnidad([...tiposUnidad, newTipo]);
-    setEdificios(edificios.map((e) => ({ ...e, distribucion: { ...e.distribucion, [newId]: 0 } })));
+    setEdificios(edificios.map((e) => ({ ...e, distribucion: { ...e.distribucion, [newId]: { derecha: 0, izquierda: 0 } } })));
   }
 
   function removeTipoUnidad(tipoId: string) {
@@ -137,9 +138,14 @@ export default function WizardStep1({
 
   // --- Edificio management ---
   function addEdificio() {
-    const dist: Record<string, number> = {};
-    tiposUnidad.forEach((t) => { dist[t.id] = 2; });
-    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: 5, distribucion: dist }]);
+    const defaultPisos = 5;
+    const defaultUpiso = 4;
+    const totalUnits = defaultPisos * defaultUpiso;
+    const perTipo = tiposUnidad.length > 0 ? Math.floor(totalUnits / tiposUnidad.length) : 0;
+    const half = Math.floor(perTipo / 2);
+    const dist: Record<string, import("./wizard-types").DistribucionSentido> = {};
+    tiposUnidad.forEach((t) => { dist[t.id] = { derecha: half, izquierda: perTipo - half }; });
+    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: defaultPisos, unidades_por_piso: defaultUpiso, distribucion: dist }]);
   }
 
   function removeEdificio(idx: number) {
@@ -187,13 +193,14 @@ export default function WizardStep1({
 
   function updateEdificioPisos(idx: number, pisos: number) {
     const next = [...edificios];
-    next[idx] = { ...next[idx], pisos };
+    next[idx] = { ...next[idx], pisos, unidades_detalle: undefined };
     setEdificios(next);
   }
 
-  function updateEdificioDistribucion(idx: number, tipoId: string, count: number) {
+  function updateEdificioDistribucion(idx: number, tipoId: string, sentido: "derecha" | "izquierda", count: number) {
     const next = [...edificios];
-    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: count } };
+    const prev = next[idx].distribucion[tipoId] ?? { derecha: 0, izquierda: 0 };
+    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } }, unidades_detalle: undefined };
     setEdificios(next);
   }
 
@@ -214,9 +221,169 @@ export default function WizardStep1({
 
   // --- Computed ---
   const totalUnidades = edificios.reduce((acc, e) => {
-    const perFloor = Object.values(e.distribucion).reduce((s, n) => s + n, 0);
-    return acc + e.pisos * perFloor;
+    return acc + e.pisos * getUnidadesPorPiso(e);
   }, 0);
+
+  function generateUnidadesDetalle(e: EdificioInput): Record<number, UnidadDetailInput[]> {
+    const udsPerFloor = e.unidades_por_piso ?? 0;
+    if (udsPerFloor === 0 || e.pisos === 0) return {};
+
+    // Build a flat list of all units for the tower from the distribution (torre totals)
+    const allUnits: { tipo_unidad_id: string; sentido: "derecha" | "izquierda" }[] = [];
+    for (const tipo of tiposUnidad) {
+      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+      for (let i = 0; i < dist.derecha; i++) allUnits.push({ tipo_unidad_id: tipo.id, sentido: "derecha" });
+      for (let i = 0; i < dist.izquierda; i++) allUnits.push({ tipo_unidad_id: tipo.id, sentido: "izquierda" });
+    }
+
+    const result: Record<number, UnidadDetailInput[]> = {};
+    let unitIdx = 0;
+    for (let piso = 1; piso <= e.pisos; piso++) {
+      const units: UnidadDetailInput[] = [];
+      for (let slot = 0; slot < udsPerFloor; slot++) {
+        const src = allUnits[unitIdx];
+        units.push({
+          nombre: `${piso}0${slot + 1}`,
+          tipo_unidad_id: src?.tipo_unidad_id ?? tiposUnidad[0]?.id ?? "",
+          sentido: src?.sentido ?? "derecha",
+        });
+        unitIdx++;
+      }
+      result[piso] = units;
+    }
+    return result;
+  }
+
+  function toggleDetalleEdificio(idx: number) {
+    const next = { ...detalleExpandido, [idx]: !detalleExpandido[idx] };
+    setDetalleExpandido(next);
+    if (next[idx] && !edificios[idx].unidades_detalle) {
+      const updated = [...edificios];
+      updated[idx] = { ...updated[idx], unidades_detalle: generateUnidadesDetalle(updated[idx]) };
+      setEdificios(updated);
+    }
+  }
+
+  function togglePisoExpandido(edIdx: number, piso: number) {
+    const key = `${edIdx}-${piso}`;
+    setPisosExpandidos((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function updateUnidadDetalle(edIdx: number, piso: number, uIdx: number, field: string, value: string) {
+    const updated = [...edificios];
+    const detalle = { ...(updated[edIdx].unidades_detalle ?? {}) };
+    const pisoUnits = [...(detalle[piso] ?? [])];
+    pisoUnits[uIdx] = { ...pisoUnits[uIdx], [field]: value };
+    detalle[piso] = pisoUnits;
+    updated[edIdx] = { ...updated[edIdx], unidades_detalle: detalle };
+    setEdificios(updated);
+  }
+
+  function buildFloorSummary(e: EdificioInput, piso: number): string {
+    const detalle = e.unidades_detalle ?? generateUnidadesDetalle(e);
+    const units = detalle[piso] ?? [];
+    const counts: Record<string, { d: number; i: number }> = {};
+    for (const u of units) {
+      if (!counts[u.tipo_unidad_id]) counts[u.tipo_unidad_id] = { d: 0, i: 0 };
+      if (u.sentido === "derecha") counts[u.tipo_unidad_id].d++;
+      else counts[u.tipo_unidad_id].i++;
+    }
+    const parts: string[] = [];
+    for (const tipo of tiposUnidad) {
+      const c = counts[tipo.id];
+      if (c && (c.d + c.i) > 0) parts.push(`${c.d + c.i} ${tipo.nombre} (${c.d}D/${c.i}I)`);
+    }
+    return `Piso ${piso}: ${parts.join(", ") || "sin unidades"}`;
+  }
+
+  function getUnidadesPorPiso(e: EdificioInput): number {
+    return e.unidades_por_piso ?? 0;
+  }
+
+  function getDistribucionSum(e: EdificioInput): number {
+    return Object.values(e.distribucion).reduce((s, d) => s + d.derecha + d.izquierda, 0);
+  }
+
+  function updateUnidadesPorPiso(idx: number, total: number) {
+    const updated = [...edificios];
+    updated[idx] = { ...updated[idx], unidades_por_piso: total, unidades_detalle: undefined };
+    setEdificios(updated);
+  }
+
+  async function downloadDetalleExcel(idx: number) {
+    const e = edificios[idx];
+    const detalle = e.unidades_detalle ?? generateUnidadesDetalle(e);
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Detalle " + e.nombre);
+
+    ws.columns = [
+      { header: "Piso", key: "piso", width: 8 },
+      { header: "Apto", key: "apto", width: 12 },
+      { header: "Tipo", key: "tipo", width: 20 },
+      { header: "Sentido", key: "sentido", width: 14 },
+    ];
+    ws.getRow(1).font = { bold: true };
+
+    for (let p = 1; p <= e.pisos; p++) {
+      const units = detalle[p] ?? [];
+      for (const u of units) {
+        const tipoNombre = tiposUnidad.find((t) => t.id === u.tipo_unidad_id)?.nombre ?? u.tipo_unidad_id;
+        ws.addRow({ piso: p, apto: u.nombre, tipo: tipoNombre, sentido: u.sentido });
+      }
+    }
+
+    // Add data validation for Tipo and Sentido columns
+    const tipoNames = tiposUnidad.map((t) => t.nombre);
+    const lastRow = ws.rowCount;
+    if (lastRow > 1) {
+      for (let r = 2; r <= lastRow; r++) {
+        ws.getCell(`C${r}`).dataValidation = { type: "list", formulae: [`"${tipoNames.join(",")}"`] };
+        ws.getCell(`D${r}`).dataValidation = { type: "list", formulae: ['"derecha,izquierda"'] };
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `detalle_${e.nombre.replace(/\s+/g, "_")}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function uploadDetalleExcel(idx: number, file: File) {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await file.arrayBuffer());
+    const ws = wb.worksheets[0];
+    if (!ws) return;
+
+    const tipoNameToId: Record<string, string> = {};
+    for (const t of tiposUnidad) tipoNameToId[t.nombre.toLowerCase()] = t.id;
+
+    const result: Record<number, UnidadDetailInput[]> = {};
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return;
+      const piso = Number(row.getCell(1).value) || 0;
+      const apto = String(row.getCell(2).value ?? "").trim();
+      const tipoRaw = String(row.getCell(3).value ?? "").trim();
+      const sentidoRaw = String(row.getCell(4).value ?? "").trim().toLowerCase();
+      if (!piso || !apto) return;
+
+      const tipoId = tipoNameToId[tipoRaw.toLowerCase()] ?? tiposUnidad[0]?.id ?? "";
+      const sentido: "derecha" | "izquierda" = sentidoRaw === "izquierda" ? "izquierda" : "derecha";
+
+      if (!result[piso]) result[piso] = [];
+      result[piso].push({ nombre: apto, tipo_unidad_id: tipoId, sentido });
+    });
+
+    const updated = [...edificios];
+    updated[idx] = { ...updated[idx], unidades_detalle: result };
+    setEdificios(updated);
+    setDetalleExpandido((prev) => ({ ...prev, [idx]: true }));
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-3xl">
@@ -239,10 +406,10 @@ export default function WizardStep1({
           </label>
           <input
             value={numeroRegistro}
-            onChange={(e) => setNumeroRegistro(e.target.value.toUpperCase())}
+            onChange={(e) => setNumeroRegistro(e.target.value)}
             placeholder="Ej: PR-2026-001"
             maxLength={40}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
           <p className="text-[10px] text-slate-400 mt-1">
             Único por empresa. Las tareas heredarán este número (ej. PR-2026-001-T0001).
@@ -494,6 +661,17 @@ export default function WizardStep1({
                         className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                       />
                     </div>
+                    <div className="w-28">
+                      <label className="text-xs text-slate-500 mb-1 block">Uds/piso</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={getNumericDisplay(`e${idx}:upiso`, getUnidadesPorPiso(e))}
+                        onChange={(ev) => handleNumericChange(`e${idx}:upiso`, ev.target.value, (n) => updateUnidadesPorPiso(idx, Math.max(1, n)))}
+                        onBlur={() => handleNumericBlur(`e${idx}:upiso`, getUnidadesPorPiso(e))}
+                        className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                      />
+                    </div>
                     {edificios.length > 1 && (
                       <button
                         onClick={() => removeEdificio(idx)}
@@ -503,24 +681,177 @@ export default function WizardStep1({
                       </button>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-3">
                     {tiposUnidad.map((tipo) => {
-                      const distKey = `e${idx}:dist:${tipo.id}`;
+                      const dist = e.distribucion[tipo.id] ?? { derecha: 0, izquierda: 0 };
+                      const keyD = `e${idx}:dist:${tipo.id}:d`;
+                      const keyI = `e${idx}:dist:${tipo.id}:i`;
                       return (
                         <div key={tipo.id} className="flex items-center gap-1.5">
-                          <label className="text-xs text-slate-600">{tipo.nombre}:</label>
+                          <label className="text-xs text-slate-600 font-medium">{tipo.nombre}:</label>
+                          <span className="text-[10px] text-slate-400">Der</span>
                           <input
                             type="text"
                             inputMode="numeric"
-                            value={getNumericDisplay(distKey, e.distribucion[tipo.id] ?? 0)}
-                            onChange={(ev) => handleNumericChange(distKey, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, n))}
-                            onBlur={() => handleNumericBlur(distKey, e.distribucion[tipo.id] ?? 0)}
-                            className="w-16 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            value={getNumericDisplay(keyD, dist.derecha)}
+                            onChange={(ev) => handleNumericChange(keyD, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, "derecha", n))}
+                            onBlur={() => handleNumericBlur(keyD, dist.derecha)}
+                            className="w-12 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
                           />
-                          <span className="text-[11px] text-slate-400">/piso</span>
+                          <span className="text-[10px] text-slate-400">Izq</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={getNumericDisplay(keyI, dist.izquierda)}
+                            onChange={(ev) => handleNumericChange(keyI, ev.target.value, (n) => updateEdificioDistribucion(idx, tipo.id, "izquierda", n))}
+                            onBlur={() => handleNumericBlur(keyI, dist.izquierda)}
+                            className="w-12 px-2 py-1 rounded-lg border border-slate-200 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                          />
+                          <span className="text-[11px] text-slate-400">total</span>
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Distribution mismatch warning */}
+                  {e.unidades_por_piso != null && e.unidades_por_piso > 0 && getDistribucionSum(e) !== e.pisos * e.unidades_por_piso && (
+                    <p className="mt-2 text-[11px] text-amber-600 font-medium">
+                      La distribución suma {getDistribucionSum(e)} unidades pero el total de la torre es {e.pisos * e.unidades_por_piso} ({e.pisos} pisos × {e.unidades_por_piso} uds/piso). Ajusta para que coincida.
+                    </p>
+                  )}
+
+                  {/* Per-floor summary */}
+                  <div className="mt-2 space-y-0.5">
+                    {Array.from({ length: Math.min(e.pisos, 3) }, (_, i) => i + 1).map((piso) => (
+                      <p key={piso} className="text-[11px] text-slate-500">
+                        {buildFloorSummary(e, piso)}
+                      </p>
+                    ))}
+                    {e.pisos > 3 && (
+                      <p className="text-[11px] text-slate-400 italic">
+                        ...y {e.pisos - 3} piso{e.pisos - 3 !== 1 ? "s" : ""} más con la misma distribución
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Expandable detail section */}
+                  <div className="mt-3 border-t border-slate-200 pt-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleDetalleEdificio(idx)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        {detalleExpandido[idx] ? (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        )}
+                        Ver detalle por piso
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadDetalleExcel(idx)}
+                        className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        Descargar Excel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => excelInputRefs.current[idx]?.click()}
+                        className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        <Upload className="w-3 h-3" />
+                        Subir Excel
+                      </button>
+                      <input
+                        ref={(el) => { excelInputRefs.current[idx] = el; }}
+                        type="file"
+                        accept=".xlsx"
+                        className="hidden"
+                        onChange={(ev) => {
+                          const file = ev.target.files?.[0];
+                          if (file) uploadDetalleExcel(idx, file);
+                          ev.target.value = "";
+                        }}
+                      />
+                    </div>
+
+                    {detalleExpandido[idx] && e.unidades_detalle && (
+                      <div className="mt-2 space-y-1">
+                        {Array.from({ length: e.pisos }, (_, i) => i + 1).map((piso) => {
+                          const pisoKey = `${idx}-${piso}`;
+                          const isOpen = pisosExpandidos[pisoKey];
+                          const unidades = e.unidades_detalle?.[piso] ?? [];
+                          return (
+                            <div key={piso} className="rounded-lg border border-slate-200 bg-white">
+                              <button
+                                type="button"
+                                onClick={() => togglePisoExpandido(idx, piso)}
+                                className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                              >
+                                <span>Piso {piso} ({unidades.length} unidades)</span>
+                                {isOpen ? (
+                                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                ) : (
+                                  <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                )}
+                              </button>
+
+                              {isOpen && (
+                                <div className="px-3 pb-2">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-[10px] text-slate-400 uppercase">
+                                        <th className="text-left py-1 font-medium">Apto</th>
+                                        <th className="text-left py-1 font-medium">Tipo</th>
+                                        <th className="text-left py-1 font-medium">Sentido</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {unidades.map((unidad, uIdx) => (
+                                        <tr key={uIdx} className="border-t border-slate-100">
+                                          <td className="py-1 pr-2">
+                                            <input
+                                              type="text"
+                                              value={unidad.nombre}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "nombre", ev.target.value)}
+                                              className="w-16 px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400"
+                                            />
+                                          </td>
+                                          <td className="py-1 pr-2">
+                                            <select
+                                              value={unidad.tipo_unidad_id}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "tipo_unidad_id", ev.target.value)}
+                                              className="w-full px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                            >
+                                              {tiposUnidad.map((t) => (
+                                                <option key={t.id} value={t.id}>{t.nombre}</option>
+                                              ))}
+                                            </select>
+                                          </td>
+                                          <td className="py-1">
+                                            <select
+                                              value={unidad.sentido}
+                                              onChange={(ev) => updateUnidadDetalle(idx, piso, uIdx, "sentido", ev.target.value)}
+                                              className="w-full px-1.5 py-0.5 rounded border border-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                            >
+                                              <option value="derecha">Derecha</option>
+                                              <option value="izquierda">Izquierda</option>
+                                            </select>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -530,7 +861,10 @@ export default function WizardStep1({
               Total: <strong>{totalUnidades}</strong> unidades en {edificios.length} torre{edificios.length !== 1 ? "s" : ""}
               {tiposUnidad.length > 1 && (
                 <> ({tiposUnidad.map((t) => {
-                  const count = edificios.reduce((acc, e) => acc + e.pisos * (e.distribucion[t.id] ?? 0), 0);
+                  const count = edificios.reduce((acc, e) => {
+                    const d = e.distribucion[t.id] ?? { derecha: 0, izquierda: 0 };
+                    return acc + d.derecha + d.izquierda;
+                  }, 0);
                   return `${count} ${t.nombre}`;
                 }).join(", ")})</>
               )}

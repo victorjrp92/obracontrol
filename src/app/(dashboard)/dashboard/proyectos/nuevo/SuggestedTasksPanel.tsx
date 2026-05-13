@@ -13,9 +13,11 @@ interface SuggestedTask extends TaskTemplate {
 interface SuggestedTasksPanelProps {
   fase: string;
   espacios: string[];
-  existingTareas: TareaInput[]; // current tasks for this phase (to detect duplicates)
+  existingTareas: TareaInput[];
   onAdd: (tareas: Omit<TareaInput, "id">[]) => void;
   onClose: () => void;
+  tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
+  tipoUnidadId?: string;
 }
 
 export default function SuggestedTasksPanel({
@@ -24,21 +26,32 @@ export default function SuggestedTasksPanel({
   existingTareas,
   onAdd,
   onClose,
+  tareasAprendidas,
+  tipoUnidadId,
 }: SuggestedTasksPanelProps) {
-  // Build grouped suggestions
+  // Build grouped suggestions merging static templates + learned tasks
   const grouped = useMemo(() => {
     const result: { espacio: string; tareas: SuggestedTask[] }[] = [];
     for (const espacio of espacios) {
-      const templates = getTareasSugeridas(fase, espacio);
-      if (templates.length > 0) {
+      const staticTemplates = getTareasSugeridas(fase, espacio);
+      const learnedTemplates = tareasAprendidas?.[fase]?.[espacio] ?? [];
+
+      // Merge: static first, then learned that don't duplicate by nombre
+      const seen = new Set(staticTemplates.map((t) => t.nombre));
+      const merged = [
+        ...staticTemplates,
+        ...learnedTemplates.filter((t) => !seen.has(t.nombre)),
+      ];
+
+      if (merged.length > 0) {
         result.push({
           espacio,
-          tareas: templates.map((t) => ({ ...t, espacio })),
+          tareas: merged.map((t) => ({ ...t, espacio })),
         });
       }
     }
     return result;
-  }, [fase, espacios]);
+  }, [fase, espacios, tareasAprendidas]);
 
   const allSuggestions = useMemo(() => grouped.flatMap((g) => g.tareas), [grouped]);
 
@@ -50,6 +63,7 @@ export default function SuggestedTasksPanel({
       const key = `${s.espacio}::${s.nombre}`;
       const alreadyExists = existingTareas.some(
         (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
+          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
       );
       if (!alreadyExists) {
         keys.add(key);
@@ -100,16 +114,19 @@ export default function SuggestedTasksPanel({
       // Skip duplicates
       const alreadyExists = existingTareas.some(
         (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
+          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
       );
       if (alreadyExists) continue;
       tareasToAdd.push({
         fase,
+        subfase: s.subfase,
         espacio: s.espacio,
         nombre: s.nombre,
         tiempo_acordado_dias: s.tiempo_acordado_dias,
         codigo_referencia: s.codigo_referencia,
         marca_linea: s.marca_linea,
         componentes: s.componentes,
+        precio: s.precio,
       });
     }
     onAdd(tareasToAdd);
@@ -171,6 +188,7 @@ export default function SuggestedTasksPanel({
                   const isSelected = selected.has(key);
                   const isDuplicate = existingTareas.some(
                     (ex) => ex.fase === fase && ex.espacio === t.espacio && ex.nombre === t.nombre
+                      && (!tipoUnidadId || ex.tipo_unidad_id === tipoUnidadId)
                   );
                   return (
                     <label
@@ -184,7 +202,15 @@ export default function SuggestedTasksPanel({
                         disabled={isDuplicate}
                         className="w-3.5 h-3.5 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                       />
+                      {t.subfase && (
+                        <span className="text-[10px] font-medium text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded flex-shrink-0">{t.subfase}</span>
+                      )}
                       <span className="text-xs text-slate-700 flex-1">{t.nombre}</span>
+                      {t.precio != null && t.precio > 0 && (
+                        <span className="text-[10px] text-emerald-600 flex-shrink-0">
+                          {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)}
+                        </span>
+                      )}
                       <span className="text-[10px] text-slate-400">{t.tiempo_acordado_dias}d</span>
                       {isDuplicate && <span className="text-[10px] text-amber-600">ya existe</span>}
                     </label>

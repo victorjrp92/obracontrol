@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { EditModeData, TipoUnidadInput, EdificioInput, TareaInput } from "@/app/(dashboard)/dashboard/proyectos/nuevo/wizard-types";
+import type { EditModeData, TipoUnidadInput, EdificioInput, TareaInput, DistribucionSentido } from "@/app/(dashboard)/dashboard/proyectos/nuevo/wizard-types";
 
 export async function getProyectoForEdit(
   projectId: string,
@@ -92,30 +92,33 @@ export async function getProyectoForEdit(
   const edificios: EdificioInput[] = proyecto.edificios
     .filter((e) => !e.es_zona_comun)
     .map((edificio) => {
-      // Count units per tipo per floor to reconstruct distribucion.
-      // The wizard stores a single count-per-floor (same for every floor),
-      // so we take the max across floors for each tipo.
-      const countPerTipo = new Map<string, number>();
+      const countPerTipo = new Map<string, DistribucionSentido>();
 
       for (const piso of edificio.pisos) {
-        const floorCounts = new Map<string, number>();
+        const floorCounts = new Map<string, DistribucionSentido>();
         for (const unidad of piso.unidades) {
           if (unidad.tipo_unidad_id) {
             const localId = tipoIdToLocalId.get(unidad.tipo_unidad_id);
             if (localId) {
-              floorCounts.set(localId, (floorCounts.get(localId) ?? 0) + 1);
+              const prev = floorCounts.get(localId) ?? { derecha: 0, izquierda: 0 };
+              const s = (unidad as { sentido?: string | null }).sentido;
+              if (s === "izquierda") prev.izquierda++;
+              else prev.derecha++;
+              floorCounts.set(localId, prev);
             }
           }
         }
-        for (const [localId, count] of floorCounts) {
-          const current = countPerTipo.get(localId) ?? 0;
-          if (count > current) countPerTipo.set(localId, count);
+        for (const [localId, counts] of floorCounts) {
+          const current = countPerTipo.get(localId) ?? { derecha: 0, izquierda: 0 };
+          if (counts.derecha > current.derecha) current.derecha = counts.derecha;
+          if (counts.izquierda > current.izquierda) current.izquierda = counts.izquierda;
+          countPerTipo.set(localId, current);
         }
       }
 
-      const distribucion: Record<string, number> = {};
-      for (const [localId, count] of countPerTipo) {
-        distribucion[localId] = count;
+      const distribucion: Record<string, DistribucionSentido> = {};
+      for (const [localId, counts] of countPerTipo) {
+        distribucion[localId] = counts;
       }
 
       return {
