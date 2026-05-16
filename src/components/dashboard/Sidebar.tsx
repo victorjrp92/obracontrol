@@ -71,7 +71,7 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
         </button>
       </div>
 
-      {/* User info */}
+      {/* User info — clickeable hacia el perfil */}
       {!collapsed && (
         <Link
           href="/dashboard/perfil"

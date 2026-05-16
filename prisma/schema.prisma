@@ -38,6 +38,7 @@ model Proyecto {
   id                      String         @id @default(cuid())
   constructora_id         String
   numero_registro         String?
+  contratista_default_id  String?
   nombre                  String
   ubicacion_lat           Float?
   ubicacion_lng           Float?
@@ -61,9 +62,11 @@ model Proyecto {
   tareas_sugeridas        TareaSugerida[]
   audit_logs              AuditLog[]
   admins_proyecto          AdminProyectoAccess[]
+  contratista_default      Usuario?       @relation("ContratistaDefaultProyectos", fields: [contratista_default_id], references: [id], onDelete: SetNull)
   personas_externas        PersonaExternaProyecto[]
 
   @@unique([constructora_id, numero_registro])
+  @@index([contratista_default_id])
   @@map("proyectos")
 }
 
@@ -194,6 +197,9 @@ model Tarea {
   extensiones_tiempo        ExtensionTiempo[]
   consumo_material          ConsumoMaterial?
 
+  @@index([asignado_a])
+  @@index([estado])
+  @@index([asignado_a, estado])
   @@map("tareas")
 }
 
@@ -215,6 +221,7 @@ model Evidencia {
   usuario           Usuario?     @relation(fields: [tomada_por], references: [id])
   obrero            Obrero?      @relation(fields: [obrero_id], references: [id])
 
+  @@index([tarea_id])
   @@map("evidencias")
 }
 
@@ -232,6 +239,7 @@ model Aprobacion {
   tarea                  Tarea           @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
   aprobador              Usuario         @relation(fields: [aprobador_id], references: [id])
 
+  @@index([tarea_id])
   @@map("aprobaciones")
 }
 
@@ -352,6 +360,7 @@ model Usuario {
   audit_logs             AuditLog[]
   proyectos_administrados  AdminProyectoAccess[] @relation("AdminProyectoAccessUsuario")
   proyectos_asignados_por  AdminProyectoAccess[] @relation("AdminProyectoAccessAsignador")
+  proyectos_como_contratista Proyecto[]            @relation("ContratistaDefaultProyectos")
 
   @@map("usuarios")
 }
@@ -497,6 +506,7 @@ model TareaSugerida {
   nombre         String
   descripcion    String?
   foto_url       String?
+  precio         Float?            // Precio propuesto por el contratista al sugerir
   estado         EstadoSugerencia  @default(PENDIENTE)
   motivo_rechazo String?
   revisado_por   String?

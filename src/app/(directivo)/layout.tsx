@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import SidebarDirectivo from "@/components/dashboard/SidebarDirectivo";
 
+export const dynamic = "force-dynamic";
+
 export default async function DirectivoLayout({
   children,
 }: {

@@ -31,6 +31,7 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
   const [unidadesSeleccionadas, setUnidadesSeleccionadas] = useState<string[]>([]);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [precio, setPrecio] = useState<string>("");
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -72,6 +73,7 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
     setUnidadesSeleccionadas([]);
     setNombre("");
     setDescripcion("");
+    setPrecio("");
     setPhotos([]);
   }
 
@@ -114,6 +116,7 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
           nombre,
           descripcion: descripcion || undefined,
           foto_url: foto_url ?? undefined,
+          precio: precio.trim() === "" ? null : Number(precio),
         }),
       });
 
@@ -279,6 +282,25 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
             rows={3}
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
           />
+        </div>
+
+        {/* Precio sugerido */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Precio sugerido (COP) <span className="text-slate-400 font-normal">(opcional)</span>
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            value={precio}
+            onChange={(e) => setPrecio(e.target.value)}
+            placeholder="Ej: 250000"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+          />
+          <p className="text-[11px] text-slate-400 mt-1">
+            Si lo dejas vacío, el administrador asignará el precio al aprobar.
+          </p>
         </div>
 
         {/* Photo */}

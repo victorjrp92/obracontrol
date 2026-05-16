@@ -3,6 +3,10 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { getUsuarioActual } from "@/lib/data";
 
+// Forzar render dinámico — cada request lee cookies del usuario actual.
+// Sin esto, Next podría cachear el layout y mostrar datos del usuario anterior.
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {

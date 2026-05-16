@@ -121,6 +121,17 @@ export function canApproveTasks(nivel: NivelAcceso | string): boolean {
   );
 }
 
+/** Quién puede ver y editar el precio de una tarea. Excluye OBRERO. */
+export function canManageTaskPrice(nivel: NivelAcceso | string): boolean {
+  return (
+    nivel === "SUPER_ADMIN" ||
+    nivel === "DIRECTIVO" ||
+    nivel === "ADMIN_GENERAL" ||
+    nivel === "ADMIN_PROYECTO" ||
+    nivel === "CONTRATISTA"
+  );
+}
+
 /** Returns the path where a user with this role should be redirected after login. */
 export function getHomePathForRole(nivel: NivelAcceso | string): string {
   if (nivel === "SUPER_ADMIN") return "/super-admin";

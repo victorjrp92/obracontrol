@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import SidebarSuperAdmin from "@/components/dashboard/SidebarSuperAdmin";
 
+export const dynamic = "force-dynamic";
+
 export default async function SuperAdminLayout({
   children,
 }: {

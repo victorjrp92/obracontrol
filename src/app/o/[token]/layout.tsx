@@ -55,6 +55,7 @@ export default async function ObreroTokenLayout({
     <ObreroLayout
       obreroNombre={obrero.nombre}
       contratistaNombre={obrero.contratista.nombre}
+      token={token}
     >
       {children}
     </ObreroLayout>

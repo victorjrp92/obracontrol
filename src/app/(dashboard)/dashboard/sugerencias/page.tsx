@@ -61,6 +61,7 @@ export default async function SugerenciasPage({
     nombre: s.nombre,
     descripcion: s.descripcion,
     foto_url: s.foto_url,
+    precio: s.precio,
     estado: s.estado as "PENDIENTE" | "APROBADA" | "RECHAZADA",
     motivo_rechazo: s.motivo_rechazo,
     unidades: Array.isArray(s.unidades) ? (s.unidades as string[]) : [],

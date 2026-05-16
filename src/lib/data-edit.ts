@@ -89,41 +89,42 @@ export async function getProyectoForEdit(
   }
 
   // ── edificios (non-zona-comun) ───────────────────────────────────────────
+  // Distribución se devuelve como TOTALES DE LA TORRE (suma entre todos los pisos),
+  // alineada con la semántica del wizard de creación. unidades_por_piso se deriva
+  // del piso con más unidades (asumiendo capacidad uniforme).
   const edificios: EdificioInput[] = proyecto.edificios
     .filter((e) => !e.es_zona_comun)
     .map((edificio) => {
-      const countPerTipo = new Map<string, DistribucionSentido>();
+      const towerTotals = new Map<string, DistribucionSentido>();
+      let maxUnitsInAnyFloor = 0;
 
       for (const piso of edificio.pisos) {
-        const floorCounts = new Map<string, DistribucionSentido>();
+        if (piso.unidades.length > maxUnitsInAnyFloor) {
+          maxUnitsInAnyFloor = piso.unidades.length;
+        }
         for (const unidad of piso.unidades) {
           if (unidad.tipo_unidad_id) {
             const localId = tipoIdToLocalId.get(unidad.tipo_unidad_id);
             if (localId) {
-              const prev = floorCounts.get(localId) ?? { derecha: 0, izquierda: 0 };
+              const prev = towerTotals.get(localId) ?? { derecha: 0, izquierda: 0 };
               const s = (unidad as { sentido?: string | null }).sentido;
               if (s === "izquierda") prev.izquierda++;
               else prev.derecha++;
-              floorCounts.set(localId, prev);
+              towerTotals.set(localId, prev);
             }
           }
-        }
-        for (const [localId, counts] of floorCounts) {
-          const current = countPerTipo.get(localId) ?? { derecha: 0, izquierda: 0 };
-          if (counts.derecha > current.derecha) current.derecha = counts.derecha;
-          if (counts.izquierda > current.izquierda) current.izquierda = counts.izquierda;
-          countPerTipo.set(localId, current);
         }
       }
 
       const distribucion: Record<string, DistribucionSentido> = {};
-      for (const [localId, counts] of countPerTipo) {
+      for (const [localId, counts] of towerTotals) {
         distribucion[localId] = counts;
       }
 
       return {
         nombre: edificio.nombre,
         pisos: edificio.num_pisos,
+        unidades_por_piso: maxUnitsInAnyFloor,
         distribucion,
       };
     });
@@ -138,43 +139,147 @@ export async function getProyectoForEdit(
     }
   }
 
-  // ── tareas (deduplicated templates from one representative unit) ─────────
+  // ── tareas (deduplicated templates por tipo de unidad) ──────────────────
+  // Cargamos una unidad representativa POR cada tipo y deduplicamos templates.
+  // Tareas de Madera se etiquetan con tipo_unidad_id (local id) y se colapsan
+  // las 2 subfases de DB en un único template (subfase=undefined, como las envía
+  // el wizard de creación). Tareas no-Madera se mantienen como plantillas únicas
+  // (sin tipo_unidad_id) si aparecen idénticas en todos los tipos; si solo
+  // aparecen en algunos, se etiquetan con el tipo correspondiente.
   const tareas: TareaInput[] = [];
 
-  // Find one representative non-zona-comun unit with tasks
-  let representativeUnit: (typeof proyecto.edificios)[0]["pisos"][0]["unidades"][0] | null = null;
+  // Por cada tipo, buscar la primera unidad de ese tipo con tareas
+  const representativePorTipo = new Map<
+    string,
+    (typeof proyecto.edificios)[0]["pisos"][0]["unidades"][0]
+  >();
   for (const edificio of proyecto.edificios) {
     if (edificio.es_zona_comun) continue;
     for (const piso of edificio.pisos) {
       for (const unidad of piso.unidades) {
+        if (!unidad.tipo_unidad_id) continue;
+        if (representativePorTipo.has(unidad.tipo_unidad_id)) continue;
         const hasTasks = unidad.espacios.some((e) => e.tareas.length > 0);
-        if (hasTasks) {
-          representativeUnit = unidad;
-          break;
-        }
+        if (hasTasks) representativePorTipo.set(unidad.tipo_unidad_id, unidad);
       }
-      if (representativeUnit) break;
     }
-    if (representativeUnit) break;
   }
 
-  if (representativeUnit) {
-    const seen = new Set<string>();
-    for (const espacio of representativeUnit.espacios) {
-      for (const tarea of espacio.tareas) {
-        const key = `${tarea.fase.nombre}|${espacio.nombre}|${tarea.nombre}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+  // Recopilamos templates por tipo. Key dedup:
+  // - Madera: `${tipoId}|fase|espacio|nombre` (las 2 subfases colapsan)
+  // - Otras:  `${tipoId}|fase|espacio|nombre|subfase`
+  type TareaCargada = TareaInput & { _tipoIdSource: string };
+  const porTipo = new Map<string, TareaCargada[]>();
 
-        tareas.push({
+  for (const [dbTipoId, unidad] of representativePorTipo) {
+    const localId = tipoIdToLocalId.get(dbTipoId);
+    if (!localId) continue;
+    const seenLocal = new Set<string>();
+    const lista: TareaCargada[] = [];
+    for (const espacio of unidad.espacios) {
+      for (const tarea of espacio.tareas) {
+        const isMadera = tarea.fase.nombre === "Madera";
+        const key = isMadera
+          ? `${tarea.fase.nombre}|${espacio.nombre}|${tarea.nombre}`
+          : `${tarea.fase.nombre}|${espacio.nombre}|${tarea.nombre}|${tarea.subfase ?? ""}`;
+        if (seenLocal.has(key)) continue;
+        seenLocal.add(key);
+
+        lista.push({
           id: `db-${tarea.id}`,
           fase: tarea.fase.nombre,
           espacio: espacio.nombre,
           nombre: tarea.nombre,
           tiempo_acordado_dias: tarea.tiempo_acordado_dias,
+          ...(isMadera ? { tipo_unidad_id: localId } : {}),
+          ...(!isMadera && tarea.subfase ? { subfase: tarea.subfase } : {}),
           ...(tarea.codigo_referencia ? { codigo_referencia: tarea.codigo_referencia } : {}),
           ...(tarea.marca_linea ? { marca_linea: tarea.marca_linea } : {}),
           ...(tarea.componentes ? { componentes: tarea.componentes } : {}),
+          ...(tarea.precio != null ? { precio: tarea.precio } : {}),
+          // Component flags para Madera (defaults true para estructura/nave si Madera)
+          tiene_estructura: tarea.tiene_estructura,
+          tiene_nave: tarea.tiene_nave,
+          tiene_chapa: tarea.tiene_chapa,
+          tiene_cartera: tarea.tiene_cartera,
+          _tipoIdSource: localId,
+        });
+      }
+    }
+    porTipo.set(localId, lista);
+  }
+
+  // Dedup cross-tipo para tareas no-Madera: si un mismo (fase, espacio, nombre,
+  // subfase) aparece en TODOS los tipos, lo conservamos sin tipo_unidad_id.
+  // Si aparece solo en algunos, mantenemos copia por tipo con su tag.
+  const allLocalTipoIds = [...porTipo.keys()];
+  const occurrences = new Map<string, Set<string>>();
+  for (const [localId, lista] of porTipo) {
+    for (const t of lista) {
+      if (t.fase === "Madera") continue; // Madera siempre va por tipo
+      const k = `${t.fase}|${t.espacio}|${t.nombre}|${t.subfase ?? ""}`;
+      const set = occurrences.get(k) ?? new Set<string>();
+      set.add(localId);
+      occurrences.set(k, set);
+    }
+  }
+
+  const inserted = new Set<string>();
+  for (const [localId, lista] of porTipo) {
+    for (const t of lista) {
+      if (t.fase === "Madera") {
+        // Madera: incluir tal cual (con su tipo_unidad_id)
+        tareas.push({
+          id: t.id,
+          fase: t.fase,
+          espacio: t.espacio,
+          nombre: t.nombre,
+          tiempo_acordado_dias: t.tiempo_acordado_dias,
+          ...(t.tipo_unidad_id ? { tipo_unidad_id: t.tipo_unidad_id } : {}),
+          ...(t.codigo_referencia ? { codigo_referencia: t.codigo_referencia } : {}),
+          ...(t.marca_linea ? { marca_linea: t.marca_linea } : {}),
+          ...(t.componentes ? { componentes: t.componentes } : {}),
+          ...(t.precio != null ? { precio: t.precio } : {}),
+          tiene_estructura: t.tiene_estructura,
+          tiene_nave: t.tiene_nave,
+          tiene_chapa: t.tiene_chapa,
+          tiene_cartera: t.tiene_cartera,
+        });
+        continue;
+      }
+      const k = `${t.fase}|${t.espacio}|${t.nombre}|${t.subfase ?? ""}`;
+      const presentes = occurrences.get(k);
+      if (presentes && presentes.size === allLocalTipoIds.length) {
+        // Aparece en todos los tipos: incluir UNA vez sin tipo_unidad_id
+        if (!inserted.has(k)) {
+          inserted.add(k);
+          tareas.push({
+            id: t.id,
+            fase: t.fase,
+            espacio: t.espacio,
+            nombre: t.nombre,
+            tiempo_acordado_dias: t.tiempo_acordado_dias,
+            ...(t.subfase ? { subfase: t.subfase } : {}),
+            ...(t.codigo_referencia ? { codigo_referencia: t.codigo_referencia } : {}),
+            ...(t.marca_linea ? { marca_linea: t.marca_linea } : {}),
+            ...(t.componentes ? { componentes: t.componentes } : {}),
+            ...(t.precio != null ? { precio: t.precio } : {}),
+          });
+        }
+      } else {
+        // Solo en algunos tipos: incluir por tipo con etiqueta
+        tareas.push({
+          id: `${t.id}|${localId}`,
+          fase: t.fase,
+          espacio: t.espacio,
+          nombre: t.nombre,
+          tiempo_acordado_dias: t.tiempo_acordado_dias,
+          tipo_unidad_id: localId,
+          ...(t.subfase ? { subfase: t.subfase } : {}),
+          ...(t.codigo_referencia ? { codigo_referencia: t.codigo_referencia } : {}),
+          ...(t.marca_linea ? { marca_linea: t.marca_linea } : {}),
+          ...(t.componentes ? { componentes: t.componentes } : {}),
+          ...(t.precio != null ? { precio: t.precio } : {}),
         });
       }
     }

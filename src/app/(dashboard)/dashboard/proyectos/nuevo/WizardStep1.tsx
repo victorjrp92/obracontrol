@@ -6,13 +6,16 @@ import {
   ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
-import type { TipoUnidadInput, EdificioInput, UnidadDetailInput } from "./wizard-types";
+import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista } from "./wizard-types";
 
 interface WizardStep1Props {
   nombre: string;
   setNombre: (v: string) => void;
   numeroRegistro: string;
   setNumeroRegistro: (v: string) => void;
+  contratistaDefaultId: string;
+  setContratistaDefaultId: (v: string) => void;
+  contratistas: Contratista[];
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   setSubtipo: (v: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES") => void;
   diasHabiles: number;
@@ -40,6 +43,8 @@ interface WizardStep1Props {
 export default function WizardStep1({
   nombre, setNombre,
   numeroRegistro, setNumeroRegistro,
+  contratistaDefaultId, setContratistaDefaultId,
+  contratistas,
   subtipo, setSubtipo,
   diasHabiles, setDiasHabiles,
   fechaInicio, setFechaInicio,
@@ -409,6 +414,36 @@ export default function WizardStep1({
           <p className="text-[10px] text-slate-400 mt-1">
             Único por empresa. Las tareas heredarán este número (ej. PR-2026-001-T0001).
           </p>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            Contratista por defecto <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={contratistaDefaultId}
+            onChange={(e) => setContratistaDefaultId(e.target.value)}
+            disabled={contratistas.length === 0}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="">
+              {contratistas.length === 0 ? "No hay contratistas registrados" : "Selecciona un contratista..."}
+            </option>
+            {contratistas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre} {c.rol_ref?.nombre ? `· ${c.rol_ref.nombre}` : ""}
+              </option>
+            ))}
+          </select>
+          {contratistas.length === 0 ? (
+            <p className="text-[11px] text-amber-700 mt-1.5">
+              No tienes contratistas creados. Ve a <a href="/dashboard/usuarios" className="font-semibold underline">Usuarios</a> y crea al menos uno con rol Contratista antes de continuar.
+            </p>
+          ) : (
+            <p className="text-[10px] text-slate-400 mt-1">
+              Se asignará automáticamente a las tareas del proyecto que no tengan contratista específico. Vinculado al proyecto {numeroRegistro || "(número)"}.
+            </p>
+          )}
         </div>
 
         <div>
@@ -962,7 +997,45 @@ export default function WizardStep1({
         )}
       </div>
 
-      <div className="flex justify-end mt-6">
+      <div className="flex flex-col items-end gap-2 mt-6">
+        {!canProceed && (() => {
+          const missing: string[] = [];
+          if (nombre.trim().length < 3) missing.push("Nombre del proyecto (mín. 3 caracteres)");
+          if (numeroRegistro.trim().length < 2) missing.push("Número de registro (mín. 2 caracteres)");
+          if (!contratistaDefaultId) missing.push("Contratista por defecto");
+          const tiposSinEspacios = tiposUnidad.filter((t) => t.espacios.length === 0).map((t) => t.nombre || "Tipo sin nombre");
+          if (tiposSinEspacios.length > 0) missing.push(`Espacios para: ${tiposSinEspacios.join(", ")}`);
+          if (subtipo === "ZONAS_COMUNES") {
+            if (zonasSeleccionadas.length === 0) missing.push("Selecciona al menos una zona común");
+          } else {
+            if (edificios.length === 0) missing.push("Agrega al menos una torre");
+            const torresIncompletas = edificios.filter((e) => !e.nombre || e.pisos <= 0 || (e.unidades_por_piso ?? 0) <= 0);
+            if (torresIncompletas.length > 0) missing.push(`Completa nombre, pisos y uds/piso de: ${torresIncompletas.map((e) => e.nombre || "torre sin nombre").join(", ")}`);
+            const torresDescuadradas = edificios.filter((e) => {
+              const upiso = e.unidades_por_piso ?? 0;
+              if (upiso <= 0 || e.pisos <= 0) return false;
+              const distSum = Object.values(e.distribucion).reduce((s, d) => s + (d.derecha ?? 0) + (d.izquierda ?? 0), 0);
+              return distSum !== e.pisos * upiso;
+            });
+            if (torresDescuadradas.length > 0) {
+              const detalle = torresDescuadradas.map((e) => {
+                const upiso = e.unidades_por_piso ?? 0;
+                const distSum = Object.values(e.distribucion).reduce((s, d) => s + (d.derecha ?? 0) + (d.izquierda ?? 0), 0);
+                return `${e.nombre || "torre"} (suma ${distSum}, esperado ${e.pisos * upiso})`;
+              }).join("; ");
+              missing.push(`Distribución descuadrada en: ${detalle}`);
+            }
+          }
+          if (missing.length === 0) return null;
+          return (
+            <div className="w-full max-w-md text-right">
+              <p className="text-[11px] text-slate-500 mb-1">Para continuar, completa:</p>
+              <ul className="text-[12px] text-amber-700 space-y-0.5">
+                {missing.map((m, i) => <li key={i}>• {m}</li>)}
+              </ul>
+            </div>
+          );
+        })()}
         <button
           onClick={onNext}
           disabled={!canProceed}

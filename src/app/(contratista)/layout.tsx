@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import SidebarContratista from "@/components/dashboard/SidebarContratista";
 
+export const dynamic = "force-dynamic";
+
 export default async function ContratistaLayout({
   children,
 }: {

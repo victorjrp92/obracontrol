@@ -452,14 +452,14 @@ export default function WizardStep2({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-slate-500 mb-1 block">Valor COP</label>
+                        <label className="text-xs text-slate-500 mb-1 block">Precio (COP, opcional)</label>
                         <input
                           type="number"
-                          step="0.01"
+                          step="1000"
                           min="0"
                           value={newTaskPrecio ?? ""}
                           onChange={(e) => setNewTaskPrecio(e.target.value ? Number(e.target.value) : undefined)}
-                          placeholder="Ej: 150000"
+                          placeholder="Ej: 250000"
                           className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
                         />
                       </div>

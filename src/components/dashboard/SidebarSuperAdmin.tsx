@@ -25,8 +25,8 @@ import {
 const navItems = [
   { key: "sa-dashboard", icon: LayoutDashboard, label: "Vista global", href: "/super-admin" },
   { key: "sa-constructoras", icon: Building2, label: "Constructoras", href: "/super-admin/constructoras" },
+  { key: "sa-proyectos", icon: FolderOpen, label: "Proyectos", href: "/super-admin/proyectos" },
   { key: "sa-admins", icon: UsersRound, label: "Admin Generales", href: "/super-admin/admins-generales" },
-  { key: "sa-proyectos", icon: FolderOpen, label: "Todos los proyectos", href: "/super-admin/proyectos" },
   { key: "sa-contratistas", icon: Briefcase, label: "Contratistas", href: "/super-admin/contratistas" },
   { key: "sa-obreros", icon: HardHat, label: "Obreros", href: "/super-admin/obreros" },
   { key: "sa-roles", icon: KeyRound, label: "Roles del sistema", href: "/super-admin/roles" },
