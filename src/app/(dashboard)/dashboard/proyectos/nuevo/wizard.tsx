@@ -58,16 +58,39 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     const perFloor = e.unidades_por_piso ?? 0;
     return acc + e.pisos * perFloor;
   }, 0);
+  // Units per tipo_unidad_id, summed across all edificios' distribución.
+  const unidadesPorTipo: Record<string, number> = subtipo === "ZONAS_COMUNES" ? {} : edificios.reduce<Record<string, number>>((acc, e) => {
+    for (const [tipoId, dist] of Object.entries(e.distribucion)) {
+      acc[tipoId] = (acc[tipoId] ?? 0) + (dist.derecha ?? 0) + (dist.izquierda ?? 0);
+    }
+    return acc;
+  }, {});
+  // Mirror the server's tarea creation: each Madera task generates 2 subfases (Instalación + Detallado y lustro)
+  // and Madera tasks with tipo_unidad_id only apply to units of that type.
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"
     ? tareas.length * zonasSeleccionadas.length
-    : totalUnidades * tareas.length;
+    : tareas.reduce((acc, t) => {
+        const isMadera = t.fase === "Madera";
+        const unidadesAplicables = isMadera && t.tipo_unidad_id
+          ? (unidadesPorTipo[t.tipo_unidad_id] ?? 0)
+          : totalUnidades;
+        const subfasesPorTarea = isMadera ? 2 : 1;
+        return acc + unidadesAplicables * subfasesPorTarea;
+      }, 0);
 
   // Validation
   const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && contratistaDefaultId.length > 0 && (
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0
-        && edificios.every((e) => e.nombre && e.pisos > 0 && (e.unidades_por_piso ?? 0) > 0 && Object.values(e.distribucion).some((d) => d.derecha + d.izquierda > 0))
+        && edificios.every((e) => {
+          const upiso = e.unidades_por_piso ?? 0;
+          if (!e.nombre || e.pisos <= 0 || upiso <= 0) return false;
+          const distSum = Object.values(e.distribucion).reduce((s, d) => s + (d.derecha ?? 0) + (d.izquierda ?? 0), 0);
+          // Distribución debe cuadrar exactamente con la capacidad de la torre,
+          // si no, el servidor crea menos/más unidades de las que muestra la preview.
+          return distSum === e.pisos * upiso;
+        })
         && tiposUnidad.every((t) => t.espacios.length > 0)
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
@@ -140,7 +163,13 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
         nombre: f,
         ...(faseDias[f] != null ? { tiempo_estimado_dias: faseDias[f] } : {}),
       })),
-      tareas: tareasToSend.map(({ id: _id, ...rest }) => rest),
+      tareas: tareasToSend.map(({ id: _id, tipo_unidad_id, ...rest }) => ({
+        ...rest,
+        // Translate local tipo ID -> tipo nombre, since the server matches by nombre.
+        ...(tipo_unidad_id
+          ? { tipo_unidad_id: tiposUnidad.find((tu) => tu.id === tipo_unidad_id)?.nombre ?? tipo_unidad_id }
+          : {}),
+      })),
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
       ...(metrosEnabled && Object.keys(metrosZonas).length > 0
         ? { zonas_comunes_metrajes: metrosZonas } : {}),

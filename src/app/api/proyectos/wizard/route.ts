@@ -238,6 +238,17 @@ export async function POST(req: NextRequest) {
               { status: 400 },
             );
           }
+          // Distribución debe cuadrar con la capacidad de la torre.
+          // Si no cuadra, el servidor crearía menos o más unidades de las indicadas
+          // y los totales del wizard quedarían inconsistentes con la BD.
+          if (ed.unidadesPorPiso !== undefined && distTotal !== ed.pisos * ed.unidadesPorPiso) {
+            return NextResponse.json(
+              {
+                error: `Distribución descuadrada en "${ed.nombre}": suma ${distTotal} pero la torre tiene capacidad ${ed.pisos * ed.unidadesPorPiso} (${ed.pisos} pisos × ${ed.unidadesPorPiso} uds/piso). Ajusta los totales para que coincidan.`,
+              },
+              { status: 400 },
+            );
+          }
         }
       }
     }

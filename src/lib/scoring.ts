@@ -37,6 +37,11 @@ export function calcularSemaforo(
   diasTranscurridos: number,
   terminada: boolean
 ): "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto" {
+  // Si los días acordados no son válidos no podemos calcular desviación %.
+  // Caemos a la heurística absoluta: si está terminada, verde; si no, neutral.
+  if (diasAcordados <= 0) {
+    return terminada ? "verde" : "amarillo";
+  }
   if (terminada) {
     const sobrante = (diasAcordados - diasTranscurridos) / diasAcordados;
     if (sobrante > 0.1) return "verde-intenso";
@@ -211,21 +216,44 @@ export async function recalcularScoreObrerosDeTarea(tareaId: string): Promise<vo
   if (obreroIds.length === 0) return;
 
   for (const obreroId of obreroIds) {
-    // Estados de las tareas a las que el obrero aportó evidencia
+    // Estados de las tareas a las que el obrero aportó evidencia.
+    // Incluimos los días hábiles del proyecto para medir "a tiempo" con la misma
+    // unidad temporal que el contratista (días hábiles, no calendario).
     const tareasDelObrero = await prisma.tarea.findMany({
       where: { evidencias: { some: { obrero_id: obreroId } } },
-      select: { estado: true, fecha_fin_real: true, tiempo_acordado_dias: true, fecha_inicio: true },
+      select: {
+        estado: true,
+        fecha_fin_real: true,
+        tiempo_acordado_dias: true,
+        fecha_inicio: true,
+        espacio: {
+          select: {
+            unidad: {
+              select: {
+                piso: {
+                  select: {
+                    edificio: {
+                      select: { proyecto: { select: { dias_habiles_semana: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     const aprobadas = tareasDelObrero.filter((t) => t.estado === "APROBADA").length;
     const rechazadas = tareasDelObrero.filter((t) => t.estado === "NO_APROBADA").length;
     const completadas = aprobadas + rechazadas;
 
-    // A tiempo: aprobadas con fecha_fin_real <= fecha_inicio + tiempo_acordado_dias
+    // A tiempo: aprobadas cuya duración en días hábiles <= tiempo_acordado_dias.
     const aTiempo = tareasDelObrero.filter((t) => {
       if (t.estado !== "APROBADA" || !t.fecha_fin_real || !t.fecha_inicio) return false;
-      const limite = new Date(t.fecha_inicio.getTime() + t.tiempo_acordado_dias * 86400000);
-      return t.fecha_fin_real <= limite;
+      const diasHabilesProyecto = t.espacio.unidad.piso.edificio.proyecto.dias_habiles_semana;
+      const diasReales = calcularDiasHabiles(t.fecha_inicio, t.fecha_fin_real, diasHabilesProyecto);
+      return diasReales <= t.tiempo_acordado_dias;
     }).length;
 
     const scores = calcularScoringObrero({

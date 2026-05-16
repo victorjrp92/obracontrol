@@ -44,6 +44,13 @@ interface WizardPayload {
     marca_linea?: string;
     componentes?: string;
     asignado_a?: string;
+    // Nombre del TipoUnidad al que aplica (Madera con tipos específicos).
+    // El cliente envía el nombre, no el id local.
+    tipo_unidad_id?: string;
+    tiene_estructura?: boolean;
+    tiene_nave?: boolean;
+    tiene_chapa?: boolean;
+    tiene_cartera?: boolean;
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
@@ -207,16 +214,25 @@ export async function POST(
           }
         }
         if (ed.distribucion) {
-          const total = Object.values(ed.distribucion).reduce<number>(
+          const distTotal = Object.values(ed.distribucion).reduce<number>(
             (a, b) => {
               if (typeof b === "number") return a + b;
               return a + (b.derecha ?? 0) + (b.izquierda ?? 0);
             },
             0,
           );
-          if (total > MAX_UNIDADES_POR_PISO) {
+          const maxTotal = ed.pisos * MAX_UNIDADES_POR_PISO;
+          if (distTotal > maxTotal) {
             return NextResponse.json(
-              { error: `La distribucion por piso no puede superar ${MAX_UNIDADES_POR_PISO} unidades` },
+              { error: `La distribución total (${distTotal}) supera el máximo de ${maxTotal} unidades para ${ed.pisos} pisos` },
+              { status: 400 },
+            );
+          }
+          if (ed.unidadesPorPiso !== undefined && distTotal !== ed.pisos * ed.unidadesPorPiso) {
+            return NextResponse.json(
+              {
+                error: `Distribución descuadrada en "${ed.nombre}": suma ${distTotal} pero la torre tiene capacidad ${ed.pisos * ed.unidadesPorPiso} (${ed.pisos} pisos × ${ed.unidadesPorPiso} uds/piso). Ajusta los totales para que coincidan.`,
+              },
               { status: 400 },
             );
           }
@@ -257,6 +273,24 @@ export async function POST(
       }
       return 3;
     }
+
+    // Tipo común para las filas de tarea que insertamos en bulk.
+    type TareaRowToInsert = {
+      espacio_id: string;
+      fase_id: string;
+      nombre: string;
+      subfase: string | null;
+      tiempo_acordado_dias: number;
+      codigo_referencia: string | null;
+      marca_linea: string | null;
+      componentes: string | null;
+      asignado_a: string | null;
+      tiene_estructura: boolean;
+      tiene_nave: boolean;
+      tiene_chapa: boolean;
+      tiene_cartera: boolean;
+      estado: "PENDIENTE";
+    };
 
     // ── Diff transaction ─────────────────────────────────────────────────────
     const summary = await prisma.$transaction(async (tx) => {
@@ -339,6 +373,50 @@ export async function POST(
           fasesMap[faseInput.nombre] = created.id;
           stats.fases_creadas++;
         }
+      }
+
+      // Helper que filtra tareas-template aplicables a un (espacio, tipoUnidad)
+      // y expande las subfases de Madera (Instalación + Detallado y lustro),
+      // alineado con el wizard de creación. Definido aquí dentro de la
+      // transacción porque depende de `fasesMap`.
+      function expandTareasParaEspacio(
+        espacioId: string,
+        nombreEspacio: string,
+        tipoNombre: string,
+        defaultAsignadoId: string | null,
+      ): TareaRowToInsert[] {
+        const out: TareaRowToInsert[] = [];
+        for (const t of tareasInput) {
+          if (t.espacio !== nombreEspacio) continue;
+          // Madera con tipo específico → solo aplica a unidades de ese tipo.
+          if (t.tipo_unidad_id && t.tipo_unidad_id !== tipoNombre) continue;
+          const faseId = fasesMap[t.fase];
+          if (!faseId) continue;
+          const dias = calcDias(t.tiempo_acordado_dias, t.fase);
+          const isMadera = t.fase === "Madera";
+          const subfases: (string | null)[] = isMadera
+            ? ["Instalación", "Detallado y lustro"]
+            : [t.subfase ?? null];
+          for (const subfase of subfases) {
+            out.push({
+              espacio_id: espacioId,
+              fase_id: faseId,
+              nombre: t.nombre,
+              subfase,
+              tiempo_acordado_dias: dias,
+              codigo_referencia: t.codigo_referencia ?? null,
+              marca_linea: t.marca_linea ?? null,
+              componentes: t.componentes ?? null,
+              asignado_a: t.asignado_a ?? defaultAsignadoId,
+              tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
+              tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
+              tiene_chapa: t.tiene_chapa ?? false,
+              tiene_cartera: t.tiene_cartera ?? false,
+              estado: "PENDIENTE",
+            });
+          }
+        }
+        return out;
       }
 
       // ── 3. TipoUnidad diff ──────────────────────────────────────────────
@@ -446,70 +524,80 @@ export async function POST(
           distribution = [[firstTipo, edificioInput.unidadesPorPiso ?? 4, null]];
         }
 
+        // Aplanamos la distribución de torre (totales) en una lista,
+        // luego la repartimos en los slots pisos × unidades_por_piso.
+        type UnitSpec = { tipoNombre: string; sentido: string | null };
+        const allTowerUnits: UnitSpec[] = [];
+        for (const [tipoNombre, count, sentido] of distribution) {
+          for (let i = 0; i < count; i++) {
+            allTowerUnits.push({ tipoNombre, sentido });
+          }
+        }
+        const udsPerFloor = edificioInput.unidadesPorPiso ?? (
+          edificioInput.pisos > 0
+            ? Math.ceil(allTowerUnits.length / edificioInput.pisos)
+            : 0
+        );
+
         let totalUnitsCreated = 0;
         let totalTareasCreated = 0;
+        const tareasPendientes: TareaRowToInsert[] = [];
 
+        let unitIdx = 0;
         for (let p = 1; p <= edificioInput.pisos; p++) {
           const piso = await txInner.piso.create({
             data: { edificio_id: edificio.id, numero: p },
           });
 
-          let unitCounter = 1;
-          for (const [tipoNombre, count, sentido] of distribution) {
-            const tipoInfo = tipoMap[tipoNombre];
-            if (!tipoInfo || count <= 0) continue;
+          for (let slot = 0; slot < udsPerFloor; slot++) {
+            const spec = allTowerUnits[unitIdx];
+            if (!spec) break;
+            const tipoInfo = tipoMap[spec.tipoNombre];
+            if (!tipoInfo) { unitIdx++; continue; }
 
-            for (let u = 0; u < count; u++) {
-              const unidad = await txInner.unidad.create({
+            const unidad = await txInner.unidad.create({
+              data: {
+                piso_id: piso.id,
+                nombre: `${p}0${slot + 1}`,
+                tipo_unidad_id: tipoInfo.id,
+                sentido: spec.sentido,
+                ...(tipoInfo.metraje_total != null
+                  ? { metraje_total: tipoInfo.metraje_total }
+                  : {}),
+              },
+            });
+            unitIdx++;
+            totalUnitsCreated++;
+
+            for (const nombreEspacio of tipoInfo.espacios) {
+              const espacioMetraje =
+                tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
+              const espacio = await txInner.espacio.create({
                 data: {
-                  piso_id: piso.id,
-                  nombre: `${p}0${unitCounter}`,
-                  tipo_unidad_id: tipoInfo.id,
-                  sentido,
-                  ...(tipoInfo.metraje_total != null
-                    ? { metraje_total: tipoInfo.metraje_total }
-                    : {}),
+                  unidad_id: unidad.id,
+                  nombre: nombreEspacio,
+                  metraje: espacioMetraje,
                 },
               });
-              unitCounter++;
-              totalUnitsCreated++;
 
-              for (const nombreEspacio of tipoInfo.espacios) {
-                const espacioMetraje =
-                  tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
-                const espacio = await txInner.espacio.create({
-                  data: {
-                    unidad_id: unidad.id,
-                    nombre: nombreEspacio,
-                    metraje: espacioMetraje,
-                  },
-                });
-
-                const tareasDelEspacio = tareasInput.filter(
-                  (t) => t.espacio === nombreEspacio,
-                );
-                for (const t of tareasDelEspacio) {
-                  const faseId = fasesMap[t.fase];
-                  if (!faseId) continue;
-                  const dias = calcDias(t.tiempo_acordado_dias, t.fase);
-                  await txInner.tarea.create({
-                    data: {
-                      espacio_id: espacio.id,
-                      fase_id: faseId,
-                      nombre: t.nombre,
-                      tiempo_acordado_dias: dias,
-                      codigo_referencia: t.codigo_referencia ?? null,
-                      marca_linea: t.marca_linea ?? null,
-                      componentes: t.componentes ?? null,
-                      asignado_a: t.asignado_a ?? null,
-                      estado: "PENDIENTE",
-                    },
-                  });
-                  totalTareasCreated++;
-                }
+              const filas = expandTareasParaEspacio(
+                espacio.id,
+                nombreEspacio,
+                spec.tipoNombre,
+                null,
+              );
+              for (const fila of filas) {
+                tareasPendientes.push(fila);
+                totalTareasCreated++;
               }
             }
           }
+        }
+
+        // Bulk-insert todas las tareas de la torre en una sola query
+        // (evita timeout P2028 cuando son cientos de tareas).
+        if (tareasPendientes.length > 0) {
+          await txInner.tarea.createMany({ data: tareasPendientes });
         }
 
         return { totalUnitsCreated, totalTareasCreated };
@@ -556,15 +644,17 @@ export async function POST(
           }
 
           // Build existing distribution from actual data (keyed by "tipo:sentido")
+          // Sumamos TODOS los pisos: distribución es total de torre, no por-piso.
           let distributionChanged = false;
           if (!pisosChanged && existing.pisos.length > 0) {
-            const existingPiso = existing.pisos[0];
             const existingDistMap: Record<string, number> = {};
-            for (const unidad of existingPiso.unidades) {
-              const tipoName = unidad.tipo_unidad?.nombre ?? "Tipo estandar";
-              const s = (unidad as { sentido?: string | null }).sentido ?? null;
-              const key = s ? `${tipoName}:${s}` : tipoName;
-              existingDistMap[key] = (existingDistMap[key] ?? 0) + 1;
+            for (const piso of existing.pisos) {
+              for (const unidad of piso.unidades) {
+                const tipoName = unidad.tipo_unidad?.nombre ?? "Tipo estandar";
+                const s = (unidad as { sentido?: string | null }).sentido ?? null;
+                const key = s ? `${tipoName}:${s}` : tipoName;
+                existingDistMap[key] = (existingDistMap[key] ?? 0) + 1;
+              }
             }
 
             const incomingDistMap: Record<string, number> = {};
@@ -595,69 +685,77 @@ export async function POST(
             // Delete all pisos (CASCADE removes unidades -> espacios -> tareas)
             await tx.piso.deleteMany({ where: { edificio_id: existing.id } });
 
-            // Recreate structure under the existing edificio (reuse incomingDist)
+            // Recreate structure: distribución = TOTALES DE TORRE.
+            // Aplanamos la lista de unidades y las repartimos en los slots
+            // pisos × unidades_por_piso (alineado con el wizard de creación).
+            type UnitSpec = { tipoNombre: string; sentido: string | null };
+            const allTowerUnits: UnitSpec[] = [];
+            for (const [tipoNombre, count, sentido] of incomingDist) {
+              for (let i = 0; i < count; i++) {
+                allTowerUnits.push({ tipoNombre, sentido });
+              }
+            }
+            const udsPerFloor = edificioInput.unidadesPorPiso ?? (
+              edificioInput.pisos > 0
+                ? Math.ceil(allTowerUnits.length / edificioInput.pisos)
+                : 0
+            );
 
             let totalTareasCreated = 0;
+            const tareasPendientesRecreate: TareaRowToInsert[] = [];
+
+            let unitIdx = 0;
             for (let p = 1; p <= edificioInput.pisos; p++) {
               const piso = await tx.piso.create({
                 data: { edificio_id: existing.id, numero: p },
               });
 
-              let unitCounter = 1;
-              for (const [tipoNombre, count, sentido] of incomingDist) {
-                const tipoInfo = tipoMap[tipoNombre];
-                if (!tipoInfo || count <= 0) continue;
+              for (let slot = 0; slot < udsPerFloor; slot++) {
+                const spec = allTowerUnits[unitIdx];
+                if (!spec) break;
+                const tipoInfo = tipoMap[spec.tipoNombre];
+                if (!tipoInfo) { unitIdx++; continue; }
 
-                for (let u = 0; u < count; u++) {
-                  const unidad = await tx.unidad.create({
+                const unidad = await tx.unidad.create({
+                  data: {
+                    piso_id: piso.id,
+                    nombre: `${p}0${slot + 1}`,
+                    tipo_unidad_id: tipoInfo.id,
+                    sentido: spec.sentido,
+                    ...(tipoInfo.metraje_total != null
+                      ? { metraje_total: tipoInfo.metraje_total }
+                      : {}),
+                  },
+                });
+                unitIdx++;
+
+                for (const nombreEspacio of tipoInfo.espacios) {
+                  const espacioMetraje =
+                    tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
+                  const espacio = await tx.espacio.create({
                     data: {
-                      piso_id: piso.id,
-                      nombre: `${p}0${unitCounter}`,
-                      tipo_unidad_id: tipoInfo.id,
-                      sentido,
-                      ...(tipoInfo.metraje_total != null
-                        ? { metraje_total: tipoInfo.metraje_total }
-                        : {}),
+                      unidad_id: unidad.id,
+                      nombre: nombreEspacio,
+                      metraje: espacioMetraje,
                     },
                   });
-                  unitCounter++;
 
-                  for (const nombreEspacio of tipoInfo.espacios) {
-                    const espacioMetraje =
-                      tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
-                    const espacio = await tx.espacio.create({
-                      data: {
-                        unidad_id: unidad.id,
-                        nombre: nombreEspacio,
-                        metraje: espacioMetraje,
-                      },
-                    });
-
-                    const tareasDelEspacio = tareasInput.filter(
-                      (t) => t.espacio === nombreEspacio,
-                    );
-                    for (const t of tareasDelEspacio) {
-                      const faseId = fasesMap[t.fase];
-                      if (!faseId) continue;
-                      const dias = calcDias(t.tiempo_acordado_dias, t.fase);
-                      await tx.tarea.create({
-                        data: {
-                          espacio_id: espacio.id,
-                          fase_id: faseId,
-                          nombre: t.nombre,
-                          tiempo_acordado_dias: dias,
-                          codigo_referencia: t.codigo_referencia ?? null,
-                          marca_linea: t.marca_linea ?? null,
-                          componentes: t.componentes ?? null,
-                          asignado_a: t.asignado_a ?? null,
-                          estado: "PENDIENTE",
-                        },
-                      });
-                      totalTareasCreated++;
-                    }
+                  const filas = expandTareasParaEspacio(
+                    espacio.id,
+                    nombreEspacio,
+                    spec.tipoNombre,
+                    null,
+                  );
+                  for (const fila of filas) {
+                    tareasPendientesRecreate.push(fila);
+                    totalTareasCreated++;
                   }
                 }
               }
+            }
+
+            if (tareasPendientesRecreate.length > 0) {
+              await tx.tarea.createMany({ data: tareasPendientesRecreate });
             }
 
             stats.edificios_recreados++;
@@ -670,8 +768,11 @@ export async function POST(
       }
 
       // ── 5. Tarea templates diff (for kept edificios) ────────────────────
+      // Por cada edificio conservado, calculamos las tareas "esperadas" para cada
+      // unidad (aplicando expandTareasParaEspacio según el tipo de la unidad) y
+      // las comparamos con las "actuales" en BD. Esta versión respeta las
+      // subfases de Madera y el filtro por tipo_unidad_id.
       for (const edificioId of keptEdificioIds) {
-        // Get one representative piso and unit per tipo to detect existing templates
         const pisosForEdificio = await tx.piso.findMany({
           where: { edificio_id: edificioId },
           include: {
@@ -684,7 +785,7 @@ export async function POST(
                       select: {
                         id: true,
                         nombre: true,
-                        espacio: { select: { nombre: true } },
+                        subfase: true,
                         fase: { select: { nombre: true } },
                         tiempo_acordado_dias: true,
                         estado: true,
@@ -699,139 +800,85 @@ export async function POST(
 
         if (pisosForEdificio.length === 0) continue;
 
-        // Get a representative unit (first unit of first piso) to read existing tarea templates
-        const representativeUnit = pisosForEdificio[0]?.unidades[0];
-        if (!representativeUnit) continue;
+        const tareasACrear: TareaRowToInsert[] = [];
+        const tareaIdsAEliminar: string[] = [];
+        const updatesPorDias = new Map<number, string[]>();
 
-        // Build existing tarea template keys: "fase|espacio|nombre"
-        const existingTemplates = new Map<string, {
-          nombre: string;
-          espacio: string;
-          fase: string;
-          tiempo_acordado_dias: number;
-        }>();
+        const keyFromRow = (faseNombre: string, nombre: string, subfase: string | null) =>
+          `${faseNombre}|${nombre}|${subfase ?? ""}`;
 
-        for (const espacio of representativeUnit.espacios) {
-          for (const tarea of espacio.tareas) {
-            const key = `${tarea.fase.nombre}|${espacio.nombre}|${tarea.nombre}`;
-            existingTemplates.set(key, {
-              nombre: tarea.nombre,
-              espacio: espacio.nombre,
-              fase: tarea.fase.nombre,
-              tiempo_acordado_dias: tarea.tiempo_acordado_dias,
-            });
-          }
-        }
+        for (const piso of pisosForEdificio) {
+          for (const unidad of piso.unidades) {
+            const tipoNombre = unidad.tipo_unidad?.nombre ?? "Tipo estándar";
+            for (const espacio of unidad.espacios) {
+              const esperadas = expandTareasParaEspacio(
+                espacio.id,
+                espacio.nombre,
+                tipoNombre,
+                null,
+              );
 
-        // Build incoming tarea template keys
-        const incomingTemplates = new Map<string, {
-          nombre: string;
-          espacio: string;
-          fase: string;
-          tiempo_acordado_dias: number;
-          codigo_referencia?: string;
-          marca_linea?: string;
-          componentes?: string;
-          asignado_a?: string;
-        }>();
-        for (const t of tareasInput) {
-          const key = `${t.fase}|${t.espacio}|${t.nombre}`;
-          incomingTemplates.set(key, t);
-        }
-
-        // Find templates to add (in incoming but not existing)
-        for (const [key, template] of incomingTemplates) {
-          if (!existingTemplates.has(key)) {
-            // Create this tarea across ALL matching units in this edificio
-            const faseId = fasesMap[template.fase];
-            if (!faseId) continue;
-            const dias = calcDias(template.tiempo_acordado_dias, template.fase);
-
-            for (const piso of pisosForEdificio) {
-              for (const unidad of piso.unidades) {
-                // Find matching espacio in this unit
-                const espacioTarget = unidad.espacios.find(
-                  (e) => e.nombre === template.espacio,
-                );
-                if (!espacioTarget) continue;
-
-                await tx.tarea.create({
-                  data: {
-                    espacio_id: espacioTarget.id,
-                    fase_id: faseId,
-                    nombre: template.nombre,
-                    tiempo_acordado_dias: dias,
-                    codigo_referencia: template.codigo_referencia ?? null,
-                    marca_linea: template.marca_linea ?? null,
-                    componentes: template.componentes ?? null,
-                    asignado_a: template.asignado_a ?? null,
-                    estado: "PENDIENTE",
-                  },
-                });
-                stats.tareas_creadas++;
+              // Lookup esperadas por key. Mapeamos fase_id → fase_nombre vía fasesNormalized:
+              const esperadasPorKey = new Map<string, TareaRowToInsert>();
+              for (const e of esperadas) {
+                // recuperar fase nombre desde fase_id
+                const faseNombre = fasesNormalized.find(
+                  (f) => fasesMap[f.nombre] === e.fase_id,
+                )?.nombre;
+                if (!faseNombre) continue;
+                esperadasPorKey.set(keyFromRow(faseNombre, e.nombre, e.subfase), e);
               }
-            }
-          }
-        }
 
-        // Find templates to remove (in existing but not incoming)
-        for (const [key, template] of existingTemplates) {
-          if (!incomingTemplates.has(key)) {
-            // Delete across all units — only PENDIENTE ones
-            for (const piso of pisosForEdificio) {
-              for (const unidad of piso.unidades) {
-                const espacioTarget = unidad.espacios.find(
-                  (e) => e.nombre === template.espacio,
+              const actualesPorKey = new Map<string, typeof espacio.tareas[number]>();
+              for (const t of espacio.tareas) {
+                actualesPorKey.set(
+                  keyFromRow(t.fase.nombre, t.nombre, t.subfase),
+                  t,
                 );
-                if (!espacioTarget) continue;
+              }
 
-                const tareasToDelete = espacioTarget.tareas.filter(
-                  (t) =>
-                    t.nombre === template.nombre &&
-                    t.fase.nombre === template.fase &&
-                    t.estado === "PENDIENTE",
-                );
+              // Crear: esperadas que no existen
+              for (const [k, e] of esperadasPorKey) {
+                if (!actualesPorKey.has(k)) {
+                  tareasACrear.push(e);
+                  stats.tareas_creadas++;
+                }
+              }
 
-                for (const t of tareasToDelete) {
-                  await tx.tarea.delete({ where: { id: t.id } });
+              // Eliminar: actuales PENDIENTE que no están en esperadas
+              for (const [k, a] of actualesPorKey) {
+                if (!esperadasPorKey.has(k) && a.estado === "PENDIENTE") {
+                  tareaIdsAEliminar.push(a.id);
                   stats.tareas_eliminadas++;
                 }
               }
-            }
-          }
-        }
 
-        // Find templates with changed tiempo_acordado_dias
-        for (const [key, incoming] of incomingTemplates) {
-          const existing = existingTemplates.get(key);
-          if (!existing) continue;
-          const newDias = calcDias(incoming.tiempo_acordado_dias, incoming.fase);
-          if (newDias === existing.tiempo_acordado_dias) continue;
-
-          // Update across all units — only PENDIENTE
-          for (const piso of pisosForEdificio) {
-            for (const unidad of piso.unidades) {
-              const espacioTarget = unidad.espacios.find(
-                (e) => e.nombre === incoming.espacio,
-              );
-              if (!espacioTarget) continue;
-
-              const tareasToUpdate = espacioTarget.tareas.filter(
-                (t) =>
-                  t.nombre === incoming.nombre &&
-                  t.fase.nombre === incoming.fase &&
-                  t.estado === "PENDIENTE",
-              );
-
-              for (const t of tareasToUpdate) {
-                await tx.tarea.update({
-                  where: { id: t.id },
-                  data: { tiempo_acordado_dias: newDias },
-                });
+              // Actualizar días: si coincide pero los días difieren (solo PENDIENTE)
+              for (const [k, e] of esperadasPorKey) {
+                const a = actualesPorKey.get(k);
+                if (!a || a.estado !== "PENDIENTE") continue;
+                if (a.tiempo_acordado_dias === e.tiempo_acordado_dias) continue;
+                const bucket = updatesPorDias.get(e.tiempo_acordado_dias) ?? [];
+                bucket.push(a.id);
+                updatesPorDias.set(e.tiempo_acordado_dias, bucket);
                 stats.tareas_actualizadas++;
               }
             }
           }
+        }
+
+        // Aplicar los tres batches en bulk
+        if (tareasACrear.length > 0) {
+          await tx.tarea.createMany({ data: tareasACrear });
+        }
+        if (tareaIdsAEliminar.length > 0) {
+          await tx.tarea.deleteMany({ where: { id: { in: tareaIdsAEliminar } } });
+        }
+        for (const [dias, ids] of updatesPorDias) {
+          await tx.tarea.updateMany({
+            where: { id: { in: ids } },
+            data: { tiempo_acordado_dias: dias },
+          });
         }
       }
 
@@ -999,7 +1046,7 @@ export async function POST(
       }
 
       return stats;
-    }, { timeout: 60000 });
+    }, { timeout: 180000, maxWait: 10000 });
 
     // Learn tasks for this constructora (fire-and-forget)
     if (body.tareas && body.tareas.length > 0) {
