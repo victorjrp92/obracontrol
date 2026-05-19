@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
@@ -28,6 +28,12 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   const [nombre, setNombre] = useState(initialData?.nombre ?? "");
   const [numeroRegistro, setNumeroRegistro] = useState(initialData?.numeroRegistro ?? "");
   const [contratistaDefaultId, setContratistaDefaultId] = useState(initialData?.contratistaDefaultId ?? "");
+  const [clienteId, setClienteId] = useState(initialData?.clienteId ?? "");
+  const [clientes, setClientes] = useState<{ id: string; nombre: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/clientes").then((r) => r.ok ? r.json() : []).then(setClientes);
+  }, []);
   const [subtipo, setSubtipo] = useState<"APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES">(initialData?.subtipo ?? "APARTAMENTOS");
   const [diasHabiles, setDiasHabiles] = useState(initialData?.diasHabiles ?? 5);
   const [fechaInicio, setFechaInicio] = useState(initialData?.fechaInicio ?? "");
@@ -74,7 +80,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
         const unidadesAplicables = isMadera && t.tipo_unidad_id
           ? (unidadesPorTipo[t.tipo_unidad_id] ?? 0)
           : totalUnidades;
-        const subfasesPorTarea = isMadera ? 2 : 1;
+        const subfasesPorTarea = isMadera ? (t.lustro_excluido ? 1 : 2) : 1;
         return acc + unidadesAplicables * subfasesPorTarea;
       }, 0);
 
@@ -123,6 +129,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       nombre,
       numero_registro: numeroRegistro.trim().toUpperCase(),
       contratista_default_id: contratistaDefaultId,
+      cliente_id: clienteId || undefined,
       subtipo,
       dias_habiles_semana: diasHabiles,
       fecha_inicio: fechaInicio || undefined,
@@ -176,7 +183,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       personas: personas
         .filter((p) => p.nombre.trim())
         .map(({ id: _id, ...rest }) => rest),
-      asignaciones_subfase: asignacionesSubfase,
+      // asignaciones_subfase: TODO — wire when per-subfase assignment is implemented
     };
 
     try {
@@ -250,6 +257,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           numeroRegistro={numeroRegistro} setNumeroRegistro={setNumeroRegistro}
           contratistaDefaultId={contratistaDefaultId} setContratistaDefaultId={setContratistaDefaultId}
           contratistas={contratistas}
+          clienteId={clienteId} setClienteId={setClienteId}
+          clientes={clientes}
           subtipo={subtipo} setSubtipo={setSubtipo}
           diasHabiles={diasHabiles} setDiasHabiles={setDiasHabiles}
           fechaInicio={fechaInicio} setFechaInicio={setFechaInicio}

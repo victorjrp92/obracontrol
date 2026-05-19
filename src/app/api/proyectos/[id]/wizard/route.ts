@@ -12,6 +12,9 @@ interface WizardPayload {
   password: string;
   // Paso 1
   nombre: string;
+  numero_registro?: string;
+  contratista_default_id?: string;
+  cliente_id?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   dias_habiles_semana: number;
   fecha_inicio?: string;
@@ -51,6 +54,9 @@ interface WizardPayload {
     tiene_nave?: boolean;
     tiene_chapa?: boolean;
     tiene_cartera?: boolean;
+    lustro_dias?: number;
+    lustro_precio?: number;
+    lustro_excluido?: boolean;
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
@@ -284,6 +290,7 @@ export async function POST(
       codigo_referencia: string | null;
       marca_linea: string | null;
       componentes: string | null;
+      precio: number | null;
       asignado_a: string | null;
       tiene_estructura: boolean;
       tiene_nave: boolean;
@@ -322,6 +329,9 @@ export async function POST(
           fecha_fin_estimada: body.fecha_fin_estimada
             ? new Date(body.fecha_fin_estimada)
             : null,
+          ...(body.numero_registro ? { numero_registro: body.numero_registro } : {}),
+          ...(body.contratista_default_id !== undefined ? { contratista_default_id: body.contratista_default_id || null } : {}),
+          cliente_id: body.cliente_id || null,
         },
       });
       stats.proyecto_actualizado = true;
@@ -388,32 +398,35 @@ export async function POST(
         const out: TareaRowToInsert[] = [];
         for (const t of tareasInput) {
           if (t.espacio !== nombreEspacio) continue;
-          // Madera con tipo específico → solo aplica a unidades de ese tipo.
           if (t.tipo_unidad_id && t.tipo_unidad_id !== tipoNombre) continue;
           const faseId = fasesMap[t.fase];
           if (!faseId) continue;
-          const dias = calcDias(t.tiempo_acordado_dias, t.fase);
           const isMadera = t.fase === "Madera";
-          const subfases: (string | null)[] = isMadera
-            ? ["Instalación", "Detallado y lustro"]
-            : [t.subfase ?? null];
-          for (const subfase of subfases) {
-            out.push({
-              espacio_id: espacioId,
-              fase_id: faseId,
-              nombre: t.nombre,
-              subfase,
-              tiempo_acordado_dias: dias,
-              codigo_referencia: t.codigo_referencia ?? null,
-              marca_linea: t.marca_linea ?? null,
-              componentes: t.componentes ?? null,
-              asignado_a: t.asignado_a ?? defaultAsignadoId,
-              tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
-              tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
-              tiene_chapa: t.tiene_chapa ?? false,
-              tiene_cartera: t.tiene_cartera ?? false,
-              estado: "PENDIENTE",
-            });
+          const baseRow = {
+            espacio_id: espacioId,
+            fase_id: faseId,
+            nombre: t.nombre,
+            codigo_referencia: t.codigo_referencia ?? null,
+            marca_linea: t.marca_linea ?? null,
+            componentes: t.componentes ?? null,
+            asignado_a: t.asignado_a ?? defaultAsignadoId,
+            tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
+            tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
+            tiene_chapa: t.tiene_chapa ?? false,
+            tiene_cartera: t.tiene_cartera ?? false,
+            estado: "PENDIENTE" as const,
+          };
+
+          if (isMadera) {
+            const diasInstalacion = calcDias(t.tiempo_acordado_dias, t.fase);
+            out.push({ ...baseRow, subfase: "Instalación", tiempo_acordado_dias: diasInstalacion, precio: t.precio ?? null });
+            if (!t.lustro_excluido) {
+              const diasLustro = calcDias(t.lustro_dias ?? t.tiempo_acordado_dias, t.fase);
+              out.push({ ...baseRow, subfase: "Detallado y lustro", tiempo_acordado_dias: diasLustro, precio: t.lustro_precio ?? null });
+            }
+          } else {
+            const dias = calcDias(t.tiempo_acordado_dias, t.fase);
+            out.push({ ...baseRow, subfase: t.subfase ?? null, tiempo_acordado_dias: dias, precio: t.precio ?? null });
           }
         }
         return out;

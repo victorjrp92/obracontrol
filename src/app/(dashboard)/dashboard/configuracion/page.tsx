@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Topbar from "@/components/dashboard/Topbar";
 import RolesManager from "@/components/dashboard/RolesManager";
-import { Building2, Bell, Shield, CreditCard, Users, Wrench } from "lucide-react";
+import { Building2, Bell, Briefcase, Shield, CreditCard, Users, Wrench } from "lucide-react";
 
 const sections = [
   {
@@ -21,6 +21,15 @@ const sections = [
     description: "Gestión de accesos, invitaciones y asignación de roles por proyecto.",
     action: "Gestionar",
     href: "/dashboard/usuarios",
+  },
+  {
+    icon: Briefcase,
+    iconBg: "bg-teal-50",
+    iconColor: "text-teal-600",
+    title: "Clientes",
+    description: "Empresas externas que contratan proyectos. Asigna un cliente a cada proyecto.",
+    action: "Gestionar",
+    href: "/dashboard/configuracion/clientes",
   },
   {
     icon: Bell,

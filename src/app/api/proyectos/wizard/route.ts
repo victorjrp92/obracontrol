@@ -11,6 +11,7 @@ interface WizardPayload {
   nombre: string;
   numero_registro?: string;
   contratista_default_id?: string;
+  cliente_id?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   dias_habiles_semana: number;
   fecha_inicio?: string;
@@ -49,11 +50,13 @@ interface WizardPayload {
     tiene_nave?: boolean;
     tiene_chapa?: boolean;
     tiene_cartera?: boolean;
+    lustro_dias?: number;
+    lustro_precio?: number;
+    lustro_excluido?: boolean;
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
   personas?: { nombre: string; cargo: string; email: string }[];
-  asignaciones_subfase?: Record<string, Record<string, Record<string, string | null>>>;
 }
 
 export async function POST(req: NextRequest) {
@@ -261,6 +264,7 @@ export async function POST(req: NextRequest) {
           constructora_id: currentUser.constructora_id,
           numero_registro: numeroRegistro,
           contratista_default_id: contratistaDefault.id,
+          cliente_id: body.cliente_id || null,
           nombre: body.nombre,
           subtipo: body.subtipo,
           dias_habiles_semana: body.dias_habiles_semana ?? 5,
@@ -446,10 +450,34 @@ export async function POST(req: NextRequest) {
 
             for (const t of tareasDelEspacio) {
               const isMadera = t.fase === "Madera";
-              const subfases = isMadera ? ["Instalación", "Detallado y lustro"] : [t.subfase ?? null];
 
-              for (const subfase of subfases) {
-                const dias = calcDias(t.tiempo_acordado_dias, t.fase);
+              // Instalación (or the only record for non-Madera)
+              const diasInstalacion = calcDias(t.tiempo_acordado_dias, t.fase);
+              tareaSeq++;
+              await tx.tarea.create({
+                data: {
+                  espacio_id: espacio.id,
+                  fase_id: fasesCreadas[t.fase],
+                  numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
+                  nombre: t.nombre,
+                  subfase: isMadera ? "Instalación" : (t.subfase ?? null),
+                  tiempo_acordado_dias: diasInstalacion,
+                  codigo_referencia: t.codigo_referencia ?? null,
+                  marca_linea: t.marca_linea ?? null,
+                  componentes: t.componentes ?? null,
+                  asignado_a: t.asignado_a ?? contratistaDefault!.id,
+                  precio: t.precio ?? null,
+                  tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
+                  tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
+                  tiene_chapa: t.tiene_chapa ?? false,
+                  tiene_cartera: t.tiene_cartera ?? false,
+                  estado: "PENDIENTE",
+                },
+              });
+
+              // Detallado y lustro (Madera only, unless excluded)
+              if (isMadera && !t.lustro_excluido) {
+                const diasLustro = calcDias(t.lustro_dias ?? t.tiempo_acordado_dias, t.fase);
                 tareaSeq++;
                 await tx.tarea.create({
                   data: {
@@ -457,15 +485,15 @@ export async function POST(req: NextRequest) {
                     fase_id: fasesCreadas[t.fase],
                     numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                     nombre: t.nombre,
-                    subfase: subfase,
-                    tiempo_acordado_dias: dias,
+                    subfase: "Detallado y lustro",
+                    tiempo_acordado_dias: diasLustro,
                     codigo_referencia: t.codigo_referencia ?? null,
                     marca_linea: t.marca_linea ?? null,
                     componentes: t.componentes ?? null,
                     asignado_a: t.asignado_a ?? contratistaDefault!.id,
-                    precio: t.precio ?? null,
-                    tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
-                    tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
+                    precio: t.lustro_precio ?? null,
+                    tiene_estructura: t.tiene_estructura ?? true,
+                    tiene_nave: t.tiene_nave ?? true,
                     tiene_chapa: t.tiene_chapa ?? false,
                     tiene_cartera: t.tiene_cartera ?? false,
                     estado: "PENDIENTE",
@@ -543,26 +571,24 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Personas vinculadas
+      if (body.personas && body.personas.length > 0) {
+        const personasData = body.personas
+          .filter((p) => p.nombre.trim().length > 0)
+          .slice(0, 20)
+          .map((p) => ({
+            proyecto_id: proyecto.id,
+            nombre: p.nombre.trim().slice(0, 100),
+            cargo: p.cargo.trim().slice(0, 100),
+            email: p.email?.trim().slice(0, 200) || null,
+          }));
+        if (personasData.length > 0) {
+          await tx.personaExternaProyecto.createMany({ data: personasData });
+        }
+      }
+
       return proyecto;
     }, { timeout: 60000 });
-
-    // Create linked personas (fire-and-forget, non-critical)
-    if (body.personas && body.personas.length > 0) {
-      const personasData = body.personas
-        .filter((p) => p.nombre.trim().length > 0)
-        .slice(0, 20)
-        .map((p) => ({
-          proyecto_id: proyectoCreado.id,
-          nombre: p.nombre.trim().slice(0, 100),
-          cargo: p.cargo.trim().slice(0, 100),
-          email: p.email?.trim().slice(0, 200) || null,
-        }));
-      if (personasData.length > 0) {
-        prisma.personaExternaProyecto.createMany({ data: personasData }).catch((err) =>
-          console.error("Personas creation failed (non-blocking):", err),
-        );
-      }
-    }
 
     // Learn tasks for this constructora (fire-and-forget, don't block response)
     if (body.tareas && body.tareas.length > 0) {

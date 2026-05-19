@@ -257,7 +257,7 @@ export async function parseTemplate(
 
     tareas.push({
       fase: matchedFase,
-      subfase,
+      subfase: isMadera ? undefined : subfase,
       espacio: matchedEspacio,
       nombre,
       tiempo_acordado_dias: dias,

@@ -16,6 +16,9 @@ interface WizardStep1Props {
   contratistaDefaultId: string;
   setContratistaDefaultId: (v: string) => void;
   contratistas: Contratista[];
+  clienteId: string;
+  setClienteId: (v: string) => void;
+  clientes: { id: string; nombre: string }[];
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   setSubtipo: (v: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES") => void;
   diasHabiles: number;
@@ -45,6 +48,8 @@ export default function WizardStep1({
   numeroRegistro, setNumeroRegistro,
   contratistaDefaultId, setContratistaDefaultId,
   contratistas,
+  clienteId, setClienteId,
+  clientes,
   subtipo, setSubtipo,
   diasHabiles, setDiasHabiles,
   fechaInicio, setFechaInicio,
@@ -398,6 +403,23 @@ export default function WizardStep1({
             placeholder="Ej: Proyecto Olivo"
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">Cliente</label>
+          <select
+            value={clienteId}
+            onChange={(e) => setClienteId(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+          >
+            <option value="">Sin cliente asignado</option>
+            {clientes.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Gestiona clientes en <a href="/dashboard/configuracion/clientes" className="font-semibold underline" target="_blank">Configuración</a>.
+          </p>
         </div>
 
         <div>

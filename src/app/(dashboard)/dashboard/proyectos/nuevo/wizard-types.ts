@@ -54,6 +54,9 @@ export interface TareaInput {
   tiene_nave?: boolean;
   tiene_chapa?: boolean;
   tiene_cartera?: boolean;
+  lustro_dias?: number;        // independent days for "Detallado y lustro"
+  lustro_precio?: number;      // independent price for "Detallado y lustro"
+  lustro_excluido?: boolean;   // true if this task should NOT generate a lustro record
 }
 
 export interface TorreAssignment {
@@ -81,6 +84,7 @@ export interface EditModeData {
   nombre: string;
   numeroRegistro?: string;
   contratistaDefaultId?: string;
+  clienteId?: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   diasHabiles: number;
   fechaInicio: string;

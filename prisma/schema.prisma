@@ -28,8 +28,29 @@ model Constructora {
   roles              Rol[]
   obreros            Obrero[]
   tareas_aprendidas  TareaAprendida[]
+  clientes           Cliente[]
 
   @@map("constructoras")
+}
+
+// ─── CLIENTE (empresa externa) ──────────────────────────────────────────────
+
+model Cliente {
+  id               String       @id @default(cuid())
+  constructora_id  String
+  nombre           String
+  nit              String?
+  contacto         String?
+  telefono         String?
+  email            String?
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
+
+  constructora     Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  proyectos        Proyecto[]
+
+  @@unique([constructora_id, nombre])
+  @@map("clientes")
 }
 
 // ─── PROYECTO ────────────────────────────────────────────────────────────────
@@ -37,6 +58,7 @@ model Constructora {
 model Proyecto {
   id                      String         @id @default(cuid())
   constructora_id         String
+  cliente_id              String?
   numero_registro         String?
   contratista_default_id  String?
   nombre                  String
@@ -54,6 +76,7 @@ model Proyecto {
   updated_at              DateTime       @updatedAt
 
   constructora            Constructora   @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  cliente                 Cliente?       @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   edificios               Edificio[]
   fases                   Fase[]
   tipos_unidad            TipoUnidad[]
@@ -67,6 +90,7 @@ model Proyecto {
 
   @@unique([constructora_id, numero_registro])
   @@index([contratista_default_id])
+  @@index([cliente_id])
   @@map("proyectos")
 }
 

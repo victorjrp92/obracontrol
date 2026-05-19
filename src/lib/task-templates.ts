@@ -24,7 +24,8 @@ export const ESPACIOS_SUGERIDOS = [
   "Habitación 3",
   "Sala-comedor",
   "Zona de lavado",
-  "Hall",
+  "Pasillo",
+  "Acceso",
 ];
 
 export const ZONAS_COMUNES_SUGERIDAS = [
@@ -84,9 +85,13 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
       { nombre: "Estuco zona de lavado", tiempo_acordado_dias: 1 },
       { nombre: "Pintura zona de lavado", tiempo_acordado_dias: 1 },
     ],
-    Hall: [
-      { nombre: "Estuco paredes hall", tiempo_acordado_dias: 1 },
-      { nombre: "Pintura hall", tiempo_acordado_dias: 1 },
+    Pasillo: [
+      { nombre: "Estuco paredes pasillo", tiempo_acordado_dias: 1 },
+      { nombre: "Pintura pasillo", tiempo_acordado_dias: 1 },
+    ],
+    Acceso: [
+      { nombre: "Estuco paredes acceso", tiempo_acordado_dias: 1 },
+      { nombre: "Pintura acceso", tiempo_acordado_dias: 1 },
     ],
   },
   Madera: {
@@ -191,6 +196,16 @@ export const TASK_TEMPLATES: Record<string, Record<string, TaskTemplate[]>> = {
     "Zona de lavado": [
       {
         nombre: "Mueble zona de lavado",
+        tiempo_acordado_dias: 2,
+        tiene_estructura: true,
+        tiene_nave: true,
+        tiene_chapa: false,
+        tiene_cartera: false,
+      },
+    ],
+    Acceso: [
+      {
+        nombre: "Mueble acceso",
         tiempo_acordado_dias: 2,
         tiene_estructura: true,
         tiene_nave: true,
