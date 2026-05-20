@@ -104,6 +104,51 @@ export interface EditModeData {
   };
 }
 
+export interface AsignacionOverride {
+  fase: string;
+  subfase?: string | null;
+  torre?: string | null;
+  unidad_nombre?: string | null;
+  espacio?: string | null;
+  tarea_nombre?: string | null;
+  contratista_id: string;
+}
+
+export function generateUnitNamesForTorre(
+  edificio: EdificioInput,
+  tiposUnidad: TipoUnidadInput[],
+): { piso: number; nombre: string; tipo_unidad_id: string; sentido: string }[] {
+  if (edificio.unidades_detalle) {
+    const result: { piso: number; nombre: string; tipo_unidad_id: string; sentido: string }[] = [];
+    for (const [pisoStr, units] of Object.entries(edificio.unidades_detalle)) {
+      for (const u of units) {
+        result.push({ piso: Number(pisoStr), nombre: u.nombre, tipo_unidad_id: u.tipo_unidad_id, sentido: u.sentido });
+      }
+    }
+    return result;
+  }
+  const units: { piso: number; nombre: string; tipo_unidad_id: string; sentido: string }[] = [];
+  const flatList: { tipo_unidad_id: string; sentido: string }[] = [];
+  for (const tipo of tiposUnidad) {
+    const dist = edificio.distribucion[tipo.id];
+    if (!dist) continue;
+    for (let i = 0; i < (dist.derecha ?? 0); i++) flatList.push({ tipo_unidad_id: tipo.id, sentido: "derecha" });
+    for (let i = 0; i < (dist.izquierda ?? 0); i++) flatList.push({ tipo_unidad_id: tipo.id, sentido: "izquierda" });
+  }
+  const udsPerFloor = edificio.unidades_por_piso ?? 0;
+  if (udsPerFloor <= 0) return [];
+  for (let p = 1; p <= edificio.pisos; p++) {
+    const start = (p - 1) * udsPerFloor;
+    for (let slot = 0; slot < udsPerFloor; slot++) {
+      const idx = start + slot;
+      const entry = flatList[idx] ?? flatList[flatList.length - 1];
+      if (!entry) continue;
+      units.push({ piso: p, nombre: `${p}0${slot + 1}`, tipo_unidad_id: entry.tipo_unidad_id, sentido: entry.sentido });
+    }
+  }
+  return units;
+}
+
 export const SUBFASES_MADERA = ["Instalación", "Detallado y lustro"] as const;
 
 export const FASES_DISPONIBLES = ["Madera", "Obra Blanca"];

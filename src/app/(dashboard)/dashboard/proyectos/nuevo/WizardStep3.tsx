@@ -6,19 +6,19 @@ import {
   Layers, Plus, Save, Trash2, UserPlus, X,
 } from "lucide-react";
 import type {
-  Contratista, TareaInput, EdificioInput, FaseAssignment, TorreAssignment,
-  PersonaProyectoInput,
+  Contratista, TareaInput, TipoUnidadInput, EdificioInput, FaseAssignment, TorreAssignment,
+  PersonaProyectoInput, AsignacionOverride,
 } from "./wizard-types";
-import { SUBFASES_MADERA } from "./wizard-types";
+import { SUBFASES_MADERA, generateUnitNamesForTorre } from "./wizard-types";
 
 interface WizardStep3Props {
   nombre: string;
   subtipo: "APARTAMENTOS" | "CASAS" | "ZONAS_COMUNES";
   diasHabiles: number;
   edificios: EdificioInput[];
+  tiposUnidad: TipoUnidadInput[];
   fasesSeleccionadas: string[];
   tareas: TareaInput[];
-  setTareas: React.Dispatch<React.SetStateAction<TareaInput[]>>;
   contratistas: Contratista[];
   totalUnidades: number;
   totalTareasGlobal: number;
@@ -28,8 +28,10 @@ interface WizardStep3Props {
   setPersonas: React.Dispatch<React.SetStateAction<PersonaProyectoInput[]>>;
   asignacionesSubfase: Record<string, Record<string, Record<string, string | null>>>;
   setAsignacionesSubfase: React.Dispatch<React.SetStateAction<Record<string, Record<string, Record<string, string | null>>>>>;
+  asignaciones: AsignacionOverride[];
+  setAsignaciones: React.Dispatch<React.SetStateAction<AsignacionOverride[]>>;
   onBack: () => void;
-  onSubmit: (resolvedTareas?: TareaInput[]) => void;
+  onSubmit: (resolvedTareas?: TareaInput[], overrides?: AsignacionOverride[]) => void;
 }
 
 function buildInitialAssignments(
@@ -48,14 +50,136 @@ function buildInitialAssignments(
   }));
 }
 
+function AdvancedPanel({
+  fase, edif, tiposUnidad, tareas, contratistaPool, contratistas,
+  getAptOverride, setAptOverride, getTaskOverride, setTaskOverride,
+  expandedApt, setExpandedApt,
+}: {
+  fase: string;
+  edif: EdificioInput;
+  tiposUnidad: TipoUnidadInput[];
+  tareas: TareaInput[];
+  contratistaPool: string[];
+  contratistas: Contratista[];
+  getAptOverride: (fase: string, torre: string, unidad: string) => string | null;
+  setAptOverride: (fase: string, torre: string, unidad: string, cId: string | null) => void;
+  getTaskOverride: (fase: string, torre: string, unidad: string, espacio: string, tarea: string) => string | null;
+  setTaskOverride: (fase: string, torre: string, unidad: string, espacio: string, tarea: string, cId: string | null) => void;
+  expandedApt: string | null;
+  setExpandedApt: (v: string | null) => void;
+}) {
+  const units = generateUnitNamesForTorre(edif, tiposUnidad);
+  const floors = [...new Set(units.map((u) => u.piso))].sort((a, b) => a - b);
+  const faseTareas = tareas.filter((t) => t.fase === fase);
+
+  return (
+    <div className="mt-3 border border-violet-200 rounded-lg bg-violet-50/40 p-3">
+      <div className="text-[11px] font-semibold text-violet-700 mb-2">Por apartamento</div>
+      <div className="space-y-2 max-h-64 overflow-y-auto">
+        {floors.map((piso) => {
+          const floorUnits = units.filter((u) => u.piso === piso);
+          return (
+            <div key={piso}>
+              <div className="text-[10px] font-bold text-slate-500 mb-1">Piso {piso}</div>
+              <div className="space-y-1">
+                {floorUnits.map((unit) => {
+                  const aptKey = `${fase}::${edif.nombre}::${unit.nombre}`;
+                  const isExpanded = expandedApt === aptKey;
+                  const aptContratista = getAptOverride(fase, edif.nombre, unit.nombre);
+                  const tipo = tiposUnidad.find((t) => t.id === unit.tipo_unidad_id);
+
+                  return (
+                    <div key={unit.nombre} className="bg-white rounded border border-slate-100">
+                      <div className="flex items-center gap-2 px-2 py-1.5">
+                        <button
+                          onClick={() => setExpandedApt(isExpanded ? null : aptKey)}
+                          className="text-slate-400 hover:text-slate-600"
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="w-3 h-3" />
+                            : <ChevronRight className="w-3 h-3" />}
+                        </button>
+                        <span className="text-xs font-medium text-slate-700 w-12">{unit.nombre}</span>
+                        {tipo && (
+                          <span className="text-[10px] text-slate-400 truncate max-w-[80px]">{tipo.nombre}</span>
+                        )}
+                        <select
+                          value={aptContratista ?? ""}
+                          onChange={(e) => setAptOverride(fase, edif.nombre, unit.nombre, e.target.value || null)}
+                          className="ml-auto text-[11px] px-1.5 py-0.5 rounded border border-slate-200 bg-white max-w-[150px]"
+                        >
+                          <option value="">Hereda torre</option>
+                          {contratistaPool.map((cId) => {
+                            const c = contratistas.find((x) => x.id === cId);
+                            return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
+                          })}
+                        </select>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="border-t border-slate-100 px-3 py-2 space-y-1.5 bg-slate-50/50">
+                          {faseTareas
+                            .filter((t) => !t.tipo_unidad_id || t.tipo_unidad_id === unit.tipo_unidad_id)
+                            .map((t) => {
+                              const isMadera = fase === "Madera";
+                              const subfases = isMadera && !t.lustro_excluido
+                                ? ["Instalación", "Detallado y lustro"] as const
+                                : [isMadera ? "Instalación" : (t.subfase ?? null)] as const;
+
+                              return subfases.map((sf) => {
+                                const taskKey = `${t.nombre}::${sf ?? ""}`;
+                                const taskContratista = getTaskOverride(
+                                  fase, edif.nombre, unit.nombre, t.espacio, `${t.nombre}${sf ? `::${sf}` : ""}`
+                                );
+                                return (
+                                  <div key={taskKey} className="flex items-center gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <span className="text-[10px] text-slate-600 truncate block">
+                                        {t.espacio} — {t.nombre}
+                                        {sf && <span className="text-violet-500 ml-1">({sf === "Instalación" ? "Inst." : "Lustro"})</span>}
+                                      </span>
+                                    </div>
+                                    <select
+                                      value={taskContratista ?? ""}
+                                      onChange={(e) => setTaskOverride(
+                                        fase, edif.nombre, unit.nombre, t.espacio,
+                                        `${t.nombre}${sf ? `::${sf}` : ""}`,
+                                        e.target.value || null,
+                                      )}
+                                      className="text-[10px] px-1 py-0.5 rounded border border-slate-200 bg-white max-w-[130px]"
+                                    >
+                                      <option value="">Hereda</option>
+                                      {contratistaPool.map((cId) => {
+                                        const c = contratistas.find((x) => x.id === cId);
+                                        return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
+                                      })}
+                                    </select>
+                                  </div>
+                                );
+                              });
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function WizardStep3({
   nombre,
   subtipo,
   diasHabiles,
   edificios,
+  tiposUnidad,
   fasesSeleccionadas,
   tareas,
-  setTareas,
   contratistas,
   totalUnidades,
   totalTareasGlobal,
@@ -65,6 +189,8 @@ export default function WizardStep3({
   setPersonas,
   asignacionesSubfase,
   setAsignacionesSubfase,
+  asignaciones,
+  setAsignaciones,
   onBack,
   onSubmit,
 }: WizardStep3Props) {
@@ -74,6 +200,67 @@ export default function WizardStep3({
 
   // Compute all unique spaces from current tasks
   const allEspacios = [...new Set(tareas.map((t) => t.espacio))];
+
+  // Advanced assignment state
+  const [advancedOpen, setAdvancedOpen] = useState<Record<string, boolean>>({});
+  const [expandedApt, setExpandedApt] = useState<string | null>(null);
+
+  function getAptOverride(fase: string, torre: string, unidad: string): string | null {
+    return asignaciones.find(
+      (o) => o.fase === fase && o.torre === torre && o.unidad_nombre === unidad && !o.espacio && !o.tarea_nombre
+    )?.contratista_id ?? null;
+  }
+
+  function setAptOverride(fase: string, torre: string, unidad: string, contratistaId: string | null) {
+    setAsignaciones((prev) => {
+      const filtered = prev.filter(
+        (o) => !(o.fase === fase && o.torre === torre && o.unidad_nombre === unidad && !o.espacio && !o.tarea_nombre)
+      );
+      if (contratistaId) {
+        filtered.push({ fase, torre, unidad_nombre: unidad, contratista_id: contratistaId });
+      }
+      return filtered;
+    });
+  }
+
+  function getTaskOverride(fase: string, torre: string, unidad: string, espacio: string, tarea: string): string | null {
+    return asignaciones.find(
+      (o) => o.fase === fase && o.torre === torre && o.unidad_nombre === unidad && o.espacio === espacio && o.tarea_nombre === tarea
+    )?.contratista_id ?? null;
+  }
+
+  function setTaskOverride(fase: string, torre: string, unidad: string, espacio: string, tarea: string, contratistaId: string | null) {
+    setAsignaciones((prev) => {
+      const filtered = prev.filter(
+        (o) => !(o.fase === fase && o.torre === torre && o.unidad_nombre === unidad && o.espacio === espacio && o.tarea_nombre === tarea)
+      );
+      if (contratistaId) {
+        filtered.push({ fase, torre, unidad_nombre: unidad, espacio, tarea_nombre: tarea, contratista_id: contratistaId });
+      }
+      return filtered;
+    });
+  }
+
+  // Global task-level overrides (no torre/unidad — applies everywhere)
+  const [globalTaskOpen, setGlobalTaskOpen] = useState<Record<string, boolean>>({});
+
+  function getGlobalTaskOverride(fase: string, tareaKey: string): string | null {
+    return asignaciones.find(
+      (o) => o.fase === fase && o.tarea_nombre === tareaKey && !o.torre && !o.unidad_nombre && !o.espacio
+    )?.contratista_id ?? null;
+  }
+
+  function setGlobalTaskOverride(fase: string, tareaKey: string, contratistaId: string | null) {
+    setAsignaciones((prev) => {
+      const filtered = prev.filter(
+        (o) => !(o.fase === fase && o.tarea_nombre === tareaKey && !o.torre && !o.unidad_nombre && !o.espacio)
+      );
+      if (contratistaId) {
+        filtered.push({ fase, tarea_nombre: tareaKey, contratista_id: contratistaId });
+      }
+      return filtered;
+    });
+  }
 
   function updateAssignment(faseIdx: number, updater: (a: FaseAssignment) => FaseAssignment) {
     setAssignments((prev) => prev.map((a, i) => i === faseIdx ? updater(a) : a));
@@ -151,25 +338,30 @@ export default function WizardStep3({
     }));
   }
 
-  // Resolve assignments to per-task asignado_a and call onSubmit directly
   function handleCreate() {
-    const resolvedTareas = tareas.map((t) => {
-      const faseAssign = assignments.find((a) => a.fase === t.fase);
-      if (!faseAssign) return t;
+    const overlay: AsignacionOverride[] = [...asignaciones];
 
-      for (const [, torreAssign] of Object.entries(faseAssign.distribucion)) {
-        if (torreAssign.desglosado && torreAssign.por_actividad[t.espacio] !== undefined) {
-          return { ...t, asignado_a: torreAssign.por_actividad[t.espacio] ?? undefined };
-        }
-        if (torreAssign.contratista_global) {
-          return { ...t, asignado_a: torreAssign.contratista_global };
+    for (const [fase, torres] of Object.entries(asignacionesSubfase)) {
+      for (const [torre, subfases] of Object.entries(torres)) {
+        for (const [subfase, cId] of Object.entries(subfases)) {
+          if (cId) overlay.push({ fase, subfase, torre, contratista_id: cId });
         }
       }
-      return t;
-    });
+    }
 
-    setTareas(resolvedTareas);
-    onSubmit(resolvedTareas);
+    for (const fa of assignments) {
+      for (const [torre, ta] of Object.entries(fa.distribucion)) {
+        if (ta.desglosado) {
+          for (const [espacio, cId] of Object.entries(ta.por_actividad)) {
+            if (cId) overlay.push({ fase: fa.fase, torre, espacio, contratista_id: cId });
+          }
+        } else if (ta.contratista_global) {
+          overlay.push({ fase: fa.fase, torre, contratista_id: ta.contratista_global });
+        }
+      }
+    }
+
+    onSubmit(undefined, overlay);
   }
 
   return (
@@ -269,6 +461,63 @@ export default function WizardStep3({
                   )}
                 </div>
 
+                {/* Global per-task assignment */}
+                {faseAssign.contratistas.length > 0 && (
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setGlobalTaskOpen((prev) => ({ ...prev, [faseAssign.fase]: !prev[faseAssign.fase] }))}
+                      className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 mb-2"
+                    >
+                      {globalTaskOpen[faseAssign.fase]
+                        ? <ChevronDown className="w-3.5 h-3.5" />
+                        : <ChevronRight className="w-3.5 h-3.5" />}
+                      Asignar por tarea (global)
+                    </button>
+                    {globalTaskOpen[faseAssign.fase] && (
+                      <div className="border border-emerald-200 rounded-lg bg-emerald-50/40 p-3 space-y-1.5 max-h-52 overflow-y-auto">
+                        <p className="text-[10px] text-emerald-600 mb-1">Aplica a todas las torres y apartamentos</p>
+                        {tareas
+                          .filter((t) => t.fase === faseAssign.fase)
+                          .flatMap((t) => {
+                            const isMadera = faseAssign.fase === "Madera";
+                            if (isMadera) {
+                              const rows: { key: string; label: string; espacio: string; tag: string | null }[] = [
+                                { key: `${t.nombre}::Instalación`, label: t.nombre, espacio: t.espacio, tag: "Inst." },
+                              ];
+                              if (!t.lustro_excluido) {
+                                rows.push({ key: `${t.nombre}::Detallado y lustro`, label: t.nombre, espacio: t.espacio, tag: "Lustro" });
+                              }
+                              return rows;
+                            }
+                            const sfKey = t.subfase ? `${t.nombre}::${t.subfase}` : t.nombre;
+                            return [{ key: sfKey, label: t.nombre, espacio: t.espacio, tag: t.subfase ?? null }];
+                          })
+                          .map(({ key, label, espacio, tag }) => (
+                            <div key={key} className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-[11px] text-slate-700 truncate block">
+                                  {espacio} — {label}
+                                  {tag && <span className="text-emerald-600 ml-1 text-[10px]">({tag})</span>}
+                                </span>
+                              </div>
+                              <select
+                                value={getGlobalTaskOverride(faseAssign.fase, key) ?? ""}
+                                onChange={(e) => setGlobalTaskOverride(faseAssign.fase, key, e.target.value || null)}
+                                className="text-[11px] px-1.5 py-0.5 rounded border border-slate-200 bg-white max-w-[150px]"
+                              >
+                                <option value="">Sin asignar</option>
+                                {faseAssign.contratistas.map((cId) => {
+                                  const c = contratistas.find((x) => x.id === cId);
+                                  return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
+                                })}
+                              </select>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Distribution by tower */}
                 {faseAssign.contratistas.length > 0 && subtipo !== "ZONAS_COMUNES" && (
                   <div>
@@ -311,6 +560,32 @@ export default function WizardStep3({
                                   </div>
                                 ))}
                               </div>
+                              <button
+                                onClick={() => {
+                                  const key = `${faseAssign.fase}::${edif.nombre}`;
+                                  setAdvancedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+                                }}
+                                className="mt-2 text-[10px] text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1"
+                              >
+                                <Layers className="w-3 h-3" />
+                                {advancedOpen[`${faseAssign.fase}::${edif.nombre}`] ? "Cerrar avanzado" : "Asignación avanzada"}
+                              </button>
+                              {advancedOpen[`${faseAssign.fase}::${edif.nombre}`] && (
+                                <AdvancedPanel
+                                  fase={faseAssign.fase}
+                                  edif={edif}
+                                  tiposUnidad={tiposUnidad}
+                                  tareas={tareas}
+                                  contratistaPool={faseAssign.contratistas}
+                                  contratistas={contratistas}
+                                  getAptOverride={getAptOverride}
+                                  setAptOverride={setAptOverride}
+                                  getTaskOverride={getTaskOverride}
+                                  setTaskOverride={setTaskOverride}
+                                  expandedApt={expandedApt}
+                                  setExpandedApt={setExpandedApt}
+                                />
+                              )}
                             </div>
                           );
                         }
@@ -367,15 +642,44 @@ export default function WizardStep3({
                               </div>
                             )}
 
-                            <button
-                              onClick={() => toggleDesglose(faseIdx, edif.nombre)}
-                              className="mt-2 text-[10px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                            >
-                              {torreAssign.desglosado
-                                ? <><ChevronDown className="w-3 h-3" /> Asignar todas a uno</>
-                                : <><ChevronRight className="w-3 h-3" /> Desglosar por actividad</>
-                              }
-                            </button>
+                            <div className="flex items-center gap-3 mt-2">
+                              <button
+                                onClick={() => toggleDesglose(faseIdx, edif.nombre)}
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                              >
+                                {torreAssign.desglosado
+                                  ? <><ChevronDown className="w-3 h-3" /> Asignar todas a uno</>
+                                  : <><ChevronRight className="w-3 h-3" /> Desglosar por actividad</>
+                                }
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const key = `${faseAssign.fase}::${edif.nombre}`;
+                                  setAdvancedOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+                                }}
+                                className="text-[10px] text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1"
+                              >
+                                <Layers className="w-3 h-3" />
+                                {advancedOpen[`${faseAssign.fase}::${edif.nombre}`] ? "Cerrar avanzado" : "Asignación avanzada"}
+                              </button>
+                            </div>
+
+                            {advancedOpen[`${faseAssign.fase}::${edif.nombre}`] && (
+                              <AdvancedPanel
+                                fase={faseAssign.fase}
+                                edif={edif}
+                                tiposUnidad={tiposUnidad}
+                                tareas={tareas}
+                                contratistaPool={faseAssign.contratistas}
+                                contratistas={contratistas}
+                                getAptOverride={getAptOverride}
+                                setAptOverride={setAptOverride}
+                                getTaskOverride={getTaskOverride}
+                                setTaskOverride={setTaskOverride}
+                                expandedApt={expandedApt}
+                                setExpandedApt={setExpandedApt}
+                              />
+                            )}
                           </div>
                         );
                       })}

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput } from "./wizard-types";
+import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
@@ -58,6 +58,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   // Step 3 state
   const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
   const [asignacionesSubfase, setAsignacionesSubfase] = useState<Record<string, Record<string, Record<string, string | null>>>>({});
+  const [asignaciones, setAsignaciones] = useState<AsignacionOverride[]>([]);
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
@@ -101,9 +102,12 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   );
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
 
-  async function handleSubmit(resolvedTareas?: TareaInput[]) {
+  const [pendingOverrides, setPendingOverrides] = useState<AsignacionOverride[] | undefined>(undefined);
+
+  async function handleSubmit(resolvedTareas?: TareaInput[], overrides?: AsignacionOverride[]) {
     if (isEditMode && !showPasswordModal) {
       setPendingTareas(resolvedTareas);
+      setPendingOverrides(overrides);
       setPassword("");
       setShowPassword(false);
       setError("");
@@ -115,6 +119,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
     setError("");
 
     const tareasToSend = resolvedTareas ?? pendingTareas ?? tareas;
+    const asignacionesToSend = overrides ?? pendingOverrides ?? asignaciones;
 
     if (totalTareasGlobal > 5000) {
       setError(`Demasiadas tareas (${totalTareasGlobal}). Reduce el tamaño del proyecto o las tareas por unidad.`);
@@ -183,7 +188,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       personas: personas
         .filter((p) => p.nombre.trim())
         .map(({ id: _id, ...rest }) => rest),
-      // asignaciones_subfase: TODO — wire when per-subfase assignment is implemented
+      asignaciones: asignacionesToSend.length > 0 ? asignacionesToSend : undefined,
     };
 
     try {
@@ -297,9 +302,9 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           subtipo={subtipo}
           diasHabiles={diasHabiles}
           edificios={edificios}
+          tiposUnidad={tiposUnidad}
           fasesSeleccionadas={fasesSeleccionadas}
           tareas={tareas}
-          setTareas={setTareas}
           contratistas={contratistas}
           totalUnidades={totalUnidades}
           totalTareasGlobal={totalTareasGlobal}
@@ -309,6 +314,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           setPersonas={setPersonas}
           asignacionesSubfase={asignacionesSubfase}
           setAsignacionesSubfase={setAsignacionesSubfase}
+          asignaciones={asignaciones}
+          setAsignaciones={setAsignaciones}
           onBack={() => setStep(2)}
           onSubmit={handleSubmit}
         />

@@ -57,6 +57,42 @@ interface WizardPayload {
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
   personas?: { nombre: string; cargo: string; email: string }[];
+  asignaciones?: {
+    fase: string;
+    subfase?: string | null;
+    torre?: string | null;
+    unidad_nombre?: string | null;
+    espacio?: string | null;
+    tarea_nombre?: string | null;
+    contratista_id: string;
+  }[];
+}
+
+function resolveContratista(
+  overrides: WizardPayload["asignaciones"],
+  tarea: { fase: string; nombre: string; subfase?: string | null },
+  torre: string,
+  unidad: string,
+  espacio: string,
+  fallback: string | null,
+): string | null {
+  if (!overrides?.length) return fallback;
+  let best: { score: number; id: string } | null = null;
+  for (const o of overrides) {
+    if (o.fase !== tarea.fase) continue;
+    let score = 1;
+    if (o.subfase != null) { if (o.subfase !== (tarea.subfase ?? null)) continue; score += 2; }
+    if (o.torre != null) { if (o.torre !== torre) continue; score += 4; }
+    if (o.unidad_nombre != null) { if (o.unidad_nombre !== unidad) continue; score += 8; }
+    if (o.espacio != null) { if (o.espacio !== espacio) continue; score += 16; }
+    if (o.tarea_nombre != null) {
+      const tareaKey = tarea.subfase ? `${tarea.nombre}::${tarea.subfase}` : tarea.nombre;
+      if (o.tarea_nombre !== tareaKey) continue;
+      score += 32;
+    }
+    if (!best || score > best.score) best = { score, id: o.contratista_id };
+  }
+  return best?.id ?? fallback;
 }
 
 export async function POST(req: NextRequest) {
@@ -197,7 +233,49 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Tenant isolation: verify contratista_ids in asignaciones overlay
+    const asignacionIds = Array.from(
+      new Set(
+        (body.asignaciones ?? [])
+          .map((a) => a.contratista_id)
+          .filter((v): v is string => typeof v === "string" && v.length > 0),
+      ),
+    );
+    if (asignacionIds.length > 0) {
+      const validosAsig = await prisma.usuario.findMany({
+        where: { id: { in: asignacionIds }, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (validosAsig.length !== asignacionIds.length) {
+        return NextResponse.json(
+          { error: "Uno o más contratistas en asignaciones no pertenecen a esta constructora" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Tenant isolation: verify cliente_id belongs to this constructora
+    if (body.cliente_id) {
+      const clienteValido = await prisma.cliente.findFirst({
+        where: { id: body.cliente_id, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (!clienteValido) {
+        return NextResponse.json(
+          { error: "El cliente no pertenece a esta constructora" },
+          { status: 400 },
+        );
+      }
+    }
+
     // Bound structural counts to prevent DoS via huge row creation.
+    const MAX_ASIGNACIONES = 5000;
+    if (body.asignaciones && body.asignaciones.length > MAX_ASIGNACIONES) {
+      return NextResponse.json(
+        { error: `Máximo ${MAX_ASIGNACIONES} asignaciones por proyecto` },
+        { status: 400 },
+      );
+    }
     const MAX_EDIFICIOS = 50;
     const MAX_PISOS = 200;
     const MAX_UNIDADES_POR_PISO = 200;
@@ -402,7 +480,7 @@ export async function POST(req: NextRequest) {
                   ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
                 },
               });
-              await createEspaciosYTareas(tx, unidad.id, tipoInfo, cu.tipo_unidad);
+              await createEspaciosYTareas(tx, unidad.id, tipoInfo, cu.tipo_unidad, edificioInput.nombre, cu.nombre);
             }
           } else {
             for (let slot = 0; slot < udsPerFloor; slot++) {
@@ -410,17 +488,18 @@ export async function POST(req: NextRequest) {
               if (!spec) break;
               const tipoInfo = tipoMap[spec.tipoNombre];
               if (!tipoInfo) { unitIdx++; continue; }
+              const unitName = `${p}0${slot + 1}`;
               const unidad = await tx.unidad.create({
                 data: {
                   piso_id: piso.id,
-                  nombre: `${p}0${slot + 1}`,
+                  nombre: unitName,
                   tipo_unidad_id: tipoInfo.id,
                   sentido: spec.sentido,
                   ...(tipoInfo.metraje_total != null ? { metraje_total: tipoInfo.metraje_total } : {}),
                 },
               });
               unitIdx++;
-              await createEspaciosYTareas(tx, unidad.id, tipoInfo, spec.tipoNombre);
+              await createEspaciosYTareas(tx, unidad.id, tipoInfo, spec.tipoNombre, edificioInput.nombre, unitName);
             }
           }
         }
@@ -431,6 +510,8 @@ export async function POST(req: NextRequest) {
           unidadId: string,
           tipoInfo: { id: string; espacios: string[]; metrajes_espacios?: Record<string, number> },
           tipoNombre: string,
+          torreNombre: string,
+          unidadNombre: string,
         ) {
           for (const nombreEspacio of tipoInfo.espacios) {
             const espacioMetraje = tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
@@ -450,6 +531,7 @@ export async function POST(req: NextRequest) {
 
               // Instalación (or the only record for non-Madera)
               const diasInstalacion = calcDias(t.tiempo_acordado_dias, t.fase);
+              const subfaseInstalacion = isMadera ? "Instalación" : (t.subfase ?? null);
               tareaSeq++;
               await tx.tarea.create({
                 data: {
@@ -457,12 +539,12 @@ export async function POST(req: NextRequest) {
                   fase_id: fasesCreadas[t.fase],
                   numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                   nombre: t.nombre,
-                  subfase: isMadera ? "Instalación" : (t.subfase ?? null),
+                  subfase: subfaseInstalacion,
                   tiempo_acordado_dias: diasInstalacion,
                   codigo_referencia: t.codigo_referencia ?? null,
                   marca_linea: t.marca_linea ?? null,
                   componentes: t.componentes ?? null,
-                  asignado_a: t.asignado_a ?? contratistaDefault?.id ?? null,
+                  asignado_a: resolveContratista(body.asignaciones, { fase: t.fase, nombre: t.nombre, subfase: subfaseInstalacion }, torreNombre, unidadNombre, nombreEspacio, t.asignado_a ?? contratistaDefault?.id ?? null),
                   precio: t.precio ?? null,
                   tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
                   tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
@@ -487,7 +569,7 @@ export async function POST(req: NextRequest) {
                     codigo_referencia: t.codigo_referencia ?? null,
                     marca_linea: t.marca_linea ?? null,
                     componentes: t.componentes ?? null,
-                    asignado_a: t.asignado_a ?? contratistaDefault?.id ?? null,
+                    asignado_a: resolveContratista(body.asignaciones, { fase: t.fase, nombre: t.nombre, subfase: "Detallado y lustro" }, torreNombre, unidadNombre, nombreEspacio, t.asignado_a ?? contratistaDefault?.id ?? null),
                     precio: t.lustro_precio ?? null,
                     tiene_estructura: t.tiene_estructura ?? true,
                     tiene_nave: t.tiene_nave ?? true,

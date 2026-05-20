@@ -60,6 +60,42 @@ interface WizardPayload {
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
+  asignaciones?: {
+    fase: string;
+    subfase?: string | null;
+    torre?: string | null;
+    unidad_nombre?: string | null;
+    espacio?: string | null;
+    tarea_nombre?: string | null;
+    contratista_id: string;
+  }[];
+}
+
+function resolveContratista(
+  overrides: WizardPayload["asignaciones"],
+  tarea: { fase: string; nombre: string; subfase?: string | null },
+  torre: string,
+  unidad: string,
+  espacio: string,
+  fallback: string | null,
+): string | null {
+  if (!overrides?.length) return fallback;
+  let best: { score: number; id: string } | null = null;
+  for (const o of overrides) {
+    if (o.fase !== tarea.fase) continue;
+    let score = 1;
+    if (o.subfase != null) { if (o.subfase !== (tarea.subfase ?? null)) continue; score += 2; }
+    if (o.torre != null) { if (o.torre !== torre) continue; score += 4; }
+    if (o.unidad_nombre != null) { if (o.unidad_nombre !== unidad) continue; score += 8; }
+    if (o.espacio != null) { if (o.espacio !== espacio) continue; score += 16; }
+    if (o.tarea_nombre != null) {
+      const tareaKey = tarea.subfase ? `${tarea.nombre}::${tarea.subfase}` : tarea.nombre;
+      if (o.tarea_nombre !== tareaKey) continue;
+      score += 32;
+    }
+    if (!best || score > best.score) best = { score, id: o.contratista_id };
+  }
+  return best?.id ?? fallback;
 }
 
 // POST /api/proyectos/[id]/wizard — full project update via wizard diff
@@ -191,6 +227,50 @@ export async function POST(
           { status: 400 },
         );
       }
+    }
+
+    // Tenant isolation: verify contratista_ids in asignaciones overlay
+    const asignacionIds = Array.from(
+      new Set(
+        (body.asignaciones ?? [])
+          .map((a) => a.contratista_id)
+          .filter((v): v is string => typeof v === "string" && v.length > 0),
+      ),
+    );
+    if (asignacionIds.length > 0) {
+      const validosAsig = await prisma.usuario.findMany({
+        where: { id: { in: asignacionIds }, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (validosAsig.length !== asignacionIds.length) {
+        return NextResponse.json(
+          { error: "Uno o más contratistas en asignaciones no pertenecen a esta constructora" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Tenant isolation: verify cliente_id belongs to this constructora
+    if (body.cliente_id) {
+      const clienteValido = await prisma.cliente.findFirst({
+        where: { id: body.cliente_id, constructora_id: currentUser.constructora_id },
+        select: { id: true },
+      });
+      if (!clienteValido) {
+        return NextResponse.json(
+          { error: "El cliente no pertenece a esta constructora" },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Bound asignaciones array size
+    const MAX_ASIGNACIONES = 5000;
+    if (body.asignaciones && body.asignaciones.length > MAX_ASIGNACIONES) {
+      return NextResponse.json(
+        { error: `Máximo ${MAX_ASIGNACIONES} asignaciones por proyecto` },
+        { status: 400 },
+      );
     }
 
     // Bound structural counts
@@ -394,6 +474,8 @@ export async function POST(
         nombreEspacio: string,
         tipoNombre: string,
         defaultAsignadoId: string | null,
+        torreNombre?: string,
+        unidadNombre?: string,
       ): TareaRowToInsert[] {
         const out: TareaRowToInsert[] = [];
         for (const t of tareasInput) {
@@ -402,6 +484,7 @@ export async function POST(
           const faseId = fasesMap[t.fase];
           if (!faseId) continue;
           const isMadera = t.fase === "Madera";
+          const fallback = t.asignado_a ?? defaultAsignadoId;
           const baseRow = {
             espacio_id: espacioId,
             fase_id: faseId,
@@ -409,7 +492,6 @@ export async function POST(
             codigo_referencia: t.codigo_referencia ?? null,
             marca_linea: t.marca_linea ?? null,
             componentes: t.componentes ?? null,
-            asignado_a: t.asignado_a ?? defaultAsignadoId,
             tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
             tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
             tiene_chapa: t.tiene_chapa ?? false,
@@ -419,14 +501,39 @@ export async function POST(
 
           if (isMadera) {
             const diasInstalacion = calcDias(t.tiempo_acordado_dias, t.fase);
-            out.push({ ...baseRow, subfase: "Instalación", tiempo_acordado_dias: diasInstalacion, precio: t.precio ?? null });
+            out.push({
+              ...baseRow,
+              subfase: "Instalación",
+              tiempo_acordado_dias: diasInstalacion,
+              precio: t.precio ?? null,
+              asignado_a: torreNombre && unidadNombre
+                ? resolveContratista(body.asignaciones, { fase: t.fase, nombre: t.nombre, subfase: "Instalación" }, torreNombre, unidadNombre, nombreEspacio, fallback)
+                : fallback,
+            });
             if (!t.lustro_excluido) {
               const diasLustro = calcDias(t.lustro_dias ?? t.tiempo_acordado_dias, t.fase);
-              out.push({ ...baseRow, subfase: "Detallado y lustro", tiempo_acordado_dias: diasLustro, precio: t.lustro_precio ?? null });
+              out.push({
+                ...baseRow,
+                subfase: "Detallado y lustro",
+                tiempo_acordado_dias: diasLustro,
+                precio: t.lustro_precio ?? null,
+                asignado_a: torreNombre && unidadNombre
+                  ? resolveContratista(body.asignaciones, { fase: t.fase, nombre: t.nombre, subfase: "Detallado y lustro" }, torreNombre, unidadNombre, nombreEspacio, fallback)
+                  : fallback,
+              });
             }
           } else {
             const dias = calcDias(t.tiempo_acordado_dias, t.fase);
-            out.push({ ...baseRow, subfase: t.subfase ?? null, tiempo_acordado_dias: dias, precio: t.precio ?? null });
+            const subfase = t.subfase ?? null;
+            out.push({
+              ...baseRow,
+              subfase,
+              tiempo_acordado_dias: dias,
+              precio: t.precio ?? null,
+              asignado_a: torreNombre && unidadNombre
+                ? resolveContratista(body.asignaciones, { fase: t.fase, nombre: t.nombre, subfase }, torreNombre, unidadNombre, nombreEspacio, fallback)
+                : fallback,
+            });
           }
         }
         return out;
@@ -568,10 +675,11 @@ export async function POST(
             const tipoInfo = tipoMap[spec.tipoNombre];
             if (!tipoInfo) { unitIdx++; continue; }
 
+            const unitName = `${p}0${slot + 1}`;
             const unidad = await txInner.unidad.create({
               data: {
                 piso_id: piso.id,
-                nombre: `${p}0${slot + 1}`,
+                nombre: unitName,
                 tipo_unidad_id: tipoInfo.id,
                 sentido: spec.sentido,
                 ...(tipoInfo.metraje_total != null
@@ -598,6 +706,8 @@ export async function POST(
                 nombreEspacio,
                 spec.tipoNombre,
                 null,
+                edificioInput.nombre,
+                unitName,
               );
               for (const fila of filas) {
                 tareasPendientes.push(fila);
@@ -729,10 +839,11 @@ export async function POST(
                 const tipoInfo = tipoMap[spec.tipoNombre];
                 if (!tipoInfo) { unitIdx++; continue; }
 
+                const unitName2 = `${p}0${slot + 1}`;
                 const unidad = await tx.unidad.create({
                   data: {
                     piso_id: piso.id,
-                    nombre: `${p}0${slot + 1}`,
+                    nombre: unitName2,
                     tipo_unidad_id: tipoInfo.id,
                     sentido: spec.sentido,
                     ...(tipoInfo.metraje_total != null
@@ -758,6 +869,8 @@ export async function POST(
                     nombreEspacio,
                     spec.tipoNombre,
                     null,
+                    edificioInput.nombre,
+                    unitName2,
                   );
                   for (const fila of filas) {
                     tareasPendientesRecreate.push(fila);
@@ -785,7 +898,11 @@ export async function POST(
       // unidad (aplicando expandTareasParaEspacio según el tipo de la unidad) y
       // las comparamos con las "actuales" en BD. Esta versión respeta las
       // subfases de Madera y el filtro por tipo_unidad_id.
+      const edificioIdToName = new Map(
+        existingEdificios.map((e) => [e.id, e.nombre]),
+      );
       for (const edificioId of keptEdificioIds) {
+        const torreNombreKept = edificioIdToName.get(edificioId) ?? "";
         const pisosForEdificio = await tx.piso.findMany({
           where: { edificio_id: edificioId },
           include: {
@@ -829,6 +946,8 @@ export async function POST(
                 espacio.nombre,
                 tipoNombre,
                 null,
+                torreNombreKept,
+                unidad.nombre,
               );
 
               // Lookup esperadas por key. Mapeamos fase_id → fase_nombre vía fasesNormalized:
