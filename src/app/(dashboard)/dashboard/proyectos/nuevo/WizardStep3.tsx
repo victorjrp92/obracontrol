@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  ArrowLeft, Building2, Calendar,
+  ArrowLeft, Building2, Calendar, Check,
   Layers, Plus, Save, Trash2, UserPlus, X,
 } from "lucide-react";
 import type {
@@ -32,13 +32,20 @@ interface WizardStep3Props {
   onSubmit: (resolvedTareas?: TareaInput[], overrides?: AsignacionOverride[]) => void;
 }
 
-/* ── Task row generation ───────────────────────────────── */
-
 interface TaskRow {
   key: string;
   nombre: string;
   espacio: string;
   subfase: string | null;
+}
+
+interface BuilderState {
+  contratista: string;
+  torres: string[];
+  pisos: number[];
+  aptos: string[];
+  subfase: string;
+  checked: Record<string, boolean>;
 }
 
 function buildTaskRows(tareas: TareaInput[], fase: string): TaskRow[] {
@@ -71,75 +78,12 @@ function buildTaskRows(tareas: TareaInput[], fase: string): TaskRow[] {
   return rows;
 }
 
-/* ── Effective assignment resolution ───────────────────── */
-
-function resolveEffective(
-  overrides: AsignacionOverride[],
-  fase: string,
-  taskKey: string,
-  torre: string | null,
-  unidad: string | null,
-): { contratista_id: string; direct: boolean } | null {
-  const taskSubfase = taskKey.includes("::") ? taskKey.split("::")[1] : null;
-  let directId: string | null = null;
-  let bestScore = -1;
-  let bestId: string | null = null;
-
-  for (const o of overrides) {
-    if (o.fase !== fase) continue;
-    if (o.tarea_nombre != null && o.tarea_nombre !== taskKey) continue;
-    if (o.subfase != null && o.subfase !== taskSubfase) continue;
-    if (o.torre != null && !torre) continue;
-    if (o.torre != null && o.torre !== torre) continue;
-    if (o.unidad_nombre != null && !unidad) continue;
-    if (o.unidad_nombre != null && o.unidad_nombre !== unidad) continue;
-    if (o.espacio != null) continue;
-
-    const isExact =
-      o.tarea_nombre === taskKey &&
-      (torre ? o.torre === torre : !o.torre) &&
-      (unidad ? o.unidad_nombre === unidad : !o.unidad_nombre);
-
-    if (isExact) {
-      directId = o.contratista_id;
-    } else {
-      let score = 0;
-      if (o.tarea_nombre) score += 32;
-      if (o.subfase) score += 2;
-      if (o.torre) score += 4;
-      if (o.unidad_nombre) score += 8;
-      if (score > bestScore) { bestScore = score; bestId = o.contratista_id; }
-    }
-  }
-
-  if (directId) return { contratista_id: directId, direct: true };
-  if (bestId) return { contratista_id: bestId, direct: false };
-  return null;
+function sfTag(sf: string | null): string {
+  if (!sf) return "";
+  if (sf === "Instalación") return " (Inst.)";
+  if (sf === "Detallado y lustro") return " (Lustro)";
+  return ` (${sf})`;
 }
-
-type FloorResult = { contratista_id: string; direct: boolean } | { mixed: true } | null;
-
-function resolveForFloor(
-  overrides: AsignacionOverride[],
-  fase: string,
-  taskKey: string,
-  torre: string,
-  floorUnits: { nombre: string }[],
-): FloorResult {
-  if (floorUnits.length === 0) return null;
-  const results = floorUnits.map(u => resolveEffective(overrides, fase, taskKey, torre, u.nombre));
-  if (results.every(r => r === null)) return resolveEffective(overrides, fase, taskKey, torre, null);
-  const firstId = results[0]?.contratista_id ?? null;
-  if (!results.every(r => (r?.contratista_id ?? null) === firstId)) return { mixed: true };
-  if (firstId) return { contratista_id: firstId, direct: results.every(r => r?.direct) };
-  return null;
-}
-
-function isFloorMixed(r: FloorResult): r is { mixed: true } {
-  return r != null && "mixed" in r;
-}
-
-/* ── Component ─────────────────────────────────────────── */
 
 export default function WizardStep3({
   nombre, subtipo, diasHabiles, edificios, tiposUnidad,
@@ -151,11 +95,13 @@ export default function WizardStep3({
     Object.fromEntries(fasesSeleccionadas.map(f => [f, []]))
   );
 
-  const [filters, setFilters] = useState<Record<string, {
-    torre: string; piso: string; apto: string; subfase: string;
-  }>>(() =>
-    Object.fromEntries(fasesSeleccionadas.map(f => [f, { torre: "", piso: "", apto: "", subfase: "" }]))
+  const emptyBuilder: BuilderState = { contratista: "", torres: [], pisos: [], aptos: [], subfase: "", checked: {} };
+
+  const [builders, setBuilders] = useState<Record<string, BuilderState>>(() =>
+    Object.fromEntries(fasesSeleccionadas.map(f => [f, { ...emptyBuilder }]))
   );
+
+  /* ── Pool ────────────────────────────────────────────── */
 
   function addToPool(fase: string, cId: string) {
     setPool(p => ({ ...p, [fase]: p[fase]?.includes(cId) ? p[fase] : [...(p[fase] ?? []), cId] }));
@@ -164,63 +110,147 @@ export default function WizardStep3({
   function removeFromPool(fase: string, cId: string) {
     setPool(p => ({ ...p, [fase]: (p[fase] ?? []).filter(id => id !== cId) }));
     setAsignaciones(p => p.filter(o => !(o.fase === fase && o.contratista_id === cId)));
-  }
-
-  function updateFilter(fase: string, key: string, value: string) {
-    setFilters(p => {
-      const cur = p[fase] ?? { torre: "", piso: "", apto: "", subfase: "" };
-      const nxt = { ...cur, [key]: value };
-      if (key === "torre") { nxt.piso = ""; nxt.apto = ""; }
-      if (key === "piso") { nxt.apto = ""; }
-      return { ...p, [fase]: nxt };
+    setBuilders(p => {
+      const b = p[fase];
+      if (b.contratista === cId) return { ...p, [fase]: { ...emptyBuilder } };
+      return p;
     });
   }
 
-  function assignAtScope(fase: string, taskKeys: string[], contratistaId: string | null) {
-    const f = filters[fase] ?? { torre: "", piso: "", apto: "", subfase: "" };
-    const torre = f.torre || null;
-    const apto = f.apto || null;
-    const isPisoScope = !!(f.piso && !apto && torre);
+  /* ── Builder helpers ─────────────────────────────────── */
+
+  function updateBuilder(fase: string, partial: Partial<BuilderState>) {
+    setBuilders(p => ({ ...p, [fase]: { ...p[fase], ...partial } }));
+  }
+
+  function toggleTorre(fase: string, torre: string) {
+    setBuilders(p => {
+      const b = p[fase];
+      const newTorres = b.torres.includes(torre)
+        ? b.torres.filter(t => t !== torre)
+        : [...b.torres, torre];
+      const newAptos = b.aptos.filter(a => newTorres.includes(a.split("::")[0]));
+      const remainingUnits = edificios
+        .filter(e => newTorres.includes(e.nombre))
+        .flatMap(e => generateUnitNamesForTorre(e, tiposUnidad));
+      const validFloors = new Set(remainingUnits.map(u => u.piso));
+      const newPisos = b.pisos.filter(pp => validFloors.has(pp));
+      return { ...p, [fase]: { ...b, torres: newTorres, pisos: newPisos, aptos: newAptos } };
+    });
+  }
+
+  function togglePiso(fase: string, piso: number) {
+    setBuilders(p => {
+      const b = p[fase];
+      const newPisos = b.pisos.includes(piso)
+        ? b.pisos.filter(pp => pp !== piso)
+        : [...b.pisos, piso];
+      const validAptKeys = new Set<string>();
+      for (const e of edificios.filter(e => b.torres.includes(e.nombre))) {
+        for (const u of generateUnitNamesForTorre(e, tiposUnidad)) {
+          if (newPisos.length === 0 || newPisos.includes(u.piso)) {
+            validAptKeys.add(`${e.nombre}::${u.nombre}`);
+          }
+        }
+      }
+      const newAptos = b.aptos.filter(a => validAptKeys.has(a));
+      return { ...p, [fase]: { ...b, pisos: newPisos, aptos: newAptos } };
+    });
+  }
+
+  function toggleApto(fase: string, aptoKey: string) {
+    setBuilders(p => {
+      const b = p[fase];
+      const newAptos = b.aptos.includes(aptoKey)
+        ? b.aptos.filter(a => a !== aptoKey)
+        : [...b.aptos, aptoKey];
+      return { ...p, [fase]: { ...b, aptos: newAptos } };
+    });
+  }
+
+  function toggleTask(fase: string, key: string) {
+    setBuilders(p => {
+      const b = p[fase];
+      return { ...p, [fase]: { ...b, checked: { ...b.checked, [key]: !b.checked[key] } } };
+    });
+  }
+
+  function setAllTasks(fase: string, keys: string[], value: boolean) {
+    setBuilders(p => {
+      const b = p[fase];
+      const checked = { ...b.checked };
+      for (const k of keys) checked[k] = value;
+      return { ...p, [fase]: { ...b, checked } };
+    });
+  }
+
+  /* ── Assign batch ────────────────────────────────────── */
+
+  function handleAssign(fase: string) {
+    const b = builders[fase];
+    if (!b.contratista) return;
+    const checkedKeys = Object.entries(b.checked).filter(([, v]) => v).map(([k]) => k);
+    if (checkedKeys.length === 0) return;
+
+    type Target = { torre?: string; unidad?: string };
+    const targets: Target[] = [];
+
+    if (b.aptos.length > 0) {
+      for (const ak of b.aptos) {
+        const [torre, unidad] = ak.split("::");
+        targets.push({ torre, unidad });
+      }
+    } else if (b.pisos.length > 0 && b.torres.length > 0) {
+      for (const tn of b.torres) {
+        const edif = edificios.find(e => e.nombre === tn);
+        if (!edif) continue;
+        for (const u of generateUnitNamesForTorre(edif, tiposUnidad)) {
+          if (b.pisos.includes(u.piso)) targets.push({ torre: tn, unidad: u.nombre });
+        }
+      }
+    } else if (b.torres.length > 0) {
+      for (const tn of b.torres) targets.push({ torre: tn });
+    }
 
     setAsignaciones(prev => {
       let next = [...prev];
-      for (const taskKey of taskKeys) {
-        if (isPisoScope) {
-          const edif = edificios.find(e => e.nombre === torre);
-          if (!edif) continue;
-          const floorUnits = generateUnitNamesForTorre(edif, tiposUnidad)
-            .filter(u => u.piso === Number(f.piso));
-          next = next.filter(o => !(
-            o.fase === fase && o.torre === torre && o.tarea_nombre === taskKey &&
-            !o.espacio && floorUnits.some(u => o.unidad_nombre === u.nombre)
-          ));
-          if (contratistaId) {
-            for (const u of floorUnits) {
-              next.push({ fase, torre: torre!, unidad_nombre: u.nombre, tarea_nombre: taskKey, contratista_id: contratistaId });
-            }
-          }
+      for (const taskKey of checkedKeys) {
+        if (targets.length === 0) {
+          next = next.filter(o => !(o.fase === fase && o.tarea_nombre === taskKey && !o.torre && !o.unidad_nombre && !o.espacio));
+          next.push({ fase, tarea_nombre: taskKey, contratista_id: b.contratista });
         } else {
-          next = next.filter(o => !(
-            o.fase === fase && o.tarea_nombre === taskKey &&
-            (torre ? o.torre === torre : !o.torre) &&
-            (apto ? o.unidad_nombre === apto : !o.unidad_nombre) &&
-            !o.espacio
-          ));
-          if (contratistaId) {
-            const ov: AsignacionOverride = { fase, tarea_nombre: taskKey, contratista_id: contratistaId };
-            if (torre) ov.torre = torre;
-            if (apto) ov.unidad_nombre = apto;
+          for (const t of targets) {
+            next = next.filter(o => !(
+              o.fase === fase && o.tarea_nombre === taskKey &&
+              o.torre === t.torre &&
+              (t.unidad ? o.unidad_nombre === t.unidad : !o.unidad_nombre) &&
+              !o.espacio
+            ));
+            const ov: AsignacionOverride = { fase, torre: t.torre!, tarea_nombre: taskKey, contratista_id: b.contratista };
+            if (t.unidad) ov.unidad_nombre = t.unidad;
             next.push(ov);
           }
         }
       }
       return next;
     });
+
+    setBuilders(p => ({ ...p, [fase]: { ...emptyBuilder } }));
+  }
+
+  /* ── Delete overrides ────────────────────────────────── */
+
+  function removeOverrideGroup(fase: string, contratistaId: string, taskKey: string) {
+    setAsignaciones(prev => prev.filter(o => !(
+      o.fase === fase && o.contratista_id === contratistaId && o.tarea_nombre === taskKey
+    )));
   }
 
   function handleCreate() {
     onSubmit(undefined, asignaciones);
   }
+
+  /* ── Render ──────────────────────────────────────────── */
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-4xl">
@@ -266,28 +296,39 @@ export default function WizardStep3({
         <div className="mb-6 space-y-6">
           {fasesSeleccionadas.map(fase => {
             const fasePool = pool[fase] ?? [];
-            const ff = filters[fase] ?? { torre: "", piso: "", apto: "", subfase: "" };
+            const b = builders[fase] ?? emptyBuilder;
             const taskRows = buildTaskRows(tareas, fase);
-            const visibleTasks = ff.subfase
-              ? taskRows.filter(t => t.subfase === ff.subfase)
-              : taskRows;
+            const visibleTasks = b.subfase ? taskRows.filter(t => t.subfase === b.subfase) : taskRows;
             const subfases = [...new Set(taskRows.map(t => t.subfase).filter(Boolean))] as string[];
+            const checkedCount = visibleTasks.filter(t => b.checked[t.key]).length;
+            const selectedContratista = contratistas.find(c => c.id === b.contratista);
 
-            const edif = ff.torre ? edificios.find(e => e.nombre === ff.torre) : null;
-            const allUnits = edif ? generateUnitNamesForTorre(edif, tiposUnidad) : [];
-            const floors = [...new Set(allUnits.map(u => u.piso))].sort((a, b) => a - b);
-            const aptOptions = ff.piso
-              ? allUnits.filter(u => u.piso === Number(ff.piso))
-              : allUnits;
+            const selectedEdifs = edificios.filter(e => b.torres.includes(e.nombre));
+            const allSelectedUnits = selectedEdifs.flatMap(e =>
+              generateUnitNamesForTorre(e, tiposUnidad).map(u => ({ ...u, torre: e.nombre }))
+            );
+            const availableFloors = [...new Set(allSelectedUnits.map(u => u.piso))].sort((a, bb) => a - bb);
+            const aptUnits = b.pisos.length > 0
+              ? allSelectedUnits.filter(u => b.pisos.includes(u.piso))
+              : allSelectedUnits;
 
             let scopeLabel = "Global — todas las torres y apartamentos";
-            if (ff.apto) {
-              scopeLabel = `${ff.torre}, Apto ${ff.apto}`;
-            } else if (ff.piso) {
-              const cnt = allUnits.filter(u => u.piso === Number(ff.piso)).length;
-              scopeLabel = `${ff.torre}, Piso ${ff.piso} — ${cnt} apartamentos`;
-            } else if (ff.torre) {
-              scopeLabel = `${ff.torre} — todos los apartamentos`;
+            if (b.aptos.length > 0) {
+              scopeLabel = `${b.aptos.length} apartamento${b.aptos.length > 1 ? "s" : ""} seleccionado${b.aptos.length > 1 ? "s" : ""}`;
+            } else if (b.pisos.length > 0) {
+              scopeLabel = `${b.torres.join(", ")} — Piso${b.pisos.length > 1 ? "s" : ""} ${b.pisos.sort((a, bb) => a - bb).join(", ")}`;
+            } else if (b.torres.length > 0) {
+              scopeLabel = `${b.torres.join(", ")} — todos los apartamentos`;
+            }
+
+            const faseOverrides = asignaciones.filter(o => o.fase === fase);
+            const grouped = new Map<string, Map<string, AsignacionOverride[]>>();
+            for (const o of faseOverrides) {
+              if (!grouped.has(o.contratista_id)) grouped.set(o.contratista_id, new Map());
+              const tm = grouped.get(o.contratista_id)!;
+              const k = o.tarea_nombre ?? "__all__";
+              if (!tm.has(k)) tm.set(k, []);
+              tm.get(k)!.push(o);
             }
 
             return (
@@ -298,9 +339,7 @@ export default function WizardStep3({
                 <div className="p-4">
                   {/* Contratistas pool */}
                   <div className="mb-4">
-                    <label className="text-xs font-semibold text-slate-700 mb-2 block">
-                      Contratistas para esta fase:
-                    </label>
+                    <label className="text-xs font-semibold text-slate-700 mb-2 block">Contratistas para esta fase:</label>
                     <div className="flex flex-wrap gap-2 mb-2">
                       {fasePool.map(cId => {
                         const c = contratistas.find(x => x.id === cId);
@@ -331,162 +370,240 @@ export default function WizardStep3({
 
                   {fasePool.length > 0 ? (
                     <>
-                      {/* Cascading filters */}
-                      {subtipo !== "ZONAS_COMUNES" && (
-                        <div className="flex flex-wrap gap-2 mb-2">
+                      {/* ── Builder panel ── */}
+                      <div className="border border-blue-200 rounded-lg bg-blue-50/30 p-3 mb-4">
+                        <div className="text-xs font-semibold text-blue-800 mb-3">Nueva asignación</div>
+
+                        {/* Contratista selector */}
+                        <div className="mb-3">
+                          <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Contratista:</label>
                           <select
-                            value={ff.torre}
-                            onChange={e => updateFilter(fase, "torre", e.target.value)}
-                            className="text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white"
+                            value={b.contratista}
+                            onChange={e => updateBuilder(fase, { contratista: e.target.value })}
+                            className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white w-full sm:w-auto"
                           >
-                            <option value="">Todas las torres</option>
-                            {edificios.map(e => <option key={e.nombre} value={e.nombre}>{e.nombre}</option>)}
+                            <option value="">Seleccionar contratista...</option>
+                            {fasePool.map(cId => {
+                              const c = contratistas.find(x => x.id === cId);
+                              return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
+                            })}
                           </select>
-                          {ff.torre && floors.length > 0 && (
+                        </div>
+
+                        {/* Multi-select torres */}
+                        {subtipo !== "ZONAS_COMUNES" && (
+                          <div className="mb-2">
+                            <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Torres:</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {edificios.map(e => {
+                                const sel = b.torres.includes(e.nombre);
+                                return (
+                                  <button
+                                    key={e.nombre}
+                                    onClick={() => toggleTorre(fase, e.nombre)}
+                                    className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                                      sel ? "bg-blue-100 border-blue-300 text-blue-800 font-medium" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    {e.nombre}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Multi-select pisos */}
+                        {b.torres.length > 0 && availableFloors.length > 0 && (
+                          <div className="mb-2">
+                            <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Pisos:</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {availableFloors.map(p => {
+                                const sel = b.pisos.includes(p);
+                                return (
+                                  <button
+                                    key={p}
+                                    onClick={() => togglePiso(fase, p)}
+                                    className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                                      sel ? "bg-blue-100 border-blue-300 text-blue-800 font-medium" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    Piso {p}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Multi-select aptos */}
+                        {b.torres.length > 0 && aptUnits.length > 0 && (
+                          <div className="mb-2">
+                            <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Apartamentos:</label>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                              {aptUnits.map(u => {
+                                const key = `${u.torre}::${u.nombre}`;
+                                const sel = b.aptos.includes(key);
+                                return (
+                                  <button
+                                    key={key}
+                                    onClick={() => toggleApto(fase, key)}
+                                    className={`text-[11px] px-2 py-0.5 rounded-md border transition-colors ${
+                                      sel ? "bg-blue-100 border-blue-300 text-blue-800 font-medium" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    {b.torres.length > 1 ? `${u.torre}-` : ""}{u.nombre}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Subfase filter */}
+                        {subfases.length > 1 && (
+                          <div className="mb-2">
+                            <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Subfase:</label>
                             <select
-                              value={ff.piso}
-                              onChange={e => updateFilter(fase, "piso", e.target.value)}
-                              className="text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white"
-                            >
-                              <option value="">Todos los pisos</option>
-                              {floors.map(p => <option key={p} value={String(p)}>Piso {p}</option>)}
-                            </select>
-                          )}
-                          {ff.torre && (
-                            <select
-                              value={ff.apto}
-                              onChange={e => updateFilter(fase, "apto", e.target.value)}
-                              className="text-xs px-2 py-1.5 rounded-lg border border-slate-200 bg-white"
-                            >
-                              <option value="">Todos los aptos</option>
-                              {aptOptions.map(u => <option key={u.nombre} value={u.nombre}>Apto {u.nombre}</option>)}
-                            </select>
-                          )}
-                          {subfases.length > 1 && (
-                            <select
-                              value={ff.subfase}
-                              onChange={e => updateFilter(fase, "subfase", e.target.value)}
+                              value={b.subfase}
+                              onChange={e => updateBuilder(fase, { subfase: e.target.value })}
                               className="text-xs px-2 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700"
                             >
-                              <option value="">Todas las subfases</option>
+                              <option value="">Todas</option>
                               {subfases.map(sf => <option key={sf} value={sf}>{sf}</option>)}
                             </select>
-                          )}
-                        </div>
-                      )}
-
-                      {subtipo !== "ZONAS_COMUNES" && (
-                        <div className="text-[10px] text-slate-500 mb-3">
-                          Alcance: <span className="font-semibold text-slate-700">{scopeLabel}</span>
-                        </div>
-                      )}
-
-                      {/* Bulk assign */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[11px] text-slate-600">Asignar todas a:</span>
-                        <select
-                          defaultValue=""
-                          onChange={e => {
-                            const val = e.target.value;
-                            if (!val) return;
-                            assignAtScope(fase, visibleTasks.map(t => t.key), val === "__clear__" ? null : val);
-                            e.target.value = "";
-                          }}
-                          className="text-[11px] px-2 py-1 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 font-medium"
-                        >
-                          <option value="" disabled>Seleccionar...</option>
-                          {fasePool.map(cId => {
-                            const c = contratistas.find(x => x.id === cId);
-                            return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
-                          })}
-                          <option value="__clear__">Quitar asignación</option>
-                        </select>
-                      </div>
-
-                      {/* Task list */}
-                      <div className="border border-slate-100 rounded-lg overflow-hidden max-h-80 overflow-y-auto">
-                        {visibleTasks.length === 0 ? (
-                          <div className="px-3 py-4 text-center text-xs text-slate-400">
-                            No hay tareas para esta subfase
                           </div>
-                        ) : visibleTasks.map(task => {
-                          const isPisoScope = !!(ff.piso && !ff.apto && ff.torre);
-                          let eff: FloorResult;
-                          if (isPisoScope) {
-                            const floorUnits = allUnits.filter(u => u.piso === Number(ff.piso));
-                            eff = resolveForFloor(asignaciones, fase, task.key, ff.torre, floorUnits);
-                          } else {
-                            eff = resolveEffective(asignaciones, fase, task.key, ff.torre || null, ff.apto || null);
-                          }
+                        )}
 
-                          const mixed = isFloorMixed(eff);
-                          let effectiveId = "";
-                          let direct = false;
-                          if (eff && !isFloorMixed(eff)) {
-                            effectiveId = eff.contratista_id;
-                            direct = eff.direct;
-                          }
+                        {/* Scope label */}
+                        {subtipo !== "ZONAS_COMUNES" && (
+                          <div className="text-[10px] text-slate-500 mb-2">
+                            Alcance: <span className="font-semibold text-slate-700">{scopeLabel}</span>
+                          </div>
+                        )}
 
-                          return (
-                            <div key={task.key} className="flex items-center gap-2 px-3 py-2 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/50">
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                                mixed ? "bg-amber-400" :
-                                effectiveId ? (direct ? "bg-blue-500" : "bg-blue-300") :
-                                "bg-slate-200"
-                              }`} />
-                              <div className="flex-1 min-w-0">
-                                <span className={`text-[11px] truncate block ${!direct && effectiveId ? "text-slate-400 italic" : "text-slate-700"}`}>
+                        {/* Task checkboxes */}
+                        <div className="border border-slate-200 rounded-lg overflow-hidden bg-white max-h-64 overflow-y-auto">
+                          {/* Select all / deselect all */}
+                          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+                            <span className="text-[10px] font-semibold text-slate-500">
+                              {checkedCount}/{visibleTasks.length} seleccionadas
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setAllTasks(fase, visibleTasks.map(t => t.key), true)}
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Todas
+                              </button>
+                              <button
+                                onClick={() => setAllTasks(fase, visibleTasks.map(t => t.key), false)}
+                                className="text-[10px] text-slate-500 hover:text-slate-700 font-medium"
+                              >
+                                Ninguna
+                              </button>
+                            </div>
+                          </div>
+                          {visibleTasks.length === 0 ? (
+                            <div className="px-3 py-4 text-center text-xs text-slate-400">No hay tareas para esta subfase</div>
+                          ) : visibleTasks.map(task => {
+                            const isChecked = !!b.checked[task.key];
+                            const existing = asignaciones.find(o => o.fase === fase && o.tarea_nombre === task.key);
+                            const existingName = existing ? contratistas.find(c => c.id === existing.contratista_id)?.nombre : null;
+
+                            return (
+                              <div
+                                key={task.key}
+                                onClick={() => toggleTask(fase, task.key)}
+                                className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-50 last:border-b-0 hover:bg-blue-50/30 cursor-pointer select-none"
+                              >
+                                <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                                  isChecked ? "bg-blue-600 border-blue-600" : "bg-white border-slate-300"
+                                }`}>
+                                  {isChecked && <Check className="w-3 h-3 text-white" />}
+                                </span>
+                                <span className="text-[11px] text-slate-700 truncate flex-1">
                                   {task.espacio} — {task.nombre}
                                   {task.subfase && (
-                                    <span className="text-violet-500 ml-1 text-[10px]">
-                                      ({task.subfase === "Instalación" ? "Inst." : task.subfase === "Detallado y lustro" ? "Lustro" : task.subfase})
-                                    </span>
+                                    <span className="text-violet-500 ml-1 text-[10px]">{sfTag(task.subfase)}</span>
                                   )}
                                 </span>
+                                {existingName && (
+                                  <span className="text-[10px] text-slate-400 italic flex-shrink-0">{existingName}</span>
+                                )}
                               </div>
-                              <select
-                                value={mixed ? "__mixed__" : effectiveId}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  if (val === "__mixed__") return;
-                                  assignAtScope(fase, [task.key], val || null);
-                                }}
-                                className={`text-[11px] px-1.5 py-0.5 rounded border max-w-[150px] ${
-                                  mixed ? "border-amber-200 bg-amber-50 text-amber-700" :
-                                  direct ? "border-blue-200 bg-blue-50" :
-                                  effectiveId ? "border-slate-200 bg-slate-50 text-slate-400" :
-                                  "border-slate-200 bg-white"
-                                }`}
-                              >
-                                {mixed && <option value="__mixed__">Mixto</option>}
-                                <option value="">Sin asignar</option>
-                                {fasePool.map(cId => {
-                                  const c = contratistas.find(x => x.id === cId);
-                                  return c ? <option key={cId} value={cId}>{c.nombre}</option> : null;
-                                })}
-                              </select>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
+
+                        {/* Asignar button */}
+                        <button
+                          onClick={() => handleAssign(fase)}
+                          disabled={!b.contratista || checkedCount === 0}
+                          className="w-full mt-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                        >
+                          {b.contratista && checkedCount > 0
+                            ? `Asignar ${checkedCount} tarea${checkedCount > 1 ? "s" : ""} a ${selectedContratista?.nombre}`
+                            : "Selecciona contratista y tareas"}
+                        </button>
                       </div>
 
-                      {/* Legend */}
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Directo
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                          <span className="w-2 h-2 rounded-full bg-blue-300 inline-block" /> Heredado
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                          <span className="w-2 h-2 rounded-full bg-slate-200 inline-block" /> Sin asignar
-                        </span>
-                        {subtipo !== "ZONAS_COMUNES" && (
-                          <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                            <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Mixto
-                          </span>
-                        )}
-                      </div>
+                      {/* ── Assignment summary ── */}
+                      {faseOverrides.length > 0 && (
+                        <div className="border border-slate-100 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-slate-700">
+                              Asignaciones ({faseOverrides.length})
+                            </span>
+                          </div>
+                          {Array.from(grouped.entries()).map(([cId, taskMap]) => {
+                            const c = contratistas.find(x => x.id === cId);
+                            return (
+                              <div key={cId} className="mb-3 last:mb-0">
+                                <div className="text-xs font-bold text-blue-800 mb-1.5">{c?.nombre ?? "?"}</div>
+                                <div className="space-y-1">
+                                  {Array.from(taskMap.entries()).map(([taskKey, overrides]) => {
+                                    const parts = taskKey.split("::");
+                                    const taskLabel = `${parts[0]}${sfTag(parts[1] ?? null)}`;
+
+                                    let scope: string;
+                                    if (overrides.length === 1 && !overrides[0].torre) {
+                                      scope = "Global";
+                                    } else if (overrides.every(o => !o.unidad_nombre)) {
+                                      scope = overrides.map(o => o.torre).join(", ");
+                                    } else {
+                                      const byTorre = new Map<string, string[]>();
+                                      for (const o of overrides) {
+                                        const t = o.torre ?? "?";
+                                        if (!byTorre.has(t)) byTorre.set(t, []);
+                                        if (o.unidad_nombre) byTorre.get(t)!.push(o.unidad_nombre);
+                                      }
+                                      scope = Array.from(byTorre.entries())
+                                        .map(([t, aptos]) => aptos.length > 0 ? `${t}: ${aptos.join(", ")}` : t)
+                                        .join(" | ");
+                                    }
+
+                                    return (
+                                      <div key={taskKey} className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 rounded px-2.5 py-1.5">
+                                        <span className="flex-1 min-w-0 truncate">
+                                          {taskLabel} — <span className="text-slate-400">{scope}</span>
+                                        </span>
+                                        <button
+                                          onClick={() => removeOverrideGroup(fase, cId, taskKey)}
+                                          className="text-red-400 hover:text-red-600 flex-shrink-0 p-0.5"
+                                          title="Eliminar asignación"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <p className="text-xs text-slate-400">Agrega contratistas para asignarlos a las torres</p>
