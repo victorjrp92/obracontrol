@@ -13,6 +13,7 @@ type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotint
 type TareaType = {
   id: string;
   nombre: string;
+  subfase: string | null;
   estado: string;
   tiempo_acordado_dias: number;
   asignado_usuario: { id: string; nombre: string } | null;
@@ -165,7 +166,12 @@ function UnidadDetailPanel({
                           href={`/dashboard/tareas/${t.id}`}
                           className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-50 transition-colors group"
                         >
-                          <span className="text-sm text-slate-800 group-hover:text-blue-600">
+                          <span className="text-sm text-slate-800 group-hover:text-blue-600 flex items-center gap-1.5">
+                            {t.subfase && (
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${t.subfase === "Instalación" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>
+                                {t.subfase === "Instalación" ? "Inst." : "Lustro"}
+                              </span>
+                            )}
                             {t.nombre}
                           </span>
                           <div className="flex items-center gap-2">
@@ -237,6 +243,7 @@ export default async function ProyectoDetallePage({
               e.tareas.map((t) => ({
                 id: t.id,
                 nombre: `${e.nombre} — ${t.nombre}`,
+                subfase: t.subfase ?? null,
                 estado: t.estado,
                 tiempo_acordado_dias: t.tiempo_acordado_dias,
                 asignado_usuario: t.asignado_usuario,

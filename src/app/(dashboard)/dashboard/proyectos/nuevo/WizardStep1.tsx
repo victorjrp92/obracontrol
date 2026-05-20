@@ -440,7 +440,7 @@ export default function WizardStep1({
 
         <div className="sm:col-span-2">
           <label className="text-sm font-medium text-slate-700 mb-1.5 block">
-            Contratista por defecto <span className="text-red-500">*</span>
+            Contratista por defecto
           </label>
           <select
             value={contratistaDefaultId}
@@ -1024,7 +1024,7 @@ export default function WizardStep1({
           const missing: string[] = [];
           if (nombre.trim().length < 3) missing.push("Nombre del proyecto (mín. 3 caracteres)");
           if (numeroRegistro.trim().length < 2) missing.push("Número de registro (mín. 2 caracteres)");
-          if (!contratistaDefaultId) missing.push("Contratista por defecto");
+          // contratistaDefaultId is optional
           const tiposSinEspacios = tiposUnidad.filter((t) => t.espacios.length === 0).map((t) => t.nombre || "Tipo sin nombre");
           if (tiposSinEspacios.length > 0) missing.push(`Espacios para: ${tiposSinEspacios.join(", ")}`);
           if (subtipo === "ZONAS_COMUNES") {

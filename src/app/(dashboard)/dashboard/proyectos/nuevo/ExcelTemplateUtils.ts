@@ -2,7 +2,7 @@ import type { TareaInput } from "./wizard-types";
 
 /**
  * Generate a single .xlsx template for ALL phases.
- * 12 columns: Fase | Tipo unidad | Subfase | Espacio | Nombre | Días | Valor COP | Estructura | Nave | Chapa | Cartera | Marca/Línea
+ * 13 columns: Fase | Tipo unidad | Subfase | Espacio | Nombre | Días | Valor Instalación | Valor Lustro | Estructura | Nave | Chapa | Cartera | Marca/Línea
  */
 export async function generateTemplate(
   fases: string[],
@@ -22,7 +22,8 @@ export async function generateTemplate(
     { header: "Espacio", key: "espacio", width: 22 },
     { header: "Nombre de la tarea", key: "nombre", width: 35 },
     { header: "Dias acordados", key: "dias", width: 16 },
-    { header: "Valor COP (opcional)", key: "valor", width: 18 },
+    { header: "Valor Instalación (COP)", key: "valor_instalacion", width: 22 },
+    { header: "Valor Lustro y Detallado (COP)", key: "valor_lustro", width: 28 },
     { header: "Estructura", key: "estructura", width: 12 },
     { header: "Nave", key: "nave", width: 10 },
     { header: "Chapa", key: "chapa", width: 10 },
@@ -43,9 +44,9 @@ export async function generateTemplate(
   const exampleTipo = tiposUnidad?.[0] ?? "Tipo estándar";
 
   const examples = [
-    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp1, nombre: "[EJEMPLO] Mueble bajo cocina", dias: 3, valor: 450000, estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "SAGANO" },
-    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp2, nombre: "[EJEMPLO] Mueble lavamanos", dias: 2, valor: "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "" },
-    { fase: exampleFase2, tipo_unidad: "", subfase: "Pintura", espacio: exampleEsp1, nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, valor: 120000, estructura: "", nave: "", chapa: "", cartera: "", marca: "Corona" },
+    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp1, nombre: "[EJEMPLO] Mueble bajo cocina", dias: 3, valor_instalacion: 450000, valor_lustro: 180000, estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "SAGANO" },
+    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp2, nombre: "[EJEMPLO] Mueble lavamanos", dias: 2, valor_instalacion: "", valor_lustro: "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "" },
+    { fase: exampleFase2, tipo_unidad: "", subfase: "Pintura", espacio: exampleEsp1, nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, valor_instalacion: 120000, valor_lustro: "", estructura: "", nave: "", chapa: "", cartera: "", marca: "Corona" },
   ];
 
   for (const ex of examples) {
@@ -81,8 +82,8 @@ export async function generateTemplate(
     }
   }
 
-  // Data validation: Sí/No for component columns (H, I, J, K)
-  for (const col of ["H", "I", "J", "K"]) {
+  // Data validation: Sí/No for component columns (I, J, K, L)
+  for (const col of ["I", "J", "K", "L"]) {
     for (let r = 2; r <= 200; r++) {
       ws.getCell(`${col}${r}`).dataValidation = { type: "list", formulae: ['"Sí,No"'] };
     }
@@ -102,9 +103,10 @@ export async function generateTemplate(
     "4. 'Espacio' es obligatorio: selecciona del dropdown.",
     "5. 'Nombre de la tarea' es obligatorio.",
     "6. 'Dias acordados' es obligatorio y debe ser mayor a 0.",
-    "7. 'Valor COP' es opcional: precio en pesos colombianos.",
-    "8. Estructura/Nave/Chapa/Cartera: componentes del mueble (solo Madera). Sí o No.",
-    "9. 'Marca/Linea' es opcional.",
+    "7. 'Valor Instalación (COP)' es opcional: precio de instalación en pesos colombianos.",
+    "8. 'Valor Lustro y Detallado (COP)' es opcional: precio de lustro (solo Madera).",
+    "9. Estructura/Nave/Chapa/Cartera: componentes del mueble (solo Madera). Sí o No.",
+    "10. 'Marca/Linea' es opcional.",
     "",
     "Fases validas:",
     ...fases.map((f) => `  - ${f}`),
@@ -142,7 +144,7 @@ export async function generateTemplate(
 }
 
 /**
- * Parse an uploaded .xlsx template with the 12-column format.
+ * Parse an uploaded .xlsx template with the 13-column format.
  * Returns { tareas, errores }.
  *
  * Columns:
@@ -152,12 +154,13 @@ export async function generateTemplate(
  *  4: Espacio (required)
  *  5: Nombre (required)
  *  6: Días acordados (required, > 0)
- *  7: Valor COP (optional)
- *  8: Estructura (Sí/No)
- *  9: Nave (Sí/No)
- * 10: Chapa (Sí/No)
- * 11: Cartera (Sí/No)
- * 12: Marca/Línea (optional)
+ *  7: Valor Instalación COP (optional)
+ *  8: Valor Lustro y Detallado COP (optional)
+ *  9: Estructura (Sí/No)
+ * 10: Nave (Sí/No)
+ * 11: Chapa (Sí/No)
+ * 12: Cartera (Sí/No)
+ * 13: Marca/Línea (optional)
  */
 export async function parseTemplate(
   file: File,
@@ -194,13 +197,15 @@ export async function parseTemplate(
     const espacio = String(row.getCell(4).value ?? "").trim();
     const nombre = String(row.getCell(5).value ?? "").trim();
     const dias = Number(row.getCell(6).value);
-    const valorRaw = row.getCell(7).value;
-    const precio = valorRaw != null && String(valorRaw).trim() !== "" ? Number(valorRaw) : undefined;
-    const estructura = row.getCell(8).value;
-    const nave = row.getCell(9).value;
-    const chapa = row.getCell(10).value;
-    const cartera = row.getCell(11).value;
-    const marca = String(row.getCell(12).value ?? "").trim() || undefined;
+    const valorInstalacionRaw = row.getCell(7).value;
+    const precio = valorInstalacionRaw != null && String(valorInstalacionRaw).trim() !== "" ? Number(valorInstalacionRaw) : undefined;
+    const valorLustroRaw = row.getCell(8).value;
+    const lustro_precio = valorLustroRaw != null && String(valorLustroRaw).trim() !== "" ? Number(valorLustroRaw) : undefined;
+    const estructura = row.getCell(9).value;
+    const nave = row.getCell(10).value;
+    const chapa = row.getCell(11).value;
+    const cartera = row.getCell(12).value;
+    const marca = String(row.getCell(13).value ?? "").trim() || undefined;
 
     if (!fase && !espacio && !nombre) return;
     if (nombre.startsWith("[EJEMPLO]")) return;
@@ -234,7 +239,11 @@ export async function parseTemplate(
     }
 
     if (precio !== undefined && isNaN(precio)) {
-      errores.push(`Fila ${rowNumber}: valor COP debe ser un numero`);
+      errores.push(`Fila ${rowNumber}: valor instalación debe ser un numero`);
+      return;
+    }
+    if (lustro_precio !== undefined && isNaN(lustro_precio)) {
+      errores.push(`Fila ${rowNumber}: valor lustro debe ser un numero`);
       return;
     }
 
@@ -262,6 +271,7 @@ export async function parseTemplate(
       nombre,
       tiempo_acordado_dias: dias,
       precio: precio !== undefined && !isNaN(precio) ? precio : undefined,
+      lustro_precio: lustro_precio !== undefined && !isNaN(lustro_precio) ? lustro_precio : undefined,
       marca_linea: marca,
       tipo_unidad_id: tipoUnidadId,
       tiene_estructura: isMadera && hasComponents ? parseSiNo(estructura) : undefined,

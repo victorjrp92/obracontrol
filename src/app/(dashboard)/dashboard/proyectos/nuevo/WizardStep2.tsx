@@ -175,6 +175,16 @@ export default function WizardStep2({
     }
   }
 
+  function deleteAllTareasInFase(fase: string) {
+    if (!confirm(`¿Eliminar todas las tareas de ${fase}?`)) return;
+    setTareas((prev) => prev.filter((t) => t.fase !== fase));
+  }
+
+  function deleteAllTareasInFaseTipo(fase: string, tipoId: string, tipoNombre: string) {
+    if (!confirm(`¿Eliminar todas las tareas de ${tipoNombre} en ${fase}?`)) return;
+    setTareas((prev) => prev.filter((t) => !(t.fase === fase && t.tipo_unidad_id === tipoId)));
+  }
+
   function addCustomTask(fase: string) {
     if (!newTaskEspacio || !newTaskNombre.trim()) return;
     const id = `custom-${Date.now()}`;
@@ -232,7 +242,12 @@ export default function WizardStep2({
         id: `excel-${counter++}`,
         ...(t.fase === "Madera" ? { lustro_dias: t.tiempo_acordado_dias, lustro_excluido: false } : {}),
       }));
-      setTareas((prev) => [...prev, ...withIds]);
+      setTareas((prev) => {
+        const map = new Map<string, TareaInput>();
+        for (const t of prev) map.set(`${t.fase}|${t.espacio}|${t.nombre}`, t);
+        for (const t of withIds) map.set(`${t.fase}|${t.espacio}|${t.nombre}`, t);
+        return Array.from(map.values());
+      });
     }
 
     setUploading(false);
@@ -374,6 +389,15 @@ export default function WizardStep2({
                     <Plus className="w-3.5 h-3.5" />
                     Agregar manual
                   </button>
+                  {faseTareas.length > 0 && (
+                    <button
+                      onClick={() => deleteAllTareasInFase(fase)}
+                      className="inline-flex items-center gap-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer ml-auto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Eliminar todas
+                    </button>
+                  )}
                 </div>
 
                 {/* Tipo tabs for Madera */}
@@ -401,6 +425,18 @@ export default function WizardStep2({
                         </button>
                       );
                     })}
+                    {selectedTipoId && faseTareas.filter((t) => t.tipo_unidad_id === selectedTipoId).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const tipoNombre = tiposUnidad?.find((t) => t.id === selectedTipoId)?.nombre ?? "";
+                          deleteAllTareasInFaseTipo(fase, selectedTipoId, tipoNombre);
+                        }}
+                        className="inline-flex items-center gap-1 text-red-400 hover:text-red-600 text-[10px] px-2 py-1.5 rounded-full cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Eliminar tipo
+                      </button>
+                    )}
                   </div>
                 )}
 

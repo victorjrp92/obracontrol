@@ -85,7 +85,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       }, 0);
 
   // Validation
-  const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && contratistaDefaultId.length > 0 && (
+  const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && (
     subtipo === "ZONAS_COMUNES"
       ? zonasSeleccionadas.length > 0
       : edificios.length > 0

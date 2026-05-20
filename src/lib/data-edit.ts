@@ -337,6 +337,9 @@ export async function getProyectoForEdit(
   return {
     projectId: proyecto.id,
     nombre: proyecto.nombre,
+    numeroRegistro: proyecto.numero_registro ?? "",
+    contratistaDefaultId: proyecto.contratista_default_id ?? "",
+    clienteId: proyecto.cliente_id ?? "",
     subtipo: proyecto.subtipo,
     diasHabiles: proyecto.dias_habiles_semana,
     fechaInicio: proyecto.fecha_inicio?.toISOString().slice(0, 10) ?? "",

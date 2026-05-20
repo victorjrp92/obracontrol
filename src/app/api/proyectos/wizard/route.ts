@@ -100,26 +100,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Contratista por defecto del proyecto (obligatorio)
-    if (!body.contratista_default_id) {
-      return NextResponse.json(
-        { error: "Debes seleccionar un contratista por defecto para el proyecto" },
-        { status: 400 },
-      );
-    }
-    const contratistaDefault = await prisma.usuario.findFirst({
-      where: {
-        id: body.contratista_default_id,
-        constructora_id: currentUser.constructora_id,
-        rol_ref: { nivel_acceso: "CONTRATISTA" },
-      },
-      select: { id: true },
-    });
-    if (!contratistaDefault) {
-      return NextResponse.json(
-        { error: "El contratista por defecto no es válido o no pertenece a esta constructora" },
-        { status: 400 },
-      );
+    // Contratista por defecto del proyecto (opcional)
+    let contratistaDefault: { id: string } | null = null;
+    if (body.contratista_default_id) {
+      contratistaDefault = await prisma.usuario.findFirst({
+        where: {
+          id: body.contratista_default_id,
+          constructora_id: currentUser.constructora_id,
+          rol_ref: { nivel_acceso: "CONTRATISTA" },
+        },
+        select: { id: true },
+      });
+      if (!contratistaDefault) {
+        return NextResponse.json(
+          { error: "El contratista por defecto no es válido o no pertenece a esta constructora" },
+          { status: 400 },
+        );
+      }
     }
     if (
       body.dias_habiles_semana != null &&
@@ -263,7 +260,7 @@ export async function POST(req: NextRequest) {
         data: {
           constructora_id: currentUser.constructora_id,
           numero_registro: numeroRegistro,
-          contratista_default_id: contratistaDefault.id,
+          contratista_default_id: contratistaDefault?.id ?? null,
           cliente_id: body.cliente_id || null,
           nombre: body.nombre,
           subtipo: body.subtipo,
@@ -465,7 +462,7 @@ export async function POST(req: NextRequest) {
                   codigo_referencia: t.codigo_referencia ?? null,
                   marca_linea: t.marca_linea ?? null,
                   componentes: t.componentes ?? null,
-                  asignado_a: t.asignado_a ?? contratistaDefault!.id,
+                  asignado_a: t.asignado_a ?? contratistaDefault?.id ?? null,
                   precio: t.precio ?? null,
                   tiene_estructura: t.tiene_estructura ?? (isMadera ? true : false),
                   tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
@@ -490,7 +487,7 @@ export async function POST(req: NextRequest) {
                     codigo_referencia: t.codigo_referencia ?? null,
                     marca_linea: t.marca_linea ?? null,
                     componentes: t.componentes ?? null,
-                    asignado_a: t.asignado_a ?? contratistaDefault!.id,
+                    asignado_a: t.asignado_a ?? contratistaDefault?.id ?? null,
                     precio: t.lustro_precio ?? null,
                     tiene_estructura: t.tiene_estructura ?? true,
                     tiene_nave: t.tiene_nave ?? true,
@@ -563,7 +560,7 @@ export async function POST(req: NextRequest) {
                 numero_registro: generarNumeroTarea(numeroRegistro, tareaSeq),
                 nombre: t.nombre,
                 tiempo_acordado_dias: t.tiempo_acordado_dias,
-                asignado_a: contratistaDefault.id,
+                asignado_a: contratistaDefault?.id ?? null,
                 estado: "PENDIENTE",
               },
             });
