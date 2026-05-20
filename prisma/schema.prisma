@@ -87,6 +87,7 @@ model Proyecto {
   admins_proyecto          AdminProyectoAccess[]
   contratista_default      Usuario?       @relation("ContratistaDefaultProyectos", fields: [contratista_default_id], references: [id], onDelete: SetNull)
   personas_externas        PersonaExternaProyecto[]
+  reasignaciones           ReasignacionTarea[]
 
   @@unique([constructora_id, numero_registro])
   @@index([contratista_default_id])
@@ -220,6 +221,7 @@ model Tarea {
   retrasos                  Retraso[]
   extensiones_tiempo        ExtensionTiempo[]
   consumo_material          ConsumoMaterial?
+  reasignaciones            ReasignacionTarea[]
 
   @@index([asignado_a])
   @@index([estado])
@@ -265,6 +267,29 @@ model Aprobacion {
 
   @@index([tarea_id])
   @@map("aprobaciones")
+}
+
+// ─── REASIGNACIONES ─────────────────────────────────────────────────────────
+
+model ReasignacionTarea {
+  id                  String   @id @default(cuid())
+  tarea_id            String
+  proyecto_id         String
+  contratista_anterior_id String?
+  contratista_nuevo_id    String?
+  realizado_por       String
+  motivo              String?
+  created_at          DateTime @default(now())
+
+  tarea               Tarea    @relation(fields: [tarea_id], references: [id], onDelete: Cascade)
+  proyecto            Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  contratista_anterior Usuario? @relation("ReasignacionAnterior", fields: [contratista_anterior_id], references: [id])
+  contratista_nuevo   Usuario? @relation("ReasignacionNuevo", fields: [contratista_nuevo_id], references: [id])
+  realizado           Usuario  @relation("ReasignacionRealizada", fields: [realizado_por], references: [id])
+
+  @@index([tarea_id])
+  @@index([proyecto_id])
+  @@map("reasignaciones_tarea")
 }
 
 // ─── CHECKLISTS ──────────────────────────────────────────────────────────────
@@ -385,6 +410,9 @@ model Usuario {
   proyectos_administrados  AdminProyectoAccess[] @relation("AdminProyectoAccessUsuario")
   proyectos_asignados_por  AdminProyectoAccess[] @relation("AdminProyectoAccessAsignador")
   proyectos_como_contratista Proyecto[]            @relation("ContratistaDefaultProyectos")
+  reasignaciones_anterior    ReasignacionTarea[]   @relation("ReasignacionAnterior")
+  reasignaciones_nuevo       ReasignacionTarea[]   @relation("ReasignacionNuevo")
+  reasignaciones_realizadas  ReasignacionTarea[]   @relation("ReasignacionRealizada")
 
   @@map("usuarios")
 }

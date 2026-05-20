@@ -57,7 +57,6 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
   // Step 3 state
   const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
-  const [asignacionesSubfase, setAsignacionesSubfase] = useState<Record<string, Record<string, Record<string, string | null>>>>({});
   const [asignaciones, setAsignaciones] = useState<AsignacionOverride[]>([]);
 
   // Computed
@@ -312,8 +311,6 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           isEditMode={isEditMode}
           personas={personas}
           setPersonas={setPersonas}
-          asignacionesSubfase={asignacionesSubfase}
-          setAsignacionesSubfase={setAsignacionesSubfase}
           asignaciones={asignaciones}
           setAsignaciones={setAsignaciones}
           onBack={() => setStep(2)}

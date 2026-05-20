@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Trash2, Users, ClipboardList, UserRound, Phone, Mail } from "lucide-react";
+import { UserPlus, Trash2, Users, ClipboardList, UserRound, Phone, Mail, RefreshCw, Eye, EyeOff, History } from "lucide-react";
 
 interface AdminAsignado {
   usuario_id: string;
@@ -60,6 +60,18 @@ export default function EquipoAdminGeneral({
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
+  // Reasignación state
+  const [reasignarId, setReasignarId] = useState<string | null>(null);
+  const [reasignarNuevoId, setReasignarNuevoId] = useState("");
+  const [reasignarMotivo, setReasignarMotivo] = useState("");
+  const [reasignarPassword, setReasignarPassword] = useState("");
+  const [reasignarShowPw, setReasignarShowPw] = useState(false);
+  const [reasignarError, setReasignarError] = useState("");
+  const [reasignarLoading, setReasignarLoading] = useState(false);
+  const [reasignarResult, setReasignarResult] = useState<string | null>(null);
+  const [showHistorial, setShowHistorial] = useState(false);
+  const [historial, setHistorial] = useState<{ id: string; contratista_anterior: { nombre: string } | null; contratista_nuevo: { nombre: string } | null; realizado: { nombre: string }; motivo: string | null; created_at: string }[]>([]);
+
   async function handleAsignar() {
     if (!asignar) return;
     setError("");
@@ -114,6 +126,55 @@ export default function EquipoAdminGeneral({
     } finally {
       setPersonaLoading(false);
     }
+  }
+
+  async function handleReasignar() {
+    if (!reasignarId || !reasignarPassword) return;
+    setReasignarError("");
+    setReasignarLoading(true);
+    try {
+      const res = await fetch(`/api/proyectos/${proyectoId}/reasignar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contratista_anterior_id: reasignarId,
+          contratista_nuevo_id: reasignarNuevoId || null,
+          password: reasignarPassword,
+          motivo: reasignarMotivo.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReasignarResult(data.mensaje);
+        setTimeout(() => {
+          setReasignarId(null);
+          setReasignarResult(null);
+          router.refresh();
+        }, 2000);
+      } else {
+        setReasignarError(data.error ?? "Error al reasignar");
+      }
+    } finally {
+      setReasignarLoading(false);
+    }
+  }
+
+  function openReasignar(cId: string) {
+    setReasignarId(cId);
+    setReasignarNuevoId("");
+    setReasignarMotivo("");
+    setReasignarPassword("");
+    setReasignarShowPw(false);
+    setReasignarError("");
+    setReasignarResult(null);
+  }
+
+  async function loadHistorial() {
+    setShowHistorial(true);
+    try {
+      const res = await fetch(`/api/proyectos/${proyectoId}/reasignar`);
+      if (res.ok) setHistorial(await res.json());
+    } catch { /* ignore */ }
   }
 
   async function handleDeletePersona() {
@@ -210,12 +271,140 @@ export default function EquipoAdminGeneral({
                   <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-semibold">
                     {c.obreros} obreros
                   </span>
+                  {canAssign && c.tareas > 0 && (
+                    <button
+                      onClick={() => openReasignar(c.id)}
+                      className="ml-1 text-violet-600 hover:text-violet-800 p-1 rounded hover:bg-violet-50"
+                      title="Reasignar tareas"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {canAssign && contratistas.length > 0 && (
+          <button
+            onClick={loadHistorial}
+            className="mt-3 text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+          >
+            <History className="w-3.5 h-3.5" />
+            Historial de reasignaciones
+          </button>
+        )}
+
+        {showHistorial && (
+          <div className="mt-3 border border-slate-100 rounded-lg max-h-48 overflow-y-auto">
+            {historial.length === 0 ? (
+              <div className="px-3 py-4 text-center text-xs text-slate-400">Sin reasignaciones</div>
+            ) : historial.map(h => (
+              <div key={h.id} className="px-3 py-2 border-b border-slate-50 last:border-b-0 text-[11px] text-slate-600">
+                <span className="font-medium">{h.contratista_anterior?.nombre ?? "Sin asignar"}</span>
+                {" → "}
+                <span className="font-medium">{h.contratista_nuevo?.nombre ?? "Sin asignar"}</span>
+                <span className="text-slate-400 ml-2">por {h.realizado.nombre}</span>
+                {h.motivo && <span className="text-slate-400 ml-1">— {h.motivo}</span>}
+                <span className="text-slate-300 ml-2">{new Date(h.created_at).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </Section>
+
+      {/* Reasignación modal */}
+      {reasignarId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h4 className="font-bold text-slate-800 mb-1">Reasignar tareas</h4>
+            <p className="text-sm text-slate-600 mb-4">
+              Solo se reasignan tareas <span className="font-medium">pendientes</span> y{" "}
+              <span className="font-medium">rechazadas</span>. Las tareas aprobadas conservan su contratista original.
+            </p>
+
+            {reasignarResult ? (
+              <div className="px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700 mb-3">
+                {reasignarResult}
+              </div>
+            ) : (
+              <>
+                {reasignarError && (
+                  <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+                    {reasignarError}
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Reasignar a:</label>
+                    <select
+                      value={reasignarNuevoId}
+                      onChange={e => setReasignarNuevoId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                    >
+                      <option value="">Sin asignar (quitar contratista)</option>
+                      {contratistas.filter(c => c.id !== reasignarId).map(c => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Motivo (opcional):</label>
+                    <input
+                      value={reasignarMotivo}
+                      onChange={e => setReasignarMotivo(e.target.value)}
+                      placeholder="Ej: Renunció, cambio de personal..."
+                      maxLength={500}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 mb-1 block">Contraseña:</label>
+                    <div className="relative">
+                      <input
+                        type={reasignarShowPw ? "text" : "password"}
+                        value={reasignarPassword}
+                        onChange={e => setReasignarPassword(e.target.value)}
+                        placeholder="Confirma tu contraseña"
+                        className="w-full px-3 py-2 pr-10 rounded-lg border border-slate-200 text-sm bg-white"
+                        onKeyDown={e => { if (e.key === "Enter") handleReasignar(); }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setReasignarShowPw(!reasignarShowPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {reasignarShowPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end mt-4">
+                  <button
+                    onClick={() => setReasignarId(null)}
+                    className="px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 rounded-lg hover:bg-slate-100"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleReasignar}
+                    disabled={!reasignarPassword || reasignarLoading}
+                    className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-1.5"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${reasignarLoading ? "animate-spin" : ""}`} />
+                    {reasignarLoading ? "Reasignando..." : "Reasignar"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Personas externas -- spans both columns */}
       <div className="lg:col-span-2">
