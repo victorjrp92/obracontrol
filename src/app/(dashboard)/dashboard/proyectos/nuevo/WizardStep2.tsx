@@ -244,8 +244,8 @@ export default function WizardStep2({
       }));
       setTareas((prev) => {
         const map = new Map<string, TareaInput>();
-        for (const t of prev) map.set(`${t.fase}|${t.espacio}|${t.nombre}`, t);
-        for (const t of withIds) map.set(`${t.fase}|${t.espacio}|${t.nombre}`, t);
+        for (const t of prev) map.set(`${t.fase}|${t.tipo_unidad_id ?? ""}|${t.espacio}|${t.nombre}`, t);
+        for (const t of withIds) map.set(`${t.fase}|${t.tipo_unidad_id ?? ""}|${t.espacio}|${t.nombre}`, t);
         return Array.from(map.values());
       });
     }

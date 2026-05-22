@@ -262,6 +262,12 @@ export async function parseTemplate(
     }
 
     const isMadera = matchedFase.toLowerCase() === "madera";
+
+    if (isMadera && !tipoUnidadId && tiposUnidad && tiposUnidad.length > 0) {
+      errores.push(`Fila ${rowNumber}: falta el tipo de unidad para tarea de Madera. Opciones: ${tiposUnidad.map((t) => t.nombre).join(", ")}`);
+      return;
+    }
+
     const hasComponents = estructura != null || nave != null || chapa != null || cartera != null;
 
     tareas.push({
