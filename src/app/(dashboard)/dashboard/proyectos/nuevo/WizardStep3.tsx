@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  ArrowLeft, Building2, Calendar, Check,
+  ArrowLeft, Building2, Calendar, Check, ChevronDown, ChevronRight,
   Layers, Plus, Save, Trash2, UserPlus, X,
 } from "lucide-react";
 import type {
@@ -42,6 +42,7 @@ interface TaskRow {
 interface BuilderState {
   contratista: string;
   torres: string[];
+  tipoUnidad: string;
   pisos: number[];
   aptos: string[];
   subfase: string;
@@ -95,11 +96,15 @@ export default function WizardStep3({
     Object.fromEntries(fasesSeleccionadas.map(f => [f, []]))
   );
 
-  const emptyBuilder: BuilderState = { contratista: "", torres: [], pisos: [], aptos: [], subfase: "", checked: {} };
+  const emptyBuilder: BuilderState = {
+    contratista: "", torres: [], tipoUnidad: "", pisos: [], aptos: [], subfase: "", checked: {},
+  };
 
   const [builders, setBuilders] = useState<Record<string, BuilderState>>(() =>
     Object.fromEntries(fasesSeleccionadas.map(f => [f, { ...emptyBuilder }]))
   );
+
+  const [expanded, setExpanded] = useState<Record<string, Set<string>>>({});
 
   /* ── Pool ────────────────────────────────────────────── */
 
@@ -123,19 +128,41 @@ export default function WizardStep3({
     setBuilders(p => ({ ...p, [fase]: { ...p[fase], ...partial } }));
   }
 
+  function getUnitsForTorres(torreNames: string[]) {
+    return edificios
+      .filter(e => torreNames.includes(e.nombre))
+      .flatMap(e => generateUnitNamesForTorre(e, tiposUnidad).map(u => ({ ...u, torre: e.nombre })));
+  }
+
   function toggleTorre(fase: string, torre: string) {
     setBuilders(p => {
       const b = p[fase];
       const newTorres = b.torres.includes(torre)
         ? b.torres.filter(t => t !== torre)
         : [...b.torres, torre];
-      const newAptos = b.aptos.filter(a => newTorres.includes(a.split("::")[0]));
-      const remainingUnits = edificios
-        .filter(e => newTorres.includes(e.nombre))
-        .flatMap(e => generateUnitNamesForTorre(e, tiposUnidad));
-      const validFloors = new Set(remainingUnits.map(u => u.piso));
+      const units = getUnitsForTorres(newTorres);
+      const availableTipos = new Set(units.map(u => u.tipo_unidad_id));
+      const newTipo = b.tipoUnidad && availableTipos.has(b.tipoUnidad) ? b.tipoUnidad : "";
+      const finalUnits = newTipo ? units.filter(u => u.tipo_unidad_id === newTipo) : units;
+      const validFloors = new Set(finalUnits.map(u => u.piso));
       const newPisos = b.pisos.filter(pp => validFloors.has(pp));
-      return { ...p, [fase]: { ...b, torres: newTorres, pisos: newPisos, aptos: newAptos } };
+      const validAptKeys = new Set(finalUnits.map(u => `${u.torre}::${u.nombre}`));
+      const newAptos = b.aptos.filter(a => validAptKeys.has(a));
+      return { ...p, [fase]: { ...b, torres: newTorres, tipoUnidad: newTipo, pisos: newPisos, aptos: newAptos } };
+    });
+  }
+
+  function toggleTipoUnidad(fase: string, tipoId: string) {
+    setBuilders(p => {
+      const b = p[fase];
+      const newTipo = b.tipoUnidad === tipoId ? "" : tipoId;
+      const units = getUnitsForTorres(b.torres);
+      const filtered = newTipo ? units.filter(u => u.tipo_unidad_id === newTipo) : units;
+      const validFloors = new Set(filtered.map(u => u.piso));
+      const newPisos = b.pisos.filter(pp => validFloors.has(pp));
+      const validAptKeys = new Set(filtered.map(u => `${u.torre}::${u.nombre}`));
+      const newAptos = b.aptos.filter(a => validAptKeys.has(a));
+      return { ...p, [fase]: { ...b, tipoUnidad: newTipo, pisos: newPisos, aptos: newAptos } };
     });
   }
 
@@ -145,12 +172,12 @@ export default function WizardStep3({
       const newPisos = b.pisos.includes(piso)
         ? b.pisos.filter(pp => pp !== piso)
         : [...b.pisos, piso];
+      const units = getUnitsForTorres(b.torres);
+      const filtered = b.tipoUnidad ? units.filter(u => u.tipo_unidad_id === b.tipoUnidad) : units;
       const validAptKeys = new Set<string>();
-      for (const e of edificios.filter(e => b.torres.includes(e.nombre))) {
-        for (const u of generateUnitNamesForTorre(e, tiposUnidad)) {
-          if (newPisos.length === 0 || newPisos.includes(u.piso)) {
-            validAptKeys.add(`${e.nombre}::${u.nombre}`);
-          }
+      for (const u of filtered) {
+        if (newPisos.length === 0 || newPisos.includes(u.piso)) {
+          validAptKeys.add(`${u.torre}::${u.nombre}`);
         }
       }
       const newAptos = b.aptos.filter(a => validAptKeys.has(a));
@@ -184,6 +211,16 @@ export default function WizardStep3({
     });
   }
 
+  /* ── Accordion ───────────────────────────────────────── */
+
+  function toggleExpanded(fase: string, cId: string) {
+    setExpanded(prev => {
+      const s = new Set(prev[fase] ?? []);
+      if (s.has(cId)) s.delete(cId); else s.add(cId);
+      return { ...prev, [fase]: s };
+    });
+  }
+
   /* ── Assign batch ────────────────────────────────────── */
 
   function handleAssign(fase: string) {
@@ -204,12 +241,24 @@ export default function WizardStep3({
       for (const tn of b.torres) {
         const edif = edificios.find(e => e.nombre === tn);
         if (!edif) continue;
-        for (const u of generateUnitNamesForTorre(edif, tiposUnidad)) {
+        const units = generateUnitNamesForTorre(edif, tiposUnidad);
+        const filtered = b.tipoUnidad ? units.filter(u => u.tipo_unidad_id === b.tipoUnidad) : units;
+        for (const u of filtered) {
           if (b.pisos.includes(u.piso)) targets.push({ torre: tn, unidad: u.nombre });
         }
       }
     } else if (b.torres.length > 0) {
-      for (const tn of b.torres) targets.push({ torre: tn });
+      if (b.tipoUnidad) {
+        for (const tn of b.torres) {
+          const edif = edificios.find(e => e.nombre === tn);
+          if (!edif) continue;
+          const units = generateUnitNamesForTorre(edif, tiposUnidad)
+            .filter(u => u.tipo_unidad_id === b.tipoUnidad);
+          for (const u of units) targets.push({ torre: tn, unidad: u.nombre });
+        }
+      } else {
+        for (const tn of b.torres) targets.push({ torre: tn });
+      }
     }
 
     setAsignaciones(prev => {
@@ -246,8 +295,32 @@ export default function WizardStep3({
     )));
   }
 
+  function removeAllForContratista(fase: string, cId: string) {
+    setAsignaciones(prev => prev.filter(o => !(o.fase === fase && o.contratista_id === cId)));
+  }
+
   function handleCreate() {
     onSubmit(undefined, asignaciones);
+  }
+
+  /* ── Conflict check ──────────────────────────────────── */
+
+  function getConflict(fase: string, taskKey: string, currentContratista: string, scope: BuilderState): string | null {
+    const conflicting = asignaciones.find(o => {
+      if (o.fase !== fase || o.tarea_nombre !== taskKey || o.contratista_id === currentContratista) return false;
+      if (!o.torre) return true;
+      if (scope.torres.length === 0) return true;
+      if (!scope.torres.includes(o.torre)) return false;
+      if (scope.aptos.length > 0 && o.unidad_nombre) {
+        return scope.aptos.some(a => {
+          const [t, u] = a.split("::");
+          return t === o.torre && u === o.unidad_nombre;
+        });
+      }
+      return true;
+    });
+    if (!conflicting) return null;
+    return contratistas.find(c => c.id === conflicting.contratista_id)?.nombre ?? "otro";
   }
 
   /* ── Render ──────────────────────────────────────────── */
@@ -298,19 +371,30 @@ export default function WizardStep3({
             const fasePool = pool[fase] ?? [];
             const b = builders[fase] ?? emptyBuilder;
             const taskRows = buildTaskRows(tareas, fase);
-            const visibleTasks = b.subfase ? taskRows.filter(t => t.subfase === b.subfase) : taskRows;
+            const filteredBySubfase = b.subfase
+              ? taskRows.filter(t => t.subfase === b.subfase)
+              : taskRows;
             const subfases = [...new Set(taskRows.map(t => t.subfase).filter(Boolean))] as string[];
-            const checkedCount = visibleTasks.filter(t => b.checked[t.key]).length;
+            const enabledTasks = b.contratista
+              ? filteredBySubfase.filter(t => !getConflict(fase, t.key, b.contratista, b))
+              : filteredBySubfase;
+            const checkedCount = filteredBySubfase.filter(t => b.checked[t.key]).length;
             const selectedContratista = contratistas.find(c => c.id === b.contratista);
 
-            const selectedEdifs = edificios.filter(e => b.torres.includes(e.nombre));
-            const allSelectedUnits = selectedEdifs.flatMap(e =>
-              generateUnitNamesForTorre(e, tiposUnidad).map(u => ({ ...u, torre: e.nombre }))
-            );
-            const availableFloors = [...new Set(allSelectedUnits.map(u => u.piso))].sort((a, bb) => a - bb);
-            const aptUnits = b.pisos.length > 0
-              ? allSelectedUnits.filter(u => b.pisos.includes(u.piso))
+            const allSelectedUnits = getUnitsForTorres(b.torres);
+            const tipoFilteredUnits = b.tipoUnidad
+              ? allSelectedUnits.filter(u => u.tipo_unidad_id === b.tipoUnidad)
               : allSelectedUnits;
+            const availableTipos = [...new Map(
+              allSelectedUnits.map(u => {
+                const t = tiposUnidad.find(tp => tp.id === u.tipo_unidad_id);
+                return [u.tipo_unidad_id, t?.nombre ?? u.tipo_unidad_id] as [string, string];
+              })
+            )];
+            const availableFloors = [...new Set(tipoFilteredUnits.map(u => u.piso))].sort((a, bb) => a - bb);
+            const aptUnits = tipoFilteredUnits.filter(u =>
+              b.pisos.length === 0 || b.pisos.includes(u.piso)
+            );
 
             let scopeLabel = "Global — todas las torres y apartamentos";
             if (b.aptos.length > 0) {
@@ -318,18 +402,17 @@ export default function WizardStep3({
             } else if (b.pisos.length > 0) {
               scopeLabel = `${b.torres.join(", ")} — Piso${b.pisos.length > 1 ? "s" : ""} ${b.pisos.sort((a, bb) => a - bb).join(", ")}`;
             } else if (b.torres.length > 0) {
-              scopeLabel = `${b.torres.join(", ")} — todos los apartamentos`;
+              const tipoName = b.tipoUnidad ? tiposUnidad.find(t => t.id === b.tipoUnidad)?.nombre : null;
+              scopeLabel = `${b.torres.join(", ")} — ${tipoName ? `solo ${tipoName}` : "todos los apartamentos"}`;
             }
 
             const faseOverrides = asignaciones.filter(o => o.fase === fase);
-            const grouped = new Map<string, Map<string, AsignacionOverride[]>>();
+            const groupedByContratista = new Map<string, AsignacionOverride[]>();
             for (const o of faseOverrides) {
-              if (!grouped.has(o.contratista_id)) grouped.set(o.contratista_id, new Map());
-              const tm = grouped.get(o.contratista_id)!;
-              const k = o.tarea_nombre ?? "__all__";
-              if (!tm.has(k)) tm.set(k, []);
-              tm.get(k)!.push(o);
+              if (!groupedByContratista.has(o.contratista_id)) groupedByContratista.set(o.contratista_id, []);
+              groupedByContratista.get(o.contratista_id)!.push(o);
             }
+            const faseExpanded = expanded[fase] ?? new Set<string>();
 
             return (
               <div key={fase} className="border border-slate-200 rounded-xl overflow-hidden">
@@ -413,6 +496,37 @@ export default function WizardStep3({
                           </div>
                         )}
 
+                        {/* Tipo de apartamento filter */}
+                        {b.torres.length > 0 && availableTipos.length > 1 && (
+                          <div className="mb-2">
+                            <label className="text-[10px] font-semibold text-slate-500 mb-1 block">Tipo de apartamento:</label>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                onClick={() => { if (b.tipoUnidad) toggleTipoUnidad(fase, b.tipoUnidad); }}
+                                className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                                  !b.tipoUnidad ? "bg-emerald-100 border-emerald-300 text-emerald-800 font-medium" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                                }`}
+                              >
+                                Todos
+                              </button>
+                              {availableTipos.map(([id, name]) => {
+                                const sel = b.tipoUnidad === id;
+                                return (
+                                  <button
+                                    key={id}
+                                    onClick={() => toggleTipoUnidad(fase, id)}
+                                    className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                                      sel ? "bg-emerald-100 border-emerald-300 text-emerald-800 font-medium" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
+                                    }`}
+                                  >
+                                    {name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Multi-select pisos */}
                         {b.torres.length > 0 && availableFloors.length > 0 && (
                           <div className="mb-2">
@@ -484,52 +598,61 @@ export default function WizardStep3({
 
                         {/* Task checkboxes */}
                         <div className="border border-slate-200 rounded-lg overflow-hidden bg-white max-h-64 overflow-y-auto">
-                          {/* Select all / deselect all */}
                           <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 border-b border-slate-200">
                             <span className="text-[10px] font-semibold text-slate-500">
-                              {checkedCount}/{visibleTasks.length} seleccionadas
+                              {checkedCount}/{filteredBySubfase.length} seleccionadas
                             </span>
                             <div className="flex gap-2">
                               <button
-                                onClick={() => setAllTasks(fase, visibleTasks.map(t => t.key), true)}
+                                onClick={() => setAllTasks(fase, enabledTasks.map(t => t.key), true)}
                                 className="text-[10px] text-blue-600 hover:text-blue-800 font-medium"
                               >
                                 Todas
                               </button>
                               <button
-                                onClick={() => setAllTasks(fase, visibleTasks.map(t => t.key), false)}
+                                onClick={() => setAllTasks(fase, filteredBySubfase.map(t => t.key), false)}
                                 className="text-[10px] text-slate-500 hover:text-slate-700 font-medium"
                               >
                                 Ninguna
                               </button>
                             </div>
                           </div>
-                          {visibleTasks.length === 0 ? (
+                          {filteredBySubfase.length === 0 ? (
                             <div className="px-3 py-4 text-center text-xs text-slate-400">No hay tareas para esta subfase</div>
-                          ) : visibleTasks.map(task => {
+                          ) : filteredBySubfase.map(task => {
+                            const conflict = b.contratista ? getConflict(fase, task.key, b.contratista, b) : null;
+                            const isDisabled = !!conflict;
                             const isChecked = !!b.checked[task.key];
-                            const existing = asignaciones.find(o => o.fase === fase && o.tarea_nombre === task.key);
-                            const existingName = existing ? contratistas.find(c => c.id === existing.contratista_id)?.nombre : null;
 
                             return (
                               <div
                                 key={task.key}
-                                onClick={() => toggleTask(fase, task.key)}
-                                className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-50 last:border-b-0 hover:bg-blue-50/30 cursor-pointer select-none"
+                                onClick={() => !isDisabled && toggleTask(fase, task.key)}
+                                className={`flex items-center gap-2 px-3 py-1.5 border-b border-slate-50 last:border-b-0 select-none ${
+                                  isDisabled
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "hover:bg-blue-50/30 cursor-pointer"
+                                }`}
                               >
                                 <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                                  isChecked ? "bg-blue-600 border-blue-600" : "bg-white border-slate-300"
+                                  isDisabled
+                                    ? "bg-slate-100 border-slate-200"
+                                    : isChecked
+                                      ? "bg-blue-600 border-blue-600"
+                                      : "bg-white border-slate-300"
                                 }`}>
-                                  {isChecked && <Check className="w-3 h-3 text-white" />}
+                                  {isChecked && !isDisabled && <Check className="w-3 h-3 text-white" />}
                                 </span>
-                                <span className="text-[11px] text-slate-700 truncate flex-1">
+                                <span className={`text-[11px] truncate flex-1 ${isDisabled ? "text-slate-400" : "text-slate-700"}`}>
                                   {task.espacio} — {task.nombre}
                                   {task.subfase && (
                                     <span className="text-violet-500 ml-1 text-[10px]">{sfTag(task.subfase)}</span>
                                   )}
                                 </span>
-                                {existingName && (
-                                  <span className="text-[10px] text-slate-400 italic flex-shrink-0">{existingName}</span>
+                                {conflict && (
+                                  <span className="text-[10px] text-slate-400 italic flex-shrink-0">
+                                    (asignada a {conflict})
+                                  </span>
                                 )}
                               </div>
                             );
@@ -548,57 +671,83 @@ export default function WizardStep3({
                         </button>
                       </div>
 
-                      {/* ── Assignment summary ── */}
+                      {/* ── Accordion summary ── */}
                       {faseOverrides.length > 0 && (
-                        <div className="border border-slate-100 rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-slate-700">
-                              Asignaciones ({faseOverrides.length})
-                            </span>
-                          </div>
-                          {Array.from(grouped.entries()).map(([cId, taskMap]) => {
+                        <div className="space-y-1.5">
+                          {Array.from(groupedByContratista.entries()).map(([cId, overrides]) => {
                             const c = contratistas.find(x => x.id === cId);
+                            const isOpen = faseExpanded.has(cId);
+                            const taskMap = new Map<string, AsignacionOverride[]>();
+                            for (const o of overrides) {
+                              const k = o.tarea_nombre ?? "__all__";
+                              if (!taskMap.has(k)) taskMap.set(k, []);
+                              taskMap.get(k)!.push(o);
+                            }
+
                             return (
-                              <div key={cId} className="mb-3 last:mb-0">
-                                <div className="text-xs font-bold text-blue-800 mb-1.5">{c?.nombre ?? "?"}</div>
-                                <div className="space-y-1">
-                                  {Array.from(taskMap.entries()).map(([taskKey, overrides]) => {
-                                    const parts = taskKey.split("::");
-                                    const taskLabel = `${parts[0]}${sfTag(parts[1] ?? null)}`;
-
-                                    let scope: string;
-                                    if (overrides.length === 1 && !overrides[0].torre) {
-                                      scope = "Global";
-                                    } else if (overrides.every(o => !o.unidad_nombre)) {
-                                      scope = overrides.map(o => o.torre).join(", ");
-                                    } else {
-                                      const byTorre = new Map<string, string[]>();
-                                      for (const o of overrides) {
-                                        const t = o.torre ?? "?";
-                                        if (!byTorre.has(t)) byTorre.set(t, []);
-                                        if (o.unidad_nombre) byTorre.get(t)!.push(o.unidad_nombre);
-                                      }
-                                      scope = Array.from(byTorre.entries())
-                                        .map(([t, aptos]) => aptos.length > 0 ? `${t}: ${aptos.join(", ")}` : t)
-                                        .join(" | ");
-                                    }
-
-                                    return (
-                                      <div key={taskKey} className="flex items-center gap-2 text-[11px] text-slate-600 bg-slate-50 rounded px-2.5 py-1.5">
-                                        <span className="flex-1 min-w-0 truncate">
-                                          {taskLabel} — <span className="text-slate-400">{scope}</span>
-                                        </span>
-                                        <button
-                                          onClick={() => removeOverrideGroup(fase, cId, taskKey)}
-                                          className="text-red-400 hover:text-red-600 flex-shrink-0 p-0.5"
-                                          title="Eliminar asignación"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
+                              <div key={cId} className="border border-slate-100 rounded-lg overflow-hidden">
+                                {/* Collapsed header */}
+                                <div
+                                  className="flex items-center gap-2 px-3 py-2 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                                  onClick={() => toggleExpanded(fase, cId)}
+                                >
+                                  {isOpen
+                                    ? <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                    : <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                  }
+                                  <span className="text-xs font-bold text-blue-800 flex-1">
+                                    {c?.nombre ?? "?"} — {taskMap.size} tarea{taskMap.size > 1 ? "s" : ""}
+                                  </span>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); removeAllForContratista(fase, cId); }}
+                                    className="text-[10px] text-red-400 hover:text-red-600 font-medium flex items-center gap-0.5"
+                                    title="Eliminar todas"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
                                 </div>
+
+                                {/* Expanded detail */}
+                                {isOpen && (
+                                  <div className="px-3 py-1.5 space-y-1">
+                                    {Array.from(taskMap.entries()).map(([taskKey, ovs]) => {
+                                      const parts = taskKey.split("::");
+                                      const taskLabel = `${parts[0]}${sfTag(parts[1] ?? null)}`;
+
+                                      let scope: string;
+                                      if (ovs.length === 1 && !ovs[0].torre) {
+                                        scope = "Global";
+                                      } else if (ovs.every(o => !o.unidad_nombre)) {
+                                        scope = ovs.map(o => o.torre).join(", ");
+                                      } else {
+                                        const byTorre = new Map<string, string[]>();
+                                        for (const o of ovs) {
+                                          const t = o.torre ?? "?";
+                                          if (!byTorre.has(t)) byTorre.set(t, []);
+                                          if (o.unidad_nombre) byTorre.get(t)!.push(o.unidad_nombre);
+                                        }
+                                        scope = Array.from(byTorre.entries())
+                                          .map(([t, aptos]) => aptos.length > 0 ? `${t}: ${aptos.join(", ")}` : t)
+                                          .join(" | ");
+                                      }
+
+                                      return (
+                                        <div key={taskKey} className="flex items-center gap-2 text-[11px] text-slate-600 bg-white rounded px-2.5 py-1.5 border border-slate-100">
+                                          <span className="flex-1 min-w-0 truncate">
+                                            {taskLabel} — <span className="text-slate-400">{scope}</span>
+                                          </span>
+                                          <button
+                                            onClick={() => removeOverrideGroup(fase, cId, taskKey)}
+                                            className="text-red-400 hover:text-red-600 flex-shrink-0 p-0.5"
+                                            title="Eliminar"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
