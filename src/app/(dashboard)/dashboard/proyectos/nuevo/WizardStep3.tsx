@@ -626,7 +626,7 @@ export default function WizardStep3({
 
                             return (
                               <div
-                                key={task.key}
+                                key={`${task.espacio}|${task.key}`}
                                 onClick={() => !isDisabled && toggleTask(fase, task.key)}
                                 className={`flex items-center gap-2 px-3 py-1.5 border-b border-slate-50 last:border-b-0 select-none ${
                                   isDisabled
