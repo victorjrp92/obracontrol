@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateObreroToken } from "@/lib/data-obrero";
+import { crearNotificacion, getProjectSupervisors } from "@/lib/notifications";
+import { sendEmail } from "@/lib/email";
+import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
 
 // POST /api/o/[token]/tareas/[id]/reportar — obrero reports task as done
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ token: string; id: string }> }
 ) {
   try {
@@ -18,9 +21,28 @@ export async function POST(
       );
     }
 
-    // Find the task
+    // Find the task with project context for supervisor notifications
     const tarea = await prisma.tarea.findUnique({
       where: { id },
+      include: {
+        espacio: {
+          include: {
+            unidad: {
+              include: {
+                piso: {
+                  include: {
+                    edificio: {
+                      include: {
+                        proyecto: { select: { id: true, nombre: true, constructora_id: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!tarea) {
@@ -58,19 +80,53 @@ export async function POST(
       },
     });
 
-    // Create notification for the contratista
+    // 1. Notificación al contratista del obrero
     try {
-      await prisma.notificacion.create({
-        data: {
-          usuario_id: obrero.contratista_id,
-          tipo: "OBRERO_REPORTO",
-          titulo: `Tarea reportada por ${obrero.nombre}`,
-          mensaje: `${obrero.nombre} reporto la tarea "${tarea.nombre}" como terminada.`,
-          link: `/contratista`,
-        },
+      await crearNotificacion({
+        usuario_id: obrero.contratista_id,
+        tipo: "OBRERO_REPORTO",
+        titulo: `Tarea reportada por ${obrero.nombre}`,
+        mensaje: `${obrero.nombre} reportó la tarea "${tarea.nombre}" como terminada.`,
+        link: `/contratista`,
       });
     } catch (err) {
-      console.error("Error creando notificacion:", err);
+      console.error("Error creando notificacion al contratista:", err);
+    }
+
+    // 2. Notificación + email a los supervisores del proyecto
+    try {
+      const proyectoId = tarea.espacio.unidad.piso.edificio.proyecto.id;
+      const constructoraId = tarea.espacio.unidad.piso.edificio.proyecto.constructora_id;
+      const supervisores = await getProjectSupervisors(proyectoId, constructoraId);
+
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
+      const ubicacion = `${tarea.espacio.unidad.piso.edificio.nombre} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`;
+
+      const html = tareaReportadaEmailHtml({
+        nombre: tarea.nombre,
+        proyecto: tarea.espacio.unidad.piso.edificio.proyecto.nombre,
+        ubicacion,
+        contratista: obrero.nombre,
+        url: `${siteUrl}/dashboard/tareas/${id}`,
+      });
+
+      for (const sup of supervisores) {
+        crearNotificacion({
+          usuario_id: sup.id,
+          tipo: "TAREA_REPORTADA",
+          titulo: `Tarea reportada: ${tarea.nombre}`,
+          mensaje: `${obrero.nombre} reportó "${tarea.nombre}" en ${ubicacion}. Revisa y aprueba o rechaza.`,
+          link: `/dashboard/tareas/${id}`,
+        }).catch((err) => console.error("Notificación TAREA_REPORTADA falló:", err));
+
+        sendEmail({
+          to: sup.email,
+          subject: `Tarea reportada: ${tarea.nombre}`,
+          html,
+        }).catch((err) => console.error("Email reportada falló:", err));
+      }
+    } catch (err) {
+      console.error("Error notificando a supervisores:", err);
     }
 
     return NextResponse.json(updated);

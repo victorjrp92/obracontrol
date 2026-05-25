@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
 import { canApproveTasks, getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import { crearNotificacion, getProjectSupervisors } from "@/lib/notifications";
 
 // POST /api/tareas/[id]/reportar — obrero reporta tarea terminada
 export async function POST(
@@ -123,18 +124,20 @@ export async function POST(
       },
     });
 
-    // Enviar email a supervisores (admin/jefe/coordinador) de la constructora
+    // Notificar a supervisores del proyecto (in-app + email)
     try {
-      const supervisores = await prisma.usuario.findMany({
-        where: {
-          constructora_id: tarea.espacio.unidad.piso.edificio.proyecto.constructora_id,
-          rol_ref: { nivel_acceso: { in: ["ADMIN_GENERAL", "ADMIN_PROYECTO", "DIRECTIVO"] } },
-        },
-        select: { email: true },
-      });
+      const proyectoId = tarea.espacio.unidad.piso.edificio.proyecto.id;
+      const constructoraId = tarea.espacio.unidad.piso.edificio.proyecto.constructora_id;
+      const supervisores = await getProjectSupervisors(
+        proyectoId,
+        constructoraId,
+        currentUser.id,
+      );
 
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
       const ubicacion = `${tarea.espacio.unidad.piso.edificio.nombre} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`;
+      const reporterNombre = tarea.asignado_usuario?.nombre ?? "Un contratista";
+
       const html = tareaReportadaEmailHtml({
         nombre: tarea.nombre,
         proyecto: tarea.espacio.unidad.piso.edificio.proyecto.nombre,
@@ -144,6 +147,16 @@ export async function POST(
       });
 
       for (const sup of supervisores) {
+        // Notificación in-app (no bloqueante)
+        crearNotificacion({
+          usuario_id: sup.id,
+          tipo: "TAREA_REPORTADA",
+          titulo: `Tarea reportada: ${tarea.nombre}`,
+          mensaje: `${reporterNombre} reportó "${tarea.nombre}" en ${ubicacion}. Revisa y aprueba o rechaza.`,
+          link: `/dashboard/tareas/${id}`,
+        }).catch((err) => console.error("Notificación TAREA_REPORTADA falló:", err));
+
+        // Email (no bloqueante)
         sendEmail({
           to: sup.email,
           subject: `Tarea reportada: ${tarea.nombre}`,
@@ -151,7 +164,7 @@ export async function POST(
         }).catch((err) => console.error("Email reportada falló:", err));
       }
     } catch (err) {
-      console.error("Error enviando emails de tarea reportada:", err);
+      console.error("Error notificando a supervisores:", err);
     }
 
     return NextResponse.json(updated);

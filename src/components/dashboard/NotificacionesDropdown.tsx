@@ -17,7 +17,8 @@ type TipoNotificacion =
   | "SUGERENCIA_NUEVA"
   | "SUGERENCIA_APROBADA"
   | "SUGERENCIA_RECHAZADA"
-  | "OBRERO_REPORTO";
+  | "OBRERO_REPORTO"
+  | "TAREA_REPORTADA";
 
 interface Notificacion {
   id: string;
@@ -57,6 +58,7 @@ function IconoPorTipo({ tipo }: { tipo: TipoNotificacion }) {
     case "SUGERENCIA_RECHAZADA":
       return <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0" />;
     case "OBRERO_REPORTO":
+    case "TAREA_REPORTADA":
       return <Camera className="w-4 h-4 text-blue-500 flex-shrink-0" />;
     default:
       return <Bell className="w-4 h-4 text-slate-400 flex-shrink-0" />;

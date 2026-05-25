@@ -582,6 +582,7 @@ enum TipoNotificacion {
   SUGERENCIA_APROBADA
   SUGERENCIA_RECHAZADA
   OBRERO_REPORTO
+  TAREA_REPORTADA
 }
 
 model Notificacion {
