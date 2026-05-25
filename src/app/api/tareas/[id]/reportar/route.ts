@@ -33,6 +33,21 @@ export async function POST(
 
     const { id } = await params;
 
+    // Body es opcional para compatibilidad (POST sin body); si viene, leemos nota_reporte.
+    let nota_reporte: string | null = null;
+    try {
+      const ct = req.headers.get("content-type") ?? "";
+      if (ct.includes("application/json")) {
+        const body = (await req.json()) as { nota_reporte?: string };
+        if (typeof body.nota_reporte === "string") {
+          const trimmed = body.nota_reporte.trim();
+          if (trimmed.length > 0) nota_reporte = trimmed.slice(0, 1000);
+        }
+      }
+    } catch {
+      // ignore — JSON inválido o sin body
+    }
+
     const tarea = await prisma.tarea.findUnique({
       where: { id },
       include: {
@@ -102,6 +117,9 @@ export async function POST(
       data: {
         estado: "REPORTADA",
         fecha_inicio: tarea.fecha_inicio ?? new Date(),
+        // Si el contratista escribió nota, la guardamos; si vino null la
+        // limpiamos para que un re-reporte no muestre la nota anterior.
+        nota_reporte,
       },
     });
 

@@ -130,6 +130,14 @@ export default async function ContratistaTareaDetallePage({
             </span>
           </div>
           <EvidenceGallery evidencias={evidenciasView} />
+          {tarea.nota_reporte && (
+            <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-100">
+              <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">
+                Nota del reporte
+              </div>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">{tarea.nota_reporte}</p>
+            </div>
+          )}
         </div>
 
         {/* Acciones aprobar/rechazar (solo cuando está REPORTADA) */}

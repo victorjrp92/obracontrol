@@ -123,9 +123,13 @@ export default function ReportarButton({ tareaId, proyectoNombre, tareaNombre }:
         await uploadVideoDirect(video.blob, video.timestamp);
       }
 
-      // 3. Marcar tarea como reportada.
+      // 3. Marcar tarea como reportada (incluye la nota del contratista).
       setProgress("Reportando tarea...");
-      const res = await fetch(`/api/tareas/${tareaId}/reportar`, { method: "POST" });
+      const res = await fetch(`/api/tareas/${tareaId}/reportar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nota_reporte: notas.trim() || null }),
+      });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "Error al reportar");

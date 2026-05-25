@@ -206,6 +206,7 @@ model Tarea {
   asignado_a                String?
   depende_de                String?
   notas                     String?
+  nota_reporte              String?
   foto_referencia_url       String?
   created_at                DateTime     @default(now())
   updated_at                DateTime     @updatedAt
