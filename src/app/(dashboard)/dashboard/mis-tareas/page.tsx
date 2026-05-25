@@ -59,6 +59,17 @@ export default async function MisTareasPage({
   const tareas = await prisma.tarea.findMany({
     where: {
       asignado_a: usuario.id,
+      // Defense-in-depth: limita por constructora aunque asignado_a ya implica
+      // pertenencia. Si alguna vez un usuario cambia de constructora, no leak.
+      espacio: {
+        unidad: {
+          piso: {
+            edificio: {
+              proyecto: { constructora_id: usuario.constructora_id },
+            },
+          },
+        },
+      },
       ...(activeFilter !== "ALL" ? { estado: activeFilter } : {}),
     },
     include: {

@@ -48,6 +48,12 @@ export async function GET(
     });
     if (!proyecto) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
 
+    // Solo admins (general o de proyecto) ven personas externas — contienen PII
+    // (email, teléfono) que no debe exponerse a CONTRATISTA u OBRERO.
+    if (!isAnyAdmin(currentUser.rol_ref.nivel_acceso)) {
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    }
+
     // Verify user can access the project
     const accessible = await getAccessibleProjectIds(
       currentUser.id,

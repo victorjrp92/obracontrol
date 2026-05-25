@@ -134,6 +134,18 @@ export async function PATCH(
       return NextResponse.json({ error: "usuario_id es requerido" }, { status: 400 });
     }
 
+    // Anti-escalación: un Admin Proyecto NO puede modificar sus propios permisos
+    // (de otro modo, can_manage_team le permitiría auto-otorgarse can_edit_project, etc.)
+    if (
+      isProjectAdmin(currentUser.rol_ref.nivel_acceso) &&
+      body.usuario_id === currentUser.id
+    ) {
+      return NextResponse.json(
+        { error: "No puedes modificar tus propios permisos. Pídeselo a un Admin General." },
+        { status: 403 },
+      );
+    }
+
     const existing = await prisma.adminProyectoAccess.findUnique({
       where: { usuario_id_proyecto_id: { usuario_id: body.usuario_id, proyecto_id } },
     });
@@ -197,11 +209,25 @@ export async function DELETE(
       return NextResponse.json({ error: "usuario_id es requerido" }, { status: 400 });
     }
 
-    await prisma.adminProyectoAccess
-      .delete({ where: { usuario_id_proyecto_id: { usuario_id, proyecto_id } } })
-      .catch(() => null);
+    // Anti-escalación: un Admin Proyecto NO puede quitarse a sí mismo del proyecto.
+    if (
+      isProjectAdmin(currentUser.rol_ref.nivel_acceso) &&
+      usuario_id === currentUser.id
+    ) {
+      return NextResponse.json(
+        { error: "No puedes quitarte a ti mismo del proyecto. Pídeselo a un Admin General." },
+        { status: 403 },
+      );
+    }
 
-    return NextResponse.json({ ok: true });
+    try {
+      await prisma.adminProyectoAccess.delete({
+        where: { usuario_id_proyecto_id: { usuario_id, proyecto_id } },
+      });
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Admin Junior no encontrado en este proyecto" }, { status: 404 });
+    }
   } catch (error) {
     console.error("DELETE /api/proyectos/[id]/admins", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

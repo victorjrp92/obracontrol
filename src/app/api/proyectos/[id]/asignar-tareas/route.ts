@@ -172,16 +172,18 @@ export async function POST(
     if (!Array.isArray(body.tarea_ids) || body.tarea_ids.length === 0) {
       return NextResponse.json({ error: "tarea_ids es requerido" }, { status: 400 });
     }
-    if (body.tarea_ids.length > MAX_TAREAS) {
-      return NextResponse.json(
-        { error: `Demasiadas tareas (${body.tarea_ids.length}). Máximo ${MAX_TAREAS} por operación.` },
-        { status: 400 },
-      );
-    }
     for (const tid of body.tarea_ids) {
       if (typeof tid !== "string" || !ID_RE.test(tid)) {
         return NextResponse.json({ error: "tarea_ids contiene IDs inválidos" }, { status: 400 });
       }
+    }
+    // Dedupe para evitar 404 confuso si el cliente envía IDs repetidos.
+    const tareaIdsUnique = Array.from(new Set(body.tarea_ids));
+    if (tareaIdsUnique.length > MAX_TAREAS) {
+      return NextResponse.json(
+        { error: `Demasiadas tareas (${tareaIdsUnique.length}). Máximo ${MAX_TAREAS} por operación.` },
+        { status: 400 },
+      );
     }
     if (body.contratista_id != null && body.contratista_id !== "") {
       if (typeof body.contratista_id !== "string" || !ID_RE.test(body.contratista_id)) {
@@ -204,14 +206,22 @@ export async function POST(
     if (contratistaIdNuevo) {
       const nuevo = await prisma.usuario.findFirst({
         where: { id: contratistaIdNuevo, constructora_id: currentUser.constructora_id },
-        select: { id: true },
+        select: { id: true, rol_ref: { select: { nivel_acceso: true } } },
       });
       if (!nuevo) return NextResponse.json({ error: "Contratista no encontrado" }, { status: 404 });
+      // Solo usuarios con rol CONTRATISTA pueden ser asignados a tareas — de otro modo
+      // un admin u obrero podría recibir tareas, corrompiendo /mis-tareas y el scoring.
+      if (nuevo.rol_ref.nivel_acceso !== "CONTRATISTA") {
+        return NextResponse.json(
+          { error: "El usuario seleccionado no tiene rol de Contratista" },
+          { status: 400 },
+        );
+      }
     }
 
     const tareas = await prisma.tarea.findMany({
       where: {
-        id: { in: body.tarea_ids },
+        id: { in: tareaIdsUnique },
         espacio: {
           unidad: {
             piso: {
@@ -226,7 +236,7 @@ export async function POST(
       select: { id: true, estado: true, asignado_a: true, nombre: true },
     });
 
-    if (tareas.length !== body.tarea_ids.length) {
+    if (tareas.length !== tareaIdsUnique.length) {
       return NextResponse.json(
         { error: "Una o más tareas no existen o no pertenecen a este proyecto" },
         { status: 404 },
