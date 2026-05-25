@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { uploadEvidencia } from "@/lib/storage";
+import { uploadEvidencia, deleteEvidencia } from "@/lib/storage";
 import {
   requireUser,
   assertTareaInTenant,
   tenantErrorResponse,
 } from "@/lib/tenant";
+import { canApproveTasks } from "@/lib/access";
 
 // POST /api/evidencias — subir foto o video de una tarea
 // multipart/form-data: file, tarea_id, tipo, gps_lat?, gps_lng?, timestamp_captura
@@ -96,6 +97,71 @@ export async function POST(req: NextRequest) {
     console.error("POST /api/evidencias", error);
     const msg = error instanceof Error ? error.message : "Error interno";
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+// DELETE /api/evidencias?tarea_id=X
+// Limpia todas las evidencias de una tarea PENDIENTE o NO_APROBADA. Sirve
+// para que el contratista pueda reintentar el reporte sin acumular sobras de
+// uploads anteriores (que dispararían el cap de 4 fotos por tarea).
+export async function DELETE(req: NextRequest) {
+  try {
+    const { constructoraId, usuario } = await requireUser();
+
+    const tarea_id = new URL(req.url).searchParams.get("tarea_id");
+    if (!tarea_id) {
+      return NextResponse.json({ error: "tarea_id requerido" }, { status: 400 });
+    }
+
+    await assertTareaInTenant(tarea_id, constructoraId);
+
+    const tarea = await prisma.tarea.findUnique({
+      where: { id: tarea_id },
+      select: { id: true, estado: true, asignado_a: true },
+    });
+    if (!tarea) {
+      return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
+    }
+
+    // Solo se puede limpiar mientras la tarea esté PENDIENTE o NO_APROBADA.
+    if (tarea.estado !== "PENDIENTE" && tarea.estado !== "NO_APROBADA") {
+      return NextResponse.json(
+        { error: "Solo se pueden limpiar evidencias de tareas pendientes o rechazadas" },
+        { status: 400 },
+      );
+    }
+
+    // Autorización: el asignado o un supervisor.
+    const usuarioRol = await prisma.usuario.findUnique({
+      where: { id: usuario.id },
+      select: { rol_ref: { select: { nivel_acceso: true } } },
+    });
+    const esAsignado = tarea.asignado_a === usuario.id;
+    const esSupervisor = usuarioRol ? canApproveTasks(usuarioRol.rol_ref.nivel_acceso) : false;
+    if (!esAsignado && !esSupervisor) {
+      return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
+    }
+
+    const evidencias = await prisma.evidencia.findMany({
+      where: { tarea_id },
+      select: { id: true, url_storage: true },
+    });
+
+    for (const e of evidencias) {
+      try {
+        await deleteEvidencia(e.url_storage);
+      } catch (err) {
+        console.warn(`No se pudo borrar evidencia ${e.id} de storage:`, err);
+      }
+    }
+    await prisma.evidencia.deleteMany({ where: { tarea_id } });
+
+    return NextResponse.json({ ok: true, eliminadas: evidencias.length });
+  } catch (error) {
+    const resp = tenantErrorResponse(error);
+    if (resp) return resp;
+    console.error("DELETE /api/evidencias", error);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
 

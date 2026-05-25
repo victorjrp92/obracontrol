@@ -39,8 +39,10 @@ async function drawOverlay(
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      // Resize to max 1920px on longest side to keep under Vercel's 4.5MB limit
-      const MAX_DIM = 1920;
+      // Resize to max 1600px on longest side. Celulares modernos toman fotos
+      // de 12-48 MP que pesan 5-15 MB sin compresión — esto las baja a <1 MB
+      // manteniendo calidad suficiente como evidencia.
+      const MAX_DIM = 1600;
       let w = img.naturalWidth;
       let h = img.naturalHeight;
       if (w > MAX_DIM || h > MAX_DIM) {
@@ -103,7 +105,7 @@ async function drawOverlay(
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("Error creando imagen"))),
         "image/jpeg",
-        0.85
+        0.8
       );
     };
     img.onerror = () => reject(new Error("Error cargando imagen"));

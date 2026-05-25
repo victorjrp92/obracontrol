@@ -21,12 +21,12 @@ export default function ReportarButton({ tareaId, proyectoNombre, tareaNombre }:
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
 
-  async function uploadFile(file: Blob, tipo: "FOTO" | "VIDEO", gps: { lat: number; lng: number } | null, timestamp: Date) {
+  // Subida pequeña (fotos comprimidas <2MB) — vía API route normal.
+  async function uploadFotoViaApi(file: Blob, gps: { lat: number; lng: number } | null, timestamp: Date) {
     const fd = new FormData();
-    const ext = tipo === "FOTO" ? "jpg" : "mp4";
-    fd.append("file", new File([file], `${Date.now()}.${ext}`, { type: tipo === "FOTO" ? "image/jpeg" : "video/mp4" }));
+    fd.append("file", new File([file], `${Date.now()}.jpg`, { type: "image/jpeg" }));
     fd.append("tarea_id", tareaId);
-    fd.append("tipo", tipo);
+    fd.append("tipo", "FOTO");
     if (gps) {
       fd.append("gps_lat", String(gps.lat));
       fd.append("gps_lng", String(gps.lng));
@@ -36,15 +36,59 @@ export default function ReportarButton({ tareaId, proyectoNombre, tareaNombre }:
     const res = await fetch("/api/evidencias", { method: "POST", body: fd });
     if (!res.ok) {
       const text = await res.text();
-      let msg = "Error subiendo archivo";
+      let msg = "Error subiendo foto";
       try {
         const data = JSON.parse(text);
         msg = data.error ?? msg;
       } catch {
-        if (res.status === 413) msg = "El archivo es demasiado grande. Intenta con una foto más pequeña.";
+        if (res.status === 413) msg = "La foto es demasiado grande. Intenta con una más pequeña.";
         else msg = text || msg;
       }
       throw new Error(msg);
+    }
+  }
+
+  // Subida grande (video) — directo a Supabase Storage vía signed URL, así
+  // bypassamos el límite de body de 4.5 MB que Vercel impone a las API routes.
+  async function uploadVideoDirect(file: Blob, timestamp: Date) {
+    const ext = (file.type.split("/")[1] ?? "mp4").replace(/[^a-z0-9]/gi, "").slice(0, 4) || "mp4";
+
+    // 1. Pedir signed URL al servidor.
+    const urlRes = await fetch("/api/evidencias/direct-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tarea_id: tareaId, tipo: "VIDEO", ext }),
+    });
+    if (!urlRes.ok) {
+      const data = await urlRes.json().catch(() => ({}));
+      throw new Error(data.error ?? "No se pudo iniciar la subida del video");
+    }
+    const { path, signedUrl } = await urlRes.json() as { path: string; signedUrl: string };
+
+    // 2. Subir el blob directamente a Supabase Storage.
+    const upRes = await fetch(signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "video/mp4" },
+      body: file,
+    });
+    if (!upRes.ok) {
+      throw new Error(`Error subiendo video (${upRes.status}). Intenta con un video más corto.`);
+    }
+
+    // 3. Confirmar en la DB.
+    const confirmRes = await fetch("/api/evidencias/direct-upload", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tarea_id: tareaId,
+        tipo: "VIDEO",
+        path,
+        timestamp_captura: timestamp.toISOString(),
+      }),
+    });
+    if (!confirmRes.ok) {
+      const data = await confirmRes.json().catch(() => ({}));
+      throw new Error(data.error ?? "Error confirmando el video");
     }
   }
 
@@ -58,19 +102,28 @@ export default function ReportarButton({ tareaId, proyectoNombre, tareaNombre }:
     setSubmitting(true);
 
     try {
-      // 1. Subir fotos
+      // 0. Limpiar evidencias previas (de intentos fallidos) para que el cap
+      //    de 4 fotos no acumule sobras y la subida sea idempotente.
+      setProgress("Preparando...");
+      const clearRes = await fetch(`/api/evidencias?tarea_id=${tareaId}`, { method: "DELETE" });
+      if (!clearRes.ok && clearRes.status !== 404) {
+        const data = await clearRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "No se pudieron limpiar evidencias previas");
+      }
+
+      // 1. Subir fotos vía API route normal (ya están comprimidas <2MB).
       for (let i = 0; i < photos.length; i++) {
         setProgress(`Subiendo foto ${i + 1}/${photos.length}...`);
-        await uploadFile(photos[i].blob, "FOTO", photos[i].gps, photos[i].timestamp);
+        await uploadFotoViaApi(photos[i].blob, photos[i].gps, photos[i].timestamp);
       }
 
-      // 2. Subir video si existe
+      // 2. Subir video (si existe) directo a Storage para bypassar Vercel 4.5MB.
       if (video) {
         setProgress("Subiendo video...");
-        await uploadFile(video.blob, "VIDEO", null, video.timestamp);
+        await uploadVideoDirect(video.blob, video.timestamp);
       }
 
-      // 3. Marcar tarea como reportada
+      // 3. Marcar tarea como reportada.
       setProgress("Reportando tarea...");
       const res = await fetch(`/api/tareas/${tareaId}/reportar`, { method: "POST" });
       if (!res.ok) {
