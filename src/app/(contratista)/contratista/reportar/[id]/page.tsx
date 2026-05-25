@@ -25,7 +25,7 @@ const estadoConfig: Record<string, { Icon: typeof Clock; label: string; class: s
   NO_APROBADA: { Icon: XCircle, label: "Rechazada", class: "text-red-600 bg-red-50 border-red-200" },
 };
 
-export default async function MisTareasDetallePage({
+export default async function ReportarTareaDetallePage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -37,11 +37,9 @@ export default async function MisTareasDetallePage({
   const tarea = await getTareaDetalle(id);
   if (!tarea) notFound();
 
-  // Acceso: solo el contratista/obrero al que está asignada la tarea
   if (tarea.asignado_a !== usuario.id) {
-    redirect("/dashboard/mis-tareas");
+    redirect("/contratista/reportar");
   }
-  // Tenant isolation
   if (tarea.proyecto.constructora_id !== usuario.constructora_id) {
     notFound();
   }
@@ -50,7 +48,6 @@ export default async function MisTareasDetallePage({
   const EstIcon = est.Icon;
   const puedeReportar = tarea.estado === "PENDIENTE" || tarea.estado === "NO_APROBADA";
 
-  // Motivo de rechazo: tomar la aprobación NO_APROBADA más reciente.
   const ultimoRechazo = tarea.aprobaciones.find((a) => a.estado === "NO_APROBADA");
   const motivoRechazo =
     ultimoRechazo && typeof ultimoRechazo.justificacion_por_item === "object" && ultimoRechazo.justificacion_por_item !== null
@@ -62,15 +59,14 @@ export default async function MisTareasDetallePage({
       <Topbar title="Detalle de tarea" subtitle={tarea.nombre} />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Link
-          href="/dashboard/mis-tareas"
+          href="/contratista/reportar"
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-4 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Volver a Mis tareas
+          Volver a Reportar tareas
         </Link>
 
         <div className="flex flex-col gap-4 sm:gap-6 max-w-3xl">
-          {/* Header */}
           <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
               <div className="min-w-0">
@@ -120,7 +116,6 @@ export default async function MisTareasDetallePage({
             </div>
           </div>
 
-          {/* Motivo de rechazo prominente */}
           {tarea.estado === "NO_APROBADA" && motivoRechazo && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-5 sm:p-6">
               <div className="flex items-start gap-3">
@@ -133,7 +128,6 @@ export default async function MisTareasDetallePage({
             </div>
           )}
 
-          {/* Foto de referencia */}
           {tarea.fotoReferenciaSignedUrl && (
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Foto de referencia</h3>
@@ -148,7 +142,6 @@ export default async function MisTareasDetallePage({
             </div>
           )}
 
-          {/* Reporting form (PENDIENTE / NO_APROBADA) */}
           {puedeReportar ? (
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Reportar avance</h3>
@@ -159,7 +152,6 @@ export default async function MisTareasDetallePage({
               />
             </div>
           ) : (
-            // Readonly summary for REPORTADA / APROBADA
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Evidencia enviada</h3>
               <EvidenceGallery
@@ -175,7 +167,6 @@ export default async function MisTareasDetallePage({
             </div>
           )}
 
-          {/* Always show evidence gallery for context if there's any and we're in reporting mode */}
           {puedeReportar && tarea.evidencias.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
               <h3 className="font-bold text-slate-800 mb-4">Evidencia previa</h3>

@@ -101,7 +101,7 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: false,
         canViewContractors: false,
         canViewUsers: false,
-        sidebarItems: ["dashboard", "mis-tareas"],
+        sidebarItems: ["dashboard"],
       };
     case "OBRERO":
       return {
@@ -116,7 +116,7 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: false,
         canViewContractors: false,
         canViewUsers: false,
-        sidebarItems: ["dashboard", "mis-tareas"],
+        sidebarItems: ["dashboard"],
       };
     default:
       return {

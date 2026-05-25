@@ -45,7 +45,7 @@ interface TareaConJerarquia {
   espacioNombre: string;
 }
 
-export default async function MisTareasPage({
+export default async function ReportarTareasPage({
   searchParams,
 }: {
   searchParams: Promise<{ estado?: string }>;
@@ -59,8 +59,6 @@ export default async function MisTareasPage({
   const tareas = await prisma.tarea.findMany({
     where: {
       asignado_a: usuario.id,
-      // Defense-in-depth: limita por constructora aunque asignado_a ya implica
-      // pertenencia. Si alguna vez un usuario cambia de constructora, no leak.
       espacio: {
         unidad: {
           piso: {
@@ -110,7 +108,6 @@ export default async function MisTareasPage({
     };
   });
 
-  // Group: proyecto > edificio > unidad > espacio
   const grouped = new Map<
     string,
     {
@@ -152,14 +149,13 @@ export default async function MisTareasPage({
 
   return (
     <>
-      <Topbar title="Mis tareas" subtitle={`${flat.length} tarea${flat.length === 1 ? "" : "s"}`} />
+      <Topbar title="Reportar tareas" subtitle={`${flat.length} tarea${flat.length === 1 ? "" : "s"}`} />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-5">
           {filters.map((f) => (
             <Link
               key={f.value}
-              href={`/dashboard/mis-tareas${f.value === "ALL" ? "" : `?estado=${f.value}`}`}
+              href={`/contratista/reportar${f.value === "ALL" ? "" : `?estado=${f.value}`}`}
               className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
                 activeFilter === f.value
                   ? "bg-blue-600 text-white border-blue-600"
@@ -206,7 +202,7 @@ export default async function MisTareasPage({
                                       return (
                                         <li key={tarea.id}>
                                           <Link
-                                            href={`/dashboard/mis-tareas/${tarea.id}`}
+                                            href={`/contratista/reportar/${tarea.id}`}
                                             className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors"
                                           >
                                             <span className="text-sm text-slate-800 truncate">{tarea.nombre}</span>

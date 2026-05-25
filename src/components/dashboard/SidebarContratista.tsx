@@ -21,7 +21,7 @@ import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdow
 
 const navItems = [
   { icon: LayoutDashboard, label: "Inicio", href: "/contratista" },
-  { icon: CheckSquare, label: "Reportar tareas", href: "/dashboard/mis-tareas" },
+  { icon: CheckSquare, label: "Reportar tareas", href: "/contratista/reportar" },
   { icon: History, label: "Historial", href: "/contratista/historial" },
   { icon: PlusCircle, label: "Sugerir tarea", href: "/contratista/sugerir" },
   { icon: Users, label: "Mis obreros", href: "/contratista/obreros" },
