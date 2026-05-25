@@ -5,7 +5,7 @@ import { recalcularScoreContratista, recalcularScoreObrerosDeTarea } from "@/lib
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 import { crearNotificacion } from "@/lib/notifications";
-import { getAccessibleProjectIds, canAccessProject, canApproveTasks } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, canApproveTasks, isProjectAdmin, checkAdminProjectPermission } from "@/lib/access";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
 export async function POST(
@@ -61,8 +61,12 @@ export async function POST(
       return NextResponse.json({ error: "Tarea no encontrada o no está reportada" }, { status: 400 });
     }
 
-    // Permiso: supervisor con canApproveTasks O el contratista asignado a la tarea
-    const isAssignedContratista = tarea.asignado_a === aprobador.id;
+    // Permiso: supervisor con canApproveTasks O el contratista asignado a la tarea.
+    // El bypass de "asignado_a" solo aplica si el aprobador es CONTRATISTA — un admin
+    // que casualmente fuera asignado a una tarea NO debe saltarse la verificación granular.
+    const isAssignedContratista =
+      tarea.asignado_a === aprobador.id &&
+      aprobador.rol_ref.nivel_acceso === "CONTRATISTA";
     if (!canApproveTasks(aprobador.rol_ref.nivel_acceso) && !isAssignedContratista) {
       return NextResponse.json({ error: "Sin permisos para aprobar" }, { status: 403 });
     }
@@ -87,6 +91,21 @@ export async function POST(
       );
       if (!proyectoIdForTask || !canAccessProject(accessibleApr, proyectoIdForTask.id)) {
         return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+      }
+
+      // Granular: ADMIN_PROYECTO necesita can_approve_tasks sobre este proyecto.
+      if (isProjectAdmin(aprobador.rol_ref.nivel_acceso)) {
+        const allowed = await checkAdminProjectPermission(
+          aprobador.id,
+          proyectoIdForTask.id,
+          "can_approve_tasks",
+        );
+        if (!allowed) {
+          return NextResponse.json(
+            { error: "No tienes permiso para aprobar tareas en este proyecto" },
+            { status: 403 },
+          );
+        }
       }
     }
 

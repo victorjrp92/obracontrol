@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { isAnyAdmin } from "@/lib/access";
+import { isAnyAdmin, isProjectAdmin, checkAdminProjectPermission } from "@/lib/access";
 
 const MAX_REASIGNACION = 2000;
 const ID_RE = /^[a-z0-9]{20,30}$/;
@@ -30,6 +30,21 @@ export async function POST(
       where: { id: proyecto_id, constructora_id: currentUser.constructora_id },
     });
     if (!proyecto) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+    // Granular: ADMIN_PROYECTO needs can_assign_contractors on this project.
+    if (isProjectAdmin(currentUser.rol_ref.nivel_acceso)) {
+      const allowed = await checkAdminProjectPermission(
+        currentUser.id,
+        proyecto_id,
+        "can_assign_contractors",
+      );
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "No tienes permiso para reasignar contratistas en este proyecto" },
+          { status: 403 },
+        );
+      }
+    }
 
     const body = (await req.json()) as {
       contratista_anterior_id?: string;
@@ -88,11 +103,13 @@ export async function POST(
     });
 
     if (tareasElegibles.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        reasignadas: 0,
-        mensaje: "No hay tareas pendientes o rechazadas para reasignar",
-      });
+      return NextResponse.json(
+        {
+          error: "Este contratista no tiene tareas pendientes ni rechazadas para reasignar. Si quieres asignarle tareas nuevas, usa el botón 'Asignar tareas'.",
+          reasignadas: 0,
+        },
+        { status: 400 },
+      );
     }
 
     if (tareasElegibles.length > MAX_REASIGNACION) {

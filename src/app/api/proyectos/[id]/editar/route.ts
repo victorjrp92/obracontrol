@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getAccessibleProjectIds, canAccessProject, isAnyAdmin, canManageUsers } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin, canManageUsers, checkAdminProjectPermission, isProjectAdmin } from "@/lib/access";
 import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
 
 // PATCH /api/proyectos/[id]/editar — edit project (requires admin password re-confirmation)
@@ -30,6 +30,21 @@ export async function PATCH(
     );
     if (!canAccessProject(accessibleForEdit, projectIdForCheck)) {
       return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
+    }
+
+    // Granular: ADMIN_PROYECTO needs can_edit_project on this project.
+    if (isProjectAdmin(currentUser.rol_ref.nivel_acceso)) {
+      const allowed = await checkAdminProjectPermission(
+        currentUser.id,
+        projectIdForCheck,
+        "can_edit_project",
+      );
+      if (!allowed) {
+        return NextResponse.json(
+          { error: "No tienes permiso para editar este proyecto" },
+          { status: 403 },
+        );
+      }
     }
 
     const id = projectIdForCheck;

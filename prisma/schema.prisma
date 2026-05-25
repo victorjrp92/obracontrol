@@ -615,11 +615,15 @@ model MensajeContacto {
 // ─── ACCESO DE ADMIN A PROYECTOS ─────────────────────────────────────────────
 
 model AdminProyectoAccess {
-  id           String   @id @default(cuid())
-  usuario_id   String
-  proyecto_id  String
-  asignado_por String?
-  created_at   DateTime @default(now())
+  id                     String   @id @default(cuid())
+  usuario_id             String
+  proyecto_id            String
+  asignado_por           String?
+  can_edit_project       Boolean  @default(false)
+  can_assign_contractors Boolean  @default(false)
+  can_manage_team        Boolean  @default(false)
+  can_approve_tasks      Boolean  @default(true)
+  created_at             DateTime @default(now())
 
   usuario      Usuario  @relation("AdminProyectoAccessUsuario", fields: [usuario_id], references: [id], onDelete: Cascade)
   proyecto     Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)

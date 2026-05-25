@@ -394,6 +394,7 @@ export async function POST(
         tareas_creadas: 0,
         tareas_eliminadas: 0,
         tareas_actualizadas: 0,
+        tareas_reasignadas: 0,
         zonas_creadas: 0,
         zonas_eliminadas: 0,
       };
@@ -919,6 +920,7 @@ export async function POST(
                         fase: { select: { nombre: true } },
                         tiempo_acordado_dias: true,
                         estado: true,
+                        asignado_a: true,
                       },
                     },
                   },
@@ -933,6 +935,7 @@ export async function POST(
         const tareasACrear: TareaRowToInsert[] = [];
         const tareaIdsAEliminar: string[] = [];
         const updatesPorDias = new Map<number, string[]>();
+        const updatesPorAsignado = new Map<string, { ids: string[]; anteriores: Map<string, string | null> }>();
 
         const keyFromRow = (faseNombre: string, nombre: string, subfase: string | null) =>
           `${faseNombre}|${nombre}|${subfase ?? ""}`;
@@ -995,6 +998,21 @@ export async function POST(
                 updatesPorDias.set(e.tiempo_acordado_dias, bucket);
                 stats.tareas_actualizadas++;
               }
+
+              // Reasignar contratista: si coincide la key pero asignado_a difiere
+              // (PENDIENTE o NO_APROBADA). APROBADA/REPORTADA se preservan.
+              for (const [k, e] of esperadasPorKey) {
+                const a = actualesPorKey.get(k);
+                if (!a) continue;
+                if (a.estado !== "PENDIENTE" && a.estado !== "NO_APROBADA") continue;
+                if ((a.asignado_a ?? null) === (e.asignado_a ?? null)) continue;
+                const nuevo = e.asignado_a ?? "__NULL__";
+                const bucket = updatesPorAsignado.get(nuevo) ?? { ids: [] as string[], anteriores: new Map<string, string | null>() };
+                bucket.ids.push(a.id);
+                bucket.anteriores.set(a.id, a.asignado_a ?? null);
+                updatesPorAsignado.set(nuevo, bucket);
+                stats.tareas_reasignadas++;
+              }
             }
           }
         }
@@ -1010,6 +1028,23 @@ export async function POST(
           await tx.tarea.updateMany({
             where: { id: { in: ids } },
             data: { tiempo_acordado_dias: dias },
+          });
+        }
+        for (const [nuevoKey, bucket] of updatesPorAsignado) {
+          const nuevoId = nuevoKey === "__NULL__" ? null : nuevoKey;
+          await tx.tarea.updateMany({
+            where: { id: { in: bucket.ids } },
+            data: { asignado_a: nuevoId },
+          });
+          await tx.reasignacionTarea.createMany({
+            data: bucket.ids.map((tid) => ({
+              tarea_id: tid,
+              proyecto_id: id,
+              contratista_anterior_id: bucket.anteriores.get(tid) ?? null,
+              contratista_nuevo_id: nuevoId,
+              realizado_por: currentUser.id,
+              motivo: "Edición de proyecto (wizard)",
+            })),
           });
         }
       }

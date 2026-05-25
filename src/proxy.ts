@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function proxy(req: NextRequest) {
-  let response = NextResponse.next({ request: req });
+  // Expose pathname to server components via request header for role-based routing.
+  // IMPORTANT: delete any inbound x-pathname first — clients could forge it to bypass
+  // server-side role gating (e.g. CONTRATISTA spoofing /dashboard/mis-tareas).
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.delete("x-pathname");
+  requestHeaders.set("x-pathname", req.nextUrl.pathname);
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,7 +20,7 @@ export async function proxy(req: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-          response = NextResponse.next({ request: req });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );

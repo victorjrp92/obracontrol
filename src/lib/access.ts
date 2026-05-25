@@ -132,6 +132,64 @@ export function canManageTaskPrice(nivel: NivelAcceso | string): boolean {
   );
 }
 
+// ─── Granular per-project permissions for ADMIN_PROYECTO ─────────────────────
+
+export type AdminProjectPermission =
+  | "can_edit_project"
+  | "can_assign_contractors"
+  | "can_manage_team"
+  | "can_approve_tasks";
+
+/**
+ * Returns true when:
+ * - The user is ADMIN_GENERAL (or SUPER_ADMIN / DIRECTIVO) of the project's
+ *   constructora -> always has all per-project admin permissions.
+ * - The user is ADMIN_PROYECTO and has an `AdminProyectoAccess` row for the
+ *   project with the requested permission flag set to true.
+ *
+ * Other roles (CONTRATISTA, OBRERO) always return false.
+ */
+export async function checkAdminProjectPermission(
+  usuarioId: string,
+  proyectoId: string,
+  permission: AdminProjectPermission,
+): Promise<boolean> {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: usuarioId },
+    select: { constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+  });
+  if (!usuario) return false;
+
+  const nivel = usuario.rol_ref.nivel_acceso;
+
+  // Verify the project is in the same constructora before granting blanket perms.
+  const proyecto = await prisma.proyecto.findFirst({
+    where: { id: proyectoId, constructora_id: usuario.constructora_id },
+    select: { id: true },
+  });
+  if (!proyecto) return false;
+
+  if (nivel === "SUPER_ADMIN" || nivel === "ADMIN_GENERAL" || nivel === "DIRECTIVO") {
+    return true;
+  }
+
+  if (nivel === "ADMIN_PROYECTO") {
+    const acceso = await prisma.adminProyectoAccess.findUnique({
+      where: { usuario_id_proyecto_id: { usuario_id: usuarioId, proyecto_id: proyectoId } },
+      select: {
+        can_edit_project: true,
+        can_assign_contractors: true,
+        can_manage_team: true,
+        can_approve_tasks: true,
+      },
+    });
+    if (!acceso) return false;
+    return Boolean(acceso[permission]);
+  }
+
+  return false;
+}
+
 /** Returns the path where a user with this role should be redirected after login. */
 export function getHomePathForRole(nivel: NivelAcceso | string): string {
   if (nivel === "SUPER_ADMIN") return "/super-admin";

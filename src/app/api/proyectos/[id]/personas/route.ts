@@ -1,7 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getAccessibleProjectIds, canAccessProject, isAnyAdmin } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, isAnyAdmin, isProjectAdmin, checkAdminProjectPermission } from "@/lib/access";
+
+async function requireManageTeam(
+  userId: string,
+  nivel: string,
+  proyectoId: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  if (!isAnyAdmin(nivel)) {
+    return { ok: false, status: 403, error: "Solo administradores pueden gestionar personas" };
+  }
+  if (isProjectAdmin(nivel)) {
+    const allowed = await checkAdminProjectPermission(userId, proyectoId, "can_manage_team");
+    if (!allowed) {
+      return {
+        ok: false,
+        status: 403,
+        error: "No tienes permiso para gestionar el equipo de este proyecto",
+      };
+    }
+  }
+  return { ok: true };
+}
 
 // GET /api/proyectos/[id]/personas
 export async function GET(
@@ -65,11 +86,6 @@ export async function POST(
     });
     if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
-    // Only admins can add people
-    if (!isAnyAdmin(currentUser.rol_ref.nivel_acceso)) {
-      return NextResponse.json({ error: "Solo administradores pueden agregar personas" }, { status: 403 });
-    }
-
     const { id: proyecto_id } = await params;
 
     // Verify project belongs to user's constructora
@@ -87,6 +103,14 @@ export async function POST(
     if (!canAccessProject(accessible, proyecto_id)) {
       return NextResponse.json({ error: "Sin acceso al proyecto" }, { status: 403 });
     }
+
+    // Only admins (and project-admins with can_manage_team) can add people
+    const perm = await requireManageTeam(
+      currentUser.id,
+      currentUser.rol_ref.nivel_acceso,
+      proyecto_id,
+    );
+    if (!perm.ok) return NextResponse.json({ error: perm.error }, { status: perm.status });
 
     const body = (await req.json()) as {
       nombre?: string;
@@ -144,11 +168,6 @@ export async function DELETE(
     });
     if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
 
-    // Only admins can remove people
-    if (!isAnyAdmin(currentUser.rol_ref.nivel_acceso)) {
-      return NextResponse.json({ error: "Solo administradores pueden eliminar personas" }, { status: 403 });
-    }
-
     const { id: proyecto_id } = await params;
 
     // Verify project belongs to user's constructora
@@ -166,6 +185,14 @@ export async function DELETE(
     if (!canAccessProject(accessible, proyecto_id)) {
       return NextResponse.json({ error: "Sin acceso al proyecto" }, { status: 403 });
     }
+
+    // Only admins (and project-admins with can_manage_team) can remove people
+    const perm = await requireManageTeam(
+      currentUser.id,
+      currentUser.rol_ref.nivel_acceso,
+      proyecto_id,
+    );
+    if (!perm.ok) return NextResponse.json({ error: perm.error }, { status: perm.status });
 
     const body = (await req.json()) as { id?: string; password?: string };
     if (!body.id) {

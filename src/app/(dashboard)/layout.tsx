@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Sidebar from "@/components/dashboard/Sidebar";
 import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { getUsuarioActual } from "@/lib/data";
@@ -16,7 +17,15 @@ export default async function DashboardLayout({
 
   if (!usuario) redirect("/login");
   if (usuario.rol_ref.nivel_acceso === "SUPER_ADMIN") redirect("/super-admin");
-  if (usuario.rol_ref.nivel_acceso === "CONTRATISTA") redirect("/contratista");
+
+  // CONTRATISTA solo puede acceder a /dashboard/mis-tareas dentro del dashboard.
+  if (usuario.rol_ref.nivel_acceso === "CONTRATISTA") {
+    const h = await headers();
+    const pathname = h.get("x-pathname") ?? "";
+    if (!pathname.startsWith("/dashboard/mis-tareas")) {
+      redirect("/contratista");
+    }
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-50">

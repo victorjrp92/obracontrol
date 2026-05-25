@@ -85,10 +85,18 @@ export default async function EquipoProyectoPage({
     orderBy: { nombre: "asc" },
   });
 
-  // Solo el ADMIN_GENERAL puede asignar Admin Junior; ADMIN_PROYECTO solo ve.
-  const canAssign =
-    usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" ||
-    usuario.rol_ref.nivel_acceso === "DIRECTIVO";
+  // ADMIN_GENERAL siempre. ADMIN_PROYECTO solo si tiene can_manage_team o
+  // can_assign_contractors sobre este proyecto (la API hace el gate granular real).
+  // DIRECTIVO se excluye porque el endpoint /admins solo acepta ADMIN_GENERAL para
+  // crear/modificar admin juniors.
+  let canAssign = usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL";
+  if (!canAssign && usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO") {
+    const acceso = await prisma.adminProyectoAccess.findUnique({
+      where: { usuario_id_proyecto_id: { usuario_id: usuario.id, proyecto_id: id } },
+      select: { can_manage_team: true, can_assign_contractors: true },
+    });
+    canAssign = !!(acceso?.can_manage_team || acceso?.can_assign_contractors);
+  }
 
   return (
     <>
@@ -112,6 +120,12 @@ export default async function EquipoProyectoPage({
             nombre: a.usuario.nombre,
             email: a.usuario.email,
             rol: a.usuario.rol_ref.nombre,
+            permisos: {
+              can_edit_project: a.can_edit_project,
+              can_assign_contractors: a.can_assign_contractors,
+              can_manage_team: a.can_manage_team,
+              can_approve_tasks: a.can_approve_tasks,
+            },
           }))}
           adminsDisponibles={adminsDisponibles}
           contratistas={contratistas.map((c) => ({
