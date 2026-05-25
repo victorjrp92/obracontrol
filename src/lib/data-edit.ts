@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { EditModeData, TipoUnidadInput, EdificioInput, TareaInput, DistribucionSentido } from "@/app/(dashboard)/dashboard/proyectos/nuevo/wizard-types";
+import type { EditModeData, TipoUnidadInput, EdificioInput, TareaInput, DistribucionSentido, AsignacionOverride } from "@/app/(dashboard)/dashboard/proyectos/nuevo/wizard-types";
 
 export async function getProyectoForEdit(
   projectId: string,
@@ -333,6 +333,78 @@ export async function getProyectoForEdit(
     dbIdMapTiposUnidad[`db-${tipo.id}`] = tipo.id;
   }
 
+  // ── Asignaciones existentes (reverse-engineered) ─────────────────────────
+  // Recorre todas las tareas con asignado_a y produce overrides en el scope
+  // más amplio donde la asignación es consistente: global > torre > torre+apto.
+  type Inst = { torre: string; unidad: string; asignado_a: string | null };
+  const byTemplate = new Map<string, Inst[]>(); // key: fase|tareaKey
+  for (const edificio of proyecto.edificios) {
+    if (edificio.es_zona_comun) continue;
+    for (const piso of edificio.pisos) {
+      for (const unidad of piso.unidades) {
+        for (const espacio of unidad.espacios) {
+          for (const tarea of espacio.tareas) {
+            const tareaKey = tarea.subfase
+              ? `${tarea.nombre}::${tarea.subfase}`
+              : tarea.nombre;
+            const key = `${tarea.fase.nombre}|${tareaKey}`;
+            if (!byTemplate.has(key)) byTemplate.set(key, []);
+            byTemplate.get(key)!.push({
+              torre: edificio.nombre,
+              unidad: unidad.nombre,
+              asignado_a: tarea.asignado_a ?? null,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  const asignaciones: AsignacionOverride[] = [];
+  for (const [templateKey, instances] of byTemplate) {
+    const sepIdx = templateKey.indexOf("|");
+    const fase = templateKey.slice(0, sepIdx);
+    const tareaKey = templateKey.slice(sepIdx + 1);
+
+    // Global: TODAS las instancias asignadas al mismo contratista.
+    if (instances.every((i) => i.asignado_a !== null)) {
+      const unique = new Set(instances.map((i) => i.asignado_a));
+      if (unique.size === 1) {
+        const cid = instances[0].asignado_a!;
+        asignaciones.push({ fase, tarea_nombre: tareaKey, contratista_id: cid });
+        continue;
+      }
+    }
+
+    // Por torre: dentro de cada torre, todas iguales no-null.
+    const byTorre = new Map<string, Inst[]>();
+    for (const i of instances) {
+      if (!byTorre.has(i.torre)) byTorre.set(i.torre, []);
+      byTorre.get(i.torre)!.push(i);
+    }
+    for (const [torre, torreInsts] of byTorre) {
+      if (torreInsts.every((i) => i.asignado_a !== null)) {
+        const unique = new Set(torreInsts.map((i) => i.asignado_a));
+        if (unique.size === 1) {
+          const cid = torreInsts[0].asignado_a!;
+          asignaciones.push({ fase, torre, tarea_nombre: tareaKey, contratista_id: cid });
+          continue;
+        }
+      }
+      // Por unidad: emitir override individual donde haya asignado_a.
+      for (const i of torreInsts) {
+        if (i.asignado_a === null) continue;
+        asignaciones.push({
+          fase,
+          torre,
+          unidad_nombre: i.unidad,
+          tarea_nombre: tareaKey,
+          contratista_id: i.asignado_a,
+        });
+      }
+    }
+  }
+
   // ── Return EditModeData ──────────────────────────────────────────────────
   return {
     projectId: proyecto.id,
@@ -357,5 +429,6 @@ export async function getProyectoForEdit(
       fases: dbIdMapFases,
       tiposUnidad: dbIdMapTiposUnidad,
     },
+    asignaciones,
   };
 }

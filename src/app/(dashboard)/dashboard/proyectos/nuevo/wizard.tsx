@@ -15,6 +15,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   // Edit mode password modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -57,7 +58,9 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
   // Step 3 state
   const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
-  const [asignaciones, setAsignaciones] = useState<AsignacionOverride[]>([]);
+  // En modo edición precargamos las asignaciones reverse-engineered desde la BD
+  // para que el accordion muestre el estado real y el usuario pueda editar.
+  const [asignaciones, setAsignaciones] = useState<AsignacionOverride[]>(initialData?.asignaciones ?? []);
 
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
@@ -203,7 +206,12 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
       if (res.ok) {
         if (isEditMode) {
-          router.push(`/dashboard/proyectos/${initialData!.projectId}`);
+          setSuccessMsg("Cambios guardados correctamente. Redirigiendo…");
+          setLoading(false);
+          setTimeout(() => {
+            router.push(`/dashboard/proyectos/${initialData!.projectId}`);
+          }, 1200);
+          return;
         } else {
           const data = await res.json();
           router.push(`/dashboard/proyectos/${data.id}`);
@@ -350,6 +358,12 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
 
             {error && (
               <p className="text-xs text-red-600 mb-3">{error}</p>
+            )}
+
+            {successMsg && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-700">
+                {successMsg}
+              </div>
             )}
 
             <div className="flex justify-end gap-2">

@@ -102,6 +102,10 @@ export interface EditModeData {
     fases: Record<string, string>;      // fase nombre -> db ID
     tiposUnidad: Record<string, string>; // local tipo id -> db ID
   };
+  // Asignaciones existentes derivadas del estado real de la BD (tareas con
+  // asignado_a no nulo), agrupadas en el scope más amplio donde son
+  // consistentes (global > por torre > por torre+unidad).
+  asignaciones?: AsignacionOverride[];
 }
 
 export interface AsignacionOverride {
