@@ -45,7 +45,9 @@ export async function GET(req: NextRequest) {
       }),
     ]);
 
-    return NextResponse.json({ notificaciones, totalNoLeidas });
+    // Devuelve userId para que el cliente filtre la suscripción Realtime
+    // de Supabase (`usuario_id=eq.<userId>`) sin exponer notificaciones ajenas.
+    return NextResponse.json({ notificaciones, totalNoLeidas, userId: usuario.id });
   } catch (error) {
     console.error("GET /api/notificaciones", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
