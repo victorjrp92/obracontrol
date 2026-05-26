@@ -26,7 +26,9 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(parseInt(searchParams.get("limit") ?? "20", 10), 100);
+    // Default 50 — el provider del cliente carga el historial completo y
+    // luego separa "no leídas" vs "todas" en memoria, no requiere otro endpoint.
+    const limit = Math.min(parseInt(searchParams.get("limit") ?? "50", 10), 100);
     const unreadOnly = searchParams.get("unread") === "true";
 
     const where = {

@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import OfflineQueueBadge from "@/components/pwa/OfflineQueueBadge";
+import NotificacionesBellTopbar from "@/components/dashboard/NotificacionesBellTopbar";
 
 interface TopbarProps {
   title?: string;
@@ -31,11 +32,8 @@ export default function Topbar({ title = "Dashboard", subtitle }: TopbarProps) {
           />
         </div>
 
-        {/* Notifications */}
-        <button className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600 hover:text-slate-900 cursor-pointer">
-          <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 border-2 border-white" />
-        </button>
+        {/* Notificaciones (solo no leídas — historial está en sidebar) */}
+        <NotificacionesBellTopbar />
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import SidebarContratista from "@/components/dashboard/SidebarContratista";
+import { NotificacionesProvider } from "@/components/dashboard/NotificacionesContext";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +21,16 @@ export default async function ContratistaLayout({
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-slate-50">
-      <SidebarContratista
-        userName={usuario.nombre}
-        userRole={usuario.rol_ref.nombre}
-      />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {children}
+    <NotificacionesProvider>
+      <div className="flex h-dvh overflow-hidden bg-slate-50">
+        <SidebarContratista
+          userName={usuario.nombre}
+          userRole={usuario.rol_ref.nombre}
+        />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {children}
+        </div>
       </div>
-    </div>
+    </NotificacionesProvider>
   );
 }
