@@ -158,12 +158,20 @@ export default function NotificacionesDropdown({ collapsed = false }: Props) {
   }, [fetchNotificaciones]);
 
   // Suscripción Supabase Realtime: INSERT en notificaciones filtrado por usuario.
+  // Envuelta en try/catch para que un fallo de WebSocket NUNCA crashee la página.
+  // Si Realtime falla, el polling cada 60s sigue funcionando como fallback.
   useEffect(() => {
     if (!userId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`notificaciones:${userId}`)
-      .on(
+    let cleanup: (() => void) | undefined;
+    try {
+      const supabase = createClient();
+      // Nombre único por montaje para evitar el error
+      // "cannot add `postgres_changes` callbacks ... after `subscribe()`"
+      // que ocurre si una suscripción previa quedó colgada en el registro
+      // interno del cliente.
+      const channelName = `notif-${userId}-${Date.now()}`;
+      const channel = supabase.channel(channelName);
+      channel.on(
         "postgres_changes",
         {
           event: "INSERT",
@@ -172,7 +180,7 @@ export default function NotificacionesDropdown({ collapsed = false }: Props) {
           filter: `usuario_id=eq.${userId}`,
         },
         (payload) => {
-          const row = payload.new as {
+          const row = payload.new as unknown as {
             id: string;
             tipo: TipoNotificacion;
             titulo: string;
@@ -181,13 +189,11 @@ export default function NotificacionesDropdown({ collapsed = false }: Props) {
             link: string | null;
             created_at: string;
           };
-          // Prepend a la lista
           setNotificaciones((prev) => {
             if (prev.some((n) => n.id === row.id)) return prev;
             return [row, ...prev].slice(0, 10);
           });
           if (!row.leida) setTotalNoLeidas((c) => c + 1);
-          // Toast + sonido
           setToast({
             id: row.id,
             titulo: row.titulo,
@@ -199,11 +205,23 @@ export default function NotificacionesDropdown({ collapsed = false }: Props) {
           if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
           toastTimerRef.current = setTimeout(() => setToast(null), 5_000);
         },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      );
+      channel.subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn(`Realtime channel ${channelName}: ${status}`);
+        }
+      });
+      cleanup = () => {
+        try {
+          supabase.removeChannel(channel);
+        } catch (err) {
+          console.warn("removeChannel falló:", err);
+        }
+      };
+    } catch (err) {
+      console.error("No se pudo iniciar Realtime de notificaciones:", err);
+    }
+    return cleanup;
   }, [userId]);
 
   // Cerrar al hacer click afuera
