@@ -13,6 +13,8 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import InstalarAppButton from "@/components/pwa/InstalarAppButton";
+import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
 const navItems = [
   { key: "inicio", icon: LayoutDashboard, label: "Inicio", href: "/directivo" },
@@ -106,7 +108,9 @@ export default function SidebarDirectivo({ userName = "Usuario" }: SidebarDirect
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-slate-800 p-3">
+      <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
+        <NotificacionesDropdown collapsed={collapsed} />
+        <InstalarAppButton collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"

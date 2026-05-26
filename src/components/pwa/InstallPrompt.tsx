@@ -2,51 +2,38 @@
 
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
+import { triggerInstall, usePwaInstall } from "@/lib/pwa-install";
 
 const DISMISS_KEY = "pwa-install-dismissed";
 
 /**
- * Muestra un prompt para instalar la PWA. Se oculta si:
- * - El navegador no dispara `beforeinstallprompt` (iOS Safari, etc.)
- * - El usuario ya la instaló (display-mode: standalone)
- * - El usuario dismisseó previamente (localStorage)
+ * Prompt automático que se muestra una vez cuando el navegador emite
+ * `beforeinstallprompt`. El usuario puede dismissearlo (no vuelve a aparecer
+ * hasta limpiar localStorage) o instalar. Comparte el event con el botón
+ * manual del sidebar vía `@/lib/pwa-install`.
  */
 export default function InstallPrompt() {
-  const [evt, setEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  const { canInstall, standalone } = usePwaInstall();
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.matchMedia("(display-mode: standalone)").matches) return;
-    if (localStorage.getItem(DISMISS_KEY)) return;
-
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setEvt(e as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    if (localStorage.getItem(DISMISS_KEY)) setDismissed(true);
   }, []);
 
-  if (!evt) return null;
+  if (standalone || dismissed || !canInstall) return null;
 
   async function handleInstall() {
-    if (!evt) return;
-    await evt.prompt();
-    const { outcome } = await evt.userChoice;
-    if (outcome === "dismissed") {
+    const result = await triggerInstall();
+    if (result === "dismissed") {
       localStorage.setItem(DISMISS_KEY, "1");
+      setDismissed(true);
     }
-    setEvt(null);
   }
 
   function handleClose() {
     localStorage.setItem(DISMISS_KEY, "1");
-    setEvt(null);
+    setDismissed(true);
   }
 
   return (

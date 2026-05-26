@@ -21,6 +21,8 @@ import {
   Briefcase,
   HardHat,
 } from "lucide-react";
+import InstalarAppButton from "@/components/pwa/InstalarAppButton";
+import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
 const navItems = [
   { key: "sa-dashboard", icon: LayoutDashboard, label: "Vista global", href: "/super-admin" },
@@ -110,6 +112,8 @@ export default function SidebarSuperAdmin({ userName = "Super Admin" }: Props) {
       </nav>
 
       <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
+        <NotificacionesDropdown collapsed={collapsed} />
+        <InstalarAppButton collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"
