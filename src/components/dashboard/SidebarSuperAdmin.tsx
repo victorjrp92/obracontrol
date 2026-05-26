@@ -20,8 +20,8 @@ import {
   KeyRound,
   Briefcase,
   HardHat,
+  Smartphone,
 } from "lucide-react";
-import InstalarAppButton from "@/components/pwa/InstalarAppButton";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
 const navItems = [
@@ -33,6 +33,7 @@ const navItems = [
   { key: "sa-obreros", icon: HardHat, label: "Obreros", href: "/super-admin/obreros" },
   { key: "sa-roles", icon: KeyRound, label: "Roles del sistema", href: "/super-admin/roles" },
   { key: "sa-reportes", icon: BarChart3, label: "Reportes globales", href: "/super-admin/reportes" },
+  { key: "sa-pwa", icon: Smartphone, label: "Instalaciones PWA", href: "/super-admin/pwa-metricas" },
   { key: "sa-configuracion", icon: Settings, label: "Configuración", href: "/super-admin/configuracion" },
 ];
 
@@ -113,7 +114,6 @@ export default function SidebarSuperAdmin({ userName = "Super Admin" }: Props) {
 
       <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
         <NotificacionesDropdown collapsed={collapsed} />
-        <InstalarAppButton collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"

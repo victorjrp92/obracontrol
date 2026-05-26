@@ -7,10 +7,16 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
-// Store singleton para que múltiples componentes (auto-prompt + botón
-// manual) compartan el mismo `BeforeInstallPromptEvent`. El navegador solo
-// lo emite una vez; sin un store compartido, el primer listener lo captura
-// y los demás se quedan vacíos.
+type EventoTipo =
+  | "PROMPT_SHOWN"
+  | "INSTALL_ACCEPTED"
+  | "INSTALL_DISMISSED"
+  | "APP_INSTALLED"
+  | "LAUNCHED_STANDALONE"
+  | "IOS_INSTRUCTIONS_SHOWN";
+
+// Store singleton para que múltiples componentes compartan el mismo
+// BeforeInstallPromptEvent (el browser solo lo emite una vez).
 let savedEvent: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<() => void>();
 
@@ -18,17 +24,73 @@ function notify() {
   listeners.forEach((fn) => fn());
 }
 
+function detectPlatform(): string {
+  if (typeof window === "undefined") return "unknown";
+  const ua = window.navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return "ios";
+  if (/Android/.test(ua)) return "android";
+  return "desktop";
+}
+
+function detectBrowser(): string {
+  if (typeof window === "undefined") return "unknown";
+  const ua = window.navigator.userAgent;
+  const nav = window.navigator as unknown as { brave?: unknown };
+  if (nav.brave) return "brave";
+  if (/Edg\//.test(ua)) return "edge";
+  if (/OPR\/|Opera/.test(ua)) return "opera";
+  if (/Firefox\//.test(ua)) return "firefox";
+  if (/Chrome\//.test(ua)) return "chrome";
+  if (/Safari\//.test(ua)) return "safari";
+  return "unknown";
+}
+
+export function emitPwaEvento(evento: EventoTipo, metadata?: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  // Fire-and-forget. `keepalive` permite que sobreviva si la página se cierra.
+  fetch("/api/pwa-eventos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      evento,
+      plataforma: detectPlatform(),
+      navegador: detectBrowser(),
+      metadata,
+    }),
+    keepalive: true,
+  }).catch(() => {
+    // silent — telemetría no crítica
+  });
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     savedEvent = e as BeforeInstallPromptEvent;
     notify();
+    // Solo trackeamos prompt_shown una vez por sesión para no spamear si
+    // el browser lo re-emite tras navegación.
+    if (!sessionStorage.getItem("pwa-prompt-tracked")) {
+      sessionStorage.setItem("pwa-prompt-tracked", "1");
+      emitPwaEvento("PROMPT_SHOWN");
+    }
   });
-  // Cuando el usuario instala la app desde el browser UI, limpiamos.
+
   window.addEventListener("appinstalled", () => {
     savedEvent = null;
     notify();
+    emitPwaEvento("APP_INSTALLED");
   });
+
+  // Detectar lanzamiento como PWA standalone — fire una vez por sesión.
+  const yaCorreStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+  if (yaCorreStandalone && !sessionStorage.getItem("pwa-standalone-tracked")) {
+    sessionStorage.setItem("pwa-standalone-tracked", "1");
+    // delay para asegurar que la auth/cookies estén listas
+    setTimeout(() => emitPwaEvento("LAUNCHED_STANDALONE"), 800);
+  }
 }
 
 export function isStandalone(): boolean {
@@ -49,18 +111,12 @@ export async function triggerInstall(): Promise<"accepted" | "dismissed" | "unav
   if (!savedEvent) return "unavailable";
   await savedEvent.prompt();
   const { outcome } = await savedEvent.userChoice;
+  emitPwaEvento(outcome === "accepted" ? "INSTALL_ACCEPTED" : "INSTALL_DISMISSED");
   savedEvent = null;
   notify();
   return outcome;
 }
 
-/**
- * Estado reactivo del install prompt.
- * - canInstall: true si el navegador ya disparó `beforeinstallprompt` y aún
- *   no se consumió (Chrome/Edge/Android).
- * - standalone: true si la app ya está corriendo como PWA instalada.
- * - ios: true si el dispositivo es iOS (necesita instrucciones manuales).
- */
 export function usePwaInstall() {
   const [canInstall, setCanInstall] = useState(false);
   const [standalone, setStandalone] = useState(false);

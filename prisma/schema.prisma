@@ -414,6 +414,7 @@ model Usuario {
   reasignaciones_anterior    ReasignacionTarea[]   @relation("ReasignacionAnterior")
   reasignaciones_nuevo       ReasignacionTarea[]   @relation("ReasignacionNuevo")
   reasignaciones_realizadas  ReasignacionTarea[]   @relation("ReasignacionRealizada")
+  pwa_eventos                PwaEvento[]
 
   @@map("usuarios")
 }
@@ -583,6 +584,32 @@ enum TipoNotificacion {
   SUGERENCIA_RECHAZADA
   OBRERO_REPORTO
   TAREA_REPORTADA
+}
+
+enum PwaEventoTipo {
+  PROMPT_SHOWN
+  INSTALL_ACCEPTED
+  INSTALL_DISMISSED
+  APP_INSTALLED
+  LAUNCHED_STANDALONE
+  IOS_INSTRUCTIONS_SHOWN
+}
+
+model PwaEvento {
+  id         String        @id @default(cuid())
+  evento     PwaEventoTipo
+  plataforma String        // "ios" | "android" | "desktop" | "unknown"
+  navegador  String?       // "chrome" | "edge" | "safari" | "brave" | "firefox" | "unknown"
+  usuario_id String?
+  metadata   Json?
+  created_at DateTime      @default(now())
+
+  usuario    Usuario?      @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
+
+  @@index([evento])
+  @@index([created_at])
+  @@index([usuario_id])
+  @@map("pwa_eventos")
 }
 
 model Notificacion {

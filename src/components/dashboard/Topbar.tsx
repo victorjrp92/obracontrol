@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import OfflineQueueBadge from "@/components/pwa/OfflineQueueBadge";
 import NotificacionesBellTopbar from "@/components/dashboard/NotificacionesBellTopbar";
+import InstallBannerTopbar from "@/components/pwa/InstallBannerTopbar";
 
 interface TopbarProps {
   title?: string;
@@ -11,6 +12,8 @@ interface TopbarProps {
 
 export default function Topbar({ title = "Dashboard", subtitle }: TopbarProps) {
   return (
+    <>
+    <InstallBannerTopbar />
     <header className="h-14 sm:h-16 flex items-center justify-between gap-4 px-4 sm:px-6 border-b border-slate-100 bg-white flex-shrink-0">
       {/* Page title — offset on mobile for hamburger */}
       <div className="pl-12 lg:pl-0">
@@ -36,5 +39,6 @@ export default function Topbar({ title = "Dashboard", subtitle }: TopbarProps) {
         <NotificacionesBellTopbar />
       </div>
     </header>
+    </>
   );
 }

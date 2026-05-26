@@ -1,89 +1,72 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Plus, Share, X, CheckCircle2 } from "lucide-react";
-import { triggerInstall, usePwaInstall } from "@/lib/pwa-install";
+import { useEffect, useState } from "react";
+import { Download, X, Share, Plus } from "lucide-react";
+import { emitPwaEvento, triggerInstall, usePwaInstall } from "@/lib/pwa-install";
 
-interface Props {
-  collapsed?: boolean;
-}
+const DISMISS_KEY = "pwa-install-banner-dismissed";
 
 /**
- * Botón "Instalar app" para los sidebars. Comportamiento por plataforma:
- *  - Chrome/Edge/Android con prompt capturado: ejecuta el install nativo.
- *  - iOS Safari: abre modal con instrucciones manuales (Compartir → Agregar).
- *  - Ya instalada (standalone) o navegador sin soporte: no se muestra.
+ * Banner discreto que se muestra arriba del Topbar invitando a instalar la
+ * PWA. Visible solo cuando hay un install prompt disponible (Chrome/Edge/
+ * Android) o cuando es iOS (que abre modal con instrucciones manuales).
+ * Se cierra con la X y queda persistente hasta limpiar localStorage o
+ * desinstalar.
  */
-export default function InstalarAppButton({ collapsed = false }: Props) {
+export default function InstallBannerTopbar() {
   const { canInstall, standalone, ios } = usePwaInstall();
+  const [dismissed, setDismissed] = useState(true); // empieza true para no flashear en hidratación
   const [showIosModal, setShowIosModal] = useState(false);
-  const [resultado, setResultado] = useState<"accepted" | "dismissed" | null>(null);
 
-  // No mostrar si ya está instalada o si la plataforma no permite instalar.
-  if (standalone) return null;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
+  }, []);
+
+  if (standalone || dismissed) return null;
   if (!canInstall && !ios) return null;
 
-  async function handleClick() {
+  async function handleInstall() {
     if (ios && !canInstall) {
       setShowIosModal(true);
+      emitPwaEvento("IOS_INSTRUCTIONS_SHOWN");
       return;
     }
-    const r = await triggerInstall();
-    if (r === "accepted") setResultado("accepted");
-    else if (r === "dismissed") setResultado("dismissed");
+    await triggerInstall();
+  }
+
+  function handleDismiss() {
+    localStorage.setItem(DISMISS_KEY, "1");
+    setDismissed(true);
   }
 
   return (
     <>
-      <button
-        onClick={handleClick}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors w-full ${
-          collapsed ? "justify-center" : ""
-        }`}
-        title={collapsed ? "Instalar app" : undefined}
-      >
-        <Download className="w-4 h-4 flex-shrink-0" />
-        {!collapsed && <span>Instalar app</span>}
-      </button>
-
-      {/* Feedback breve tras instalar/cancelar */}
-      {resultado && (
-        <div
-          className="fixed bottom-4 right-4 z-[60] max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-2xl"
-          role="status"
+      <div className="flex-shrink-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 border-b border-blue-100 px-4 py-2 flex items-center gap-2 sm:gap-3">
+        <Download className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <p className="text-xs sm:text-sm text-slate-700 flex-1 min-w-0">
+          <span className="font-semibold">Instala Seiricon</span>
+          <span className="hidden sm:inline text-slate-500"> — Acceso rápido desde tu celular, funciona sin conexión.</span>
+        </p>
+        <button
+          onClick={handleInstall}
+          className="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md transition-colors flex-shrink-0"
         >
-          <button
-            onClick={() => setResultado(null)}
-            className="absolute top-2 right-2 text-slate-400 hover:text-slate-600"
-            aria-label="Cerrar"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          {resultado === "accepted" ? (
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-slate-800">¡App instalada!</p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Ya puedes acceder desde el ícono en tu pantalla de inicio.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="text-sm font-semibold text-slate-800">Instalación cancelada</p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Puedes intentar de nuevo en cualquier momento.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+          Instalar
+        </button>
+        <button
+          onClick={handleDismiss}
+          className="text-slate-400 hover:text-slate-700 p-1 flex-shrink-0"
+          aria-label="Cerrar"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
 
-      {/* Modal de instrucciones iOS */}
+      {/* Modal iOS — Safari no soporta el prompt nativo */}
       {showIosModal && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowIosModal(false)}
         >
           <div

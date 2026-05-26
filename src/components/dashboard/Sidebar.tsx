@@ -21,7 +21,6 @@ import {
   Lightbulb,
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
-import InstalarAppButton from "@/components/pwa/InstalarAppButton";
 
 const allNavItems = [
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
@@ -121,7 +120,6 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
       {/* Bottom */}
       <div className="border-t border-slate-800 p-3 flex flex-col gap-1">
         <NotificacionesDropdown collapsed={collapsed} />
-        <InstalarAppButton collapsed={collapsed} />
         <form action={logout}>
           <button
             type="submit"
