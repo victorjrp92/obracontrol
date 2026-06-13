@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
+import { esCuentaPersonal } from "@/lib/plan";
 import { obtenerTareasAprendidas } from "@/lib/learning";
 import Topbar from "@/components/dashboard/Topbar";
 import WizardClient from "./wizard";
@@ -9,6 +10,8 @@ export default async function NuevoProyectoPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
   if (usuario.rol_ref.nivel_acceso !== "ADMIN_GENERAL") redirect("/dashboard/proyectos");
+  // Cuentas personales crean obra con el asistente simple, no el wizard de empresa.
+  if (esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA")) redirect("/empezar");
 
   const [contratistas, tareasAprendidas] = await Promise.all([
     prisma.usuario.findMany({

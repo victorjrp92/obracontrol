@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getProyectoDetalle } from "@/lib/data-detail";
 import { getAccessibleProjectIds } from "@/lib/access";
+import { esCuentaPersonal } from "@/lib/plan";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
@@ -42,9 +43,11 @@ function getUnidadColor(tareas: { estado: string }[]): string {
 function UnidadDetailPanel({
   selectedUnidad,
   projectId,
+  personal = false,
 }: {
   selectedUnidad: SelectedUnidadType;
   projectId: string;
+  personal?: boolean;
 }) {
   const estados = ["PENDIENTE", "REPORTADA", "APROBADA", "NO_APROBADA"] as const;
   const labels: Record<string, string> = {
@@ -110,11 +113,12 @@ function UnidadDetailPanel({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="font-bold text-slate-900 text-lg">
-            Apto {selectedUnidad.nombre}
+            {personal ? selectedUnidad.nombre : `Apto ${selectedUnidad.nombre}`}
           </h2>
           <p className="text-sm text-slate-500">
-            {selectedUnidad.edificioNombre} · Piso {selectedUnidad.pisoNumero} ·{" "}
-            {selectedUnidad.tareas.length} tareas
+            {personal
+              ? `${selectedUnidad.tareas.length} tareas`
+              : `${selectedUnidad.edificioNombre} · Piso ${selectedUnidad.pisoNumero} · ${selectedUnidad.tareas.length} tareas`}
           </p>
         </div>
         <Link
@@ -213,6 +217,10 @@ export default async function ProyectoDetallePage({
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login");
 
+  // Cuentas personales (arquitecto/propietario) no ven el wizard estructural
+  // de empresa (torres/pisos/distribución): para ellas la obra es simple.
+  const personal = esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA");
+
   const { id } = await params;
 
   const accessible = await getAccessibleProjectIds(
@@ -291,7 +299,7 @@ export default async function ProyectoDetallePage({
     <>
       <Topbar
         title={proyecto.nombre}
-        subtitle={`${proyecto.numero_registro ? `${proyecto.numero_registro} · ` : ""}${proyecto.totalTareas} tareas · ${proyecto.edificios.length} torre(s)`}
+        subtitle={`${proyecto.numero_registro ? `${proyecto.numero_registro} · ` : ""}${proyecto.totalTareas} tareas${personal ? "" : ` · ${proyecto.edificios.length} torre(s)`}`}
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         {/* Back link */}
@@ -319,7 +327,7 @@ export default async function ProyectoDetallePage({
               canEdit={usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL"}
             />
             <div className="flex flex-wrap gap-2 mt-2">
-              {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && (
+              {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && !personal && (
                 <Link
                   href={`/dashboard/proyectos/${id}/editar`}
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
@@ -432,7 +440,7 @@ export default async function ProyectoDetallePage({
                                 key={unidad.id}
                                 href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
                                 className={`w-14 h-12 sm:w-20 sm:h-16 rounded-lg sm:rounded-xl flex flex-col items-center justify-center text-[10px] sm:text-xs font-medium hover:shadow-md transition-all flex-shrink-0 ${colorClass}`}
-                                title={`Apto ${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
+                                title={`${personal ? "" : "Apto "}${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
                               >
                                 <span className="font-bold">{unidad.nombre}</span>
                                 <span className="text-[9px] sm:text-[10px] opacity-75">{progreso.porcentajeAprobado}%</span>
@@ -506,7 +514,7 @@ export default async function ProyectoDetallePage({
           {selectedUnidad && (
             <div className="hidden md:block md:w-[40%]">
               <div className="sticky top-4 max-h-[calc(100vh-120px)] overflow-y-auto bg-white rounded-2xl border border-blue-200 p-5">
-                <UnidadDetailPanel selectedUnidad={selectedUnidad} projectId={id} />
+                <UnidadDetailPanel selectedUnidad={selectedUnidad} projectId={id} personal={personal} />
               </div>
             </div>
           )}
@@ -515,7 +523,7 @@ export default async function ProyectoDetallePage({
           {selectedUnidad && (
             <div className="md:hidden">
               <div id="unidad-detail" className="bg-white rounded-2xl border border-blue-200 p-5 sm:p-6 mb-6 scroll-mt-4">
-                <UnidadDetailPanel selectedUnidad={selectedUnidad} projectId={id} />
+                <UnidadDetailPanel selectedUnidad={selectedUnidad} projectId={id} personal={personal} />
               </div>
             </div>
           )}

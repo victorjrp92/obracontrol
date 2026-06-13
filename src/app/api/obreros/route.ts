@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { validateObreroBasico } from "@/lib/obrero";
+import { puedeGestionarEquipoDirecto } from "@/lib/plan";
 import type { EspecialidadObrero } from "@/generated/prisma";
 
 // GET /api/obreros — list obreros for this contratista
@@ -13,12 +14,17 @@ export async function GET() {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: {
+        id: true,
+        constructora_id: true,
+        rol_ref: { select: { nivel_acceso: true } },
+        constructora: { select: { tipo_cuenta: true } },
+      },
     });
     if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-    if (usuario.rol_ref.nivel_acceso !== "CONTRATISTA") {
+    if (!puedeGestionarEquipoDirecto(usuario.rol_ref.nivel_acceso, usuario.constructora.tipo_cuenta)) {
       return NextResponse.json(
-        { error: "Solo contratistas pueden gestionar obreros" },
+        { error: "No tienes permisos para gestionar obreros" },
         { status: 403 },
       );
     }
@@ -67,12 +73,17 @@ export async function POST(req: NextRequest) {
 
     const usuario = await prisma.usuario.findUnique({
       where: { email: user.email! },
-      select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+      select: {
+        id: true,
+        constructora_id: true,
+        rol_ref: { select: { nivel_acceso: true } },
+        constructora: { select: { tipo_cuenta: true } },
+      },
     });
     if (!usuario) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
-    if (usuario.rol_ref.nivel_acceso !== "CONTRATISTA") {
+    if (!puedeGestionarEquipoDirecto(usuario.rol_ref.nivel_acceso, usuario.constructora.tipo_cuenta)) {
       return NextResponse.json(
-        { error: "Solo contratistas pueden crear obreros" },
+        { error: "No tienes permisos para crear obreros" },
         { status: 403 },
       );
     }

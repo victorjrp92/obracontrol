@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { ESPECIALIDADES } from "@/lib/obrero";
+import { puedeGestionarEquipoDirecto } from "@/lib/plan";
 import type { EspecialidadObrero } from "@/generated/prisma";
 
 async function getCaller() {
@@ -10,7 +11,12 @@ async function getCaller() {
   if (!user?.email) return null;
   return prisma.usuario.findUnique({
     where: { email: user.email },
-    select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
+    select: {
+      id: true,
+      constructora_id: true,
+      rol_ref: { select: { nivel_acceso: true } },
+      constructora: { select: { tipo_cuenta: true } },
+    },
   });
 }
 
@@ -60,7 +66,7 @@ export async function PATCH(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (caller.rol_ref.nivel_acceso !== "CONTRATISTA") {
+    if (!puedeGestionarEquipoDirecto(caller.rol_ref.nivel_acceso, caller.constructora.tipo_cuenta)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
@@ -159,7 +165,7 @@ export async function DELETE(
   try {
     const caller = await getCaller();
     if (!caller) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-    if (caller.rol_ref.nivel_acceso !== "CONTRATISTA") {
+    if (!puedeGestionarEquipoDirecto(caller.rol_ref.nivel_acceso, caller.constructora.tipo_cuenta)) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 

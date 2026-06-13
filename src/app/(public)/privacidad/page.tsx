@@ -10,7 +10,11 @@ export default function PrivacidadPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
       <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Politica de Tratamiento de Datos Personales</h1>
       <p className="text-sm text-slate-500 mb-2">Conforme a la Ley 1581 de 2012 y el Decreto 1377 de 2013</p>
-      <p className="text-sm text-slate-500 mb-10">Ultima actualizacion: 13 de abril de 2026</p>
+      <p className="text-sm text-slate-500 mb-1">Ultima actualizacion: 11 de junio de 2026 · Version 2026-06-1</p>
+      <p className="text-xs text-slate-400 mb-10">
+        Al registrarte y usar la plataforma aceptas esta Politica. Guardamos la fecha, tu direccion IP y el
+        dispositivo como constancia de tu autorizacion.
+      </p>
 
       <div className="prose prose-slate prose-sm max-w-none [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:text-slate-600 [&_li]:text-slate-600 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
 
@@ -39,7 +43,9 @@ export default function PrivacidadPage() {
         </p>
         <ul>
           <li>Usuarios registrados en la plataforma (administradores, directivos, contratistas)</li>
+          <li>Arquitectos independientes y personas naturales (propietarios) que gestionan sus propias obras</li>
           <li>Obreros que acceden mediante token temporal</li>
+          <li>Clientes y terceros vinculados a las obras registradas por el Usuario</li>
           <li>Prospectos y personas que solicitan informacion</li>
           <li>Proveedores y aliados comerciales</li>
         </ul>
@@ -97,11 +103,22 @@ export default function PrivacidadPage() {
           <li>Datos de cookies y tecnologias similares (ver <a href="/cookies" className="text-blue-600">Politica de Cookies</a>)</li>
         </ul>
 
-        <h3>6.4 Datos sensibles</h3>
+        <h3>6.4 Datos del personal y de terceros registrados por el Usuario</h3>
         <p>
-          SEIRICON <strong>no recopila datos sensibles</strong> de manera deliberada. En caso de que un Titular
-          incluya datos sensibles en campos de texto libre o fotografias, dicha informacion sera tratada con
-          las medidas de seguridad reforzadas que exige la ley.
+          Para usar la plataforma, el Usuario puede registrar datos de terceros (obreros, contratistas, clientes
+          y personas vinculadas a la obra), tales como: nombre, cedula, telefono, especialidad, EPS, ARL, tipo de
+          sangre, contacto de emergencia, fotografias y datos de contacto. Estos datos son cargados por el
+          Usuario bajo su propia responsabilidad (ver seccion 17).
+        </p>
+
+        <h3>6.5 Datos sensibles</h3>
+        <p>
+          SEIRICON <strong>no solicita datos sensibles</strong> de manera deliberada para su propia operacion.
+          Sin embargo, algunos campos que el Usuario diligencia sobre su personal (como EPS, ARL o tipo de
+          sangre, que pueden constituir datos de salud) o las fotografias y videos que se suben, podrian
+          contener datos sensibles. Cuando ello ocurra, dicha informacion sera tratada con las medidas de
+          seguridad reforzadas que exige la ley, y es responsabilidad del Usuario contar con la autorizacion
+          previa y expresa del titular de esos datos.
         </p>
 
         <h2>7. Finalidades del Tratamiento</h2>
@@ -223,7 +240,38 @@ export default function PrivacidadPage() {
           <li>Linea gratuita: 01 8000 910 165</li>
         </ul>
 
-        <h2>17. Contacto</h2>
+        <h2>17. Rol del Usuario como Responsable de los datos de terceros</h2>
+        <p>
+          Respecto de los datos personales de terceros (obreros, contratistas, clientes y demas personas) que
+          el Usuario recopila, carga y administra en la plataforma, <strong>el Usuario actua como Responsable
+          del Tratamiento</strong> y SEIRICON actua unicamente como <strong>Encargado del Tratamiento</strong>,
+          limitandose a procesar dichos datos siguiendo las instrucciones del Usuario para la prestacion del
+          servicio. En consecuencia, el Usuario declara y garantiza que:
+        </p>
+        <ol>
+          <li>Cuenta con la autorizacion previa, expresa e informada de cada titular cuyos datos registra.</li>
+          <li>Ha informado a dichos titulares las finalidades del tratamiento y sus derechos.</li>
+          <li>La informacion que carga es veraz, exacta y se mantiene actualizada.</li>
+          <li>Cuenta con el consentimiento para la toma y carga de fotografias y videos, incluida su geolocalizacion.</li>
+        </ol>
+        <p>
+          El Usuario mantendra indemne a SEIRICON frente a cualquier reclamacion, sancion o perjuicio derivado
+          del incumplimiento de estas garantias o del tratamiento que el Usuario haga de los datos de terceros.
+        </p>
+
+        <h2>18. Limitacion de responsabilidad</h2>
+        <p>
+          La plataforma se provee "tal cual" y "segun disponibilidad". En la maxima medida permitida por la ley,
+          SEIRICON no sera responsable por: (i) el uso que el Usuario o sus colaboradores hagan de la plataforma o
+          de los datos; (ii) la exactitud, licitud o veracidad de la informacion cargada por el Usuario; (iii)
+          danos indirectos, incidentales, lucro cesante o perdida de datos derivados del uso o imposibilidad de
+          uso del servicio; ni (iv) interrupciones, fallas o eventos atribuibles a terceros proveedores de
+          infraestructura o a causas de fuerza mayor. Nada en esta Politica excluye responsabilidades que por ley
+          no puedan limitarse. Esta Politica es un documento informativo y no sustituye la asesoria juridica;
+          recomendamos su revision por un abogado antes de su uso comercial.
+        </p>
+
+        <h2>19. Contacto</h2>
         <p>Para ejercer sus derechos o resolver dudas sobre esta Politica:</p>
         <ul>
           <li>Correo: <a href="mailto:info@seiricon.com" className="text-blue-600">info@seiricon.com</a></li>

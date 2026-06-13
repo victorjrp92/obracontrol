@@ -3,9 +3,24 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { provisionarUsuario } from "@/lib/onboarding";
+import { provisionarUsuario, provisionarPersonal } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
 import { getHomePathForRole } from "@/lib/access";
+import { registrarConsentimiento } from "@/lib/consent";
+
+/**
+ * Registra el consentimiento (IP + fecha) del usuario recién creado.
+ * El checkbox del formulario es obligatorio, así que llegar aquí implica aceptación.
+ * No bloquea el registro si falla (el gate /aceptar-politica lo recoge luego).
+ */
+async function registrarConsentimientoRegistro(email: string): Promise<void> {
+  try {
+    const u = await prisma.usuario.findUnique({ where: { email }, select: { id: true } });
+    if (u) await registrarConsentimiento(u.id);
+  } catch {
+    // best-effort
+  }
+}
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -41,7 +56,51 @@ export async function registro(formData: FormData) {
   const nombre = formData.get("name") as string;
   const empresa = formData.get("company") as string;
 
-  // Campos opcionales de la empresa (step 1 del wizard)
+  // Perfil elegido en el paso 0 del wizard. Por defecto CONSTRUCTORA (empresa)
+  // para no cambiar el comportamiento de quien no eligió perfil.
+  const tipoCuentaRaw = (formData.get("tipo_cuenta") as string) || "CONSTRUCTORA";
+  const tipoCuenta =
+    tipoCuentaRaw === "ARQUITECTO" || tipoCuentaRaw === "PROPIETARIO"
+      ? (tipoCuentaRaw as "ARQUITECTO" | "PROPIETARIO")
+      : "CONSTRUCTORA";
+  const esPersonal = tipoCuenta !== "CONSTRUCTORA";
+
+  // ── Cuenta PERSONAL (arquitecto / propietario) ────────────────────────────
+  if (esPersonal) {
+    const estudioNombre = (formData.get("estudio_nombre") as string) || undefined;
+    const telefono = (formData.get("persona_telefono") as string) || undefined;
+    const ciudad = (formData.get("persona_ciudad") as string) || undefined;
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        // Guardamos el tipo de cuenta en metadata para que el callback de
+        // confirmación por correo pueda re-provisionar correctamente.
+        data: { nombre, tipo_cuenta: tipoCuenta, estudio_nombre: estudioNombre },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?next=/empezar`,
+      },
+    });
+
+    if (error) {
+      redirect(`/registro?error=${encodeURIComponent(error.message)}`);
+    }
+
+    try {
+      await provisionarPersonal(email, nombre, tipoCuenta, { estudioNombre, telefono, ciudad });
+    } catch {
+      // Si falla silenciosamente, el callback lo reintentará
+    }
+
+    await registrarConsentimientoRegistro(email);
+
+    // Si Supabase exige confirmar el correo, no hay sesión activa todavía:
+    // llevamos a una pantalla que explica que revise su correo (no a /login).
+    if (!data.session) redirect("/revisa-tu-correo");
+    redirect("/empezar");
+  }
+
+  // ── Cuenta de EMPRESA (flujo actual) ──────────────────────────────────────
   const empresaNit = (formData.get("empresa_nit") as string) || undefined;
   const empresaDireccion = (formData.get("empresa_direccion") as string) || undefined;
   const empresaCiudad = (formData.get("empresa_ciudad") as string) || undefined;
@@ -56,7 +115,7 @@ export async function registro(formData: FormData) {
     sitio_web: empresaSitioWeb,
   };
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -76,6 +135,10 @@ export async function registro(formData: FormData) {
     // Si falla silenciosamente, el callback lo reintentará
   }
 
+  await registrarConsentimientoRegistro(email);
+
+  // Si Supabase exige confirmar el correo, aún no hay sesión: pantalla amable.
+  if (!data.session) redirect("/revisa-tu-correo");
   redirect("/dashboard");
 }
 

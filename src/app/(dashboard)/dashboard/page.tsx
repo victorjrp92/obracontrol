@@ -8,6 +8,8 @@ import {
   getUsuarioActual,
 } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
+import { esCuentaPersonal } from "@/lib/plan";
+import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
@@ -33,6 +35,15 @@ const semaforoColors: Record<string, string> = {
 export default async function DashboardPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
+
+  // Primera experiencia: una cuenta personal sin obras va directo al asistente.
+  const personal = esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA");
+  if (personal) {
+    const totalProyectos = await prisma.proyecto.count({
+      where: { constructora_id: usuario.constructora_id },
+    });
+    if (totalProyectos === 0) redirect("/empezar");
+  }
 
   if (
     usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO" &&
@@ -135,10 +146,10 @@ export default async function DashboardPage() {
               <div className="text-center py-8">
                 <p className="text-sm text-slate-400 mb-3">Sin proyectos activos</p>
                 <Link
-                  href="/dashboard/proyectos/nuevo"
+                  href={personal ? "/empezar" : "/dashboard/proyectos/nuevo"}
                   className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  Crear primer proyecto
+                  {personal ? "Empezar mi obra" : "Crear primer proyecto"}
                 </Link>
               </div>
             ) : (

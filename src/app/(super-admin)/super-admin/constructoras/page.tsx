@@ -2,8 +2,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import { Plus, Building2 } from "lucide-react";
+import type { TipoCuenta } from "@/generated/prisma";
 
 export const dynamic = "force-dynamic";
+
+// Etiqueta + color del tipo de cuenta para distinguir de un vistazo.
+const TIPO_CUENTA_BADGE: Record<TipoCuenta, { label: string; cls: string }> = {
+  CONSTRUCTORA: { label: "Empresa", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+  ARQUITECTO: { label: "Arquitecto", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  PROPIETARIO: { label: "Propietario", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+};
 
 export default async function ConstructorasPage() {
   const constructoras = await prisma.constructora.findMany({
@@ -20,7 +28,12 @@ export default async function ConstructorasPage() {
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="flex items-center justify-between mb-5">
-          <p className="text-sm text-slate-500">{constructoras.length} constructoras registradas</p>
+          <p className="text-sm text-slate-500">
+            {constructoras.length} cuentas ·{" "}
+            {constructoras.filter((c) => c.tipo_cuenta === "CONSTRUCTORA").length} empresas ·{" "}
+            {constructoras.filter((c) => c.tipo_cuenta === "ARQUITECTO").length} arquitectos ·{" "}
+            {constructoras.filter((c) => c.tipo_cuenta === "PROPIETARIO").length} propietarios
+          </p>
           <Link
             href="/super-admin/constructoras/nueva"
             className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
@@ -44,6 +57,11 @@ export default async function ConstructorasPage() {
                   <div className="font-bold text-slate-800 truncate">{c.nombre}</div>
                   <div className="text-xs text-slate-500">{c.ciudad ?? "Sin ciudad"}</div>
                 </div>
+                <span
+                  className={`ml-auto flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TIPO_CUENTA_BADGE[c.tipo_cuenta].cls}`}
+                >
+                  {TIPO_CUENTA_BADGE[c.tipo_cuenta].label}
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-slate-50 rounded-lg p-2">

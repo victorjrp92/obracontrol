@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual, getProyectosActivos } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
 import { getRolLabel } from "@/lib/permissions";
+import { esCuentaPersonal } from "@/lib/plan";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import UsuariosClient from "./client";
@@ -9,6 +10,12 @@ import UsuariosClient from "./client";
 export default async function UsuariosPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
+
+  // Las cuentas personales no manejan usuarios/roles de empresa: su equipo se
+  // gestiona en /dashboard/equipo (obreros). Evita exponer la pantalla de empresa.
+  if (esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA")) {
+    redirect("/dashboard/equipo");
+  }
 
   const nivel = usuario.rol_ref.nivel_acceso;
   if (!["ADMIN_GENERAL", "ADMIN_PROYECTO", "DIRECTIVO"].includes(nivel)) {

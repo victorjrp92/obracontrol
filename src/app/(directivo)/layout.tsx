@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import SidebarDirectivo from "@/components/dashboard/SidebarDirectivo";
 import { NotificacionesProvider } from "@/components/dashboard/NotificacionesContext";
+import { tieneConsentimientoVigente } from "@/lib/consent";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ export default async function DirectivoLayout({
 
   if (!usuario) redirect("/login");
   if (usuario.rol_ref?.nivel_acceso !== "DIRECTIVO") redirect("/dashboard");
+
+  if (!(await tieneConsentimientoVigente(usuario.id))) redirect("/aceptar-politica");
 
   return (
     <NotificacionesProvider>

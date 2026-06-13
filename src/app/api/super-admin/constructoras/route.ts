@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/super-admin-guard";
+import type { PlanTipo } from "@/generated/prisma";
 
 export async function GET() {
   const su = await requireSuperAdmin();
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
       direccion?: string | null;
       telefono?: string | null;
       sitio_web?: string | null;
-      plan_suscripcion?: "OBRA" | "PROYECTO" | "EMPRESA";
+      plan_suscripcion?: PlanTipo;
     };
 
     if (!nombre || nombre.trim().length < 2) {

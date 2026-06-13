@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Pencil, Trash2, Save, X, Building2, FolderOpen, Users } from "lucide-react";
+import type { PlanTipo } from "@/generated/prisma";
 
 interface Constructora {
   id: string;
@@ -13,7 +14,7 @@ interface Constructora {
   direccion: string;
   telefono: string;
   sitio_web: string;
-  plan_suscripcion: "OBRA" | "PROYECTO" | "EMPRESA";
+  plan_suscripcion: PlanTipo;
 }
 
 interface Proyecto {

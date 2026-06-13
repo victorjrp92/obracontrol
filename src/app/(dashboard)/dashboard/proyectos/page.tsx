@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProyectosConProgreso, getUsuarioActual } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
 import { getPermissions } from "@/lib/permissions";
+import { esCuentaPersonal } from "@/lib/plan";
 import Topbar from "@/components/dashboard/Topbar";
 import { Building2, Calendar, ChevronRight, FolderPlus } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +45,10 @@ export default async function ProyectosPage() {
 
   const permissions = getPermissions(usuario.rol_ref.nivel_acceso);
   const puedeCrearProyectos = permissions.canViewAllProjects && usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL";
+  // Cuentas personales crean con el asistente simple; empresas con el wizard.
+  const personal = esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA");
+  const nuevoHref = personal ? "/empezar" : "/dashboard/proyectos/nuevo";
+  const nuevoLabel = personal ? "Nueva obra" : "Nuevo proyecto";
 
   return (
     <>
@@ -54,11 +59,11 @@ export default async function ProyectosPage() {
           <p className="text-sm text-slate-500">{proyectosVisibles.length} proyecto{proyectosVisibles.length !== 1 ? "s" : ""} activo{proyectosVisibles.length !== 1 ? "s" : ""}</p>
           {puedeCrearProyectos && (
             <Link
-              href="/dashboard/proyectos/nuevo"
+              href={nuevoHref}
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm cursor-pointer"
             >
               <FolderPlus className="w-4 h-4" />
-              Nuevo proyecto
+              {nuevoLabel}
             </Link>
           )}
         </div>
@@ -70,11 +75,11 @@ export default async function ProyectosPage() {
             <p className="text-sm mt-1 mb-4">Crea tu primer proyecto para comenzar</p>
             {puedeCrearProyectos && (
               <Link
-                href="/dashboard/proyectos/nuevo"
+                href={nuevoHref}
                 className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-xl"
               >
                 <FolderPlus className="w-4 h-4" />
-                Crear proyecto
+                {personal ? "Empezar mi obra" : "Crear proyecto"}
               </Link>
             )}
           </div>

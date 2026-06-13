@@ -71,6 +71,23 @@ export async function POST(
       );
     }
 
+    // Guard: no marcar como reportada si las fotos no llegaron al servidor
+    // (del intento actual). Da un error claro en vez de un estado fantasma.
+    const ultimoRechazo = await prisma.aprobacion.findFirst({
+      where: { tarea_id: id, estado: "NO_APROBADA" },
+      orderBy: { fecha: "desc" },
+      select: { fecha: true },
+    });
+    const evidenciaCount = await prisma.evidencia.count({
+      where: { tarea_id: id, ...(ultimoRechazo ? { created_at: { gt: ultimoRechazo.fecha } } : {}) },
+    });
+    if (evidenciaCount < 1) {
+      return NextResponse.json(
+        { error: "Las fotos aún no se han subido. Espera a que terminen de cargar e intenta de nuevo." },
+        { status: 400 }
+      );
+    }
+
     // Update task
     const updated = await prisma.tarea.update({
       where: { id },

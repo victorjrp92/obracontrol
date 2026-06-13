@@ -113,6 +113,24 @@ export async function POST(
       );
     }
 
+    // Guard: no permitir reportar sin evidencia en el servidor (del intento
+    // actual). Evita el estado confuso "Reportada sin fotos" cuando una subida
+    // falla. Solo cuentan las evidencias creadas tras el último rechazo.
+    const ultimoRechazo = await prisma.aprobacion.findFirst({
+      where: { tarea_id: id, estado: "NO_APROBADA" },
+      orderBy: { fecha: "desc" },
+      select: { fecha: true },
+    });
+    const evidenciaCount = await prisma.evidencia.count({
+      where: { tarea_id: id, ...(ultimoRechazo ? { created_at: { gt: ultimoRechazo.fecha } } : {}) },
+    });
+    if (evidenciaCount < 1) {
+      return NextResponse.json(
+        { error: "Sube al menos una foto de evidencia antes de reportar la tarea." },
+        { status: 400 }
+      );
+    }
+
     const updated = await prisma.tarea.update({
       where: { id },
       data: {

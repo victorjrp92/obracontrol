@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { provisionarUsuario } from "@/lib/onboarding";
+import { provisionarUsuario, provisionarPersonal } from "@/lib/onboarding";
 
 // GET /api/auth/callback — Supabase Auth callback (email confirmation, OAuth)
 export async function GET(req: NextRequest) {
@@ -20,11 +20,18 @@ export async function GET(req: NextRequest) {
           user.user_metadata?.full_name ??
           user.user_metadata?.nombre ??
           user.email.split("@")[0];
-        const empresa =
-          user.user_metadata?.empresa ?? "Mi Constructora";
+        const tipoCuenta = user.user_metadata?.tipo_cuenta;
 
         try {
-          await provisionarUsuario(user.email, nombre, empresa);
+          if (tipoCuenta === "ARQUITECTO" || tipoCuenta === "PROPIETARIO") {
+            // Cuenta personal: sin datos demo, entra al módulo de intención.
+            await provisionarPersonal(user.email, nombre, tipoCuenta, {
+              estudioNombre: user.user_metadata?.estudio_nombre,
+            });
+          } else {
+            const empresa = user.user_metadata?.empresa ?? "Mi Constructora";
+            await provisionarUsuario(user.email, nombre, empresa);
+          }
         } catch {
           // Continuar aunque falle — el usuario al menos puede ver el dashboard vacío
         }

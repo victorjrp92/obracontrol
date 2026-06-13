@@ -20,6 +20,10 @@ model Constructora {
   sitio_web        String?
   descripcion      String?
   plan_suscripcion PlanTipo   @default(OBRA)
+  // Tipo de cuenta: gobierna qué módulos/menú ve y el tono del producto.
+  // CONSTRUCTORA = comportamiento actual (empresa). ARQUITECTO y PROPIETARIO
+  // son los perfiles "personales" (modo simple). Ver src/lib/plan.ts.
+  tipo_cuenta      TipoCuenta @default(CONSTRUCTORA)
   created_at       DateTime   @default(now())
   updated_at       DateTime   @updatedAt
 
@@ -408,6 +412,7 @@ model Usuario {
   sugerencias_revisadas  TareaSugerida[]   @relation("SugerenciasRevisadas")
   notificaciones         Notificacion[]
   audit_logs             AuditLog[]
+  consentimientos        ConsentimientoDatos[]
   proyectos_administrados  AdminProyectoAccess[] @relation("AdminProyectoAccessUsuario")
   proyectos_asignados_por  AdminProyectoAccess[] @relation("AdminProyectoAccessAsignador")
   proyectos_como_contratista Proyecto[]            @relation("ContratistaDefaultProyectos")
@@ -641,6 +646,25 @@ model MensajeContacto {
   @@map("mensajes_contacto")
 }
 
+// ─── CONSENTIMIENTO DE TRATAMIENTO DE DATOS ──────────────────────────────────
+// Registro legal (Ley 1581 de 2012 — Habeas Data) de la autorización del titular.
+// Se guarda versión del documento aceptado, IP, user-agent y fecha para prueba.
+model ConsentimientoDatos {
+  id          String   @id @default(cuid())
+  usuario_id  String
+  version     String   // versión de la política aceptada (ver POLITICA_VERSION)
+  documento   String   // qué se aceptó, ej: "privacidad+terminos"
+  ip          String?
+  user_agent  String?
+  aceptado_en DateTime @default(now())
+
+  usuario     Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@index([usuario_id])
+  @@index([usuario_id, version])
+  @@map("consentimientos_datos")
+}
+
 // ─── ACCESO DE ADMIN A PROYECTOS ─────────────────────────────────────────────
 
 model AdminProyectoAccess {
@@ -681,9 +705,20 @@ model PersonaExternaProyecto {
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
 enum PlanTipo {
+  PERSONAL
   OBRA
   PROYECTO
   EMPRESA
+}
+
+// Tipo de cuenta: perfil con el que se usa la app.
+//   CONSTRUCTORA → empresa (flujo completo actual).
+//   ARQUITECTO   → independiente: contrata contratistas, maneja varias obras/clientes.
+//   PROPIETARIO  → persona natural: maneja su propia obra y contrata obreros directos.
+enum TipoCuenta {
+  CONSTRUCTORA
+  ARQUITECTO
+  PROPIETARIO
 }
 
 enum SubtipoProyecto {

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/(auth)/actions";
 import { getPermissions, getRolLabel } from "@/lib/permissions";
+import { esCuentaPersonal, modulosVisibles, tonoPerfil } from "@/lib/plan";
+import type { TipoCuenta } from "@/generated/prisma";
 import {
   LayoutDashboard,
   Building2,
@@ -19,6 +21,8 @@ import {
   Menu,
   X,
   Lightbulb,
+  Plus,
+  HardHat,
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
@@ -27,6 +31,7 @@ const allNavItems = [
   { key: "empresa", icon: Building2, label: "Empresa", href: "/dashboard/empresa" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
+  { key: "equipo", icon: HardHat, label: "Mi equipo", href: "/dashboard/equipo" },
   { key: "sugerencias", icon: Lightbulb, label: "Sugerencias", href: "/dashboard/sugerencias" },
   { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes" },
   { key: "usuarios", icon: UsersRound, label: "Usuarios", href: "/dashboard/usuarios" },
@@ -35,17 +40,23 @@ const allNavItems = [
 
 interface SidebarProps {
   nivelAcceso?: string;
+  tipoCuenta?: TipoCuenta;
   userName?: string;
   userRole?: string;
 }
 
-export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usuario", userRole }: SidebarProps) {
+export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", tipoCuenta = "CONSTRUCTORA", userName = "Usuario", userRole }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  const permissions = getPermissions(nivelAcceso);
-  const navItems = allNavItems.filter((item) => permissions.sidebarItems.includes(item.key));
+  // Cuentas personales (arquitecto/propietario) usan un menú reducido (modo
+  // simple); las empresas conservan el menú por permisos de siempre.
+  const personal = esCuentaPersonal(tipoCuenta);
+  const itemKeys = personal ? modulosVisibles(tipoCuenta) : getPermissions(nivelAcceso).sidebarItems;
+  const navItems = itemKeys
+    .map((key) => allNavItems.find((item) => item.key === key))
+    .filter((item): item is (typeof allNavItems)[number] => Boolean(item));
   const rolLabel = getRolLabel(userRole ?? nivelAcceso);
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 
@@ -90,6 +101,24 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
         </Link>
       )}
 
+      {/* CTA Nueva obra (solo cuentas personales) */}
+      {personal && (
+        <div className="px-2 pt-3">
+          <Link
+            href="/empezar"
+            data-tour="nav-nueva-obra"
+            onClick={() => setMobileOpen(false)}
+            className={`flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors ${
+              collapsed ? "justify-center p-2.5" : "px-3 py-2.5"
+            }`}
+            title={collapsed ? "Nueva obra" : undefined}
+          >
+            <Plus className="w-4.5 h-4.5 flex-shrink-0" />
+            {!collapsed && <span>Nueva {tonoPerfil(tipoCuenta).obraSingular}</span>}
+          </Link>
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="flex-1 py-4 overflow-y-auto">
         <ul className="flex flex-col gap-1 px-2">
@@ -100,6 +129,7 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", userName = "Usu
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  data-tour={`nav-${item.key}`}
                   onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
                     active

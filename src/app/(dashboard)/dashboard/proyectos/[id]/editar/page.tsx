@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { isGeneralAdmin } from "@/lib/access";
+import { esCuentaPersonal } from "@/lib/plan";
 import { getProyectoForEdit } from "@/lib/data-edit";
 import { obtenerTareasAprendidas } from "@/lib/learning";
 import { prisma } from "@/lib/prisma";
@@ -17,6 +18,12 @@ export default async function EditarProyectoPage({
   if (!isGeneralAdmin(usuario.rol_ref.nivel_acceso)) redirect("/dashboard/proyectos");
 
   const { id } = await params;
+
+  // El wizard estructural (torres/pisos/distribución) es solo para empresas.
+  // Las cuentas personales usan el editor simple en la página del proyecto.
+  if (esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA")) {
+    redirect(`/dashboard/proyectos/${id}`);
+  }
 
   const [editData, contratistas, tareasAprendidas] = await Promise.all([
     getProyectoForEdit(id, usuario.constructora_id),
