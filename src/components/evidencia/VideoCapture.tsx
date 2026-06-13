@@ -88,9 +88,10 @@ export default function VideoCapture({ onChange, initialVideo = null }: VideoCap
           <button
             type="button"
             onClick={removeVideo}
-            className="absolute top-2 right-2 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700"
+            aria-label="Eliminar video"
+            className="absolute top-2 right-2 w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-md active:scale-95 active:bg-red-700 transition-transform"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       ) : (

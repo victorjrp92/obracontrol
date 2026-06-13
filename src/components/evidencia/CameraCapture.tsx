@@ -159,14 +159,21 @@ export default function CameraCapture({
     <div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         {photos.map((photo, idx) => (
-          <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 group">
+          <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200">
             <img src={photo.preview} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
+            {/* Número de foto (esquina inferior izquierda) para saber cuál es cuál */}
+            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-md bg-black/55 text-white text-[10px] font-semibold leading-none">
+              {idx + 1}
+            </span>
+            {/* Botón eliminar: SIEMPRE visible (en móvil no hay hover). Tap target
+                grande con anillo blanco para que se vea sobre cualquier foto. */}
             <button
               type="button"
               onClick={() => removePhoto(idx)}
-              className="absolute top-1 right-1 w-7 h-7 bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+              aria-label={`Eliminar foto ${idx + 1}`}
+              className="absolute top-1.5 right-1.5 w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center ring-2 ring-white shadow-md active:scale-95 active:bg-red-700 transition-transform"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         ))}
@@ -195,7 +202,7 @@ export default function CameraCapture({
       </div>
 
       <p className="text-xs text-slate-500">
-        {photos.length}/{maxPhotos} fotos · Mínimo 2 para reportar · Solo cámara, no galería
+        {photos.length}/{maxPhotos} fotos · Mínimo 2 para reportar · Toca la ✕ roja para borrar una foto
       </p>
     </div>
   );
