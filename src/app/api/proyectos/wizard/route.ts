@@ -16,6 +16,8 @@ interface WizardPayload {
   dias_habiles_semana: number;
   fecha_inicio?: string;
   fecha_fin_estimada?: string;
+  ubicacion_lat?: number | null;
+  ubicacion_lng?: number | null;
   // Tipos de unidad (optional for backward compat)
   tipos_unidad?: {
     nombre: string;
@@ -345,6 +347,8 @@ export async function POST(req: NextRequest) {
           dias_habiles_semana: body.dias_habiles_semana ?? 5,
           fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : null,
           fecha_fin_estimada: body.fecha_fin_estimada ? new Date(body.fecha_fin_estimada) : null,
+          ubicacion_lat: typeof body.ubicacion_lat === "number" ? body.ubicacion_lat : null,
+          ubicacion_lng: typeof body.ubicacion_lng === "number" ? body.ubicacion_lng : null,
           estado: "ACTIVO",
         },
       });

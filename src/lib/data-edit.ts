@@ -416,6 +416,10 @@ export async function getProyectoForEdit(
     diasHabiles: proyecto.dias_habiles_semana,
     fechaInicio: proyecto.fecha_inicio?.toISOString().slice(0, 10) ?? "",
     fechaFin: proyecto.fecha_fin_estimada?.toISOString().slice(0, 10) ?? "",
+    ubicacion:
+      proyecto.ubicacion_lat != null && proyecto.ubicacion_lng != null
+        ? { lat: proyecto.ubicacion_lat, lng: proyecto.ubicacion_lng }
+        : null,
     tiposUnidad,
     edificios,
     fasesSeleccionadas,

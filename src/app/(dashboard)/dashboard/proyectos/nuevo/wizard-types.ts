@@ -94,6 +94,7 @@ export interface EditModeData {
   fasesSeleccionadas: string[];
   faseDias: Record<string, number | undefined>;
   tareas: TareaInput[];
+  ubicacion?: UbicacionInput | null;
   tieneZonasComunes: boolean;
   zonasSeleccionadas: string[];
   metrosEnabled: boolean;
@@ -106,6 +107,12 @@ export interface EditModeData {
   // asignado_a no nulo), agrupadas en el scope más amplio donde son
   // consistentes (global > por torre > por torre+unidad).
   asignaciones?: AsignacionOverride[];
+}
+
+export interface UbicacionInput {
+  lat: number;
+  lng: number;
+  direccion?: string;
 }
 
 export interface AsignacionOverride {

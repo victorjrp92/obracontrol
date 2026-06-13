@@ -6,7 +6,8 @@ import {
   ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
-import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista } from "./wizard-types";
+import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista, UbicacionInput } from "./wizard-types";
+import LocationPicker from "@/components/mapa/LocationPicker";
 
 interface WizardStep1Props {
   nombre: string;
@@ -27,6 +28,8 @@ interface WizardStep1Props {
   setFechaInicio: (v: string) => void;
   fechaFin: string;
   setFechaFin: (v: string) => void;
+  ubicacion: UbicacionInput | null;
+  setUbicacion: (v: UbicacionInput | null) => void;
   tiposUnidad: TipoUnidadInput[];
   setTiposUnidad: (v: TipoUnidadInput[]) => void;
   edificios: EdificioInput[];
@@ -54,6 +57,7 @@ export default function WizardStep1({
   diasHabiles, setDiasHabiles,
   fechaInicio, setFechaInicio,
   fechaFin, setFechaFin,
+  ubicacion, setUbicacion,
   tiposUnidad, setTiposUnidad,
   edificios, setEdificios,
   tieneZonasComunes, setTieneZonasComunes,
@@ -518,6 +522,14 @@ export default function WizardStep1({
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
           />
         </div>
+      </div>
+
+      {/* Ubicación del proyecto (opcional) — alimenta el mapa */}
+      <div>
+        <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+          Ubicación de la obra <span className="text-slate-400 font-normal">(opcional)</span>
+        </label>
+        <LocationPicker value={ubicacion} onChange={setUbicacion} />
       </div>
 
       {subtipo !== "ZONAS_COMUNES" && (

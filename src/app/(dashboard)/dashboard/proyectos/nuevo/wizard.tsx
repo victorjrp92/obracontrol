@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride } from "./wizard-types";
+import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride, UbicacionInput } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
@@ -39,6 +39,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
   const [diasHabiles, setDiasHabiles] = useState(initialData?.diasHabiles ?? 5);
   const [fechaInicio, setFechaInicio] = useState(initialData?.fechaInicio ?? "");
   const [fechaFin, setFechaFin] = useState(initialData?.fechaFin ?? "");
+  const [ubicacion, setUbicacion] = useState<UbicacionInput | null>(initialData?.ubicacion ?? null);
   const [tiposUnidad, setTiposUnidad] = useState<TipoUnidadInput[]>(initialData?.tiposUnidad ?? [
     { id: "t1", nombre: "Tipo estándar", espacios: ["Cocina", "Baño principal", "Habitación principal", "Sala-comedor"] },
   ]);
@@ -141,6 +142,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
       dias_habiles_semana: diasHabiles,
       fecha_inicio: fechaInicio || undefined,
       fecha_fin_estimada: fechaFin || undefined,
+      ubicacion_lat: ubicacion?.lat ?? null,
+      ubicacion_lng: ubicacion?.lng ?? null,
       tipos_unidad: tiposUnidad.map((t) => ({
         nombre: t.nombre,
         espacios: t.espacios,
@@ -275,6 +278,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           diasHabiles={diasHabiles} setDiasHabiles={setDiasHabiles}
           fechaInicio={fechaInicio} setFechaInicio={setFechaInicio}
           fechaFin={fechaFin} setFechaFin={setFechaFin}
+          ubicacion={ubicacion} setUbicacion={setUbicacion}
           tiposUnidad={tiposUnidad} setTiposUnidad={setTiposUnidad}
           edificios={edificios} setEdificios={setEdificios}
           tieneZonasComunes={tieneZonasComunes} setTieneZonasComunes={setTieneZonasComunes}

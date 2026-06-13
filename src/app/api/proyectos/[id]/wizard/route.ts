@@ -19,6 +19,8 @@ interface WizardPayload {
   dias_habiles_semana: number;
   fecha_inicio?: string;
   fecha_fin_estimada?: string;
+  ubicacion_lat?: number | null;
+  ubicacion_lng?: number | null;
   // Tipos de unidad
   tipos_unidad?: {
     nombre: string;
@@ -410,6 +412,8 @@ export async function POST(
           fecha_fin_estimada: body.fecha_fin_estimada
             ? new Date(body.fecha_fin_estimada)
             : null,
+          ...(body.ubicacion_lat !== undefined ? { ubicacion_lat: typeof body.ubicacion_lat === "number" ? body.ubicacion_lat : null } : {}),
+          ...(body.ubicacion_lng !== undefined ? { ubicacion_lng: typeof body.ubicacion_lng === "number" ? body.ubicacion_lng : null } : {}),
           ...(body.numero_registro ? { numero_registro: body.numero_registro } : {}),
           ...(body.contratista_default_id !== undefined ? { contratista_default_id: body.contratista_default_id || null } : {}),
           cliente_id: body.cliente_id || null,
