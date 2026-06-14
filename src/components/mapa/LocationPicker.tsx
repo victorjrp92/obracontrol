@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { MapPin, Search, X, Loader2, Crosshair } from "lucide-react";
+import { MapPin, Search, X, Loader2, Check, ChevronDown } from "lucide-react";
 import {
   parseLatLng,
   isGoogleShortLink,
@@ -34,14 +34,13 @@ export default function LocationPicker({ value, onChange }: Props) {
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState("");
   const [resultados, setResultados] = useState<GeocodeResult[]>([]);
+  // El mapa va COLAPSADO por defecto (ocupa mucho espacio en el wizard).
+  // Solo se monta cuando el usuario quiere ajustar el punto a mano.
+  const [showMap, setShowMap] = useState(false);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
-  // Coloca/mueve el marcador y notifica al padre.
-  function setUbicacion(lat: number, lng: number, direccion?: string) {
-    onChange({ lat, lng, direccion });
-    setResultados([]);
-    setError("");
+  function pintarMarcador(lat: number, lng: number) {
     const map = mapRef.current;
     if (!map) return;
     if (markerRef.current) {
@@ -60,9 +59,16 @@ export default function LocationPicker({ value, onChange }: Props) {
     map.flyTo({ center: [lng, lat], zoom: 15 });
   }
 
-  // Init del mapa (una vez).
+  function setUbicacion(lat: number, lng: number, direccion?: string) {
+    onChange({ lat, lng, direccion });
+    setResultados([]);
+    setError("");
+    if (showMap) pintarMarcador(lat, lng);
+  }
+
+  // Init del mapa SOLO cuando se muestra.
   useEffect(() => {
-    if (!token || !containerRef.current || mapRef.current) return;
+    if (!showMap || !token || !containerRef.current || mapRef.current) return;
     mapboxgl.accessToken = token;
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -71,29 +77,15 @@ export default function LocationPicker({ value, onChange }: Props) {
       zoom: value ? 15 : 5,
     });
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-
-    // Click en el mapa = picker manual.
     map.on("click", async (e) => {
       const { lat, lng } = e.lngLat;
-      setUbicacion(lat, lng);
+      pintarMarcador(lat, lng);
       const dir = await reverseGeocode(lat, lng);
-      if (dir) onChange({ lat, lng, direccion: dir });
+      onChange({ lat, lng, direccion: dir ?? undefined });
+      setError("");
     });
-
     mapRef.current = map;
-
-    // Si ya venía un valor inicial, pinta el marcador.
-    if (value) {
-      const m = new mapboxgl.Marker({ color: "#2563EB", draggable: true })
-        .setLngLat([value.lng, value.lat])
-        .addTo(map);
-      m.on("dragend", async () => {
-        const { lat: dLat, lng: dLng } = m.getLngLat();
-        const dir = await reverseGeocode(dLat, dLng);
-        onChange({ lat: dLat, lng: dLng, direccion: dir ?? undefined });
-      });
-      markerRef.current = m;
-    }
+    if (value) pintarMarcador(value.lat, value.lng);
 
     return () => {
       map.remove();
@@ -101,7 +93,7 @@ export default function LocationPicker({ value, onChange }: Props) {
       markerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [showMap, token]);
 
   async function handleBuscar() {
     setError("");
@@ -109,35 +101,30 @@ export default function LocationPicker({ value, onChange }: Props) {
     const text = query.trim();
     if (!text) return;
 
-    // 1) ¿Son coordenadas o un link largo de Google Maps?
     const coords = parseLatLng(text);
     if (coords) {
       const dir = await reverseGeocode(coords.lat, coords.lng);
       setUbicacion(coords.lat, coords.lng, dir ?? undefined);
       return;
     }
-
-    // 2) ¿Short link de Google? No se puede resolver.
     if (isGoogleShortLink(text)) {
       setError(
-        "Los links cortos de Google Maps no se pueden leer aquí. Abre el link, copia las coordenadas (mantén presionado el punto → copiar coordenadas) y pégalas.",
+        "Los links cortos de Google Maps no se pueden leer aquí. Abre el link, copia las coordenadas (mantén presionado el punto → copiar) y pégalas.",
       );
       return;
     }
-
-    // 3) Geocoding de dirección.
     setBuscando(true);
     try {
       const res = await geocodeDireccion(text);
       if (res.length === 0) {
-        setError("No se encontró esa dirección. Prueba con más detalle o pincha el mapa.");
+        setError("No se encontró esa dirección. Prueba con más detalle o ajústala en el mapa.");
       } else if (res.length === 1) {
         setUbicacion(res[0].lat, res[0].lng, res[0].label);
       } else {
         setResultados(res);
       }
     } catch {
-      setError("Error buscando la dirección. Intenta de nuevo o pincha el mapa.");
+      setError("Error buscando la dirección. Intenta de nuevo.");
     } finally {
       setBuscando(false);
     }
@@ -164,39 +151,34 @@ export default function LocationPicker({ value, onChange }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {/* Input unificado: dirección, coords o link */}
-      <div>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleBuscar();
-                }
-              }}
-              placeholder="Dirección, o pega coordenadas / link de Google Maps"
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={handleBuscar}
-            disabled={buscando || !query.trim()}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold flex items-center gap-1.5"
-          >
-            {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            Buscar
-          </button>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleBuscar();
+              }
+            }}
+            placeholder="Dirección, o pega coordenadas / link de Google Maps"
+            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+          />
         </div>
-        <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-          <Crosshair className="w-3 h-3" /> También puedes pinchar el mapa para marcar el punto exacto.
-        </p>
+        <button
+          type="button"
+          onClick={handleBuscar}
+          disabled={buscando || !query.trim()}
+          className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold flex items-center gap-1.5"
+        >
+          {buscando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          Verificar
+        </button>
       </div>
 
       {error && (
@@ -223,19 +205,13 @@ export default function LocationPicker({ value, onChange }: Props) {
         </ul>
       )}
 
-      {/* Mapa */}
-      <div
-        ref={containerRef}
-        className="w-full h-64 rounded-xl overflow-hidden border border-slate-200"
-      />
-
-      {/* Estado de la selección */}
-      {value ? (
+      {/* Confirmación de la ubicación (chip compacto, sin mapa) */}
+      {value && (
         <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
-          <MapPin className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-emerald-800 truncate">
-              {value.direccion ?? "Ubicación marcada"}
+              {value.direccion ?? "Ubicación verificada"}
             </p>
             <p className="text-[10px] text-emerald-600 font-mono">
               {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
@@ -250,8 +226,28 @@ export default function LocationPicker({ value, onChange }: Props) {
             <X className="w-4 h-4" />
           </button>
         </div>
-      ) : (
-        <p className="text-xs text-slate-400">Sin ubicación · es opcional, puedes agregarla después.</p>
+      )}
+
+      {/* Toggle del mapa — colapsado por defecto para no ocupar espacio */}
+      <button
+        type="button"
+        onClick={() => setShowMap((v) => !v)}
+        className="self-start inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+      >
+        <MapPin className="w-3.5 h-3.5" />
+        {showMap ? "Ocultar mapa" : "Ajustar en el mapa"}
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMap ? "rotate-180" : ""}`} />
+      </button>
+
+      {showMap && (
+        <div
+          ref={containerRef}
+          className="w-full h-56 rounded-xl overflow-hidden border border-slate-200"
+        />
+      )}
+
+      {!value && !showMap && (
+        <p className="text-xs text-slate-400">Opcional. Puedes agregarla después.</p>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
+import MapaProyectos from "@/components/mapa/MapaProyectos";
 import {
   AlertTriangle,
   ArrowRight,
@@ -20,6 +21,7 @@ import {
   ChevronRight,
   Clock,
   FolderOpen,
+  MapPin,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -113,6 +115,20 @@ export default async function DashboardPage() {
     { label: "No aprobadas", value: stats.tareasNoAprobadas, color: "bg-red-500", pct: stats.total > 0 ? Math.round((stats.tareasNoAprobadas / stats.total) * 100) : 0 },
   ];
 
+  // Datos para el mapa de obras (solo proyectos con coordenadas).
+  const proyectosMapa = proyectos
+    .filter((p) => p.ubicacion_lat != null && p.ubicacion_lng != null)
+    .map((p) => ({
+      id: p.id,
+      nombre: p.nombre,
+      lat: p.ubicacion_lat as number,
+      lng: p.ubicacion_lng as number,
+      porcentaje: p.progreso.porcentajeAprobado,
+    }));
+  const proyectosSinUbicacion = proyectos.filter(
+    (p) => p.ubicacion_lat == null || p.ubicacion_lng == null,
+  );
+
   return (
     <>
       <Topbar
@@ -127,6 +143,38 @@ export default async function DashboardPage() {
             <StatCard key={s.label} {...s} />
           ))}
         </div>
+
+        {/* Banner: proyectos sin ubicación */}
+        {proyectosSinUbicacion.length > 0 && (
+          <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
+            <MapPin className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-amber-800">
+              <span className="font-semibold">
+                {proyectosSinUbicacion.length} proyecto{proyectosSinUbicacion.length === 1 ? "" : "s"} sin ubicación.
+              </span>{" "}
+              Agrégala para verlo{proyectosSinUbicacion.length === 1 ? "" : "s"} en el mapa:{" "}
+              {proyectosSinUbicacion.map((p, i) => (
+                <span key={p.id}>
+                  <Link href={`/dashboard/proyectos/${p.id}/editar`} className="underline font-medium hover:text-amber-900">
+                    {p.nombre}
+                  </Link>
+                  {i < proyectosSinUbicacion.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mapa de obras */}
+        {proyectosMapa.length > 0 && (
+          <div className="mb-6 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <h2 className="font-bold text-slate-800">Mapa de obras</h2>
+            </div>
+            <MapaProyectos proyectos={proyectosMapa} hrefBase="/dashboard/proyectos" />
+          </div>
+        )}
 
         {/* Row 2: Projects + Task breakdown */}
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 mb-6">

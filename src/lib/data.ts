@@ -101,6 +101,105 @@ export async function getDashboardStats(
 }
 
 // Proyectos con progreso calculado
+export interface ProyectoMapaData {
+  id: string;
+  nombre: string;
+  lat: number;
+  lng: number;
+  porcentaje: number;
+  subtitulo?: string;
+}
+
+const TAREAS_PARA_PROGRESO = {
+  edificios: {
+    select: {
+      pisos: {
+        select: {
+          unidades: {
+            select: { espacios: { select: { tareas: { select: { estado: true } } } } },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+function pctDeProyecto(p: {
+  edificios: { pisos: { unidades: { espacios: { tareas: { estado: string }[] }[] }[] }[] }[];
+}): number {
+  const tareas = p.edificios.flatMap((e) =>
+    e.pisos.flatMap((pi) => pi.unidades.flatMap((u) => u.espacios.flatMap((es) => es.tareas))),
+  );
+  return calcularProgreso(tareas).porcentajeAprobado;
+}
+
+/**
+ * Datos ligeros para el mapa de obras de una constructora (scoped por rol).
+ * Devuelve los proyectos con coordenadas y la lista de los que no tienen
+ * (para el banner "completa la ubicación").
+ */
+export async function getProyectosMapa(
+  constructoraId: string,
+  accessibleProjectIds?: AccessibleProjects,
+): Promise<{ conUbicacion: ProyectoMapaData[]; sinUbicacion: { id: string; nombre: string }[] }> {
+  const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
+  const proyectos = await prisma.proyecto.findMany({
+    where: { ...proyectoWhere, estado: "ACTIVO" },
+    select: { id: true, nombre: true, ubicacion_lat: true, ubicacion_lng: true, ...TAREAS_PARA_PROGRESO },
+    orderBy: { created_at: "desc" },
+  });
+
+  const conUbicacion: ProyectoMapaData[] = [];
+  const sinUbicacion: { id: string; nombre: string }[] = [];
+  for (const p of proyectos) {
+    if (p.ubicacion_lat != null && p.ubicacion_lng != null) {
+      conUbicacion.push({
+        id: p.id,
+        nombre: p.nombre,
+        lat: p.ubicacion_lat,
+        lng: p.ubicacion_lng,
+        porcentaje: pctDeProyecto(p),
+      });
+    } else {
+      sinUbicacion.push({ id: p.id, nombre: p.nombre });
+    }
+  }
+  return { conUbicacion, sinUbicacion };
+}
+
+/**
+ * Mapa GLOBAL para Super Admin: TODAS las obras activas de TODA la plataforma,
+ * sin importar constructora ni tipo de cuenta. El subtítulo muestra la
+ * constructora dueña. Inteligencia de negocio interna.
+ */
+export async function getProyectosMapaGlobal(): Promise<ProyectoMapaData[]> {
+  const proyectos = await prisma.proyecto.findMany({
+    where: {
+      estado: "ACTIVO",
+      ubicacion_lat: { not: null },
+      ubicacion_lng: { not: null },
+    },
+    select: {
+      id: true,
+      nombre: true,
+      ubicacion_lat: true,
+      ubicacion_lng: true,
+      constructora: { select: { nombre: true } },
+      ...TAREAS_PARA_PROGRESO,
+    },
+    orderBy: { created_at: "desc" },
+  });
+
+  return proyectos.map((p) => ({
+    id: p.id,
+    nombre: p.nombre,
+    lat: p.ubicacion_lat as number,
+    lng: p.ubicacion_lng as number,
+    porcentaje: pctDeProyecto(p),
+    subtitulo: p.constructora?.nombre,
+  }));
+}
+
 export async function getProyectosConProgreso(
   constructoraId: string,
   accessibleProjectIds?: AccessibleProjects,

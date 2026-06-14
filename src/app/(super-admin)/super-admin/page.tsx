@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getProyectosMapaGlobal } from "@/lib/data";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
-import { Building2, Users, FolderOpen, ClipboardList, ChevronRight, Plus } from "lucide-react";
+import MapaProyectos from "@/components/mapa/MapaProyectos";
+import { Building2, Users, FolderOpen, ClipboardList, ChevronRight, Plus, MapPin } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,9 @@ export default async function SuperAdminDashboard() {
     }),
   ]);
 
+  // Mapa global: TODAS las obras activas de la plataforma.
+  const mapaGlobal = await getProyectosMapaGlobal();
+
   const stats = [
     { icon: Building2, iconColor: "text-red-600", iconBg: "bg-red-50", label: "Constructoras", value: String(totalConstructoras) },
     { icon: FolderOpen, iconColor: "text-blue-600", iconBg: "bg-blue-50", label: "Proyectos totales", value: String(totalProyectos) },
@@ -48,6 +53,20 @@ export default async function SuperAdminDashboard() {
             <StatCard key={s.label} {...s} />
           ))}
         </div>
+
+        {/* Mapa global: TODA la plataforma */}
+        {mapaGlobal.length > 0 && (
+          <div className="mb-6 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <MapPin className="w-4 h-4 text-red-600" />
+              <h2 className="font-bold text-slate-800">Mapa de obras — toda la plataforma</h2>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              {mapaGlobal.length} obra{mapaGlobal.length === 1 ? "" : "s"} activa{mapaGlobal.length === 1 ? "" : "s"} con ubicación, de todas las constructoras y cuentas.
+            </p>
+            <MapaProyectos proyectos={mapaGlobal} hrefBase="/super-admin/proyectos" />
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-5">

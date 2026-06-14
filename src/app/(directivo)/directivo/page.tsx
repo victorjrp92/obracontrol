@@ -1,16 +1,18 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getUsuarioActual } from "@/lib/data";
+import { getUsuarioActual, getProyectosMapa } from "@/lib/data";
 import { getDirectivoStats, getProyectosResumen } from "@/lib/data-directivo";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import ProgressBar from "@/components/dashboard/ProgressBar";
+import MapaProyectos from "@/components/mapa/MapaProyectos";
 import {
   FolderOpen,
   TrendingUp,
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
+  MapPin,
 } from "lucide-react";
 
 const semaforoMap: Record<string, string> = {
@@ -27,9 +29,10 @@ export default async function DirectivoDashboardPage() {
 
   const cid = usuario.constructora_id;
 
-  const [stats, proyectos] = await Promise.all([
+  const [stats, proyectos, mapa] = await Promise.all([
     getDirectivoStats(cid),
     getProyectosResumen(cid),
+    getProyectosMapa(cid),
   ]);
 
   const statCards = [
@@ -79,6 +82,30 @@ export default async function DirectivoDashboardPage() {
             <StatCard key={s.label} {...s} />
           ))}
         </div>
+
+        {/* Banner: proyectos sin ubicación */}
+        {mapa.sinUbicacion.length > 0 && (
+          <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
+            <MapPin className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="text-sm text-amber-800">
+              <span className="font-semibold">
+                {mapa.sinUbicacion.length} proyecto{mapa.sinUbicacion.length === 1 ? "" : "s"} sin ubicación
+              </span>{" "}
+              — el administrador puede agregarla al editar el proyecto.
+            </div>
+          </div>
+        )}
+
+        {/* Mapa de obras */}
+        {mapa.conUbicacion.length > 0 && (
+          <div className="mb-6 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <h2 className="font-bold text-slate-800">Mapa de obras</h2>
+            </div>
+            <MapaProyectos proyectos={mapa.conUbicacion} hrefBase="/directivo/proyecto" />
+          </div>
+        )}
 
         {/* Project list */}
         <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-6">
