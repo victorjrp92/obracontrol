@@ -6,7 +6,7 @@ import { esCuentaPersonal } from "@/lib/plan";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
@@ -310,6 +310,18 @@ export default async function ProyectoDetallePage({
           <ArrowLeft className="w-4 h-4" />
           Volver a proyectos
         </Link>
+
+        {/* Gastos y materiales — visible para todos los que ven la obra
+            (el dueño aprueba; el obrero/contratista registra). */}
+        <div className="mb-4">
+          <Link
+            href={`/dashboard/proyectos/${id}/gastos`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            Gastos y materiales
+          </Link>
+        </div>
 
         {/* Edit project + audit log (admin can edit, directivo can view log) */}
         {["ADMIN_GENERAL", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (

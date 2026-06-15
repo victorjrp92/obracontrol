@@ -55,6 +55,35 @@ export async function uploadEvidencia(
   return path;
 }
 
+/**
+ * Sube la foto de una FACTURA (módulo de gastos). Reusa el bucket "evidencias"
+ * con un prefijo `facturas/` y la misma estrategia service-role que las
+ * evidencias de tareas (el control de acceso lo hace la API). Devuelve solo el
+ * path — las signed URLs se generan al leer con getSignedEvidenciaUrl.
+ */
+export async function uploadFacturaFile(
+  file: File,
+  proyectoId: string,
+  userId: string,
+): Promise<string> {
+  const supabase = storageAdmin();
+
+  if (file.size > MAX_FOTO_SIZE) {
+    throw new Error("La foto no puede superar 10 MB");
+  }
+
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `facturas/${proyectoId}/${userId}/${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false });
+
+  if (error) throw new Error(`Error subiendo factura: ${error.message}`);
+
+  return path;
+}
+
 // Genera una signed URL temporal para visualizar una evidencia
 export async function getSignedEvidenciaUrl(path: string, expiresInSeconds = 3600): Promise<string> {
   const supabase = storageAdmin();

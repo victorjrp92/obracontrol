@@ -76,6 +76,11 @@ model Proyecto {
   fecha_inicio            DateTime?
   fecha_fin_estimada      DateTime?
   estado                  EstadoProyecto @default(ACTIVO)
+  // Contexto B2C + índice de negocio (telemetría interna)
+  tipo_obra               String?        // "REFORMA" | "MODIFICACION" | "OBRA_NUEVA"
+  tipo_propiedad          String?        // "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL"
+  ciudad                  String?        // índice de precios por región
+  presupuesto_total       Int?           // COP, opcional
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt
 
@@ -92,6 +97,8 @@ model Proyecto {
   contratista_default      Usuario?       @relation("ContratistaDefaultProyectos", fields: [contratista_default_id], references: [id], onDelete: SetNull)
   personas_externas        PersonaExternaProyecto[]
   reasignaciones           ReasignacionTarea[]
+  gastos                   Gasto[]
+  anticipos                Anticipo[]
 
   @@unique([constructora_id, numero_registro])
   @@index([contratista_default_id])
@@ -165,6 +172,7 @@ model Espacio {
 
   unidad     Unidad   @relation(fields: [unidad_id], references: [id], onDelete: Cascade)
   tareas     Tarea[]
+  gastos     Gasto[]
 
   @@map("espacios")
 }
@@ -227,6 +235,7 @@ model Tarea {
   extensiones_tiempo        ExtensionTiempo[]
   consumo_material          ConsumoMaterial?
   reasignaciones            ReasignacionTarea[]
+  gastos                    Gasto[]
 
   @@index([asignado_a])
   @@index([estado])
@@ -368,6 +377,62 @@ model ConsumoMaterial {
   @@map("consumo_materiales")
 }
 
+// ─── GASTOS Y MATERIALES (B2C) ───────────────────────────────────────────────
+
+enum EstadoGasto {
+  REGISTRADO // lo registró el obrero, espera aprobación
+  APROBADO   // el dueño lo aprobó
+  RECHAZADO
+}
+
+model Gasto {
+  id              String      @id @default(cuid())
+  proyecto_id     String
+  espacio_id      String?     // a qué espacio aplica (opcional)
+  tarea_id        String?     // a qué tarea aplica (opcional)
+  descripcion     String      // "Cerámica cocina"
+  monto           Int         // COP (total del gasto)
+  factura_url     String?     // foto de la factura (storage)
+  estado          EstadoGasto @default(REGISTRADO)
+  registrado_por  String
+  aprobado_por    String?
+  fecha           DateTime    @default(now())
+  // Nivel detallado (opcional, para el "profi"):
+  material        String?     // "Cemento gris 50kg"
+  cantidad        Float?
+  unidad          String?     // "saco", "m²", "bulto"
+  precio_unitario Int?
+  created_at      DateTime    @default(now())
+
+  proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  espacio     Espacio? @relation(fields: [espacio_id], references: [id], onDelete: SetNull)
+  tarea       Tarea?   @relation(fields: [tarea_id], references: [id], onDelete: SetNull)
+  registrador Usuario  @relation("GastosRegistrados", fields: [registrado_por], references: [id])
+  aprobador   Usuario? @relation("GastosAprobados", fields: [aprobado_por], references: [id])
+
+  @@index([proyecto_id])
+  @@index([estado])
+  @@map("gastos")
+}
+
+model Anticipo {
+  id             String   @id @default(cuid())
+  proyecto_id    String
+  monto          Int      // COP entregado
+  entregado_a    String?  // usuario (obrero/maestro) que recibió, opcional
+  nota           String?
+  fecha          DateTime @default(now())
+  registrado_por String
+  created_at     DateTime @default(now())
+
+  proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  receptor    Usuario? @relation("AnticiposRecibidos", fields: [entregado_a], references: [id])
+  registrador Usuario  @relation("AnticiposRegistrados", fields: [registrado_por], references: [id])
+
+  @@index([proyecto_id])
+  @@map("anticipos")
+}
+
 // ─── AUDIT LOG ──────────────────────────────────────────────────────────────
 
 model AuditLog {
@@ -420,6 +485,10 @@ model Usuario {
   reasignaciones_nuevo       ReasignacionTarea[]   @relation("ReasignacionNuevo")
   reasignaciones_realizadas  ReasignacionTarea[]   @relation("ReasignacionRealizada")
   pwa_eventos                PwaEvento[]
+  gastos_registrados         Gasto[]               @relation("GastosRegistrados")
+  gastos_aprobados           Gasto[]               @relation("GastosAprobados")
+  anticipos_recibidos        Anticipo[]            @relation("AnticiposRecibidos")
+  anticipos_registrados      Anticipo[]            @relation("AnticiposRegistrados")
 
   @@map("usuarios")
 }

@@ -10,7 +10,7 @@ import type { SubtipoProyecto } from "@/generated/prisma";
  */
 
 export type TipoObra = "REFORMA" | "MODIFICACION" | "OBRA_NUEVA";
-export type TipoPropiedad = "CASA" | "APARTAMENTO" | "LOCAL" | "OFICINA";
+export type TipoPropiedad = "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL";
 
 export const TIPOS_OBRA: { key: TipoObra; emoji: string; titulo: string; desc: string }[] = [
   { key: "REFORMA", emoji: "🔨", titulo: "Reformar algo que ya existe", desc: "Renovar, cambiar acabados, modernizar un espacio." },
@@ -18,11 +18,13 @@ export const TIPOS_OBRA: { key: TipoObra; emoji: string; titulo: string; desc: s
   { key: "OBRA_NUEVA", emoji: "✨", titulo: "Hacer algo nuevo desde cero", desc: "Construir o montar algo que no existe todavía." },
 ];
 
+// Orden: Casa · Apartamento · Edificio · Local. El campo `emoji` queda como
+// placeholder; el agente de frontend reemplaza por íconos SVG propios.
 export const TIPOS_PROPIEDAD: { key: TipoPropiedad; emoji: string; label: string }[] = [
-  { key: "APARTAMENTO", emoji: "🏢", label: "Apartamento" },
   { key: "CASA", emoji: "🏠", label: "Casa" },
+  { key: "APARTAMENTO", emoji: "🏢", label: "Apartamento" },
+  { key: "EDIFICIO", emoji: "🏬", label: "Edificio" },
   { key: "LOCAL", emoji: "🏪", label: "Local" },
-  { key: "OFICINA", emoji: "🏬", label: "Oficina" },
 ];
 
 /** Espacios que entiende un usuario normal, con su emoji y a qué plantilla mapean. */
@@ -89,7 +91,9 @@ export function sugerirTareas(espacioLabel: string, tipoObra: TipoObra): TareaSu
 
 /** Mapea el tipo de propiedad al subtipo del proyecto en el modelo real. */
 export function subtipoDesdePropiedad(tipo: TipoPropiedad): SubtipoProyecto {
-  return tipo === "APARTAMENTO" ? "APARTAMENTOS" : "CASAS";
+  // EDIFICIO y APARTAMENTO → APARTAMENTOS; CASA y LOCAL → CASAS.
+  if (tipo === "EDIFICIO" || tipo === "APARTAMENTO") return "APARTAMENTOS";
+  return "CASAS";
 }
 
 /** Etiqueta de la fase única de una obra personal según lo que se hace. */
