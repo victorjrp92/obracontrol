@@ -62,13 +62,7 @@ export function validateObreroBasico(input: ObreroBasicoInput): ObreroValidation
     errors.push({ field: "especialidad", message: "Selecciona una especialidad válida" });
   }
 
-  if (!input.eps || input.eps.trim().length < 2) {
-    errors.push({ field: "eps", message: "La EPS es obligatoria" });
-  }
-
-  if (!input.arl || input.arl.trim().length < 2) {
-    errors.push({ field: "arl", message: "La ARL es obligatoria" });
-  }
+  // EPS y ARL son OPCIONALES por ahora — no se validan como obligatorias.
 
   return errors;
 }

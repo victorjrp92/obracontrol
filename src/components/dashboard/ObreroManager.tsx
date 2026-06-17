@@ -408,9 +408,9 @@ export default function ObreroManager() {
                     ...ESPECIALIDADES.map((e) => ({ value: e, label: ESPECIALIDAD_LABEL[e] })),
                   ]}
                 />
-                <Input label="EPS *" value={form.eps}
+                <Input label="EPS (opcional)" value={form.eps}
                   onChange={(v) => setForm({ ...form, eps: v })} placeholder="Ej: SURA, SANITAS" />
-                <Input label="ARL *" value={form.arl}
+                <Input label="ARL (opcional)" value={form.arl}
                   onChange={(v) => setForm({ ...form, arl: v })} placeholder="Ej: SURA, POSITIVA" />
               </div>
             </div>
@@ -455,7 +455,7 @@ export default function ObreroManager() {
             <button
               onClick={handleSave}
               disabled={saving || !form.nombre.trim() || !form.cedula.trim() || !form.telefono.trim()
-                || !form.especialidad || !form.eps.trim() || !form.arl.trim()
+                || !form.especialidad
                 || !form.fecha_inicio || !form.fecha_expiracion}
               className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >

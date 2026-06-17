@@ -11,6 +11,16 @@ export interface ObreroTarea {
   diasRestantes: number;
   reportadaPor: string | null;
   fotoReferenciaUrl: string | null;
+  // Jerarquía para la vista en cascada (piso → espacio → tareas, etc.)
+  proyectoId: string;
+  proyectoNombre: string;
+  edificioId: string;
+  edificioNombre: string;
+  pisoNumero: number;
+  unidadId: string;
+  unidadNombre: string;
+  espacioId: string;
+  espacioNombre: string;
 }
 
 /**
@@ -79,15 +89,25 @@ export async function getObreroTareas(
         ? t.evidencias[0].obrero.nombre
         : null;
 
+    const edificio = t.espacio.unidad.piso.edificio;
     return {
       id: t.id,
       nombre: t.nombre,
-      ubicacion: `${t.espacio.unidad.piso.edificio.nombre} · Apto ${t.espacio.unidad.nombre}`,
+      ubicacion: `${edificio.nombre} · Apto ${t.espacio.unidad.nombre}`,
       estado: t.estado,
       semaforo,
       diasRestantes,
       reportadaPor,
       fotoReferenciaUrl: t.foto_referencia_url,
+      proyectoId: proyecto.id,
+      proyectoNombre: proyecto.nombre,
+      edificioId: edificio.id,
+      edificioNombre: edificio.nombre,
+      pisoNumero: t.espacio.unidad.piso.numero,
+      unidadId: t.espacio.unidad.id,
+      unidadNombre: t.espacio.unidad.nombre,
+      espacioId: t.espacio.id,
+      espacioNombre: t.espacio.nombre,
     };
   });
 
