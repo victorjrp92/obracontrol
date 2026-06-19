@@ -14,9 +14,12 @@
 // /api/sugerencias/tareas. Nunca lo importes desde un componente cliente.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { PRECIOS_SEMILLA } from "./precios-semilla";
+
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
 const TIMEOUT_MS = 15_000;
+const INT_CAP = 2_000_000_000;
 
 export interface TareaIA {
   nombre: string;
@@ -149,4 +152,87 @@ export async function sugerirTareasIA(args: {
     if (tareas.length) out[nombre] = tareas;
   }
   return Object.keys(out).length ? { ok: true, data: out } : { ok: false, motivo: "error" };
+}
+
+// ── Estimación de presupuesto con IA (anclada en la base semilla) ───────────
+
+export interface TareaPrecioInput {
+  i: number;
+  espacio: string;
+  tarea: string;
+  dias: number;
+  metraje?: number;
+}
+
+export type PreciosResult =
+  | { ok: true; data: Record<number, number> }
+  | { ok: false; motivo: "sin_key" | "error" };
+
+/** Resumen compacto de la base semilla para anclar a la IA (evita alucinar). */
+function anclasPrecios(): string {
+  return PRECIOS_SEMILLA.map((p) => {
+    const mat = p.incluyeMaterial === "no" ? " (solo mano de obra)" : p.incluyeMaterial === "si" ? " (a todo costo)" : "";
+    return `- ${p.label}: ~$${p.medianoCOP.toLocaleString("es-CO")} por ${p.unidad}${mat}`;
+  }).join("\n");
+}
+
+/**
+ * Estima el COSTO TOTAL realista (mano de obra + materiales típicos) en COP de
+ * cada tarea, ANCLADO en los precios de referencia de Colombia (base semilla).
+ * Correlación por índice. La base semilla evita que la IA alucine cifras; para
+ * tareas fuera de la lista usa su conocimiento del mercado colombiano.
+ */
+export async function estimarPreciosIA(args: {
+  tareas: TareaPrecioInput[];
+  tipoObra: string;
+  tipoPropiedad: string;
+  ciudad?: string | null;
+}): Promise<PreciosResult> {
+  if (!process.env.DEEPSEEK_API_KEY) return { ok: false, motivo: "sin_key" };
+  const tareas = args.tareas.slice(0, 200);
+  if (tareas.length === 0) return { ok: false, motivo: "error" };
+
+  const obra = LABEL_OBRA[args.tipoObra] || "obra de construcción";
+  const prop = LABEL_PROP[args.tipoPropiedad] || "propiedad";
+  const ciudad = args.ciudad ? ` en ${args.ciudad}, Colombia` : " en Colombia";
+
+  const lista = tareas.map((t) => ({
+    i: t.i,
+    espacio: t.espacio,
+    tarea: t.tarea,
+    dias: t.dias,
+    ...(t.metraje && t.metraje > 0 ? { m2: Math.round(t.metraje) } : {}),
+  }));
+
+  const system =
+    "Eres un maestro de obra colombiano experto en presupuestos de remodelación y construcción. " +
+    "Estimas el COSTO TOTAL realista en pesos colombianos (COP), incluyendo mano de obra Y materiales típicos. " +
+    "Te anclas en precios de referencia reales y respondes SOLO en JSON válido.";
+
+  const user =
+    `Obra: ${obra} de un ${prop}${ciudad}.\n` +
+    `Estima el COSTO TOTAL en COP de CADA tarea (mano de obra + materiales típicos instalados). ` +
+    `Considera el espacio y su área (m2) si se indica; si no hay área, asume un tamaño típico para ese espacio. ` +
+    `Sé realista con el mercado colombiano actual (p. ej. unos muebles de cocina o un clóset cuestan millones, no cientos de miles).\n\n` +
+    `Precios de referencia REALES de Colombia (úsalos como ancla; la mayoría son solo mano de obra, súmale materiales cuando aplique):\n` +
+    `${anclasPrecios()}\n\n` +
+    `Tareas: ${JSON.stringify(lista)}\n\n` +
+    `Responde SOLO con JSON, usando el MISMO índice "i": {"precios":[{"i":0,"precio":<entero COP, costo total de la tarea>}]}`;
+
+  const parsed = await chatJSON<{ precios?: { i?: number; precio?: unknown }[] }>({
+    system,
+    user,
+    maxTokens: 2500,
+  });
+  if (!parsed?.precios || !Array.isArray(parsed.precios)) return { ok: false, motivo: "error" };
+
+  const data: Record<number, number> = {};
+  for (const item of parsed.precios) {
+    const i = Number(item?.i);
+    const precio = Math.round(Number(item?.precio));
+    if (Number.isInteger(i) && Number.isFinite(precio) && precio >= 0) {
+      data[i] = Math.min(precio, INT_CAP);
+    }
+  }
+  return Object.keys(data).length ? { ok: true, data } : { ok: false, motivo: "error" };
 }

@@ -272,9 +272,11 @@ export default function IntentWizard({
   const [iaCargando, setIaCargando] = useState(false);
   // Fuente de las últimas sugerencias: "ia" | "sin_key" | "error" | null.
   const [iaFuente, setIaFuente] = useState<"ia" | "sin_key" | "error" | null>(null);
+  // Calculando presupuesto con IA al pulsar "Sugerir presupuesto".
+  const [presupuestoCargando, setPresupuestoCargando] = useState(false);
   // Resultado del último "Sugerir presupuesto" (para mostrar rango y cobertura).
   const [estimNota, setEstimNota] = useState<
-    { total: number; min: number; max: number; sinDato: number } | null
+    { total: number; min: number; max: number; sinDato: number; fuente: "ia" | "base" } | null
   >(null);
 
   const [enviando, setEnviando] = useState(false);
@@ -610,12 +612,10 @@ export default function IntentWizard({
   }
 
   /**
-   * "Sugerir presupuesto": estima costo por tarea/espacio con la base semilla
-   * de precios de referencia de Colombia (determinista, sin IA). Llena el total
-   * y los costos; el usuario ajusta lo que quiera. La capa DeepSeek (cuando esté
-   * la API key) afina el match tarea↔precio por encima de esto.
+   * Estimador DETERMINISTA (base semilla, solo mano de obra). Es el respaldo
+   * si la IA no está disponible. Aplica costos y devuelve el resultado.
    */
-  function sugerirPresupuesto() {
+  function sugerirPresupuestoDeterminista() {
     const espaciosEstim: EspacioEstim[] = todosEspacios.map((e) => ({
       id: e.id,
       nombre: e.nombre,
@@ -624,15 +624,12 @@ export default function IntentWizard({
     }));
     const res = estimarPresupuesto(espaciosEstim, {
       ciudad: ciudadDesde(ubicacion?.direccion),
-      // En modo "área de toda la obra" pasamos el total para que el estimador lo
-      // reparta entre los espacios (ponderado por área típica).
       areaTotal:
         modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
           ? metrajeTotal
           : undefined,
     });
     const porId = new Map(res.espacios.map((e) => [e.id, e]));
-
     const aplicar = (espacios: EspacioW[]): EspacioW[] =>
       espacios.map((e) => {
         const est = porId.get(e.id);
@@ -645,13 +642,99 @@ export default function IntentWizard({
         });
         return { ...e, costo: est.costo, tareas };
       });
+    if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
+    else setPisos((prev) => prev.map((p) => ({ ...p, espacios: aplicar(p.espacios) })));
+    setPresupuestoTotal(res.total);
+    setRepartoHecho(true);
+    setEstimNota({ total: res.total, min: res.min, max: res.max, sinDato: res.sinDato, fuente: "base" });
+  }
 
+  /**
+   * "Sugerir presupuesto": pide a DeepSeek el COSTO TOTAL (mano de obra +
+   * materiales) por tarea, ANCLADO en la base semilla de precios de Colombia.
+   * Si la IA no está disponible, cae al estimador determinista (solo M.O.).
+   */
+  async function sugerirPresupuesto() {
+    // Mapa índice global → (espacioId, posición de la tarea en el espacio).
+    const ref: { espacioId: string; taskIdx: number }[] = [];
+    const items: { i: number; espacio: string; tarea: string; dias: number; metraje?: number }[] = [];
+    todosEspacios.forEach((e) => {
+      e.tareas.forEach((t, idx) => {
+        if (!t.on) return;
+        const i = ref.length;
+        items.push({ i, espacio: e.nombre, tarea: t.nombre, dias: t.dias, metraje: e.metraje });
+        ref.push({ espacioId: e.id, taskIdx: idx });
+      });
+    });
+    if (items.length === 0) return;
+
+    setPresupuestoCargando(true);
+    let precios: Record<number, number> | null = null;
+    try {
+      const res = await fetch("/api/sugerencias/presupuesto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tareas: items,
+          tipoObra: tipoObraSafe,
+          tipoPropiedad,
+          ciudad: ciudadDesde(ubicacion?.direccion),
+        }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        precios = j?.precios ?? null;
+      }
+    } catch {
+      precios = null;
+    }
+
+    if (!precios) {
+      // Sin IA → respaldo determinista (base semilla, solo mano de obra).
+      sugerirPresupuestoDeterminista();
+      setPresupuestoCargando(false);
+      return;
+    }
+
+    // Aplica los precios de la IA por (espacioId, posición de tarea).
+    const clave = (eid: string, idx: number) => `${eid}:${idx}`;
+    const mp = new Map<string, number>();
+    let total = 0;
+    ref.forEach((r, i) => {
+      const p = precios![i];
+      if (typeof p === "number" && p >= 0) {
+        mp.set(clave(r.espacioId, r.taskIdx), p);
+        total += p;
+      }
+    });
+
+    const aplicar = (espacios: EspacioW[]): EspacioW[] =>
+      espacios.map((e) => {
+        let costo = 0;
+        const tareas = e.tareas.map((t, idx) => {
+          if (!t.on) return t;
+          const p = mp.get(clave(e.id, idx));
+          if (typeof p === "number") {
+            costo += p;
+            return { ...t, precio: p };
+          }
+          return t;
+        });
+        return { ...e, costo: costo || e.costo, tareas };
+      });
     if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
     else setPisos((prev) => prev.map((p) => ({ ...p, espacios: aplicar(p.espacios) })));
 
-    setPresupuestoTotal(res.total);
+    setPresupuestoTotal(total);
     setRepartoHecho(true);
-    setEstimNota({ total: res.total, min: res.min, max: res.max, sinDato: res.sinDato });
+    setEstimNota({
+      total,
+      min: Math.round(total * 0.8),
+      max: Math.round(total * 1.25),
+      sinDato: 0,
+      fuente: "ia",
+    });
+    setPresupuestoCargando(false);
   }
 
   function setCostoEspacio(id: string, costo?: number) {
@@ -1068,19 +1151,20 @@ export default function IntentWizard({
                 </span>
               </div>
             </div>
-            {/* Sugerir presupuesto con precios de referencia (determinista) */}
+            {/* Sugerir presupuesto: IA anclada en precios de referencia (con respaldo) */}
             <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={sugerirPresupuesto}
-                className="inline-flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm cursor-pointer"
+                disabled={presupuestoCargando}
+                className="inline-flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 disabled:opacity-60 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm cursor-pointer disabled:cursor-wait"
               >
-                <Sparkles className="w-4 h-4" />
-                Sugerir presupuesto
+                {presupuestoCargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {presupuestoCargando ? "Calculando presupuesto…" : "Sugerir presupuesto"}
               </button>
               <p className="text-xs text-slate-400">
-                ¿No sabes cuánto presupuestar? Calculamos un estimado con precios de referencia de Colombia.
-                Es un punto de partida: ajusta lo que quieras.
+                ¿No sabes cuánto presupuestar? Estimamos el costo (mano de obra + materiales) con precios de
+                referencia de Colombia. Es un punto de partida: ajusta lo que quieras.
               </p>
               {estimNota && (
                 <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-slate-600 leading-relaxed">
@@ -1088,14 +1172,16 @@ export default function IntentWizard({
                   <span className="text-slate-400">
                     (rango {fmtCOP(estimNota.min)} – {fmtCOP(estimNota.max)})
                   </span>
-                  {estimNota.sinDato > 0 && (
+                  {estimNota.fuente === "base" && (
                     <>
                       {" · "}
                       <span className="text-amber-600">
-                        {estimNota.sinDato} {estimNota.sinDato === 1 ? "tarea" : "tareas"} sin precio de
-                        referencia: revísalas a mano.
+                        estimado base (mano de obra). Conéctate para un estimado con materiales más preciso.
                       </span>
                     </>
+                  )}
+                  {estimNota.fuente === "ia" && (
+                    <span className="text-slate-400"> · incluye materiales. Ajusta lo que no cuadre.</span>
                   )}
                 </div>
               )}
