@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
   Info,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import type { TipoCuenta } from "@/generated/prisma";
@@ -267,6 +268,8 @@ export default function IntentWizard({
   // En edición arranca en true: los días/precios vienen de la obra guardada y no
   // queremos repartirlos automáticamente encima (el usuario puede re-sugerir).
   const [repartoHecho, setRepartoHecho] = useState(modo === "editar");
+  // Cargando sugerencias de tareas con IA (DeepSeek) al entrar a "¿qué falta?".
+  const [iaCargando, setIaCargando] = useState(false);
   // Resultado del último "Sugerir presupuesto" (para mostrar rango y cobertura).
   const [estimNota, setEstimNota] = useState<
     { total: number; min: number; max: number; sinDato: number } | null
@@ -327,40 +330,75 @@ export default function IntentWizard({
   }, [paso, tipoObra, puntoPartida, tipoPropiedad, nombreObra, todosEspacios]);
 
   // Carga sugerencias de tareas para los espacios que aún no las tienen.
-  const cargarTareas = useCallback(
-    (espacios: EspacioW[]) => {
-      // Todas pre-marcadas como pendientes ("on"); el usuario apaga lo ya hecho.
-      // En obra nueva (puntoPartida === "NUEVA") típicamente todo queda activo.
-      for (const esp of espacios) {
-        if (esp.cargado) continue;
-        esp.tareas = sugerirTareas(esp.nombre, tipoObraSafe).map((t) => ({
-          nombre: t.nombre,
-          dias: t.tiempo_acordado_dias,
-          on: true,
-        }));
-        esp.cargado = true;
-      }
-    },
+  // Tareas estáticas (fallback determinista) para un espacio.
+  const tareasEstaticas = useCallback(
+    (nombre: string): TareaW[] =>
+      sugerirTareas(nombre, tipoObraSafe).map((t) => ({
+        nombre: t.nombre,
+        dias: t.tiempo_acordado_dias,
+        on: true,
+      })),
     [tipoObraSafe],
   );
 
+  /**
+   * Carga las tareas sugeridas al entrar a "¿qué falta?". Intenta primero la IA
+   * (DeepSeek vía /api/sugerencias/tareas) para que las sugerencias sean
+   * RELEVANTES a cada espacio; si la IA no está disponible o falla, cae a las
+   * plantillas estáticas. Solo carga espacios que aún no estén `cargado` (no
+   * pisa lo que el usuario ya ajustó si vuelve atrás, ni la obra en edición).
+   */
+  async function cargarTareasParaQFalta() {
+    if (esEdicion) return; // en edición las tareas vienen de la obra
+    const pendientes = todosEspacios.filter((e) => !e.cargado);
+    if (pendientes.length === 0) return;
+
+    const nombres = Array.from(
+      new Set(pendientes.map((e) => e.nombre.trim()).filter(Boolean)),
+    );
+
+    setIaCargando(true);
+    let mapa: Record<string, { nombre: string; dias: number }[]> | null = null;
+    try {
+      const res = await fetch("/api/sugerencias/tareas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          espacios: nombres,
+          tipoObra: tipoObraSafe,
+          tipoPropiedad,
+          ciudad: ciudadDesde(ubicacion?.direccion),
+        }),
+      });
+      if (res.ok) {
+        const j = await res.json();
+        mapa = j?.sugerencias ?? null;
+      }
+    } catch {
+      mapa = null; // sin IA → fallback estático
+    }
+
+    const aplicar = (espacios: EspacioW[]): EspacioW[] =>
+      espacios.map((e) => {
+        if (e.cargado) return e;
+        const ia = mapa?.[e.nombre.trim()];
+        const tareas: TareaW[] =
+          ia && ia.length
+            ? ia.map((t) => ({ nombre: t.nombre, dias: t.dias, on: true }))
+            : tareasEstaticas(e.nombre);
+        return { ...e, tareas, cargado: true };
+      });
+
+    if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
+    else setPisos((prev) => prev.map((p) => ({ espacios: aplicar(p.espacios) })));
+    setIaCargando(false);
+  }
+
   function avanzar() {
     setError("");
-    // Al entrar al paso "qué falta", prellenar tareas sugeridas.
+    // Al entrar al paso "qué falta", prellenar tareas sugeridas (IA + fallback).
     if (paso === 3) {
-      if (esEdificio) {
-        setTipos((prev) => {
-          const next = prev.map((t) => ({ ...t, espacios: t.espacios.map((e) => ({ ...e })) }));
-          next.forEach((t) => cargarTareas(t.espacios));
-          return next;
-        });
-      } else {
-        setPisos((prev) => {
-          const next = prev.map((p) => ({ espacios: p.espacios.map((e) => ({ ...e })) }));
-          next.forEach((p) => cargarTareas(p.espacios));
-          return next;
-        });
-      }
+      void cargarTareasParaQFalta();
     }
     // Al entrar a costos, repartir presupuesto + días — solo la primera vez,
     // para no borrar lo que el usuario haya ajustado a mano si vuelve atrás.
@@ -489,6 +527,13 @@ export default function IntentWizard({
     mutarEspacioPorId(espId, (e) => ({
       ...e,
       tareas: [...e.tareas, { nombre: v, dias: 1, on: true }],
+    }));
+  }
+  // Elimina del todo una tarea sugerida que no aplica (no solo la desmarca).
+  function eliminarTarea(espId: string, idx: number) {
+    mutarEspacioPorId(espId, (e) => ({
+      ...e,
+      tareas: e.tareas.filter((_, i) => i !== idx),
     }));
   }
   function cambiarDiasTarea(espId: string, idx: number, dias: number) {
@@ -955,21 +1000,30 @@ export default function IntentWizard({
                 </button>
               </div>
             )}
-            {grupos.map((g, gi) => (
-              <div key={gi} className="flex flex-col gap-3">
-                {g.titulo && <GrupoTitulo titulo={g.titulo} />}
-                {g.espacios.map((esp) => (
-                  <EspacioTareas
-                    key={esp.id}
-                    espacio={esp}
-                    primeraVez={ayudaQFalta}
-                    onToggle={(idx) => toggleTarea(esp.id, idx)}
-                    onDias={(idx, d) => cambiarDiasTarea(esp.id, idx, d)}
-                    onAgregar={(n) => agregarTareaManual(esp.id, n)}
-                  />
-                ))}
+            {iaCargando ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 flex flex-col items-center text-center gap-3">
+                <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+                <p className="text-sm font-medium text-slate-700">Generando sugerencias para tus espacios…</p>
+                <p className="text-xs text-slate-400">Analizamos cada espacio para proponerte solo las tareas que aplican.</p>
               </div>
-            ))}
+            ) : (
+              grupos.map((g, gi) => (
+                <div key={gi} className="flex flex-col gap-3">
+                  {g.titulo && <GrupoTitulo titulo={g.titulo} />}
+                  {g.espacios.map((esp) => (
+                    <EspacioTareas
+                      key={esp.id}
+                      espacio={esp}
+                      primeraVez={ayudaQFalta}
+                      onToggle={(idx) => toggleTarea(esp.id, idx)}
+                      onDias={(idx, d) => cambiarDiasTarea(esp.id, idx, d)}
+                      onAgregar={(n) => agregarTareaManual(esp.id, n)}
+                      onEliminar={(idx) => eliminarTarea(esp.id, idx)}
+                    />
+                  ))}
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -1600,12 +1654,14 @@ function EspacioTareas({
   onToggle,
   onDias,
   onAgregar,
+  onEliminar,
 }: {
   espacio: EspacioW;
   primeraVez: boolean;
   onToggle: (idx: number) => void;
   onDias: (idx: number, d: number) => void;
   onAgregar: (nombre: string) => void;
+  onEliminar: (idx: number) => void;
 }) {
   const [nueva, setNueva] = useState("");
   return (
@@ -1663,6 +1719,15 @@ function EspacioTareas({
               />
               <span className="text-[11px] text-slate-400">días</span>
             </div>
+            <button
+              type="button"
+              onClick={() => onEliminar(idx)}
+              aria-label={`Eliminar ${t.nombre}`}
+              title="Eliminar esta tarea (no aplica)"
+              className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         ))}
         <div className="flex gap-2 px-2 py-2">
