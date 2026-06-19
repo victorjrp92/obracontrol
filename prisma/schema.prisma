@@ -81,6 +81,7 @@ model Proyecto {
   tipo_propiedad          String?        // "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL"
   ciudad                  String?        // índice de precios por región
   presupuesto_total       Int?           // COP, opcional
+  metraje_total           Float?         // m² de toda la obra (alternativa a metraje por espacio)
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt
 
@@ -853,5 +854,27 @@ model TareaAprendida {
 
   @@unique([constructora_id, fase, espacio, nombre])
   @@map("tareas_aprendidas")
+}
+
+// ─── REGISTRO DE PRECIOS (flywheel, sin IA) ──────────────────────────────────
+// Cada vez que una obra fija/edita un precio de tarea, dejamos un rastro aquí.
+// La capa de sugerencias (precios-mercado.ts) lee de aquí una mediana/promedio
+// ponderado por `peso` (confianza por fuente). NO se conecta a la UI todavía.
+// `proyecto_id`/`constructora_id` quedan como campos sueltos (sin relación) a
+// propósito: simplifica la captura pasiva y el borrado no debe cascar nada.
+model RegistroPrecio {
+  id                String   @id @default(cuid())
+  tarea_normalizada String   // misma normalización que buscarPrecioSemilla
+  ciudad            String?
+  tipo_obra         String?
+  precio            Int      // COP, por la unidad de la tarea
+  fuente            String   // "semilla" | "sugerido" | "editado" | "factura" | "pago_confirmado"
+  peso              Float    @default(1) // confianza: pago_confirmado>factura>editado>sugerido>semilla
+  constructora_id   String?  // para poder filtrar/aislar; null = global
+  proyecto_id       String?
+  created_at        DateTime @default(now())
+
+  @@index([tarea_normalizada, ciudad])
+  @@map("registros_precio")
 }
 

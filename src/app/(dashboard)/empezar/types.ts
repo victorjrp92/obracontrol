@@ -79,6 +79,8 @@ export interface CrearObraInput {
   ubicacionLng?: number | null;
   ciudad?: string;
   presupuestoTotal?: number;
+  /** m² de toda la obra (alternativa a metraje por espacio). */
+  metrajeTotal?: number;
 }
 
 export type CrearObraResult =

@@ -348,6 +348,15 @@ export default async function ProyectoDetallePage({
                   Edición completa (fases, tipos, tareas)
                 </Link>
               )}
+              {usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && personal && (
+                <Link
+                  href={`/dashboard/proyectos/${id}/editar`}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                  Editar obra (espacios, tareas y costos)
+                </Link>
+              )}
               <Link
                 href={`/dashboard/proyectos/${id}/equipo`}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-violet-600 bg-white border border-violet-200 hover:border-violet-300 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors"

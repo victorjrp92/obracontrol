@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -14,6 +14,8 @@ import {
   ChevronDown,
   Loader2,
   ShieldCheck,
+  Sparkles,
+  Info,
   type LucideIcon,
 } from "lucide-react";
 import type { TipoCuenta } from "@/generated/prisma";
@@ -32,13 +34,34 @@ import {
   ICONO_TIPO_OBRA,
   ICONO_PROPIEDAD,
 } from "@/components/personal/icons";
-import { crearObraPersonal } from "./actions";
-import type { CrearObraInput } from "./types";
+import { crearObraPersonal, editarObraPersonal, type ObraParaEditar } from "./actions";
+import { estimarPresupuesto, type EspacioEstim } from "@/lib/estimar-presupuesto";
+import type { CrearObraInput, EspacioInput } from "./types";
 
 // ─── Modelo interno del wizard ────────────────────────────────────────────────
 
 let _uid = 0;
 const nuevoId = () => `e${++_uid}`;
+
+/**
+ * Convierte los espacios precargados (modo edición) al modelo interno del wizard.
+ * Marca `cargado: true` para que no se re-sugieran plantillas encima y asigna un
+ * `id` fresco a cada espacio. Todas las tareas que vienen de la DB están activas.
+ */
+function espaciosDesdeInput(espacios: EspacioInput[] | undefined): EspacioW[] {
+  return (espacios ?? []).map((e) => ({
+    id: nuevoId(),
+    nombre: e.nombre,
+    metraje: e.metraje,
+    cargado: true,
+    tareas: (e.tareas ?? []).map((t) => ({
+      nombre: t.nombre,
+      dias: t.tiempo_acordado_dias,
+      on: t.activa,
+      precio: t.precio,
+    })),
+  }));
+}
 
 interface TareaW {
   nombre: string;
@@ -74,9 +97,9 @@ interface TipoAptoW {
 type PuntoPartida = "NUEVA" | "MEDIAS" | "AVANZADA";
 
 const PUNTOS_PARTIDA: { key: PuntoPartida; titulo: string; desc: string }[] = [
-  { key: "NUEVA", titulo: "Apenas arranca", desc: "Todavía no se ha hecho nada." },
-  { key: "MEDIAS", titulo: "Va a medias", desc: "Hay cosas hechas y cosas pendientes." },
-  { key: "AVANZADA", titulo: "Va avanzada", desc: "Falta poco para terminar." },
+  { key: "NUEVA", titulo: "Aún no ha iniciado", desc: "Todavía no se ha ejecutado ninguna tarea." },
+  { key: "MEDIAS", titulo: "En proceso", desc: "Hay trabajos terminados y otros pendientes." },
+  { key: "AVANZADA", titulo: "Próxima a finalizar", desc: "Falta poco para completarla." },
 ];
 
 // Espacios "singulares" que se prenden/apagan con toggle (uno por piso).
@@ -85,6 +108,10 @@ const ESPACIOS_TOGGLE = ESPACIOS_PERSONAL.filter(
 );
 
 const TOTAL_PASOS = 6; // pasos 1..6 (índices 0..5) + pantalla final (índice 6)
+
+// Bandera de "primera vez" para el mensaje guía del paso "¿Qué te falta?".
+// Si ya está en localStorage, no mostramos los mensajes contextuales.
+const LS_QFALTA_VISTO = "seiricon_b2c_qfalta_visto";
 
 // ─── Helpers de costos / días ─────────────────────────────────────────────────
 
@@ -131,47 +158,142 @@ export default function IntentWizard({
   tipoCuenta,
   nombreUsuario,
   tituloInicial,
+  modo = "crear",
+  initial,
 }: {
   tipoCuenta: TipoCuenta;
   nombreUsuario: string;
   tituloInicial: string;
   subtituloInicial: string;
+  /** "crear" (default) o "editar" una obra personal ya existente. */
+  modo?: "crear" | "editar";
+  /** Obra precargada para el modo edición (forma del wizard + proyectoId/estado). */
+  initial?: ObraParaEditar;
 }) {
   const router = useRouter();
   const esArquitecto = tipoCuenta === "ARQUITECTO";
+  const esEdicion = modo === "editar" && !!initial;
   const primerNombre = nombreUsuario.split(" ")[0];
 
+  // En edición arrancamos en el primer paso ya con todo precargado.
   const [paso, setPaso] = useState(0);
 
   // Paso 1
-  const [tipoObra, setTipoObra] = useState<TipoObra | null>(null);
-  const [puntoPartida, setPuntoPartida] = useState<PuntoPartida | null>(null);
+  const [tipoObra, setTipoObra] = useState<TipoObra | null>(initial?.tipoObra ?? null);
+  // `puntoPartida` no se persiste en la obra: en modo edición arrancamos con un
+  // default seguro ("MEDIAS" = en proceso) para no bloquear el paso 0 (que exige
+  // un valor no-nulo para avanzar). En creación arranca en null como siempre.
+  const [puntoPartida, setPuntoPartida] = useState<PuntoPartida | null>(
+    initial?.puntoPartida ?? (modo === "editar" ? "MEDIAS" : null),
+  );
 
   // Paso 2
-  const [tipoPropiedad, setTipoPropiedad] = useState<TipoPropiedad | null>(null);
-  const [nombreObra, setNombreObra] = useState("");
-  const [clienteNombre, setClienteNombre] = useState("");
+  const [tipoPropiedad, setTipoPropiedad] = useState<TipoPropiedad | null>(initial?.tipoPropiedad ?? null);
+  const [nombreObra, setNombreObra] = useState(initial?.nombreObra ?? "");
+  const [clienteNombre, setClienteNombre] = useState(initial?.clienteNombre ?? "");
 
   // Paso 3 — estructura (uno de los dos según tipo)
-  const [pisos, setPisos] = useState<PisoW[]>([{ espacios: [] }]);
-  const [edifNumPisos, setEdifNumPisos] = useState(4);
-  const [edifAptosPorPiso, setEdifAptosPorPiso] = useState(2);
-  const [edifUsaDireccion, setEdifUsaDireccion] = useState(false);
-  const [tipos, setTipos] = useState<TipoAptoW[]>([{ nombre: "Tipo A", espacios: [] }]);
+  const [pisos, setPisos] = useState<PisoW[]>(() =>
+    initial?.pisos?.length
+      ? initial.pisos.map((p) => ({ espacios: espaciosDesdeInput(p.espacios) }))
+      : [{ espacios: [] }],
+  );
+  const [edifNumPisos, setEdifNumPisos] = useState(initial?.edificio?.numPisos ?? 4);
+  const [edifAptosPorPiso, setEdifAptosPorPiso] = useState(initial?.edificio?.aptosPorPiso ?? 2);
+  const [edifUsaDireccion, setEdifUsaDireccion] = useState(initial?.edificio?.usaDireccion ?? false);
+  const [tipos, setTipos] = useState<TipoAptoW[]>(() =>
+    initial?.edificio?.tipos?.length
+      ? initial.edificio.tipos.map((t) => ({
+          nombre: t.nombre,
+          cantidadPorPiso: t.cantidadPorPiso,
+          espacios: espaciosDesdeInput(t.espacios),
+        }))
+      : [{ nombre: "Tipo A", espacios: [] }],
+  );
+
+  // Paso 3 — área de la obra. Dos modos:
+  //   "total"   → un solo input de m² de toda la obra (→ metrajeTotal).
+  //   "espacio" → m² por espacio (campos individuales, como siempre).
+  // Default: "total" para CASA/APARTAMENTO/LOCAL (el dueño suele saber el área
+  // total); "espacio" para EDIFICIO (más detallado, por tipo de apartamento).
+  const [modoMetraje, setModoMetraje] = useState<"total" | "espacio">(() => {
+    if (!initial) return "total";
+    // En edición: si la obra guardó metraje total → modo "total"; si hay metraje
+    // por espacio → "espacio"; si no hay nada, sigue la heurística del tipo.
+    if (initial.metrajeTotal != null && initial.metrajeTotal > 0) return "total";
+    const espacios =
+      initial.tipoPropiedad === "EDIFICIO"
+        ? (initial.edificio?.tipos ?? []).flatMap((t) => t.espacios ?? [])
+        : (initial.pisos ?? []).flatMap((p) => p.espacios ?? []);
+    if (espacios.some((e) => e.metraje != null && e.metraje > 0)) return "espacio";
+    return initial.tipoPropiedad === "EDIFICIO" ? "espacio" : "total";
+  });
+  // ¿El usuario tocó el toggle de área a mano? Si no, el default sigue al tipo.
+  // En edición lo marcamos como "tocado" para respetar el modo inferido del dato.
+  const [modoMetrajeTocado, setModoMetrajeTocado] = useState(modo === "editar");
+  const [metrajeTotal, setMetrajeTotal] = useState<number | "">(
+    initial?.metrajeTotal != null && initial.metrajeTotal > 0 ? initial.metrajeTotal : "",
+  );
+
+  // Al elegir el tipo de propiedad fijamos el modo de área recomendado (salvo que
+  // el usuario ya lo haya cambiado a mano): EDIFICIO → por espacio; resto → total.
+  function seleccionarPropiedad(p: TipoPropiedad) {
+    setTipoPropiedad(p);
+    if (!modoMetrajeTocado) setModoMetraje(p === "EDIFICIO" ? "espacio" : "total");
+  }
+  function cambiarModoMetraje(modo: "total" | "espacio") {
+    setModoMetrajeTocado(true);
+    setModoMetraje(modo);
+  }
 
   // Paso 4 — cuándo y dónde
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [ubicacion, setUbicacion] = useState<LocationValue | null>(null);
+  const [fechaInicio, setFechaInicio] = useState(initial?.fechaInicio ?? "");
+  const [fechaFin, setFechaFin] = useState(initial?.fechaFin ?? "");
+  const [ubicacion, setUbicacion] = useState<LocationValue | null>(() =>
+    initial?.ubicacionLat != null && initial?.ubicacionLng != null
+      ? {
+          lat: initial.ubicacionLat,
+          lng: initial.ubicacionLng,
+          ...(initial.ciudad ? { direccion: initial.ciudad } : {}),
+        }
+      : null,
+  );
 
   // Paso 6 — costos
-  const [presupuestoTotal, setPresupuestoTotal] = useState<number | "">("");
+  const [presupuestoTotal, setPresupuestoTotal] = useState<number | "">(
+    initial?.presupuestoTotal != null && initial.presupuestoTotal > 0 ? initial.presupuestoTotal : "",
+  );
   // Para no pisar ediciones manuales de costo/días al re-entrar al paso de costos.
-  const [repartoHecho, setRepartoHecho] = useState(false);
+  // En edición arranca en true: los días/precios vienen de la obra guardada y no
+  // queremos repartirlos automáticamente encima (el usuario puede re-sugerir).
+  const [repartoHecho, setRepartoHecho] = useState(modo === "editar");
+  // Resultado del último "Sugerir presupuesto" (para mostrar rango y cobertura).
+  const [estimNota, setEstimNota] = useState<
+    { total: number; min: number; max: number; sinDato: number } | null
+  >(null);
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [limiteAlcanzado, setLimiteAlcanzado] = useState(false);
+
+  // Paso "¿Qué te falta?": mensajes guía de primera vez (dismissibles).
+  // Por defecto false (SSR-safe); en cliente se activa solo si nunca se han visto.
+  const [ayudaQFalta, setAyudaQFalta] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(LS_QFALTA_VISTO)) setAyudaQFalta(true);
+    } catch {
+      // Sin acceso a localStorage (modo privado, etc.): no mostramos la guía.
+    }
+  }, []);
+  function descartarAyudaQFalta() {
+    setAyudaQFalta(false);
+    try {
+      localStorage.setItem(LS_QFALTA_VISTO, "1");
+    } catch {
+      // Ignorar: la guía simplemente reaparecería en una sesión futura.
+    }
+  }
 
   const esEdificio = tipoPropiedad === "EDIFICIO";
   const esApto = tipoPropiedad === "APARTAMENTO";
@@ -436,6 +558,51 @@ export default function IntentWizard({
     repartirGlobal();
   }
 
+  /**
+   * "Sugerir presupuesto": estima costo por tarea/espacio con la base semilla
+   * de precios de referencia de Colombia (determinista, sin IA). Llena el total
+   * y los costos; el usuario ajusta lo que quiera. La capa DeepSeek (cuando esté
+   * la API key) afina el match tarea↔precio por encima de esto.
+   */
+  function sugerirPresupuesto() {
+    const espaciosEstim: EspacioEstim[] = todosEspacios.map((e) => ({
+      id: e.id,
+      nombre: e.nombre,
+      metraje: e.metraje,
+      tareas: e.tareas.map((t) => ({ nombre: t.nombre, dias: t.dias, on: t.on })),
+    }));
+    const res = estimarPresupuesto(espaciosEstim, {
+      ciudad: ciudadDesde(ubicacion?.direccion),
+      // En modo "área de toda la obra" pasamos el total para que el estimador lo
+      // reparta entre los espacios (ponderado por área típica).
+      areaTotal:
+        modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
+          ? metrajeTotal
+          : undefined,
+    });
+    const porId = new Map(res.espacios.map((e) => [e.id, e]));
+
+    const aplicar = (espacios: EspacioW[]): EspacioW[] =>
+      espacios.map((e) => {
+        const est = porId.get(e.id);
+        if (!est) return e;
+        let k = 0;
+        const tareas = e.tareas.map((t) => {
+          if (!t.on) return t;
+          const et = est.tareas[k++];
+          return et ? { ...t, precio: et.costo } : t;
+        });
+        return { ...e, costo: est.costo, tareas };
+      });
+
+    if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
+    else setPisos((prev) => prev.map((p) => ({ ...p, espacios: aplicar(p.espacios) })));
+
+    setPresupuestoTotal(res.total);
+    setRepartoHecho(true);
+    setEstimNota({ total: res.total, min: res.min, max: res.max, sinDato: res.sinDato });
+  }
+
   function setCostoEspacio(id: string, costo?: number) {
     mutarEspacioPorId(id, (e) => ({ ...e, costo }));
   }
@@ -520,8 +687,16 @@ export default function IntentWizard({
       fechaFin: fechaFin || undefined,
       ubicacionLat: ubicacion?.lat ?? null,
       ubicacionLng: ubicacion?.lng ?? null,
-      ciudad: ciudadDesde(ubicacion?.direccion),
+      // La ciudad se deriva de la dirección del picker. En edición, si el picker
+      // no aporta dirección legible (p.ej. coords precargadas), conservamos la
+      // ciudad original para no borrarla al guardar.
+      ciudad: ciudadDesde(ubicacion?.direccion) ?? (esEdicion ? initial?.ciudad : undefined),
       presupuestoTotal: typeof presupuestoTotal === "number" && presupuestoTotal > 0 ? presupuestoTotal : undefined,
+      // m² de toda la obra: solo si el usuario eligió ese modo y dio un valor.
+      metrajeTotal:
+        modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
+          ? metrajeTotal
+          : undefined,
     };
 
     const input: CrearObraInput = esEdificio
@@ -543,7 +718,10 @@ export default function IntentWizard({
           pisos: pisos.map((p, i) => ({ numero: i + 1, espacios: mapEspacios(p.espacios) })),
         };
 
-    const res = await crearObraPersonal(input);
+    const res =
+      esEdicion && initial
+        ? await editarObraPersonal(initial.proyectoId, input)
+        : await crearObraPersonal(input);
     if (res.ok) {
       router.push(`/dashboard/proyectos/${res.proyectoId}`);
       return;
@@ -568,13 +746,21 @@ export default function IntentWizard({
         {/* Encabezado */}
         <div className="mb-6">
           <div className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-full px-3 py-1 mb-3">
-            <ShieldCheck className="w-3.5 h-3.5" /> Tu obra, bajo control
+            <ShieldCheck className="w-3.5 h-3.5" /> {esEdicion ? "Editando tu obra" : "Tu obra, bajo control"}
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            {paso === 0 ? `Hola ${primerNombre}` : titulosPaso[paso] ?? tituloInicial}
+            {paso === 0
+              ? esEdicion
+                ? `Editar ${initial?.nombreObra ?? "tu obra"}`
+                : `Hola ${primerNombre}`
+              : titulosPaso[paso] ?? tituloInicial}
           </h1>
           {paso === 0 && (
-            <p className="text-sm text-slate-500 mt-1">Vamos a armar tu obra en unos pasos. Tú mandas.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              {esEdicion
+                ? "Ajusta lo que necesites. Tus cambios se guardan al final."
+                : "Vamos a armar tu obra en unos pasos. Tú mandas."}
+            </p>
           )}
         </div>
 
@@ -651,7 +837,7 @@ export default function IntentWizard({
                     Icon={ICONO_PROPIEDAD[p.key]}
                     label={p.label}
                     activo={tipoPropiedad === p.key}
-                    onClick={() => setTipoPropiedad(p.key)}
+                    onClick={() => seleccionarPropiedad(p.key)}
                   />
                 ))}
               </div>
@@ -678,6 +864,13 @@ export default function IntentWizard({
         {/* ── Paso 3: Arma tu obra ──────────────────────────────────────── */}
         {paso === 2 && tipoPropiedad && (
           <div className="flex flex-col gap-4">
+            <AreaObra
+              modo={modoMetraje}
+              metrajeTotal={metrajeTotal}
+              recomendadoPorEspacio={esEdificio}
+              onModo={cambiarModoMetraje}
+              onMetrajeTotal={setMetrajeTotal}
+            />
             {esEdificio ? (
               <EdificioBuilder
                 numPisos={edifNumPisos}
@@ -694,6 +887,7 @@ export default function IntentWizard({
                   setTipos((prev) => prev.map((t, j) => (j === i ? { ...t, cantidadPorPiso: c } : t)))
                 }
                 espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar }}
+                mostrarMetraje={modoMetraje === "espacio"}
                 setEspaciosDeTipo={setEspaciosDeTipo}
               />
             ) : (
@@ -703,6 +897,7 @@ export default function IntentWizard({
                 onNumPisos={cambiarNumPisos}
                 onCopiar={copiarPisoAnterior}
                 espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar }}
+                mostrarMetraje={modoMetraje === "espacio"}
                 setEspaciosDePiso={setEspaciosDePiso}
               />
             )}
@@ -736,6 +931,30 @@ export default function IntentWizard({
               Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Apaga lo que ya está
               terminado. Solo lo que dejes prendido se trackea y exige foto.
             </p>
+            {/* Guía de primera vez (dismissible). Aparece solo si nunca se ha visto. */}
+            {ayudaQFalta && (
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 flex items-start gap-3">
+                <span className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Info className="w-4 h-4" />
+                </span>
+                <div className="flex-1 min-w-0 text-sm text-slate-600 leading-relaxed">
+                  <p className="font-semibold text-slate-800">¿Cómo armar cada espacio?</p>
+                  <p className="mt-0.5">
+                    Para cada espacio te proponemos las tareas usuales. Deja prendidas las que
+                    faltan por hacer, apaga las que ya están listas y, si hace falta, agrega las
+                    tuyas. Los días son una sugerencia: ajústalos a tu ritmo.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={descartarAyudaQFalta}
+                  aria-label="Entendido, cerrar ayuda"
+                  className="text-slate-400 hover:text-slate-600 p-1 flex-shrink-0 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
             {grupos.map((g, gi) => (
               <div key={gi} className="flex flex-col gap-3">
                 {g.titulo && <GrupoTitulo titulo={g.titulo} />}
@@ -743,6 +962,7 @@ export default function IntentWizard({
                   <EspacioTareas
                     key={esp.id}
                     espacio={esp}
+                    primeraVez={ayudaQFalta}
                     onToggle={(idx) => toggleTarea(esp.id, idx)}
                     onDias={(idx, d) => cambiarDiasTarea(esp.id, idx, d)}
                     onAgregar={(n) => agregarTareaManual(esp.id, n)}
@@ -778,6 +998,38 @@ export default function IntentWizard({
                 </span>
               </div>
             </div>
+            {/* Sugerir presupuesto con precios de referencia (determinista) */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={sugerirPresupuesto}
+                className="inline-flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                Sugerir presupuesto
+              </button>
+              <p className="text-xs text-slate-400">
+                ¿No sabes cuánto presupuestar? Calculamos un estimado con precios de referencia de Colombia.
+                Es un punto de partida: ajusta lo que quieras.
+              </p>
+              {estimNota && (
+                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-slate-600 leading-relaxed">
+                  Estimado: <strong className="text-slate-900">{fmtCOP(estimNota.total)}</strong>{" "}
+                  <span className="text-slate-400">
+                    (rango {fmtCOP(estimNota.min)} – {fmtCOP(estimNota.max)})
+                  </span>
+                  {estimNota.sinDato > 0 && (
+                    <>
+                      {" · "}
+                      <span className="text-amber-600">
+                        {estimNota.sinDato} {estimNota.sinDato === 1 ? "tarea" : "tareas"} sin precio de
+                        referencia: revísalas a mano.
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-400">
               Repartimos parejo entre espacios y, dentro de cada uno, según los días de cada tarea. Ajusta lo que
               quieras; los totales se recalculan solos.
@@ -809,7 +1061,9 @@ export default function IntentWizard({
             <div className="w-16 h-16 rounded-3xl bg-blue-600 text-white flex items-center justify-center">
               <ShieldCheck className="w-8 h-8" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-slate-900">¡Tu obra está lista!</h2>
+            <h2 className="text-xl font-bold text-slate-900">
+              {esEdicion ? "¡Cambios guardados!" : "¡Tu obra está lista!"}
+            </h2>
             <p className="text-sm text-slate-600 max-w-sm leading-relaxed">
               De ahora en adelante, <strong className="text-slate-900">nadie marca una tarea como hecha sin una foto
               que tú apruebes</strong>. Y cada peso de material queda con su factura.
@@ -857,7 +1111,13 @@ export default function IntentWizard({
               className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
             >
               {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {enviando ? "Creando tu obra…" : "Crear mi obra"}
+              {enviando
+                ? esEdicion
+                  ? "Guardando cambios…"
+                  : "Creando tu obra…"
+                : esEdicion
+                  ? "Guardar cambios"
+                  : "Crear mi obra"}
             </button>
           ) : null}
         </div>
@@ -891,12 +1151,96 @@ interface EspacioOps {
   contar: (e: EspacioW[], baseLabel: string) => number;
 }
 
+/**
+ * Selector del área de la obra. Dos modos:
+ *  - "total"   → un único campo de m² de toda la obra.
+ *  - "espacio" → metraje campo a campo en cada espacio (los inputs aparecen en
+ *                la lista de espacios; aquí solo se explica).
+ * El metraje es opcional en ambos casos: solo afina el estimado de presupuesto.
+ */
+function AreaObra({
+  modo,
+  metrajeTotal,
+  recomendadoPorEspacio,
+  onModo,
+  onMetrajeTotal,
+}: {
+  modo: "total" | "espacio";
+  metrajeTotal: number | "";
+  recomendadoPorEspacio: boolean;
+  onModo: (m: "total" | "espacio") => void;
+  onMetrajeTotal: (m: number | "") => void;
+}) {
+  const opciones: { key: "total" | "espacio"; label: string }[] = [
+    { key: "total", label: "Área de toda la obra" },
+    { key: "espacio", label: "Por espacio" },
+  ];
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3">
+      <div>
+        <p className="text-sm font-semibold text-slate-800">¿Cómo nos das el área?</p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Es opcional, pero nos ayuda a estimar mejor el presupuesto.
+        </p>
+      </div>
+      <div className="inline-flex rounded-xl border border-slate-200 p-0.5 bg-slate-50 self-start">
+        {opciones.map((o) => {
+          const activo = modo === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => onModo(o.key)}
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                activo ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {o.label}
+              {recomendadoPorEspacio === (o.key === "espacio") && (
+                <span className="ml-1.5 text-[10px] font-semibold text-blue-500">sugerido</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {modo === "total" ? (
+        <div>
+          <label className="text-sm font-medium text-slate-700">Área total de la obra (m²)</label>
+          <div className="flex items-center gap-2 mt-1.5">
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              value={metrajeTotal === "" ? "" : metrajeTotal}
+              onChange={(e) =>
+                onMetrajeTotal(e.target.value === "" ? "" : Math.max(0, parseFloat(e.target.value) || 0))
+              }
+              placeholder="Ej: 80"
+              className="w-32 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            />
+            <span className="text-sm text-slate-400">m²</span>
+          </div>
+          <p className="text-xs text-slate-400 mt-1.5">
+            Repartiremos esta área entre los espacios para estimar el presupuesto.
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">
+          Más abajo, en cada espacio, encontrarás un campo de m² para precisar su área.
+          Es ideal si conoces el detalle de cada ambiente.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function CasaBuilder({
   esApto,
   pisos,
   onNumPisos,
   onCopiar,
   espacioOps,
+  mostrarMetraje,
   setEspaciosDePiso,
 }: {
   esApto: boolean;
@@ -904,6 +1248,7 @@ function CasaBuilder({
   onNumPisos: (delta: number) => void;
   onCopiar: (idx: number) => void;
   espacioOps: EspacioOps;
+  mostrarMetraje: boolean;
   setEspaciosDePiso: (idx: number, fn: (e: EspacioW[]) => EspacioW[]) => void;
 }) {
   return (
@@ -927,6 +1272,7 @@ function CasaBuilder({
           puedeCopiar={idx > 0}
           onCopiar={() => onCopiar(idx)}
           espacioOps={espacioOps}
+          mostrarMetraje={mostrarMetraje}
           setEspacios={(fn) => setEspaciosDePiso(idx, fn)}
         />
       ))}
@@ -947,6 +1293,7 @@ function EdificioBuilder({
   onRenombrarTipo,
   onCantidadTipo,
   espacioOps,
+  mostrarMetraje,
   setEspaciosDeTipo,
 }: {
   numPisos: number;
@@ -961,6 +1308,7 @@ function EdificioBuilder({
   onRenombrarTipo: (i: number, n: string) => void;
   onCantidadTipo: (i: number, c?: number) => void;
   espacioOps: EspacioOps;
+  mostrarMetraje: boolean;
   setEspaciosDeTipo: (idx: number, fn: (e: EspacioW[]) => EspacioW[]) => void;
 }) {
   return (
@@ -1025,6 +1373,7 @@ function EdificioBuilder({
             <EspaciosEditor
               espacios={tipo.espacios}
               espacioOps={espacioOps}
+              mostrarMetraje={mostrarMetraje}
               setEspacios={(fn) => setEspaciosDeTipo(idx, fn)}
             />
           </div>
@@ -1048,6 +1397,7 @@ function PisoCard({
   puedeCopiar,
   onCopiar,
   espacioOps,
+  mostrarMetraje,
   setEspacios,
 }: {
   idx: number;
@@ -1056,6 +1406,7 @@ function PisoCard({
   puedeCopiar: boolean;
   onCopiar: () => void;
   espacioOps: EspacioOps;
+  mostrarMetraje: boolean;
   setEspacios: (fn: (e: EspacioW[]) => EspacioW[]) => void;
 }) {
   return (
@@ -1073,7 +1424,12 @@ function PisoCard({
         )}
       </div>
       <div className="p-4">
-        <EspaciosEditor espacios={espacios} espacioOps={espacioOps} setEspacios={setEspacios} />
+        <EspaciosEditor
+          espacios={espacios}
+          espacioOps={espacioOps}
+          mostrarMetraje={mostrarMetraje}
+          setEspacios={setEspacios}
+        />
       </div>
     </div>
   );
@@ -1083,10 +1439,12 @@ function PisoCard({
 function EspaciosEditor({
   espacios,
   espacioOps,
+  mostrarMetraje,
   setEspacios,
 }: {
   espacios: EspacioW[];
   espacioOps: EspacioOps;
+  mostrarMetraje: boolean;
   setEspacios: (fn: (e: EspacioW[]) => EspacioW[]) => void;
 }) {
   const nHab = espacioOps.contar(espacios, "Habitación");
@@ -1177,6 +1535,7 @@ function EspaciosEditor({
             <EspacioRow
               key={esp.id}
               espacio={esp}
+              mostrarMetraje={mostrarMetraje}
               onRename={(n) => setEspacios((e) => espacioOps.renombrarEspacio(e, esp.id, n))}
               onMetraje={(m) => setEspacios((e) => espacioOps.setMetraje(e, esp.id, m))}
               onRemove={() => setEspacios((e) => e.filter((x) => x.id !== esp.id))}
@@ -1190,11 +1549,13 @@ function EspaciosEditor({
 
 function EspacioRow({
   espacio,
+  mostrarMetraje,
   onRename,
   onMetraje,
   onRemove,
 }: {
   espacio: EspacioW;
+  mostrarMetraje: boolean;
   onRename: (n: string) => void;
   onMetraje: (m?: number) => void;
   onRemove: () => void;
@@ -1212,16 +1573,18 @@ function EspacioRow({
         />
         <Pencil className="w-3 h-3 text-slate-300 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <input
-          type="number"
-          min={0}
-          value={espacio.metraje ?? ""}
-          onChange={(e) => onMetraje(e.target.value === "" ? undefined : Math.max(0, parseFloat(e.target.value)))}
-          placeholder="m²"
-          className="w-14 text-center text-xs border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-      </div>
+      {mostrarMetraje && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <input
+            type="number"
+            min={0}
+            value={espacio.metraje ?? ""}
+            onChange={(e) => onMetraje(e.target.value === "" ? undefined : Math.max(0, parseFloat(e.target.value)))}
+            placeholder="m²"
+            className="w-14 text-center text-xs border border-slate-200 rounded-md py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+      )}
       <button type="button" onClick={onRemove} className="text-slate-300 hover:text-red-500 p-1 flex-shrink-0">
         <X className="w-3.5 h-3.5" />
       </button>
@@ -1233,11 +1596,13 @@ function EspacioRow({
 
 function EspacioTareas({
   espacio,
+  primeraVez,
   onToggle,
   onDias,
   onAgregar,
 }: {
   espacio: EspacioW;
+  primeraVez: boolean;
   onToggle: (idx: number) => void;
   onDias: (idx: number, d: number) => void;
   onAgregar: (nombre: string) => void;
@@ -1250,6 +1615,30 @@ function EspacioTareas({
           <EspacioGlyph nombre={espacio.nombre} size={15} />
         </span>
         {espacio.nombre}
+      </div>
+      {/* Mensaje contextual de primera vez para este espacio (no intrusivo). */}
+      {primeraVez && (
+        <p className="px-4 pt-2.5 -mb-1 text-[11px] text-slate-400 leading-relaxed">
+          Deja prendido lo que falta por hacer en {espacio.nombre.toLowerCase()} y ajusta los días.
+        </p>
+      )}
+      {/* Encabezados de columna */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="w-5 flex-shrink-0" aria-hidden />
+        <span className="flex-1">Tareas sugeridas</span>
+        <span className="flex items-center gap-1 flex-shrink-0">
+          <span
+            className="inline-flex items-center gap-1 cursor-help group relative"
+            title="Son los días que debería tardar cada tarea según lo usual. Ajústalos a tu caso."
+          >
+            Días sugeridos
+            <Info className="w-3 h-3 text-slate-300" />
+            {/* Tooltip en hover (touch usa el atributo title). */}
+            <span className="pointer-events-none absolute right-0 top-full mt-1.5 z-20 hidden group-hover:block w-52 rounded-lg bg-slate-800 text-white text-[11px] font-normal normal-case tracking-normal leading-snug px-3 py-2 shadow-lg">
+              Son los días que debería tardar cada tarea según lo usual. Ajústalos a tu caso.
+            </span>
+          </span>
+        </span>
       </div>
       <div className="p-2 flex flex-col">
         {espacio.tareas.map((t, idx) => (
@@ -1354,31 +1743,41 @@ function EspacioCosto({
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${espacio.expandido ? "rotate-180" : ""}`} />
       </button>
       {espacio.expandido && (
-        <div className="px-4 pb-3 flex flex-col gap-1.5 bg-slate-50/40">
+        <div className="px-4 pb-3 pt-1 flex flex-col gap-2 bg-slate-50/40">
+          {/* Encabezados de columna */}
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            <span className="flex-1">Tarea</span>
+            <span className="w-16 text-center">Días</span>
+            <span className="w-28 text-right">Precio (COP)</span>
+          </div>
           {activas.map(({ t, i }) => (
-            <div key={i} className="flex items-center gap-2 py-1">
+            <div key={i} className="flex items-center gap-2">
               <span className="flex-1 text-sm text-slate-700 truncate">{t.nombre}</span>
               <input
                 type="number"
                 min={1}
                 value={t.dias}
                 onChange={(e) => onDiasTarea(i, parseInt(e.target.value))}
-                className="w-12 text-center text-xs border border-slate-200 rounded-md py-1"
+                className="w-16 text-center text-sm border border-slate-200 rounded-md py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
-              <span className="text-[11px] text-slate-400">d</span>
-              <span className="text-slate-400 text-xs">$</span>
-              <input
-                inputMode="numeric"
-                value={t.precio ? t.precio.toLocaleString("es-CO") : ""}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, "");
-                  onPrecioTarea(i, v === "" ? undefined : parseInt(v));
-                }}
-                placeholder="auto"
-                className="w-24 px-2 py-1 rounded-md border border-slate-200 text-xs text-right"
-              />
+              <div className="relative w-28">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">$</span>
+                <input
+                  inputMode="numeric"
+                  value={t.precio ? t.precio.toLocaleString("es-CO") : ""}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "");
+                    onPrecioTarea(i, v === "" ? undefined : parseInt(v));
+                  }}
+                  placeholder="auto"
+                  className="w-full pl-5 pr-2 py-1.5 rounded-md border border-slate-200 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </div>
             </div>
           ))}
+          <p className="text-[11px] text-slate-400 pt-0.5">
+            Deja el precio en <strong>auto</strong> para repartir el costo del espacio entre sus tareas según los días.
+          </p>
         </div>
       )}
     </div>

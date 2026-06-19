@@ -129,6 +129,20 @@ export default async function DashboardPage() {
     (p) => p.ubicacion_lat == null || p.ubicacion_lng == null,
   );
 
+  // Mapa de obras:
+  //  - Constructoras (B2B): se muestra siempre que haya al menos una obra ubicada.
+  //  - Cuentas personales (B2C): solo a partir de 2 obras activas. Con una sola
+  //    obra, un mapa con un único punto no aporta y satura la vista; la ubicación
+  //    se sigue capturando en la creación (alimenta nuestra DB y el mapa global
+  //    del super admin), simplemente no se le muestra aquí.
+  const mostrarMapa = personal
+    ? stats.proyectosActivos >= 2 && proyectosMapa.length > 0
+    : proyectosMapa.length > 0;
+  // El banner "sin ubicación" invita a verlas en el mapa: solo tiene sentido si
+  // la cuenta va a ver el mapa (B2B siempre; personal solo con ≥2 obras activas).
+  const mostrarBannerSinUbicacion =
+    proyectosSinUbicacion.length > 0 && (!personal || stats.proyectosActivos >= 2);
+
   return (
     <>
       <Topbar
@@ -145,7 +159,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Banner: proyectos sin ubicación */}
-        {proyectosSinUbicacion.length > 0 && (
+        {mostrarBannerSinUbicacion && (
           <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 flex items-start gap-2">
             <MapPin className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-amber-800">
@@ -166,7 +180,7 @@ export default async function DashboardPage() {
         )}
 
         {/* Mapa de obras */}
-        {proyectosMapa.length > 0 && (
+        {mostrarMapa && (
           <div className="mb-6 bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <MapPin className="w-4 h-4 text-blue-600" />
