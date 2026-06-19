@@ -270,6 +270,8 @@ export default function IntentWizard({
   const [repartoHecho, setRepartoHecho] = useState(modo === "editar");
   // Cargando sugerencias de tareas con IA (DeepSeek) al entrar a "¿qué falta?".
   const [iaCargando, setIaCargando] = useState(false);
+  // Fuente de las últimas sugerencias: "ia" | "sin_key" | "error" | null.
+  const [iaFuente, setIaFuente] = useState<"ia" | "sin_key" | "error" | null>(null);
   // Resultado del último "Sugerir presupuesto" (para mostrar rango y cobertura).
   const [estimNota, setEstimNota] = useState<
     { total: number; min: number; max: number; sinDato: number } | null
@@ -373,9 +375,13 @@ export default function IntentWizard({
       if (res.ok) {
         const j = await res.json();
         mapa = j?.sugerencias ?? null;
+        setIaFuente(j?.fuente ?? "error");
+      } else {
+        setIaFuente("error");
       }
     } catch {
       mapa = null; // sin IA → fallback estático
+      setIaFuente("error");
     }
 
     const aplicar = (espacios: EspacioW[]): EspacioW[] =>
@@ -998,6 +1004,16 @@ export default function IntentWizard({
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+            )}
+            {/* Señal de fuente: si la IA no corrió, lo decimos (ayuda a diagnosticar). */}
+            {!iaCargando && iaFuente && iaFuente !== "ia" && (
+              <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500 flex items-center gap-2">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                <span>
+                  Mostrando sugerencias base. Las sugerencias inteligentes no están disponibles por ahora
+                  {iaFuente === "sin_key" ? " (falta configurar la conexión)" : ""}.
+                </span>
               </div>
             )}
             {iaCargando ? (

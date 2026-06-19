@@ -45,10 +45,14 @@ export async function POST(req: NextRequest) {
     const tipoPropiedad = typeof body.tipoPropiedad === "string" ? body.tipoPropiedad : "CASA";
     const ciudad = typeof body.ciudad === "string" ? body.ciudad.slice(0, 80) : null;
 
-    const sugerencias = await sugerirTareasIA({ espacios, tipoObra, tipoPropiedad, ciudad });
-    return NextResponse.json({ sugerencias: sugerencias ?? null });
+    const r = await sugerirTareasIA({ espacios, tipoObra, tipoPropiedad, ciudad });
+    if (r.ok) {
+      return NextResponse.json({ sugerencias: r.data, fuente: "ia" });
+    }
+    // motivo: "sin_key" (falta DEEPSEEK_API_KEY en el entorno) | "error"
+    return NextResponse.json({ sugerencias: null, fuente: r.motivo });
   } catch {
     // Nunca rompemos el flujo: el cliente usa el fallback estático.
-    return NextResponse.json({ sugerencias: null });
+    return NextResponse.json({ sugerencias: null, fuente: "error" });
   }
 }
