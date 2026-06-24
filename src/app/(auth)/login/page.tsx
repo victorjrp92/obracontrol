@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import { login, loginConGoogle } from "../actions";
 import AuthRightPanel from "@/components/auth/AuthRightPanel";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+import { getHomePathForRole } from "@/lib/access";
 
 interface Props {
   searchParams: Promise<{ error?: string }>;
@@ -9,6 +13,24 @@ interface Props {
 
 export default async function LoginPage({ searchParams }: Props) {
   const { error } = await searchParams;
+
+  // Si ya hay sesión, no mostramos el formulario: al panel según el rol.
+  // (destino dentro del try; redirect() fuera, ver nota en app/page.tsx)
+  let destino: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.email) {
+      const usuario = await prisma.usuario.findUnique({
+        where: { email: user.email },
+        include: { rol_ref: { select: { nivel_acceso: true } } },
+      });
+      destino = usuario ? getHomePathForRole(usuario.rol_ref.nivel_acceso) : "/dashboard";
+    }
+  } catch {
+    destino = null;
+  }
+  if (destino) redirect(destino);
 
   return (
     <div className="min-h-dvh flex">
