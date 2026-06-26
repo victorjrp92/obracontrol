@@ -33,8 +33,41 @@ model Constructora {
   obreros            Obrero[]
   tareas_aprendidas  TareaAprendida[]
   clientes           Cliente[]
+  perfil_onboarding  PerfilOnboarding?
 
   @@map("constructoras")
+}
+
+// ─── PERFIL ONBOARDING ───────────────────────────────────────────────────────
+// Respuestas del cuestionario post-registro (Fase 2). Una fila por cuenta
+// (la cuenta = constructora, incluidas las personales CONTRATISTA/PROPIETARIO).
+// Todos los campos de perfil son opcionales: cada perfil llena solo los suyos.
+
+model PerfilOnboarding {
+  id               String   @id @default(cuid())
+  constructora_id  String   @unique // 1 por cuenta (la cuenta = constructora, incl. personales)
+  tipo_cuenta      String // CONSTRUCTORA | CONTRATISTA | PROPIETARIO
+  // Contratista B2C
+  oficio           String?
+  tamano_equipo    String?
+  control_actual   String?
+  // Propietario
+  primera_obra      Boolean?
+  tiene_contratista String?
+  // Empresa
+  obras_activas    String?
+  tipo_obra        String?
+  num_contratistas String?
+  // Común
+  departamento     String?
+  ciudad           String?
+  completado       Boolean  @default(false)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  constructora     Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+
+  @@map("perfil_onboarding")
 }
 
 // ─── CLIENTE (empresa externa) ──────────────────────────────────────────────

@@ -78,7 +78,8 @@ export async function registro(formData: FormData) {
         // Guardamos el tipo de cuenta en metadata para que el callback de
         // confirmación por correo pueda re-provisionar correctamente.
         data: { nombre, tipo_cuenta: tipoCuenta, estudio_nombre: estudioNombre },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?next=/empezar`,
+        // Tras confirmar el correo, pasa por /onboarding (que luego sigue a /empezar).
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?next=/onboarding`,
       },
     });
 
@@ -97,7 +98,9 @@ export async function registro(formData: FormData) {
     // Si Supabase exige confirmar el correo, no hay sesión activa todavía:
     // llevamos a una pantalla que explica que revise su correo (no a /login).
     if (!data.session) redirect("/revisa-tu-correo");
-    redirect("/empezar");
+    // Cuenta recién creada con sesión: pasa por el onboarding antes de entrar.
+    // /onboarding decide el destino final (personal → /empezar).
+    redirect("/onboarding");
   }
 
   // ── Cuenta de EMPRESA (flujo actual) ──────────────────────────────────────
@@ -120,7 +123,8 @@ export async function registro(formData: FormData) {
     password,
     options: {
       data: { nombre, empresa },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback`,
+      // Tras confirmar el correo, pasa por /onboarding (que luego sigue a /dashboard).
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/callback?next=/onboarding`,
     },
   });
 
@@ -139,7 +143,9 @@ export async function registro(formData: FormData) {
 
   // Si Supabase exige confirmar el correo, aún no hay sesión: pantalla amable.
   if (!data.session) redirect("/revisa-tu-correo");
-  redirect("/dashboard");
+  // Cuenta de empresa recién creada con sesión: pasa por el onboarding antes
+  // de entrar. /onboarding decide el destino final (empresa → /dashboard).
+  redirect("/onboarding");
 }
 
 export async function loginConGoogle() {
