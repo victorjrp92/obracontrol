@@ -41,6 +41,45 @@ function metrajeValido(v: unknown): number | undefined {
   return Math.min(v, MAX_METRAJE);
 }
 
+/**
+ * Normaliza los 3 campos de presupuesto según el `modoPresupuesto` elegido,
+ * para persistirlos de forma consistente (los modos son mutuamente excluyentes):
+ *  - "separado" → guarda M.O. + materiales; total = su suma (para compatibilidad
+ *                 con lo que ya lee `presupuesto_total`). Limpia nada si vacío.
+ *  - "general"  → guarda solo total; limpia las dos bolsas separadas.
+ *  - "ninguno"/indefinido → todo null (sin presupuesto). Por retrocompat, si NO
+ *                 viene `modoPresupuesto` pero sí `presupuestoTotal`, se trata
+ *                 como "general".
+ */
+function normalizarPresupuesto(input: {
+  modoPresupuesto?: "ninguno" | "general" | "separado";
+  presupuestoTotal?: number;
+  presupuestoManoObra?: number;
+  presupuestoMateriales?: number;
+}): {
+  presupuestoTotal: number | null;
+  presupuestoManoObra: number | null;
+  presupuestoMateriales: number | null;
+} {
+  const modo = input.modoPresupuesto
+    ?? (typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0 ? "general" : "ninguno");
+
+  if (modo === "separado") {
+    const mo = precioValido(input.presupuestoManoObra);
+    const mat = precioValido(input.presupuestoMateriales);
+    const total = mo != null || mat != null
+      ? Math.min((mo ?? 0) + (mat ?? 0), INT_CAP)
+      : null;
+    return { presupuestoTotal: total, presupuestoManoObra: mo, presupuestoMateriales: mat };
+  }
+  if (modo === "general") {
+    const total = precioValido(input.presupuestoTotal);
+    return { presupuestoTotal: total, presupuestoManoObra: null, presupuestoMateriales: null };
+  }
+  // "ninguno"
+  return { presupuestoTotal: null, presupuestoManoObra: null, presupuestoMateriales: null };
+}
+
 /** Una fila de RegistroPrecio acumulada para captura pasiva (flush en batch). */
 interface PrecioCapturado {
   tarea_normalizada: string;
@@ -295,10 +334,8 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
   const fechaInicio = input.fechaInicio ? new Date(input.fechaInicio) : new Date();
   const fechaFin = input.fechaFin ? new Date(input.fechaFin) : null;
   const ciudad = input.ciudad?.trim().slice(0, 120) || null;
-  const presupuestoTotal =
-    typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0
-      ? Math.min(Math.round(input.presupuestoTotal), INT_CAP)
-      : null;
+  const { presupuestoTotal, presupuestoManoObra, presupuestoMateriales } =
+    normalizarPresupuesto(input);
   const metrajeTotal = metrajeValido(input.metrajeTotal);
 
   // Acumulador de precios para captura pasiva (se persiste FUERA de la tx).
@@ -333,6 +370,8 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
             tipo_propiedad: input.tipoPropiedad,
             ciudad,
             presupuesto_total: presupuestoTotal,
+            presupuesto_mano_obra: presupuestoManoObra,
+            presupuesto_materiales: presupuestoMateriales,
             ...(metrajeTotal != null ? { metraje_total: metrajeTotal } : {}),
           },
         });
@@ -568,6 +607,14 @@ export async function cargarObraParaEditar(
     ubicacionLng: proyecto.ubicacion_lng,
     ...(proyecto.ciudad ? { ciudad: proyecto.ciudad } : {}),
     ...(proyecto.presupuesto_total != null ? { presupuestoTotal: proyecto.presupuesto_total } : {}),
+    ...(proyecto.presupuesto_mano_obra != null ? { presupuestoManoObra: proyecto.presupuesto_mano_obra } : {}),
+    ...(proyecto.presupuesto_materiales != null ? { presupuestoMateriales: proyecto.presupuesto_materiales } : {}),
+    // Deriva el modo guardado para precargar el selector del wizard.
+    modoPresupuesto: (proyecto.presupuesto_mano_obra != null || proyecto.presupuesto_materiales != null
+      ? "separado"
+      : proyecto.presupuesto_total != null
+        ? "general"
+        : "ninguno") as CrearObraInput["modoPresupuesto"],
     ...(proyecto.metraje_total != null ? { metrajeTotal: proyecto.metraje_total } : {}),
   };
 
@@ -775,10 +822,8 @@ export async function editarObraPersonal(
   const fechaInicio = input.fechaInicio ? new Date(input.fechaInicio) : null;
   const fechaFin = input.fechaFin ? new Date(input.fechaFin) : null;
   const ciudad = input.ciudad?.trim().slice(0, 120) || null;
-  const presupuestoTotal =
-    typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0
-      ? Math.min(Math.round(input.presupuestoTotal), INT_CAP)
-      : null;
+  const { presupuestoTotal, presupuestoManoObra, presupuestoMateriales } =
+    normalizarPresupuesto(input);
   const metrajeTotal = metrajeValido(input.metrajeTotal);
 
   // Cliente (solo contratista B2C): upsert por nombre.
@@ -808,6 +853,8 @@ export async function editarObraPersonal(
     tipo_propiedad: input.tipoPropiedad,
     ciudad,
     presupuesto_total: presupuestoTotal,
+    presupuesto_mano_obra: presupuestoManoObra,
+    presupuesto_materiales: presupuestoMateriales,
     metraje_total: metrajeTotal ?? null,
   };
 

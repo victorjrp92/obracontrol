@@ -113,7 +113,9 @@ model Proyecto {
   tipo_obra               String?        // "REFORMA" | "MODIFICACION" | "OBRA_NUEVA"
   tipo_propiedad          String?        // "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL"
   ciudad                  String?        // índice de precios por región
-  presupuesto_total       Int?           // COP, opcional
+  presupuesto_total       Int?           // COP, opcional (modo "general" o sin presupuesto)
+  presupuesto_mano_obra   Int?           // COP, opcional (modo "separado": bolsa de mano de obra)
+  presupuesto_materiales  Int?           // COP, opcional (modo "separado": bolsa de materiales)
   metraje_total           Float?         // m² de toda la obra (alternativa a metraje por espacio)
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt

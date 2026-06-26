@@ -79,6 +79,17 @@ export interface CrearObraInput {
   ubicacionLng?: number | null;
   ciudad?: string;
   presupuestoTotal?: number;
+  /**
+   * Modo de presupuesto elegido por el usuario:
+   *  - "ninguno"  → sin presupuesto; la IA estima el costo total por tarea.
+   *  - "general"  → un único total (presupuestoTotal) repartido por peso real.
+   *  - "separado" → dos bolsas (presupuestoManoObra + presupuestoMateriales).
+   */
+  modoPresupuesto?: "ninguno" | "general" | "separado";
+  /** Modo "separado": bolsa de mano de obra (COP). */
+  presupuestoManoObra?: number;
+  /** Modo "separado": bolsa de materiales (COP). */
+  presupuestoMateriales?: number;
   /** m² de toda la obra (alternativa a metraje por espacio). */
   metrajeTotal?: number;
 }
