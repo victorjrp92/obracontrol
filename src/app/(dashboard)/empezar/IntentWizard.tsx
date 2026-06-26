@@ -372,6 +372,7 @@ export default function IntentWizard({
           tipoObra: tipoObraSafe,
           tipoPropiedad,
           ciudad: ciudadDesde(ubicacion?.direccion),
+          puntoPartida,
         }),
       });
       if (res.ok) {

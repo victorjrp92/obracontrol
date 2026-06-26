@@ -44,8 +44,9 @@ export async function POST(req: NextRequest) {
     const tipoObra = typeof body.tipoObra === "string" ? body.tipoObra : "REFORMA";
     const tipoPropiedad = typeof body.tipoPropiedad === "string" ? body.tipoPropiedad : "CASA";
     const ciudad = typeof body.ciudad === "string" ? body.ciudad.slice(0, 80) : null;
+    const puntoPartida = typeof body.puntoPartida === "string" ? body.puntoPartida : null;
 
-    const r = await sugerirTareasIA({ espacios, tipoObra, tipoPropiedad, ciudad });
+    const r = await sugerirTareasIA({ espacios, tipoObra, tipoPropiedad, ciudad, puntoPartida });
     if (r.ok) {
       return NextResponse.json({ sugerencias: r.data, fuente: "ia" });
     }

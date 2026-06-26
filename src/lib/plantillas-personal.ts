@@ -51,13 +51,13 @@ export interface TareaSugerida {
 /** Tareas genéricas por tipo de obra, para espacios sin plantilla específica. */
 function tareasGenericas(tipoObra: TipoObra): TareaSugerida[] {
   const base: TareaSugerida[] = [
-    { nombre: "Resane y estuco de paredes", tiempo_acordado_dias: 2 },
+    { nombre: "Resanar y alisar paredes", tiempo_acordado_dias: 2 },
     { nombre: "Pintura", tiempo_acordado_dias: 2 },
     { nombre: "Acabado de piso", tiempo_acordado_dias: 2 },
     { nombre: "Detalles finales y limpieza", tiempo_acordado_dias: 1 },
   ];
   if (tipoObra === "OBRA_NUEVA") {
-    return [{ nombre: "Obra gris / muros", tiempo_acordado_dias: 3 }, ...base];
+    return [{ nombre: "Levantar muros y obra gruesa", tiempo_acordado_dias: 3 }, ...base];
   }
   return base;
 }

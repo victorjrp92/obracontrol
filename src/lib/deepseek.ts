@@ -111,6 +111,8 @@ export async function sugerirTareasIA(args: {
   tipoObra: string;
   tipoPropiedad: string;
   ciudad?: string | null;
+  /** Estado de la obra: NUEVA | MEDIAS | AVANZADA. Filtra tareas por etapa. */
+  puntoPartida?: string | null;
 }): Promise<SugerenciasResult> {
   if (!process.env.DEEPSEEK_API_KEY) return { ok: false, motivo: "sin_key" };
 
@@ -124,18 +126,39 @@ export async function sugerirTareasIA(args: {
   const ciudad = args.ciudad ? ` en ${args.ciudad}, Colombia` : " en Colombia";
   const indexados = espacios.map((nombre, i) => ({ i, espacio: nombre }));
 
+  // Instrucción de etapa: solo tareas coherentes con cómo va la obra.
+  const ETAPA: Record<string, string> = {
+    NUEVA:
+      "La obra APENAS INICIA (no se ha hecho nada). Empieza por lo grueso: cimentación/obra gris, " +
+      "levantar paredes, instalaciones, y avanza hacia los acabados. Incluye todas las etapas que falten.",
+    MEDIAS:
+      "La obra está EN PROCESO (hay cosas hechas y cosas pendientes). Propón una mezcla razonable de " +
+      "tareas intermedias y de acabado; evita tareas de cimentación si ya no aplican.",
+    AVANZADA:
+      "La obra está PRÓXIMA A FINALIZAR (falta poco). Sugiere SOLO tareas de cierre y acabados: " +
+      "repello/resane de paredes, pintura, instalación de puertas, cocina y closets, enchapes, " +
+      "instalación de baños/grifería, detalles y aseo final. NO sugieras levantar paredes, estructura " +
+      "ni obra gris (eso ya está hecho).",
+  };
+  const etapa = args.puntoPartida && ETAPA[args.puntoPartida] ? `\n${ETAPA[args.puntoPartida]}\n` : "";
+
   const system =
     "Eres un maestro de obra colombiano con 20 años de experiencia en remodelaciones y construcción. " +
     "Conoces las tareas reales y su orden de ejecución para cada espacio o elemento de una obra. " +
-    "Respondes siempre en español neutro y formal, y SOLO en JSON válido.";
+    "Hablas claro: explicas las tareas en palabras que cualquier persona entiende, sin tecnicismos. " +
+    "Respondes siempre en español neutro, formal pero sencillo, y SOLO en JSON válido.";
 
   const user =
-    `Obra: ${obra} de un ${prop}${ciudad}.\n` +
-    `Para CADA espacio/elemento de la lista, indica ÚNICAMENTE las tareas de construcción que ` +
-    `realmente apliquen a ese espacio, en orden lógico de ejecución, con los días hábiles que suele ` +
-    `tomar cada tarea (entero >=1). NO incluyas tareas que no correspondan: por ejemplo, en "pisos" ` +
-    `no pongas tareas de pared/estuco/pintura de muros; en "techo" pon cielo raso/pintura de techo, no piso; ` +
-    `en "paredes" pon resane/estuco/pintura, no acabado de piso. Entre 3 y 8 tareas por espacio, nombres cortos.\n\n` +
+    `Obra: ${obra} de un ${prop}${ciudad}.${etapa}\n` +
+    `Para CADA espacio/elemento de la lista, indica ÚNICAMENTE las tareas que realmente apliquen a ese ` +
+    `espacio Y a la etapa de la obra, en orden lógico, con los días hábiles que suele tomar cada una ` +
+    `(entero >=1). NO incluyas tareas que no correspondan al espacio (en "pisos" no pongas tareas de pared; ` +
+    `en "techo" pon cielo raso/pintura de techo, no piso). Entre 3 y 8 tareas por espacio.\n\n` +
+    `MUY IMPORTANTE — usa nombres ENTENDIBLES para alguien sin conocimientos técnicos (formal pero llano). ` +
+    `Evita tecnicismos. Ejemplos: di "levantar paredes (ladrillo o bloque)" en vez de "mampostería"; ` +
+    `"repello/revoque de paredes" en vez de "pañete"; "instalar baldosa o cerámica" en vez de "enchape"; ` +
+    `"alisar y emparejar paredes" en vez de "estuco"; "puntos de luz y tomas" en vez de "salidas eléctricas". ` +
+    `Que cualquiera entienda qué se va a hacer.\n\n` +
     `Espacios (con índice): ${JSON.stringify(indexados)}\n\n` +
     `Responde SOLO con JSON de esta forma exacta, usando EL MISMO índice "i" que te di:\n` +
     `{"espacios":[{"i":0,"tareas":[{"nombre":"<tarea>","dias":<entero>}]}]}`;
