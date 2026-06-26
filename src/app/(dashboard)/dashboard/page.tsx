@@ -211,7 +211,7 @@ export default async function DashboardPage() {
                   href={personal ? "/empezar" : "/dashboard/proyectos/nuevo"}
                   className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {personal ? "Empezar mi obra" : "Crear primer proyecto"}
+                  {personal ? "Iniciar mi obra" : "Crear primer proyecto"}
                 </Link>
               </div>
             ) : (

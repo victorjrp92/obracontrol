@@ -154,7 +154,7 @@ export default function ReportarObrero({
       if (!res.ok) {
         // Si no hay red para marcar reportado, avisar al obrero
         if (typeof navigator !== "undefined" && !navigator.onLine) {
-          throw new Error("Sin conexión: las fotos quedaron guardadas. Reintenta cuando tengas señal.");
+          throw new Error("Sin conexión: las fotos quedaron guardadas. Vuelve a intentarlo cuando tengas señal.");
         }
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Error al reportar");
@@ -179,7 +179,7 @@ export default function ReportarObrero({
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-        <h2 className="text-xl font-bold text-green-700 mb-2">¡Enviado!</h2>
+        <h2 className="text-xl font-bold text-green-700 mb-2">Reporte enviado</h2>
         <p className="text-base text-slate-600">
           Tu contratista será notificado.
         </p>

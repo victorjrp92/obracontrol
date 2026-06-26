@@ -23,7 +23,7 @@ import { registro } from "../actions";
 const INPUT_CLS =
   "w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-900 placeholder:text-slate-400";
 
-type Perfil = "PROPIETARIO" | "ARQUITECTO" | "CONSTRUCTORA";
+type Perfil = "PROPIETARIO" | "CONTRATISTA" | "CONSTRUCTORA";
 
 const PERFILES: {
   key: Perfil;
@@ -35,22 +35,22 @@ const PERFILES: {
   {
     key: "PROPIETARIO",
     icon: Home,
-    titulo: "Estoy arreglando lo mío",
-    desc: "Remodelo o construyo mi propia casa/apartamento y contrato obreros que me reportan.",
+    titulo: "Gestiono mi propia obra",
+    desc: "Remodelo o construyo mi vivienda y superviso a los obreros que contrato.",
     acento: "text-emerald-600 bg-emerald-50 border-emerald-200",
   },
   {
-    key: "ARQUITECTO",
+    key: "CONTRATISTA",
     icon: Compass,
-    titulo: "Soy arquitecto independiente",
-    desc: "Llevo obras de mis clientes y trabajo con contratistas que me reportan para validar.",
+    titulo: "Soy contratista",
+    desc: "Eres arquitecto o tienes un negocio de pintura, instalación eléctrica, cocinas, carpintería… y envías a tu personal a ejecutar trabajos donde tus clientes.",
     acento: "text-blue-600 bg-blue-50 border-blue-200",
   },
   {
     key: "CONSTRUCTORA",
     icon: Building2,
-    titulo: "Somos una empresa",
-    desc: "Constructora con equipo, varios proyectos, contratistas y obreros.",
+    titulo: "Soy una empresa constructora",
+    desc: "Gestiono varios proyectos con equipo, contratistas y obreros.",
     acento: "text-slate-700 bg-slate-100 border-slate-200",
   },
 ];
@@ -67,7 +67,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [empresaTelefono, setEmpresaTelefono] = useState("");
   const [empresaSitioWeb, setEmpresaSitioWeb] = useState("");
 
-  // Personal (arquitecto)
+  // Personal (contratista B2C): nombre del negocio
   const [estudioNombre, setEstudioNombre] = useState("");
 
   // Cuenta (todos)
@@ -76,7 +76,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
 
-  const esPersonal = perfil === "PROPIETARIO" || perfil === "ARQUITECTO";
+  const esPersonal = perfil === "PROPIETARIO" || perfil === "CONTRATISTA";
   const canProceed1 = empresaNombre.trim().length >= 1;
 
   function elegirPerfil(p: Perfil) {
@@ -98,7 +98,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
       formData.set("empresa_ciudad", empresaCiudad);
       formData.set("empresa_telefono", empresaTelefono);
       formData.set("empresa_sitio_web", empresaSitioWeb);
-    } else if (perfil === "ARQUITECTO") {
+    } else if (perfil === "CONTRATISTA") {
       formData.set("estudio_nombre", estudioNombre);
     }
     await registro(formData);
@@ -109,8 +109,8 @@ export default function RegistroWizard({ error }: { error?: string }) {
     return (
       <>
         <div className="mb-6">
-          <h2 className="text-lg font-bold text-slate-900">¿Cómo vas a usar la app?</h2>
-          <p className="text-sm text-slate-500">Elige la opción que más se parece a ti. Esto adapta todo a tu medida.</p>
+          <h2 className="text-lg font-bold text-slate-900">¿Cómo usarás Seiricon?</h2>
+          <p className="text-sm text-slate-500">Selecciona el perfil que mejor te describe; adaptamos la plataforma a tu caso.</p>
         </div>
 
         {error && (
@@ -152,7 +152,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
     );
   }
 
-  // ── Flujo PERSONAL (propietario / arquitecto): un solo paso ────────────────
+  // ── Flujo PERSONAL (contratista B2C / propietario): un solo paso ───────────
   if (esPersonal) {
     return (
       <>
@@ -160,12 +160,12 @@ export default function RegistroWizard({ error }: { error?: string }) {
 
         <div className="mb-6">
           <h2 className="text-lg font-bold text-slate-900">
-            {perfil === "ARQUITECTO" ? "Crea tu cuenta de arquitecto" : "Crea tu cuenta"}
+            {perfil === "CONTRATISTA" ? "Crea tu cuenta de contratista" : "Crea tu cuenta"}
           </h2>
           <p className="text-sm text-slate-500">
-            {perfil === "ARQUITECTO"
-              ? "En un minuto estás dentro. Lo demás lo armamos juntos."
-              : "Solo lo básico. Tu primera obra la montamos apenas entres."}
+            {perfil === "CONTRATISTA"
+              ? "En unos minutos tendrás tu cuenta lista. El resto lo configuramos juntos."
+              : "Solo lo esencial. Tu primera obra la creamos en cuanto ingreses."}
           </p>
         </div>
 
@@ -178,12 +178,12 @@ export default function RegistroWizard({ error }: { error?: string }) {
         <form action={handleSubmit} className="flex flex-col gap-4">
           <Field id="name" name="name" label="Tu nombre" required icon={User} placeholder="Juan Pérez" value={nombre} onChange={setNombre} autoFocus />
 
-          {perfil === "ARQUITECTO" && (
+          {perfil === "CONTRATISTA" && (
             <Field
               id="estudio_nombre"
-              label="Nombre de tu estudio o taller"
-              icon={Compass}
-              placeholder="Estudio Pérez (opcional)"
+              label="Nombre del negocio"
+              icon={Building2}
+              placeholder="Pinturas Pérez (opcional)"
               value={estudioNombre}
               onChange={setEstudioNombre}
             />

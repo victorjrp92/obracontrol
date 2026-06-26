@@ -172,7 +172,7 @@ export default function IntentWizard({
   initial?: ObraParaEditar;
 }) {
   const router = useRouter();
-  const esArquitecto = tipoCuenta === "ARQUITECTO";
+  const esContratista = tipoCuenta === "CONTRATISTA";
   const esEdicion = modo === "editar" && !!initial;
   const primerNombre = nombreUsuario.split(" ")[0];
 
@@ -816,7 +816,7 @@ export default function IntentWizard({
       puntoPartida: puntoPartida ?? undefined,
       tipoPropiedad: tipoPropiedad!,
       nombreObra: nombreObra.trim(),
-      clienteNombre: esArquitecto ? clienteNombre.trim() || undefined : undefined,
+      clienteNombre: esContratista ? clienteNombre.trim() || undefined : undefined,
       fechaInicio: fechaInicio || undefined,
       fechaFin: fechaFin || undefined,
       ubicacionLat: ubicacion?.lat ?? null,
@@ -868,7 +868,7 @@ export default function IntentWizard({
   const titulosPaso = [
     "¿Qué vas a hacer y cómo va?",
     "¿Qué tipo de propiedad?",
-    "Arma tu obra",
+    "Configura tu obra",
     "¿Cuándo y dónde?",
     "¿Qué te falta por hacer?",
     "Costos",
@@ -893,7 +893,7 @@ export default function IntentWizard({
             <p className="text-sm text-slate-500 mt-1">
               {esEdicion
                 ? "Ajusta lo que necesites. Tus cambios se guardan al final."
-                : "Vamos a armar tu obra en unos pasos. Tú mandas."}
+                : "Configuraremos tu obra en unos pasos. Tú decides."}
             </p>
           )}
         </div>
@@ -977,7 +977,7 @@ export default function IntentWizard({
               </div>
             </div>
 
-            {esArquitecto && (
+            {esContratista && (
               <Campo
                 label="¿Para qué cliente? (opcional)"
                 placeholder="Ej: Familia Gómez"
@@ -987,8 +987,8 @@ export default function IntentWizard({
             )}
 
             <Campo
-              label="Ponle un nombre a la obra"
-              placeholder={esArquitecto ? "Ej: Remodelación apto Gómez" : "Ej: Remodelación de mi casa"}
+              label="Asígnale un nombre a la obra"
+              placeholder={esContratista ? "Ej: Remodelación apto Gómez" : "Ej: Remodelación de mi casa"}
               value={nombreObra}
               onChange={setNombreObra}
             />
@@ -1042,17 +1042,17 @@ export default function IntentWizard({
         {paso === 3 && (
           <div className="flex flex-col gap-5">
             <p className="text-sm text-slate-500">
-              Pon fechas estimadas y dónde queda. Todo es opcional y lo puedes cambiar después.
+              Indica las fechas estimadas y la ubicación. Todo es opcional y lo puedes cambiar después.
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <CampoFecha label="¿Cuándo arranca?" value={fechaInicio} onChange={setFechaInicio} />
-              <CampoFecha label="¿Cuándo crees que termina?" value={fechaFin} onChange={setFechaFin} min={fechaInicio} />
+              <CampoFecha label="¿Cuándo inicia?" value={fechaInicio} onChange={setFechaInicio} />
+              <CampoFecha label="¿Cuándo estimas que termina?" value={fechaFin} onChange={setFechaFin} min={fechaInicio} />
             </div>
             {plazoDias !== null && (
               <p className="text-xs text-blue-600 -mt-2">≈ {plazoDias} días hábiles de plazo.</p>
             )}
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">¿Dónde queda la obra?</p>
+              <p className="text-sm font-medium text-slate-700 mb-2">¿Dónde se ubica la obra?</p>
               <LocationPicker value={ubicacion} onChange={setUbicacion} />
             </div>
           </div>
@@ -1062,8 +1062,8 @@ export default function IntentWizard({
         {paso === 4 && (
           <div className="flex flex-col gap-5">
             <p className="text-sm text-slate-500">
-              Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Apaga lo que ya está
-              terminado. Solo lo que dejes prendido se trackea y exige foto.
+              Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Desactiva lo que ya está
+              terminado. Solo lo que dejes activo se hace seguimiento y requiere foto.
             </p>
             {/* Guía de primera vez (dismissible). Aparece solo si nunca se ha visto. */}
             {ayudaQFalta && (
@@ -1072,11 +1072,11 @@ export default function IntentWizard({
                   <Info className="w-4 h-4" />
                 </span>
                 <div className="flex-1 min-w-0 text-sm text-slate-600 leading-relaxed">
-                  <p className="font-semibold text-slate-800">¿Cómo armar cada espacio?</p>
+                  <p className="font-semibold text-slate-800">¿Cómo configurar cada espacio?</p>
                   <p className="mt-0.5">
-                    Para cada espacio te proponemos las tareas usuales. Deja prendidas las que
-                    faltan por hacer, apaga las que ya están listas y, si hace falta, agrega las
-                    tuyas. Los días son una sugerencia: ajústalos a tu ritmo.
+                    Para cada espacio te proponemos las tareas usuales. Deja activas las que
+                    faltan por hacer, desactiva las que ya están listas y, si hace falta, agrega
+                    las tuyas. Los días son una sugerencia: ajústalos a tu ritmo.
                   </p>
                 </div>
                 <button
@@ -1181,14 +1181,14 @@ export default function IntentWizard({
                     </>
                   )}
                   {estimNota.fuente === "ia" && (
-                    <span className="text-slate-400"> · incluye materiales. Ajusta lo que no cuadre.</span>
+                    <span className="text-slate-400"> · incluye materiales. Ajusta lo que no corresponda.</span>
                   )}
                 </div>
               )}
             </div>
             <p className="text-xs text-slate-400">
-              Repartimos parejo entre espacios y, dentro de cada uno, según los días de cada tarea. Ajusta lo que
-              quieras; los totales se recalculan solos.
+              Repartimos el monto por igual entre los espacios y, dentro de cada uno, según los días de cada tarea.
+              Ajusta lo que quieras; los totales se recalculan automáticamente.
             </p>
 
             {grupos.map((g, gi) => (
@@ -1413,7 +1413,7 @@ function CasaBuilder({
         <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-800">¿Cuántos pisos tiene?</p>
-            <p className="text-xs text-slate-500">Arma cada piso por separado.</p>
+            <p className="text-xs text-slate-500">Configura cada piso por separado.</p>
           </div>
           <Stepper value={pisos.length} onChange={onNumPisos} min={1} max={10} />
         </div>
@@ -1777,7 +1777,7 @@ function EspacioTareas({
       {/* Mensaje contextual de primera vez para este espacio (no intrusivo). */}
       {primeraVez && (
         <p className="px-4 pt-2.5 -mb-1 text-[11px] text-slate-400 leading-relaxed">
-          Deja prendido lo que falta por hacer en {espacio.nombre.toLowerCase()} y ajusta los días.
+          Deja activo lo que falta por hacer en {espacio.nombre.toLowerCase()} y ajusta los días.
         </p>
       )}
       {/* Encabezados de columna */}

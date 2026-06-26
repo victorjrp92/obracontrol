@@ -21,7 +21,7 @@ model Constructora {
   descripcion      String?
   plan_suscripcion PlanTipo   @default(OBRA)
   // Tipo de cuenta: gobierna qué módulos/menú ve y el tono del producto.
-  // CONSTRUCTORA = comportamiento actual (empresa). ARQUITECTO y PROPIETARIO
+  // CONSTRUCTORA = comportamiento actual (empresa). CONTRATISTA y PROPIETARIO
   // son los perfiles "personales" (modo simple). Ver src/lib/plan.ts.
   tipo_cuenta      TipoCuenta @default(CONSTRUCTORA)
   created_at       DateTime   @default(now())
@@ -783,11 +783,13 @@ enum PlanTipo {
 
 // Tipo de cuenta: perfil con el que se usa la app.
 //   CONSTRUCTORA → empresa (flujo completo actual).
-//   ARQUITECTO   → independiente: contrata contratistas, maneja varias obras/clientes.
+//   CONTRATISTA  → contratista B2C: emprendedor de oficio; envía a su personal a
+//                  ejecutar trabajos en obras de sus clientes. Maneja varias
+//                  obras/clientes. (Antes ARQUITECTO.)
 //   PROPIETARIO  → persona natural: maneja su propia obra y contrata obreros directos.
 enum TipoCuenta {
   CONSTRUCTORA
-  ARQUITECTO
+  CONTRATISTA
   PROPIETARIO
 }
 

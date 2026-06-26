@@ -5,7 +5,7 @@
 // MAE Ingeniería). Ver docs/ventas/.. o el commit de investigación.
 //
 // USO: semilla para el estimador "Sugerir presupuesto" (B2C: propietario y
-// arquitecto). Cada obra que pasa por la app corrige/afina estos números
+// contratista). Cada obra que pasa por la app corrige/afina estos números
 // (ver RegistroPrecio — capa de "precio justo"). Esto es el punto de partida,
 // NO la verdad absoluta: cada precio trae su nivel de confianza.
 //

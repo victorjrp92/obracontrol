@@ -490,7 +490,7 @@ export default function ObreroManager() {
               }}
               className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >
-              {linkCopied ? <><Check className="w-4 h-4" /> ¡Copiado!</> : <><Copy className="w-4 h-4" /> Copiar enlace</>}
+              {linkCopied ? <><Check className="w-4 h-4" /> Enlace copiado</> : <><Copy className="w-4 h-4" /> Copiar enlace</>}
             </button>
           </div>
         </div>

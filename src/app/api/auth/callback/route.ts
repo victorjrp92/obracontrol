@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         const tipoCuenta = user.user_metadata?.tipo_cuenta;
 
         try {
-          if (tipoCuenta === "ARQUITECTO" || tipoCuenta === "PROPIETARIO") {
+          if (tipoCuenta === "CONTRATISTA" || tipoCuenta === "PROPIETARIO") {
             // Cuenta personal: sin datos demo, entra al módulo de intención.
             await provisionarPersonal(user.email, nombre, tipoCuenta, {
               estudioNombre: user.user_metadata?.estudio_nombre,

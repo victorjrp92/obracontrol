@@ -63,7 +63,7 @@ export interface CrearObraInput {
   puntoPartida?: "NUEVA" | "MEDIAS" | "AVANZADA";
   tipoPropiedad: TipoPropiedad; // CASA | APARTAMENTO | EDIFICIO | LOCAL
   nombreObra: string;
-  /** Solo arquitecto: nombre del cliente dueño de la obra. */
+  /** Solo contratista B2C: nombre del cliente dueño de la obra. */
   clienteNombre?: string;
 
   // ── Estructura según modo ────────────────────────────────────────────────

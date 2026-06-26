@@ -7,10 +7,10 @@ import type { PlanTipo, TipoCuenta } from "@/generated/prisma";
  * tanto en el front (ocultar menú/botones) como en el back (guardas de API),
  * para que ocultar no sea lo mismo que "no autorizar".
  *
- * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA / ARQUITECTO
+ * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA / CONTRATISTA
  * / PROPIETARIO) y el cobro lo gobierna `plan_suscripcion`. Se mantienen
- * separados a propósito — un arquitecto puede subir de plan sin dejar de ser
- * arquitecto.
+ * separados a propósito — un contratista puede subir de plan sin dejar de ser
+ * contratista.
  */
 
 export type Capacidad =
@@ -44,9 +44,9 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     validar: true,
     modoSimple: false,
   },
-  // Arquitecto independiente: maneja varias obras de varios clientes, arma su
-  // propio equipo de obreros que le reportan, y valida lo reportado.
-  ARQUITECTO: {
+  // Contratista B2C: emprendedor de oficio; maneja varias obras de varios
+  // clientes, arma su propio equipo/personal que le reporta, y valida lo reportado.
+  CONTRATISTA: {
     contratistas: true,
     obreros: true,
     equipo: true,
@@ -83,16 +83,16 @@ export function puede(tipo: TipoCuenta, cap: Capacidad): boolean {
   return MATRIZ[tipo]?.[cap] ?? false;
 }
 
-/** ¿Es una cuenta personal (arquitecto o propietario) en modo simple? */
+/** ¿Es una cuenta personal (contratista B2C o propietario) en modo simple? */
 export function esCuentaPersonal(tipo: TipoCuenta): boolean {
-  return tipo === "ARQUITECTO" || tipo === "PROPIETARIO";
+  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO";
 }
 
 /**
  * ¿El usuario puede crear y administrar obreros DIRECTOS (que cuelgan de él
  * mismo como `contratista_id`)? Cierto para:
  *   - CONTRATISTA (flujo de empresa de siempre).
- *   - ADMIN_GENERAL de una cuenta personal (arquitecto/propietario): es su
+ *   - ADMIN_GENERAL de una cuenta personal (contratista B2C/propietario): es su
  *     propio "dueño de obreros" y a la vez el aprobador.
  */
 export function puedeGestionarEquipoDirecto(nivel: string, tipo: TipoCuenta): boolean {
@@ -111,7 +111,7 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
     // No se usa: la empresa delega en getPermissions(). Valor de respaldo.
     return ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"];
   }
-  if (tipo === "ARQUITECTO") {
+  if (tipo === "CONTRATISTA") {
     return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
   }
   // PROPIETARIO
@@ -124,9 +124,9 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
  */
 export function limiteObrasActivas(plan: PlanTipo, tipo: TipoCuenta): number {
   if (plan !== "PERSONAL") return Infinity;
-  // Plan gratis: el propietario arranca con 1 obra; el arquitecto con 2 clientes
-  // para que pruebe el flujo real antes de pasar a un plan de pago.
-  return tipo === "ARQUITECTO" ? 2 : 1;
+  // Plan gratis: el propietario arranca con 1 obra; el contratista B2C con 2
+  // clientes para que pruebe el flujo real antes de pasar a un plan de pago.
+  return tipo === "CONTRATISTA" ? 2 : 1;
 }
 
 /**
@@ -145,7 +145,7 @@ export interface TonoPerfil {
 }
 
 export function tonoPerfil(tipo: TipoCuenta): TonoPerfil {
-  if (tipo === "ARQUITECTO") {
+  if (tipo === "CONTRATISTA") {
     return {
       equipoLabel: "Mis contratistas",
       equipoSingular: "contratista",

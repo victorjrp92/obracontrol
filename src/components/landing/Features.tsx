@@ -117,7 +117,7 @@ export default function Features() {
             Tu obra sin excusas
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-4">
-            Deja de apagar incendios. Empieza a prevenirlos.
+            Deja de reaccionar a los problemas. Empieza a prevenirlos.
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Cada uno de estos problemas tiene soluci&oacute;n. As&iacute; es como Seiricon los elimina de tu operaci&oacute;n.

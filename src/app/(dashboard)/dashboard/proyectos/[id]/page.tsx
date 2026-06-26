@@ -217,7 +217,7 @@ export default async function ProyectoDetallePage({
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login");
 
-  // Cuentas personales (arquitecto/propietario) no ven el wizard estructural
+  // Cuentas personales (contratista B2C/propietario) no ven el wizard estructural
   // de empresa (torres/pisos/distribución): para ellas la obra es simple.
   const personal = esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA");
 

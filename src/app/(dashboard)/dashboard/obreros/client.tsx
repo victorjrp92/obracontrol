@@ -119,7 +119,7 @@ export default function ObrerosRankingClient({ obreros }: { obreros: ObreroRow[]
                       <div className="font-semibold text-slate-800">{o.nombre}</div>
                       <div className="text-xs text-slate-500">
                         {o.cedula ? `CC ${o.cedula}` : "Sin cédula"} ·{" "}
-                        {o.telefono ?? "Sin tel"}
+                        {o.telefono ?? "Sin teléfono"}
                       </div>
                     </td>
                     <td className="px-4 py-3">

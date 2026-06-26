@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Motor de estimación de presupuesto (B2C: propietario / arquitecto).
+// Motor de estimación de presupuesto (B2C: propietario / contratista).
 //
 // DETERMINISTA: a partir de los espacios + tareas activas, calcula un costo
 // sugerido usando la base semilla de precios (precios-semilla.ts). NO necesita

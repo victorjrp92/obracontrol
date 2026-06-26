@@ -141,7 +141,7 @@ export default function CameraCapture({
       onChange(next);
     } catch (err) {
       console.error("Error procesando foto:", err);
-      alert("Error procesando la foto. Intenta de nuevo.");
+      alert("No se pudo procesar la foto. Vuelve a intentarlo.");
     } finally {
       setProcessing(false);
       if (inputRef.current) inputRef.current.value = "";

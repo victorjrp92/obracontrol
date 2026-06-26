@@ -43,7 +43,7 @@ export default function PrivacidadPage() {
         </p>
         <ul>
           <li>Usuarios registrados en la plataforma (administradores, directivos, contratistas)</li>
-          <li>Arquitectos independientes y personas naturales (propietarios) que gestionan sus propias obras</li>
+          <li>Contratistas independientes y personas naturales (propietarios) que gestionan sus propias obras</li>
           <li>Obreros que acceden mediante token temporal</li>
           <li>Clientes y terceros vinculados a las obras registradas por el Usuario</li>
           <li>Prospectos y personas que solicitan informacion</li>

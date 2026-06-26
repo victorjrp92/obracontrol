@@ -97,7 +97,7 @@ export default async function ObreroTareaPage({
           <CheckCircle className="w-14 h-14 text-green-500 mb-4" />
           <h2 className="text-xl font-bold text-green-700 mb-2">Aprobada</h2>
           <p className="text-base text-slate-500">
-            Esta tarea fue aprobada. Buen trabajo!
+            Esta tarea fue aprobada. Gracias por tu trabajo.
           </p>
         </div>
       )}

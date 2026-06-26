@@ -62,13 +62,13 @@ export default function IOSInstallHint() {
       <ol className="mt-2 space-y-1.5 text-xs text-slate-700">
         <li className="flex items-center gap-2">
           <span className="font-bold text-slate-400">1.</span>
-          <span>Tap el botón</span>
+          <span>Toca el botón</span>
           <Share className="w-4 h-4 text-blue-600" />
           <span>compartir</span>
         </li>
         <li className="flex items-center gap-2">
           <span className="font-bold text-slate-400">2.</span>
-          <span>Tap</span>
+          <span>Toca</span>
           <span className="inline-flex items-center gap-1 font-semibold">
             <Plus className="w-3.5 h-3.5" />
             Agregar al inicio

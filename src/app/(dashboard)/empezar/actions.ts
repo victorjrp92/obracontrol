@@ -267,10 +267,10 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
     }
   }
 
-  // ── Cliente (solo arquitecto, opcional) ────────────────────────────────────
+  // ── Cliente (solo contratista B2C, opcional) ───────────────────────────────
   let clienteId: string | null = null;
   const clienteNombre = input.clienteNombre?.trim();
-  if (tipoCuenta === "ARQUITECTO" && clienteNombre) {
+  if (tipoCuenta === "CONTRATISTA" && clienteNombre) {
     const cliente = await prisma.cliente.upsert({
       where: { constructora_id_nombre: { constructora_id: constructoraId, nombre: clienteNombre } },
       update: {},
@@ -665,7 +665,7 @@ function tareaTieneHistorial(t: {
 /**
  * Edición TOTAL de una obra personal (B2C): atributos del proyecto + estructura
  * (espacios y tareas). Espeja la seguridad de `crearObraPersonal`:
- *   - cuenta personal (ARQUITECTO/PROPIETARIO)
+ *   - cuenta personal (CONTRATISTA/PROPIETARIO)
  *   - rol ADMIN_GENERAL (dueño de la cuenta)
  *   - tenant isolation por `constructora_id`
  * (No exige contraseña: el flujo de creación tampoco la exige; la confirmación
@@ -781,10 +781,10 @@ export async function editarObraPersonal(
       : null;
   const metrajeTotal = metrajeValido(input.metrajeTotal);
 
-  // Cliente (solo arquitecto): upsert por nombre.
+  // Cliente (solo contratista B2C): upsert por nombre.
   let clienteId: string | null = proyecto.cliente?.id ?? null;
   const clienteNombre = input.clienteNombre?.trim();
-  if (tipoCuenta === "ARQUITECTO" && clienteNombre) {
+  if (tipoCuenta === "CONTRATISTA" && clienteNombre) {
     try {
       const cliente = await prisma.cliente.upsert({
         where: { constructora_id_nombre: { constructora_id: constructoraId, nombre: clienteNombre } },

@@ -60,12 +60,12 @@ export async function registro(formData: FormData) {
   // para no cambiar el comportamiento de quien no eligió perfil.
   const tipoCuentaRaw = (formData.get("tipo_cuenta") as string) || "CONSTRUCTORA";
   const tipoCuenta =
-    tipoCuentaRaw === "ARQUITECTO" || tipoCuentaRaw === "PROPIETARIO"
-      ? (tipoCuentaRaw as "ARQUITECTO" | "PROPIETARIO")
+    tipoCuentaRaw === "CONTRATISTA" || tipoCuentaRaw === "PROPIETARIO"
+      ? (tipoCuentaRaw as "CONTRATISTA" | "PROPIETARIO")
       : "CONSTRUCTORA";
   const esPersonal = tipoCuenta !== "CONSTRUCTORA";
 
-  // ── Cuenta PERSONAL (arquitecto / propietario) ────────────────────────────
+  // ── Cuenta PERSONAL (contratista B2C / propietario) ───────────────────────
   if (esPersonal) {
     const estudioNombre = (formData.get("estudio_nombre") as string) || undefined;
     const telefono = (formData.get("persona_telefono") as string) || undefined;

@@ -463,7 +463,7 @@ export default function WizardStep1({
           </select>
           {contratistas.length === 0 ? (
             <p className="text-[11px] text-amber-700 mt-1.5">
-              No tienes contratistas creados. Ve a <a href="/dashboard/usuarios" className="font-semibold underline">Usuarios</a> y crea al menos uno con rol Contratista antes de continuar.
+              Aún no tienes contratistas creados. Dirígete a <a href="/dashboard/usuarios" className="font-semibold underline">Usuarios</a> y crea al menos uno con rol Contratista antes de continuar.
             </p>
           ) : (
             <p className="text-[10px] text-slate-400 mt-1">
@@ -759,7 +759,7 @@ export default function WizardStep1({
                   {/* Distribution mismatch warning */}
                   {e.unidades_por_piso != null && e.unidades_por_piso > 0 && getDistribucionSum(e) !== e.pisos * e.unidades_por_piso && (
                     <p className="mt-2 text-[11px] text-amber-600 font-medium">
-                      La distribución suma {getDistribucionSum(e)} unidades pero el total de la torre es {e.pisos * e.unidades_por_piso} ({e.pisos} pisos × {e.unidades_por_piso} uds/piso). Ajusta para que coincida.
+                      La distribución suma {getDistribucionSum(e)} unidades pero el total de la torre es {e.pisos * e.unidades_por_piso} ({e.pisos} pisos × {e.unidades_por_piso} uds/piso). Ajústala para que coincida.
                     </p>
                   )}
 
