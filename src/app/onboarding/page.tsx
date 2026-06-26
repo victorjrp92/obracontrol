@@ -29,13 +29,23 @@ export default async function OnboardingPage() {
 
   // ¿Ya completó el cuestionario? Consulta directa (misma fuente que GET
   // /api/onboarding) — evita un round-trip HTTP desde el server component.
-  const perfil = await prisma.perfilOnboarding.findUnique({
-    where: { constructora_id: usuario.constructora_id },
-    select: { completado: true },
-  });
+  // Además contamos los proyectos de la constructora: las cuentas legacy (creadas
+  // antes del wizard, p.ej. vía Google/OAuth) NO tienen fila en PerfilOnboarding,
+  // así que solo `completado` las dejaría atrapadas viendo el cuestionario para
+  // siempre. Si ya tienen actividad previa (≥1 proyecto), las saltamos también.
+  const [perfil, proyectosCount] = await Promise.all([
+    prisma.perfilOnboarding.findUnique({
+      where: { constructora_id: usuario.constructora_id },
+      select: { completado: true },
+    }),
+    prisma.proyecto.count({
+      where: { constructora_id: usuario.constructora_id },
+    }),
+  ]);
 
-  if (perfil?.completado) {
-    // Ya respondió antes: no se vuelve a forzar; va directo a su destino.
+  if (perfil?.completado || proyectosCount > 0) {
+    // Ya respondió antes, o es una cuenta con actividad previa: no se vuelve a
+    // forzar el cuestionario; va directo a su destino.
     redirect(destino);
   }
 

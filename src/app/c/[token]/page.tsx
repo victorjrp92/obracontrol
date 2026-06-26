@@ -11,6 +11,11 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
+// Render dinámico, sin caché: un token revocado debe dejar de mostrar el avance
+// de inmediato. Sin esto, una versión cacheada de la página seguiría exponiendo
+// datos tras la revocación del token.
+export const dynamic = "force-dynamic";
+
 // ─── Estados de tarea → lenguaje llano + color ──────────────────────────────
 const ESTADO_INFO: Record<
   string,

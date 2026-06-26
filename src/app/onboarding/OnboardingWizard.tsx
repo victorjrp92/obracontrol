@@ -228,7 +228,7 @@ export default function OnboardingWizard({
                 disabled={enviando}
                 className="text-sm font-medium text-slate-500 hover:text-slate-700 disabled:opacity-50"
               >
-                Omitir por ahora
+                Omitir
               </button>
             )}
             <button

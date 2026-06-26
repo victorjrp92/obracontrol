@@ -77,10 +77,13 @@ async function ensurePerfil(
     },
   });
 
+  // Para CONTRATISTA el rol admin se llama "Dueño" (no "Contratista") porque más
+  // abajo se crea otro rol llamado "Contratista" (nivel CONTRATISTA); con el
+  // mismo nombre chocarían contra @@unique([constructora_id, nombre]) → P2002.
   const rolAdmin = await prisma.rol.create({
     data: {
       constructora_id: constructora.id,
-      nombre: esContratista ? "Contratista" : "Propietario",
+      nombre: esContratista ? "Dueño" : "Propietario",
       nivel_acceso: "ADMIN_GENERAL",
       es_default: true,
     },

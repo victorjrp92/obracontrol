@@ -1,6 +1,24 @@
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { calcularProgreso } from "@/lib/scoring";
+import { getSignedEvidenciaUrl } from "@/lib/storage";
+
+/**
+ * Convierte un `url_storage` (path de bucket privado o URL legacy) en una signed
+ * URL temporal servible. El bucket "evidencias" es PRIVADO: nunca devolvemos el
+ * path crudo. Misma estrategia que `resolveEvidenciaUrl` en data-detail.ts.
+ */
+async function firmarFoto(stored: string): Promise<string> {
+  if (!stored) return "";
+  // Legacy: ya es una URL pública completa → extraemos el path y lo firmamos.
+  if (stored.startsWith("http://") || stored.startsWith("https://")) {
+    const match = stored.match(/\/storage\/v1\/object\/public\/evidencias\/(.+)$/);
+    if (match) return getSignedEvidenciaUrl(match[1]);
+    return stored;
+  }
+  // Path nuevo del bucket privado.
+  return getSignedEvidenciaUrl(stored);
+}
 
 // ─── Token ────────────────────────────────────────────────────────────────────
 
@@ -122,6 +140,10 @@ export async function getClienteAvance(
   const todasLasTareas: { estado: string }[] = [];
   let ultimaActualizacion = proyecto.updated_at;
 
+  // Acumulamos las promesas de firma para resolverlas TODAS en paralelo al final
+  // (el bucket es privado: las fotos van firmadas, nunca como path crudo).
+  const firmasPendientes: Promise<void>[] = [];
+
   for (const edificio of proyecto.edificios) {
     for (const piso of edificio.pisos) {
       for (const unidad of piso.unidades) {
@@ -132,17 +154,28 @@ export async function getClienteAvance(
           const tareas: ClienteTareaPublica[] = espacio.tareas.map((t) => {
             if (t.updated_at > ultimaActualizacion) ultimaActualizacion = t.updated_at;
             todasLasTareas.push({ estado: t.estado });
-            return {
+
+            const tareaPublica: ClienteTareaPublica = {
               id: t.id,
               nombre: t.nombre,
               ubicacion: `${ubicacionUnidad} · ${espacio.nombre}`,
               estado: t.estado,
-              // Fotos solo de tareas aprobadas (avance verificado por el dueño).
-              fotos:
-                t.estado === "APROBADA"
-                  ? t.evidencias.map((e) => e.url_storage)
-                  : [],
+              fotos: [],
             };
+
+            // Fotos solo de tareas aprobadas (avance verificado por el dueño).
+            // Se firman en paralelo y se asignan al campo `fotos` cuando resuelven.
+            if (t.estado === "APROBADA" && t.evidencias.length > 0) {
+              firmasPendientes.push(
+                Promise.all(t.evidencias.map((e) => firmarFoto(e.url_storage))).then(
+                  (urls) => {
+                    tareaPublica.fotos = urls.filter(Boolean);
+                  },
+                ),
+              );
+            }
+
+            return tareaPublica;
           });
 
           espacios.push({
@@ -157,6 +190,9 @@ export async function getClienteAvance(
       }
     }
   }
+
+  // Esperamos a que todas las URLs queden firmadas antes de devolver el avance.
+  await Promise.all(firmasPendientes);
 
   const progreso = calcularProgreso(todasLasTareas);
 

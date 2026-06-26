@@ -1104,6 +1104,7 @@ export default function IntentWizard({
         {/* ── Paso 3: Arma tu obra ──────────────────────────────────────── */}
         {paso === 2 && tipoPropiedad && (
           <div className="flex flex-col gap-4">
+            {esEdicion && esEdificio && <AvisoEdificioSoloGenerales />}
             <AreaObra
               modo={modoMetraje}
               metrajeTotal={metrajeTotal}
@@ -1167,6 +1168,7 @@ export default function IntentWizard({
         {/* ── Paso 5: ¿Qué te falta? ────────────────────────────────────── */}
         {paso === 4 && (
           <div className="flex flex-col gap-5">
+            {esEdicion && esEdificio && <AvisoEdificioSoloGenerales />}
             <p className="text-sm text-slate-500">
               Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Desactiva lo que ya está
               terminado. Solo lo que dejes activo se hace seguimiento y requiere foto.
@@ -2316,6 +2318,27 @@ function ChipPropiedad({
 
 function GrupoTitulo({ titulo }: { titulo: string }) {
   return <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{titulo}</p>;
+}
+
+/**
+ * Aviso honesto para la EDICIÓN de un EDIFICIO: `editarObraPersonal` solo
+ * persiste los datos generales del edificio (nombre, fechas, ubicación,
+ * presupuesto). Los cambios de estructura (espacios) y tareas NO se aplican
+ * todavía, así que se lo decimos al usuario para no dar un falso "guardado".
+ */
+function AvisoEdificioSoloGenerales() {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+      <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+        <Info className="w-4 h-4" />
+      </span>
+      <p className="flex-1 min-w-0 text-sm text-amber-800 leading-relaxed">
+        En edificios, por ahora solo se guardan los datos generales (nombre,
+        fechas, ubicación, presupuesto); los cambios de espacios y tareas no se
+        aplican.
+      </p>
+    </div>
+  );
 }
 
 function Campo({

@@ -308,8 +308,10 @@ export async function provisionarUsuario(
  * Mapeo de roles (ver src/lib/access.ts y src/lib/plan.ts):
  *   - PROPIETARIO → 1 rol "Propietario" (ADMIN_GENERAL): crea su obra, contrata
  *     obreros directos y valida lo reportado.
- *   - CONTRATISTA → "Contratista" (ADMIN_GENERAL) + "Contratista" (CONTRATISTA)
- *     por defecto, para que pueda invitar personal/contratistas que le reporten.
+ *   - CONTRATISTA → "Dueño" (ADMIN_GENERAL) + "Contratista" (CONTRATISTA) por
+ *     defecto, para que pueda invitar personal/contratistas que le reporten.
+ *     Los dos roles DEBEN tener nombres distintos: comparten constructora y hay
+ *     un @@unique([constructora_id, nombre]) que provocaría P2002 si colisionan.
  */
 export async function provisionarPersonal(
   email: string,
@@ -341,10 +343,13 @@ export async function provisionarPersonal(
   });
 
   // Rol admin del dueño de la cuenta (ADMIN_GENERAL = puede crear obra y validar).
+  // Para CONTRATISTA usamos "Dueño" (no "Contratista") porque más abajo se crea
+  // también un rol de nivel CONTRATISTA llamado "Contratista"; si ambos se
+  // llamaran igual colisionarían con @@unique([constructora_id, nombre]) → P2002.
   const rolAdmin = await prisma.rol.create({
     data: {
       constructora_id: constructora.id,
-      nombre: esContratista ? "Contratista" : "Propietario",
+      nombre: esContratista ? "Dueño" : "Propietario",
       nivel_acceso: "ADMIN_GENERAL",
       es_default: true,
     },
