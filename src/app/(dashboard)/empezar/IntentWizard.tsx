@@ -1251,6 +1251,18 @@ export default function IntentWizard({
               <ArrowLeft className="w-4 h-4" /> Atrás
             </button>
           )}
+          {/* En edición: guardar desde cualquier paso, sin recorrer todo el wizard. */}
+          {esEdicion && paso < TOTAL_PASOS - 1 && (
+            <button
+              type="button"
+              onClick={crear}
+              disabled={enviando}
+              className="inline-flex items-center justify-center gap-2 border border-blue-600 bg-white text-blue-700 hover:bg-blue-50 font-semibold py-3 px-5 rounded-xl transition-colors text-sm cursor-pointer disabled:opacity-50"
+            >
+              {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {enviando ? "Guardando…" : "Guardar cambios"}
+            </button>
+          )}
           {paso < TOTAL_PASOS - 1 ? (
             <button
               type="button"
