@@ -8,6 +8,7 @@ import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
 import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
 import EditProyecto from "./EditProyecto";
+import CompartirAvanceCliente from "@/components/dashboard/CompartirAvanceCliente";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
 
@@ -322,6 +323,16 @@ export default async function ProyectoDetallePage({
             Gastos y materiales
           </Link>
         </div>
+
+        {/* Compartir avance con el cliente — solo cuentas personales
+            (Contratista B2C / Propietario) y solo el dueño de la cuenta.
+            No se muestra para constructoras (B2B). El backend además valida
+            sesión + tenant + rol. */}
+        {personal && usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL" && (
+          <div className="mb-6">
+            <CompartirAvanceCliente proyectoId={id} />
+          </div>
+        )}
 
         {/* Edit project + audit log (admin can edit, directivo can view log) */}
         {["ADMIN_GENERAL", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso) && (

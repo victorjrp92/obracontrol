@@ -122,6 +122,7 @@ model Proyecto {
 
   constructora            Constructora   @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
   cliente                 Cliente?       @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
+  cliente_acceso_tokens   ClienteAccesoToken[]
   edificios               Edificio[]
   fases                   Fase[]
   tipos_unidad            TipoUnidad[]
@@ -140,6 +141,26 @@ model Proyecto {
   @@index([contratista_default_id])
   @@index([cliente_id])
   @@map("proyectos")
+}
+
+// ─── ACCESO DEL CLIENTE (solo lectura del avance) — Fase 6 ───────────────────
+// Token público por proyecto que el Contratista B2C comparte con su cliente
+// para que VEA el avance de la obra (sin reportar, sin login). Read-only.
+// `token` es aleatorio urlsafe (no cuid, para no filtrar orden de creación).
+// Tenant-safe por construcción: el token apunta a un proyecto_id concreto.
+// Máximo 1 token activo por proyecto (regenerar invalida el anterior).
+
+model ClienteAccesoToken {
+  id          String   @id @default(cuid())
+  token       String   @unique // aleatorio, urlsafe
+  proyecto_id String
+  activo      Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+
+  @@index([proyecto_id])
+  @@map("cliente_acceso_token")
 }
 
 // ─── EDIFICIO / TORRE ────────────────────────────────────────────────────────
