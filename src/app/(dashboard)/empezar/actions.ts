@@ -41,6 +41,11 @@ function metrajeValido(v: unknown): number | undefined {
   return Math.min(v, MAX_METRAJE);
 }
 
+/** Punto de partida de la obra (estado); null si no es un valor permitido. */
+function puntoPartidaValido(v: unknown): "NUEVA" | "MEDIAS" | "AVANZADA" | null {
+  return v === "NUEVA" || v === "MEDIAS" || v === "AVANZADA" ? v : null;
+}
+
 /**
  * Normaliza los 3 campos de presupuesto según el `modoPresupuesto` elegido,
  * para persistirlos de forma consistente (los modos son mutuamente excluyentes):
@@ -157,6 +162,14 @@ async function crearEspaciosYTareas(
     const nombreEspacio = espacioInput.nombre?.trim();
     if (!nombreEspacio) continue;
 
+    const tareasActivas = (espacioInput.tareas ?? [])
+      .filter((t) => t.activa && t.nombre?.trim())
+      .slice(0, MAX_TAREAS_POR_ESPACIO);
+
+    // #2: no crear espacios nuevos vacíos (sin ninguna tarea activa). Se ignoran
+    // silenciosamente para no dejar cuartos huérfanos al guardar en cada paso.
+    if (tareasActivas.length === 0) continue;
+
     const espacio = await ctx.tx.espacio.create({
       data: {
         unidad_id: unidadId,
@@ -166,10 +179,6 @@ async function crearEspaciosYTareas(
           : {}),
       },
     });
-
-    const tareasActivas = (espacioInput.tareas ?? [])
-      .filter((t) => t.activa)
-      .slice(0, MAX_TAREAS_POR_ESPACIO);
 
     for (const t of tareasActivas) {
       const nombreTarea = t.nombre?.trim();
@@ -368,6 +377,7 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
             ubicacion_lng: typeof input.ubicacionLng === "number" ? input.ubicacionLng : null,
             tipo_obra: input.tipoObra,
             tipo_propiedad: input.tipoPropiedad,
+            punto_partida: puntoPartidaValido(input.puntoPartida),
             ciudad,
             presupuesto_total: presupuestoTotal,
             presupuesto_mano_obra: presupuestoManoObra,
@@ -599,6 +609,9 @@ export async function cargarObraParaEditar(
     estado: proyecto.estado,
     tipoObra,
     tipoPropiedad,
+    ...(puntoPartidaValido(proyecto.punto_partida) != null
+      ? { puntoPartida: puntoPartidaValido(proyecto.punto_partida)! }
+      : {}),
     nombreObra: proyecto.nombre,
     ...(proyecto.cliente?.nombre ? { clienteNombre: proyecto.cliente.nombre } : {}),
     fechaInicio: proyecto.fecha_inicio?.toISOString().slice(0, 10),
@@ -851,6 +864,7 @@ export async function editarObraPersonal(
     ubicacion_lng: typeof input.ubicacionLng === "number" ? input.ubicacionLng : null,
     tipo_obra: input.tipoObra,
     tipo_propiedad: input.tipoPropiedad,
+    punto_partida: puntoPartidaValido(input.puntoPartida),
     ciudad,
     presupuesto_total: presupuestoTotal,
     presupuesto_mano_obra: presupuestoManoObra,
@@ -1080,10 +1094,23 @@ async function sincronizarUnidad(
   for (const espInput of espaciosInput) {
     const nombreEsp = espInput.nombre?.trim();
     if (!nombreEsp) continue;
+
+    // ── Tareas activas del input para este espacio ──────────────────────────
+    const tareasActivasInput = (espInput.tareas ?? [])
+      .filter((t) => t.activa && t.nombre?.trim())
+      .slice(0, MAX_TAREAS_POR_ESPACIO);
+
+    const existente = espaciosPorNombre.get(nombreEsp);
+
+    // #2: no crear espacios NUEVOS vacíos (sin ninguna tarea activa). Se ignoran
+    // en silencio. Los espacios EXISTENTES no se tocan aquí: quedan fuera de
+    // `nombresInput`, y el bloque de "espacios quitados" decide si se conservan
+    // (historial) o se borran — respetando la lógica de historial ya existente.
+    if (!existente && tareasActivasInput.length === 0) continue;
+
     nombresInput.add(nombreEsp);
     const metraje = metrajeValido(espInput.metraje);
 
-    const existente = espaciosPorNombre.get(nombreEsp);
     let espacioId: string;
     let tareasExistentes: SyncUnidadArgs["unidad"]["espacios"][0]["tareas"];
 
@@ -1106,10 +1133,6 @@ async function sincronizarUnidad(
       tareasExistentes = [];
     }
 
-    // ── Emparejar tareas por nombre dentro del espacio ──────────────────────
-    const tareasActivasInput = (espInput.tareas ?? [])
-      .filter((t) => t.activa)
-      .slice(0, MAX_TAREAS_POR_ESPACIO);
     const tareasPorNombre = new Map(tareasExistentes.map((t) => [t.nombre.trim(), t]));
     const nombresTareaInput = new Set<string>();
 

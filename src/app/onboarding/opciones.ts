@@ -34,23 +34,32 @@ export const OPCIONES_TAMANO_EQUIPO: Opcion[] = [
 ];
 
 // ── Común: ¿cómo controla hoy el trabajo? ────────────────────────────────────
-// Mismo set para Contratista, Propietario y Empresa (la Empresa mapea
-// "Software dedicado" → OTRA_APP, según el spec).
+// Selección MÚLTIPLE (checkboxes). Mismo set para Contratista, Propietario y
+// Empresa. `SIN_CONTROL` es EXCLUSIVO (desmarca las demás y viceversa) y
+// `OTRA_APP` abre un campo de texto "¿Cuál?" opcional (→ `control_otra`).
 
 export const OPCIONES_CONTROL_ACTUAL: Opcion[] = [
   { value: "WHATSAPP_FOTOS", label: "WhatsApp y fotos" },
-  { value: "EXCEL_CUADERNO", label: "Excel o cuaderno" },
+  { value: "EXCEL", label: "Excel" },
+  { value: "CUADERNO", label: "Bloc de notas o cuaderno" },
   { value: "OTRA_APP", label: "Otra aplicación" },
   { value: "SIN_CONTROL", label: "No llevo control" },
 ];
 
 // Variante de etiquetas para la Empresa (mismo conjunto de valores).
 export const OPCIONES_CONTROL_EMPRESA: Opcion[] = [
-  { value: "EXCEL_CUADERNO", label: "Excel" },
-  { value: "WHATSAPP_FOTOS", label: "WhatsApp" },
-  { value: "OTRA_APP", label: "Software dedicado" },
-  { value: "SIN_CONTROL", label: "Otro" },
+  { value: "WHATSAPP_FOTOS", label: "WhatsApp y fotos" },
+  { value: "EXCEL", label: "Excel" },
+  { value: "CUADERNO", label: "Bloc de notas o cuaderno" },
+  { value: "OTRA_APP", label: "Otra aplicación" },
+  { value: "SIN_CONTROL", label: "No llevo control" },
 ];
+
+/** Valor exclusivo del multi-select de control: al marcarlo se desmarcan las
+ *  demás opciones (y al marcar cualquier otra, se desmarca este). */
+export const CONTROL_EXCLUSIVO = "SIN_CONTROL";
+/** Valor que abre el campo de texto "¿Cuál?" (→ `control_otra`). */
+export const CONTROL_OTRA_APP = "OTRA_APP";
 
 // ── Propietario ──────────────────────────────────────────────────────────────
 // `primera_obra` es boolean en el backend: usamos strings "SI"/"NO" en la UI y

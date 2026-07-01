@@ -213,7 +213,8 @@ export default function IntentWizard({
 
   // Paso 1
   const [tipoObra, setTipoObra] = useState<TipoObra | null>(initial?.tipoObra ?? null);
-  // `puntoPartida` no se persiste en la obra: en modo edición arrancamos con un
+  // `puntoPartida` ahora se persiste: en edición se precarga desde
+  // `initial.puntoPartida`. Si la obra no tiene valor guardado, caemos a un
   // default seguro ("MEDIAS" = en proceso) para no bloquear el paso 0 (que exige
   // un valor no-nulo para avanzar). En creación arranca en null como siempre.
   const [puntoPartida, setPuntoPartida] = useState<PuntoPartida | null>(

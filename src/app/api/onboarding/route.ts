@@ -28,9 +28,13 @@ const TAMANO_EQUIPO = new Set([
   "MAS_DE_20",
 ]);
 
+// `control_actual` es multi-select (array). Allowlist nueva: se separó el
+// antiguo `EXCEL_CUADERNO` en `EXCEL` + `CUADERNO`. `SIN_CONTROL` es EXCLUSIVO
+// (si viene junto a otros, se normaliza a solo `["SIN_CONTROL"]`).
 const CONTROL_ACTUAL = new Set([
   "WHATSAPP_FOTOS",
-  "EXCEL_CUADERNO",
+  "EXCEL",
+  "CUADERNO",
   "OTRA_APP",
   "SIN_CONTROL",
 ]);
@@ -68,7 +72,8 @@ interface OnboardingBody {
   // Contratista B2C
   oficio?: string;
   tamano_equipo?: string;
-  control_actual?: string;
+  control_actual?: string[]; // multi-select (array de valores de CONTROL_ACTUAL)
+  control_otra?: string;     // texto libre de "¿cuál?" (solo si incluye OTRA_APP)
   // Propietario
   primera_obra?: boolean;
   tiene_contratista?: string;
@@ -111,6 +116,32 @@ function checkText(value: unknown, field: string): string | null {
   return null;
 }
 
+// Valida un array multi-select opcional contra su set permitido.
+// Devuelve `null` si es válido (o ausente), o un mensaje de error.
+function checkEnumArray(
+  value: unknown,
+  allowed: Set<string>,
+  field: string,
+): string | null {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value)) return `"${field}" debe ser una lista`;
+  for (const v of value) {
+    if (typeof v !== "string" || !allowed.has(v)) {
+      return `Valor no permitido en "${field}"`;
+    }
+  }
+  return null;
+}
+
+// Normaliza `control_actual`: deduplica, y aplica la exclusividad de SIN_CONTROL
+// (si viene junto a otros valores, se queda solo `["SIN_CONTROL"]`).
+function normalizarControlActual(value: string[] | undefined): string[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const unicos = Array.from(new Set(value));
+  if (unicos.includes("SIN_CONTROL")) return ["SIN_CONTROL"];
+  return unicos;
+}
+
 // ─── POST /api/onboarding ────────────────────────────────────────────────────
 // Guarda (upsert idempotente por constructora_id) las respuestas del
 // cuestionario del usuario autenticado y marca `completado: true`.
@@ -132,7 +163,8 @@ export async function POST(req: NextRequest) {
     const errors = [
       checkEnum(body.oficio, OFICIOS, "oficio"),
       checkEnum(body.tamano_equipo, TAMANO_EQUIPO, "tamano_equipo"),
-      checkEnum(body.control_actual, CONTROL_ACTUAL, "control_actual"),
+      checkEnumArray(body.control_actual, CONTROL_ACTUAL, "control_actual"),
+      checkText(body.control_otra, "control_otra"),
       checkEnum(body.tiene_contratista, TIENE_CONTRATISTA, "tiene_contratista"),
       checkEnum(body.obras_activas, OBRAS_ACTIVAS, "obras_activas"),
       checkEnum(body.tipo_obra, TIPO_OBRA, "tipo_obra"),
@@ -165,10 +197,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // `control_actual`: array normalizado (exclusividad de SIN_CONTROL).
+    // `control_otra`: solo se guarda si el array incluye OTRA_APP (acotado a
+    // MAX_LEN); en cualquier otro caso, null.
+    const controlActual = normalizarControlActual(body.control_actual);
+    const controlOtra =
+      controlActual.includes("OTRA_APP") && typeof body.control_otra === "string"
+        ? body.control_otra.trim().slice(0, MAX_LEN) || null
+        : null;
+
     const data = {
       oficio: body.oficio ?? null,
       tamano_equipo: body.tamano_equipo ?? null,
-      control_actual: body.control_actual ?? null,
+      control_actual: controlActual,
+      control_otra: controlOtra,
       primera_obra: body.primera_obra ?? null,
       tiene_contratista: body.tiene_contratista ?? null,
       obras_activas: body.obras_activas ?? null,

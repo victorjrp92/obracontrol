@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { registro, loginConGoogle } from "../actions";
+import PasswordField from "./PasswordField";
 
 const INPUT_CLS =
   "w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-900 placeholder:text-slate-400";
@@ -74,10 +75,13 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [consent, setConsent] = useState(false);
 
   const esPersonal = perfil === "PROPIETARIO" || perfil === "CONTRATISTA";
   const canProceed1 = empresaNombre.trim().length >= 1;
+  const passwordsCoinciden = password === passwordConfirm;
 
   function elegirPerfil(p: Perfil) {
     setPerfil(p);
@@ -90,6 +94,13 @@ export default function RegistroWizard({ error }: { error?: string }) {
   }
 
   async function handleSubmit(formData: FormData) {
+    // Validación de front: las dos contraseñas deben coincidir. Si difieren, no
+    // enviamos al backend (el confirmar es solo validación; nunca viaja).
+    if (password !== passwordConfirm) {
+      setPasswordError("Las contraseñas no coinciden");
+      return;
+    }
+    setPasswordError("");
     formData.set("tipo_cuenta", perfil ?? "CONSTRUCTORA");
     if (perfil === "CONSTRUCTORA") {
       formData.set("company", empresaNombre);
@@ -190,13 +201,25 @@ export default function RegistroWizard({ error }: { error?: string }) {
           )}
 
           <Field id="email" name="email" type="email" label="Correo electrónico" required icon={Mail} placeholder="tu@correo.com" value={email} onChange={setEmail} autoComplete="email" />
-          <Field id="password" name="password" type="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField id="password" name="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField
+            id="password_confirm"
+            label="Confirmar contraseña"
+            required
+            icon={Lock}
+            placeholder="Repite la contraseña"
+            value={passwordConfirm}
+            onChange={(v) => { setPasswordConfirm(v); if (passwordError) setPasswordError(""); }}
+            autoComplete="new-password"
+            error={passwordConfirm.length > 0 && !passwordsCoinciden ? "Las contraseñas no coinciden" : passwordError}
+          />
 
           <ConsentCheckbox consent={consent} setConsent={setConsent} />
 
           <button
             type="submit"
-            className="mt-1 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
+            disabled={!passwordsCoinciden}
+            className="mt-1 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
           >
             Crear cuenta y empezar
             <ArrowRight className="w-4 h-4" />
@@ -273,7 +296,18 @@ export default function RegistroWizard({ error }: { error?: string }) {
         <form action={handleSubmit} className="flex flex-col gap-4">
           <Field id="name" name="name" label="Nombre completo" required icon={User} placeholder="Juan Pérez" value={nombre} onChange={setNombre} autoComplete="name" autoFocus />
           <Field id="email" name="email" type="email" label="Correo electrónico" required icon={Mail} placeholder="tu@constructora.co" value={email} onChange={setEmail} autoComplete="email" />
-          <Field id="password" name="password" type="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField id="password" name="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField
+            id="password_confirm"
+            label="Confirmar contraseña"
+            required
+            icon={Lock}
+            placeholder="Repite la contraseña"
+            value={passwordConfirm}
+            onChange={(v) => { setPasswordConfirm(v); if (passwordError) setPasswordError(""); }}
+            autoComplete="new-password"
+            error={passwordConfirm.length > 0 && !passwordsCoinciden ? "Las contraseñas no coinciden" : passwordError}
+          />
 
           <ConsentCheckbox consent={consent} setConsent={setConsent} />
 
@@ -288,7 +322,8 @@ export default function RegistroWizard({ error }: { error?: string }) {
             </button>
             <button
               type="submit"
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
+              disabled={!passwordsCoinciden}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
             >
               Crear cuenta
               <ArrowRight className="w-4 h-4" />

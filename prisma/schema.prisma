@@ -50,7 +50,8 @@ model PerfilOnboarding {
   // Contratista B2C
   oficio           String?
   tamano_equipo    String?
-  control_actual   String?
+  control_actual   String[]  @default([]) // multi-select: WHATSAPP_FOTOS | EXCEL | CUADERNO | OTRA_APP | SIN_CONTROL
+  control_otra     String?   // texto libre de "¿cuál?" cuando incluye OTRA_APP (≤80)
   // Propietario
   primera_obra      Boolean?
   tiene_contratista String?
@@ -112,6 +113,7 @@ model Proyecto {
   // Contexto B2C + índice de negocio (telemetría interna)
   tipo_obra               String?        // "REFORMA" | "MODIFICACION" | "OBRA_NUEVA"
   tipo_propiedad          String?        // "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL"
+  punto_partida           String?        // "NUEVA" | "MEDIAS" | "AVANZADA" (estado de la obra)
   ciudad                  String?        // índice de precios por región
   presupuesto_total       Int?           // COP, opcional (modo "general" o sin presupuesto)
   presupuesto_mano_obra   Int?           // COP, opcional (modo "separado": bolsa de mano de obra)

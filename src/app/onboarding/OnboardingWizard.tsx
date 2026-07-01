@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
 import PasoOpciones from "./PasoOpciones";
+import PasoOpcionesMulti from "./PasoOpcionesMulti";
 import SelectorUbicacion from "./SelectorUbicacion";
 import {
   OPCIONES_CONTROL_ACTUAL,
@@ -15,6 +16,7 @@ import {
   OPCIONES_TAMANO_EQUIPO,
   OPCIONES_TIENE_CONTRATISTA,
   OPCIONES_TIPO_OBRA,
+  CONTROL_OTRA_APP,
 } from "./opciones";
 
 type TipoCuenta = "CONTRATISTA" | "PROPIETARIO" | "CONSTRUCTORA";
@@ -23,7 +25,8 @@ type TipoCuenta = "CONTRATISTA" | "PROPIETARIO" | "CONSTRUCTORA";
 interface Respuestas {
   oficio: string | null;
   tamano_equipo: string | null;
-  control_actual: string | null;
+  control_actual: string[]; // multi-select (checkboxes)
+  control_otra: string; // texto de "¿cuál?" (solo si incluye OTRA_APP)
   primera_obra: string | null; // "SI" | "NO" en UI; se convierte a boolean al enviar
   tiene_contratista: string | null;
   obras_activas: string | null;
@@ -36,7 +39,8 @@ interface Respuestas {
 const RESPUESTAS_INICIALES: Respuestas = {
   oficio: null,
   tamano_equipo: null,
-  control_actual: null,
+  control_actual: [],
+  control_otra: "",
   primera_obra: null,
   tiene_contratista: null,
   obras_activas: null,
@@ -105,20 +109,31 @@ export default function OnboardingWizard({
     if (r.departamento) payload.departamento = r.departamento;
     if (r.ciudad) payload.ciudad = r.ciudad;
 
+    // `control_actual` es multi-select (array). Solo se envía si hay al menos
+    // un valor; `control_otra` solo si está marcada "Otra aplicación" y hay texto.
+    const agregarControl = () => {
+      if (r.control_actual.length > 0) {
+        payload.control_actual = r.control_actual;
+        if (r.control_actual.includes(CONTROL_OTRA_APP) && r.control_otra.trim()) {
+          payload.control_otra = r.control_otra.trim();
+        }
+      }
+    };
+
     if (tipoCuenta === "CONTRATISTA") {
       if (r.oficio) payload.oficio = r.oficio;
       if (r.tamano_equipo) payload.tamano_equipo = r.tamano_equipo;
-      if (r.control_actual) payload.control_actual = r.control_actual;
+      agregarControl();
     } else if (tipoCuenta === "PROPIETARIO") {
       if (r.primera_obra !== null) payload.primera_obra = r.primera_obra === "SI";
       if (r.tiene_contratista) payload.tiene_contratista = r.tiene_contratista;
-      if (r.control_actual) payload.control_actual = r.control_actual;
+      agregarControl();
     } else {
       if (r.obras_activas) payload.obras_activas = r.obras_activas;
       if (r.tipo_obra) payload.tipo_obra = r.tipo_obra;
       if (r.tamano_equipo) payload.tamano_equipo = r.tamano_equipo;
       if (r.num_contratistas) payload.num_contratistas = r.num_contratistas;
-      if (r.control_actual) payload.control_actual = r.control_actual;
+      agregarControl();
     }
     return payload;
   }
@@ -302,11 +317,13 @@ function ContratistaPaso({
           }}
         />
       </div>
-      <PasoOpciones
+      <PasoOpcionesMulti
         titulo="¿Cómo controlas hoy el trabajo?"
         opciones={OPCIONES_CONTROL_ACTUAL}
         value={r.control_actual}
-        onSelect={(v) => set("control_actual", v)}
+        onChange={(v) => set("control_actual", v)}
+        otra={r.control_otra}
+        onOtra={(v) => set("control_otra", v)}
         columnas={2}
       />
     </>
@@ -361,11 +378,13 @@ function PropietarioPaso({
   }
   // Paso 3: control
   return (
-    <PasoOpciones
+    <PasoOpcionesMulti
       titulo="¿Cómo llevas hoy el control de tu obra?"
       opciones={OPCIONES_CONTROL_ACTUAL}
       value={r.control_actual}
-      onSelect={(v) => set("control_actual", v)}
+      onChange={(v) => set("control_actual", v)}
+      otra={r.control_otra}
+      onOtra={(v) => set("control_otra", v)}
       columnas={2}
     />
   );
@@ -437,11 +456,13 @@ function EmpresaPaso({
   }
   // Paso 4: control (opcional)
   return (
-    <PasoOpciones
+    <PasoOpcionesMulti
       titulo="¿Cómo controlan hoy el avance de sus obras?"
       opciones={OPCIONES_CONTROL_EMPRESA}
       value={r.control_actual}
-      onSelect={(v) => set("control_actual", v)}
+      onChange={(v) => set("control_actual", v)}
+      otra={r.control_otra}
+      onOtra={(v) => set("control_otra", v)}
       columnas={2}
     />
   );
