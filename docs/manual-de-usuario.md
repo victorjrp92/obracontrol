@@ -512,6 +512,23 @@ Al entrar, un asistente guía la creación paso a paso:
 
 - **Tareas por espacio**: la IA propone únicamente tareas que aplican a ese espacio **y a la etapa de la obra** (si la obra está por terminar, sugiere acabados —pintura, puertas, cocina—, no estructura). Usa **lenguaje sencillo**, sin tecnicismos ("levantar paredes" en vez de "mampostería"). Si la IA no está disponible, usa plantillas base.
 
+### Importa tus tareas y presupuesto desde Excel
+
+Si ya tienes tu presupuesto en Excel (como acostumbran arquitectos y contratistas), no hace falta redigitarlo:
+
+1. En el paso "¿Qué te falta?", **descarga la plantilla**: viene con listas desplegables de **fase** (obra gris, pintura, instalaciones…) y de **ubicación** con tus propios espacios ("Toda la propiedad", "Piso 2", "Piso 1 – Cocina"…).
+2. Copia tus ítems a la plantilla. Del presupuesto puedes dar la **mano de obra y los materiales por separado**, o **solo el valor total** de cada ítem.
+3. **Súbela**: Seiricon la revisa contigo antes de aplicar — te muestra qué encontró y te deja decidir (incluir ítems sin valor, estimar la división trabajo/materiales cuando solo diste el total, reasignar ubicaciones que cambiaron).
+
+Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espacio no se repiten dentro de un mismo piso (si agregas dos cocinas, quedan "Cocina" y "Cocina 2").
+
+### Cronograma: cuánto debería tardar tu obra
+
+- Al definir tus tareas, Seiricon calcula **cuánto suele tardar** lo que planeas, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos).
+- Si pusiste fechas, te da un **contra-pronóstico que solo guía**: "para lo que planeas, usualmente toma ~N días hábiles — tu plan es más corto de lo usual / está dentro de lo normal / es holgado". Nunca te bloquea.
+- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
+- Con cada obra que se completa, Seiricon aprende de las duraciones reales para afinar sus estimados.
+
 ### Cómo defines el presupuesto (3 modos)
 
 1. **Aún no tengo presupuesto** — Seiricon estima el costo de cada tarea (trabajo + materiales) con precios de referencia reales de Colombia.
