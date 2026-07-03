@@ -13,13 +13,35 @@ import type { TipoObra, TipoPropiedad } from "@/lib/plantillas-personal";
  * (edificio → piso → unidad → espacio) se materializa en la persistencia.
  */
 
+/**
+ * ESPACIO "GENERAL" — convención de ubicaciones globales (sin cambio de schema).
+ *
+ * Las ubicaciones globales del Excel único ("Toda la propiedad", "Piso N (todo
+ * el piso)") se materializan como un espacio normal con el nombre reservado
+ * `General` dentro del piso correspondiente:
+ *  - "Piso N (todo el piso)"  → espacio "General" del piso N.
+ *  - "Toda la propiedad"      → espacio "General" del piso 1 (o del único piso).
+ * Así las tareas globales (pintar/estucar todo) no rompen el modelo
+ * progreso/evidencia (que cuelga de Espacio→Tarea). El wizard debe evitar que
+ * el usuario cree un espacio propio llamado "General" (o dejar que la unicidad
+ * server-side lo auto-numere a "General 2").
+ */
+export const ESPACIO_GENERAL = "General";
+
 /** Una tarea concreta dentro de un espacio. */
 export interface TareaInput {
   nombre: string;
   /** Días acordados para la tarea (repartidos del plazo, editable). */
   tiempo_acordado_dias: number;
-  /** Precio acordado en COP (opcional, alimenta el índice de precios). */
+  /** Precio TOTAL acordado en COP (opcional, alimenta el índice de precios). */
   precio?: number;
+  /**
+   * Desglose POR TAREA del presupuesto (COP, opcional; import de Excel único).
+   * Si vienen mano de obra Y materiales, el total (`precio`) se recalcula como
+   * su suma en la persistencia (la suma prevalece — regla del spec).
+   */
+  presupuesto_mano_obra?: number;
+  presupuesto_materiales?: number;
   /** Solo se persisten las tareas activas ("qué falta por hacer"). */
   activa: boolean;
 }

@@ -13,6 +13,7 @@ import type {
   CrearObraResult,
   EspacioInput,
   PisoInput,
+  TareaInput,
   TipoAptoInput,
 } from "./types";
 
@@ -44,6 +45,56 @@ function metrajeValido(v: unknown): number | undefined {
 /** Punto de partida de la obra (estado); null si no es un valor permitido. */
 function puntoPartidaValido(v: unknown): "NUEVA" | "MEDIAS" | "AVANZADA" | null {
   return v === "NUEVA" || v === "MEDIAS" || v === "AVANZADA" ? v : null;
+}
+
+/**
+ * Desglose de presupuesto POR TAREA (spec Excel único): valida y normaliza
+ * `precio` (total) + `presupuesto_mano_obra` + `presupuesto_materiales`.
+ * Regla del spec: si vienen M.O. Y materiales, el total es su SUMA y prevalece
+ * sobre un `precio` distinto; si solo viene una de las dos bolsas y no hay
+ * total, el total se completa con lo que haya.
+ */
+function desgloseTarea(t: TareaInput): {
+  precio: number | null;
+  manoObra: number | null;
+  materiales: number | null;
+} {
+  const manoObra = precioValido(t.presupuesto_mano_obra);
+  const materiales = precioValido(t.presupuesto_materiales);
+  let precio = precioValido(t.precio);
+  if (manoObra != null && materiales != null) {
+    precio = Math.min(manoObra + materiales, INT_CAP);
+  } else if (precio == null && (manoObra != null || materiales != null)) {
+    precio = (manoObra ?? 0) + (materiales ?? 0);
+  }
+  return { precio, manoObra, materiales };
+}
+
+/**
+ * UNICIDAD SERVER-SIDE (spec §3): dentro de una misma unidad (piso) no puede
+ * haber dos espacios con el mismo nombre. Los duplicados NO se rechazan: se
+ * renombran con sufijo numérico ("Cocina", "Cocina 2", "Cocina 3"…),
+ * comparando sin mayúsculas/tildes. Espeja la regla del wizard, protege la
+ * importación de Excel y la sincronización por nombre de la edición. Aplica
+ * también al nombre reservado "General" (ubicaciones globales): un "General"
+ * creado a mano por el usuario pasaría a "General 2".
+ */
+function renombrarEspaciosDuplicados(espacios: EspacioInput[]): EspacioInput[] {
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+  const vistos = new Set<string>();
+  return espacios.map((esp) => {
+    const base = esp.nombre?.trim();
+    if (!base) return esp;
+    let nombre = base;
+    let i = 2;
+    while (vistos.has(norm(nombre))) {
+      nombre = `${base} ${i}`;
+      i++;
+    }
+    vistos.add(norm(nombre));
+    return nombre === base ? esp : { ...esp, nombre };
+  });
 }
 
 /**
@@ -157,7 +208,9 @@ async function crearEspaciosYTareas(
   unidadId: string,
   espacios: EspacioInput[],
 ): Promise<void> {
-  const espaciosLimitados = espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD);
+  const espaciosLimitados = renombrarEspaciosDuplicados(
+    espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD),
+  );
   for (const espacioInput of espaciosLimitados) {
     const nombreEspacio = espacioInput.nombre?.trim();
     if (!nombreEspacio) continue;
@@ -185,7 +238,7 @@ async function crearEspaciosYTareas(
       if (!nombreTarea) continue;
       if (ctx.seq.n >= MAX_TAREAS_TOTALES) throw new Error("MAX_TAREAS");
       ctx.seq.n++;
-      const precio = precioValido(t.precio);
+      const { precio, manoObra, materiales } = desgloseTarea(t);
       await ctx.tx.tarea.create({
         data: {
           espacio_id: espacio.id,
@@ -194,6 +247,8 @@ async function crearEspaciosYTareas(
           nombre: nombreTarea.slice(0, MAX_NOMBRE),
           tiempo_acordado_dias: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
           ...(precio != null ? { precio } : {}),
+          ...(manoObra != null ? { presupuesto_mano_obra: manoObra } : {}),
+          ...(materiales != null ? { presupuesto_materiales: materiales } : {}),
           // Las tareas se asignan al dueño de la cuenta: sus obreros (que cuelgan
           // de él como contratista) las reportan y él mismo las valida.
           asignado_a: ctx.usuarioId,
@@ -592,7 +647,13 @@ export async function cargarObraParaEditar(
   const espacioToInput = (esp: {
     nombre: string;
     metraje: number | null;
-    tareas: { nombre: string; tiempo_acordado_dias: number; precio: number | null }[];
+    tareas: {
+      nombre: string;
+      tiempo_acordado_dias: number;
+      precio: number | null;
+      presupuesto_mano_obra: number | null;
+      presupuesto_materiales: number | null;
+    }[];
   }): EspacioInput => ({
     nombre: esp.nombre,
     ...(esp.metraje != null ? { metraje: esp.metraje } : {}),
@@ -600,6 +661,12 @@ export async function cargarObraParaEditar(
       nombre: t.nombre,
       tiempo_acordado_dias: t.tiempo_acordado_dias,
       ...(t.precio != null ? { precio: t.precio } : {}),
+      ...(t.presupuesto_mano_obra != null
+        ? { presupuesto_mano_obra: t.presupuesto_mano_obra }
+        : {}),
+      ...(t.presupuesto_materiales != null
+        ? { presupuesto_materiales: t.presupuesto_materiales }
+        : {}),
       activa: true,
     })),
   });
@@ -886,7 +953,8 @@ export async function editarObraPersonal(
     for (const esp of espacios) {
       for (const t of esp.tareas ?? []) {
         if (!t.activa) continue;
-        const precio = precioValido(t.precio);
+        // Mismo total que se persiste (la suma M.O.+materiales prevalece).
+        const { precio } = desgloseTarea(t);
         const nombre = t.nombre?.trim();
         if (precio == null || !nombre) continue;
         precios.push({
@@ -1086,7 +1154,10 @@ async function sincronizarUnidad(
   tx: CrearCtx["tx"],
   args: SyncUnidadArgs,
 ): Promise<void> {
-  const { unidad, espaciosInput, faseId, usuarioId, numeroRegistro, seq } = args;
+  const { unidad, faseId, usuarioId, numeroRegistro, seq } = args;
+  // Unicidad server-side: espacios duplicados en el mismo piso se auto-numeran
+  // ANTES de emparejar por nombre (evita fusionar dos "Cocina" en una).
+  const espaciosInput = renombrarEspaciosDuplicados(args.espaciosInput);
 
   const espaciosPorNombre = new Map(unidad.espacios.map((e) => [e.nombre.trim(), e]));
   const nombresInput = new Set<string>();
@@ -1140,13 +1211,18 @@ async function sincronizarUnidad(
       const nombreTarea = t.nombre?.trim();
       if (!nombreTarea) continue;
       nombresTareaInput.add(nombreTarea);
-      const precio = precioValido(t.precio);
+      const { precio, manoObra, materiales } = desgloseTarea(t);
       const dias = Math.max(1, Math.round(t.tiempo_acordado_dias || 1));
       const existenteT = tareasPorNombre.get(nombreTarea);
       if (existenteT) {
         await tx.tarea.update({
           where: { id: existenteT.id },
-          data: { tiempo_acordado_dias: dias, precio: precio ?? null },
+          data: {
+            tiempo_acordado_dias: dias,
+            precio: precio ?? null,
+            presupuesto_mano_obra: manoObra,
+            presupuesto_materiales: materiales,
+          },
         });
       } else {
         if (seq.n >= MAX_TAREAS_TOTALES) throw new Error("MAX_TAREAS");
@@ -1159,6 +1235,8 @@ async function sincronizarUnidad(
             nombre: nombreTarea.slice(0, MAX_NOMBRE),
             tiempo_acordado_dias: dias,
             ...(precio != null ? { precio } : {}),
+            ...(manoObra != null ? { presupuesto_mano_obra: manoObra } : {}),
+            ...(materiales != null ? { presupuesto_materiales: materiales } : {}),
             asignado_a: usuarioId,
             estado: "PENDIENTE",
           },

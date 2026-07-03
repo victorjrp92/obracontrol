@@ -260,6 +260,11 @@ model Tarea {
   nombre                    String
   subfase                   String?
   precio                    Float?
+  // Desglose de presupuesto POR TAREA (B2C, import de Excel único). Opcional:
+  // una tarea puede tener solo `precio` (total), solo M.O., solo materiales, o
+  // el desglose completo. Cierra el diferido de la fase 5 anterior.
+  presupuesto_mano_obra     Int?
+  presupuesto_materiales    Int?
   codigo_referencia         String?
   nombre_pieza              String?
   marca_linea               String?
@@ -936,5 +941,29 @@ model RegistroPrecio {
 
   @@index([tarea_normalizada, ciudad])
   @@map("registros_precio")
+}
+
+// ─── REGISTRO DE DURACIONES (flywheel, sin IA) ───────────────────────────────
+// Espejo de RegistroPrecio para DURACIONES: cuando una tarea pasa a APROBADA y
+// tiene `fecha_inicio` + fecha real de fin, dejamos el rastro de días reales
+// vs. estimados. La capa de lectura (duraciones-mercado.ts) devuelve la mediana
+// de días reales por tarea normalizada (+ ciudad). NO conectado a la UI aún:
+// el motor determinista (estimar-duracion.ts) es la fuente por ahora.
+// Sin foreign keys a propósito (mismo criterio que RegistroPrecio: la captura
+// pasiva jamás debe romper la aprobación, ni el borrado de una obra cascar).
+model RegistroDuracion {
+  id                String   @id @default(cuid())
+  tarea_normalizada String   // misma normalización que normalizarTarea()
+  fase              String   // fase curada (faseDeTarea) o, si no matchea, la fase de la obra
+  ciudad            String?
+  metraje           Float?   // m² del espacio de la tarea, si existía
+  dias_estimados    Float    // tiempo_acordado_dias vigente al aprobar
+  dias_reales       Float    // fecha_inicio → fecha_fin_real (días calendario, mín 0.5)
+  proyecto_id       String?
+  constructora_id   String?
+  created_at        DateTime @default(now())
+
+  @@index([tarea_normalizada, ciudad])
+  @@map("registros_duracion")
 }
 

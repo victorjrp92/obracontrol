@@ -37,12 +37,37 @@ import {
 } from "@/components/personal/icons";
 import { crearObraPersonal, editarObraPersonal, type ObraParaEditar } from "./actions";
 import { estimarPresupuesto, type EspacioEstim } from "@/lib/estimar-presupuesto";
-import type { CrearObraInput, EspacioInput } from "./types";
+import { normalizarComparacion, type EstructuraPlantilla, type TipoPropiedadPlantilla } from "@/lib/plantilla-obra";
+import type { FaseObra } from "@/lib/fases-obra";
+import ImportExcelPanel from "@/components/personal/ImportExcelPanel";
+import RevisionImportExcel from "@/components/personal/RevisionImportExcel";
+import ContraPronostico from "@/components/personal/ContraPronostico";
+import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
+import type { PreviewImport, TareaImportadaResuelta } from "@/components/personal/import-excel-types";
+import { ESPACIO_GENERAL, type CrearObraInput, type EspacioInput } from "./types";
 
 // ─── Modelo interno del wizard ────────────────────────────────────────────────
 
 let _uid = 0;
 const nuevoId = () => `e${++_uid}`;
+
+/**
+ * Nombre único dentro de una lista de espacios (mismo piso/grupo): si `deseado`
+ * ya existe (comparación sin tildes/mayúsculas), lo auto-numera ("Cocina 2",
+ * "Cocina 3"…). `exceptId` excluye el propio espacio al renombrar.
+ */
+function nombreUnico(espacios: EspacioW[], deseado: string, exceptId?: string): string {
+  const base = deseado.trim();
+  if (!base) return base;
+  const existe = (nombre: string) =>
+    espacios.some(
+      (e) => e.id !== exceptId && normalizarComparacion(e.nombre) === normalizarComparacion(nombre),
+    );
+  if (!existe(base)) return base;
+  let i = 2;
+  while (existe(`${base} ${i}`)) i++;
+  return `${base} ${i}`;
+}
 
 /**
  * Convierte los espacios precargados (modo edición) al modelo interno del wizard.
@@ -60,6 +85,10 @@ function espaciosDesdeInput(espacios: EspacioInput[] | undefined): EspacioW[] {
       dias: t.tiempo_acordado_dias,
       on: t.activa,
       precio: t.precio,
+      // Desglose de PRESUPUESTO por tarea (import del Excel único): hay que
+      // conservarlo al editar, o `sincronizarUnidad` lo sobrescribe con null.
+      ...(t.presupuesto_mano_obra != null ? { presupuestoManoObra: t.presupuesto_mano_obra } : {}),
+      ...(t.presupuesto_materiales != null ? { presupuestoMateriales: t.presupuesto_materiales } : {}),
     })),
   }));
 }
@@ -73,6 +102,12 @@ interface TareaW {
   /** Desglose del costo de la tarea (paso de costos). */
   manoObra?: number;
   materiales?: number;
+  /** Desglose de PRESUPUESTO por tarea (import del Excel único). Se persiste
+   *  como presupuesto_mano_obra / presupuesto_materiales en la tarea. */
+  presupuestoManoObra?: number;
+  presupuestoMateriales?: number;
+  /** Fase curada conocida (import del Excel). Afina el motor de duración. */
+  fase?: FaseObra;
 }
 
 interface EspacioW {
@@ -332,6 +367,9 @@ export default function IntentWizard({
   const [error, setError] = useState("");
   const [limiteAlcanzado, setLimiteAlcanzado] = useState(false);
 
+  // Import del Excel único: preview a revisar (null = modal de revisión cerrado).
+  const [importPreview, setImportPreview] = useState<PreviewImport | null>(null);
+
   // Paso "¿Qué te falta?": mensajes guía de primera vez (dismissibles).
   // Por defecto false (SSR-safe); en cliente se activa solo si nunca se han visto.
   const [ayudaQFalta, setAyudaQFalta] = useState(false);
@@ -370,6 +408,94 @@ export default function IntentWizard({
   }, [esEdificio, tipos, pisos]);
 
   const todosEspacios = useMemo(() => grupos.flatMap((g) => g.espacios), [grupos]);
+
+  // Estructura para la plantilla/parse del Excel único. Solo CASA/APARTAMENTO/
+  // LOCAL (EDIFICIO fuera de alcance del import en esta ronda).
+  const estructuraPlantilla = useMemo<EstructuraPlantilla | null>(() => {
+    if (esEdificio || !tipoPropiedad) return null;
+    return {
+      tipoPropiedad: tipoPropiedad as TipoPropiedadPlantilla,
+      pisos: pisos.map((p, i) => ({
+        numero: i + 1,
+        espacios: p.espacios.map((e) => e.nombre.trim()).filter(Boolean),
+      })),
+    };
+  }, [esEdificio, tipoPropiedad, pisos]);
+
+  // m² total de la obra si el usuario lo dio (afina duración y estimados).
+  const areaTotalNum =
+    modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
+      ? metrajeTotal
+      : undefined;
+
+  // Espacios en el formato del motor de duración/estimador (tareas con fase).
+  const espaciosEstim = useMemo<EspacioEstim[]>(
+    () =>
+      todosEspacios.map((e) => ({
+        id: e.id,
+        nombre: e.nombre,
+        ...(e.metraje ? { metraje: e.metraje } : {}),
+        tareas: e.tareas.map((t) => ({
+          nombre: t.nombre,
+          dias: t.dias,
+          on: t.on,
+          ...(t.fase ? { fase: t.fase } : {}),
+        })),
+      })),
+    [todosEspacios],
+  );
+
+  /**
+   * Vuelca al estado del wizard las tareas confirmadas en el paso de revisión.
+   * Crea cada tarea en su espacio destino; para destinos globales (propiedad /
+   * piso) usa el espacio reservado "General" del piso, creándolo si no existe
+   * (convención ESPACIO_GENERAL). Marca las tareas activas y protege lo
+   * importado del reparto automático de costos/días (repartoHecho).
+   */
+  function aplicarImportacion(tareas: TareaImportadaResuelta[]) {
+    if (tareas.length > 0) {
+      setPisos((prev) => {
+        const next: PisoW[] = prev.map((p) => ({
+          espacios: p.espacios.map((e) => ({ ...e, tareas: e.tareas.map((t) => ({ ...t })) })),
+        }));
+        const buscarOCrear = (pisoIdx: number, nombre: string): EspacioW => {
+          const idx = Math.min(Math.max(0, pisoIdx), next.length - 1);
+          const piso = next[idx];
+          const objetivo = normalizarComparacion(nombre);
+          let esp = piso.espacios.find((e) => normalizarComparacion(e.nombre) === objetivo);
+          if (!esp) {
+            esp = { id: nuevoId(), nombre, tareas: [], cargado: true };
+            piso.espacios.push(esp);
+          }
+          return esp;
+        };
+        for (const t of tareas) {
+          let pisoIdx = 0;
+          let nombreEsp = ESPACIO_GENERAL;
+          if (t.destino.tipo === "piso") {
+            pisoIdx = t.destino.piso - 1;
+          } else if (t.destino.tipo === "espacio") {
+            pisoIdx = t.destino.piso - 1;
+            nombreEsp = t.destino.espacio;
+          }
+          const esp = buscarOCrear(pisoIdx, nombreEsp);
+          esp.tareas.push({
+            nombre: t.nombre,
+            dias: 1,
+            on: true,
+            ...(t.precio != null ? { precio: t.precio } : {}),
+            ...(t.presupuestoManoObra != null ? { presupuestoManoObra: t.presupuestoManoObra } : {}),
+            ...(t.presupuestoMateriales != null ? { presupuestoMateriales: t.presupuestoMateriales } : {}),
+            ...(t.fase ? { fase: t.fase } : {}),
+          });
+        }
+        return next;
+      });
+      // Lo importado no debe ser pisado por el reparto automático (costos/días).
+      setRepartoHecho(true);
+    }
+    setImportPreview(null);
+  }
 
   // ── Navegación ──────────────────────────────────────────────────────────────
   const puedeAvanzar = useMemo(() => {
@@ -902,6 +1028,14 @@ export default function IntentWizard({
               nombre: t.nombre,
               tiempo_acordado_dias: t.dias,
               precio: t.on ? (t.precio ?? (precios.length ? precios[pi++] : undefined)) : undefined,
+              // Desglose por tarea del import del Excel único (opcional). El
+              // backend recalcula el total como su suma cuando vienen los dos.
+              ...(t.on && t.presupuestoManoObra != null
+                ? { presupuesto_mano_obra: t.presupuestoManoObra }
+                : {}),
+              ...(t.on && t.presupuestoMateriales != null
+                ? { presupuesto_materiales: t.presupuestoMateriales }
+                : {}),
               activa: t.on,
             })),
           };
@@ -1198,6 +1332,14 @@ export default function IntentWizard({
                 </button>
               </div>
             )}
+            {/* Descargar plantilla + subir Excel (solo crear · CASA/APTO/LOCAL). */}
+            {!esEdicion && estructuraPlantilla && (
+              <ImportExcelPanel
+                estructura={estructuraPlantilla}
+                puedeDescargar={todosEspacios.length > 0}
+                onRevisar={setImportPreview}
+              />
+            )}
             {/* Señal de fuente: si la IA no corrió, lo decimos (ayuda a diagnosticar). */}
             {!iaCargando && iaFuente && iaFuente !== "ia" && (
               <div className="rounded-xl bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-500 flex items-center gap-2">
@@ -1374,6 +1516,22 @@ export default function IntentWizard({
                   ))}
               </div>
             ))}
+
+            {/* Cronograma estimado: contra-pronóstico (guía) + línea de tiempo
+                con ramas. Va en este paso —el último editable antes de crear—
+                porque es donde ya coexisten las tareas Y las fechas: el paso de
+                fechas es ANTERIOR a "¿qué falta?", así que allí todavía no hay
+                tareas que estimar. Nunca bloquea; solo orienta. */}
+            {totalTareasActivas > 0 && (
+              <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+                <ContraPronostico
+                  espacios={espaciosEstim}
+                  plazoDias={plazoDias}
+                  areaTotal={areaTotalNum}
+                />
+                <LineaTiempoObra espacios={espaciosEstim} areaTotal={areaTotalNum} />
+              </div>
+            )}
           </div>
         )}
 
@@ -1464,6 +1622,17 @@ export default function IntentWizard({
             </button>
           ) : null}
         </div>
+
+        {/* Paso de revisión del import (Excel único). Se abre al subir el archivo. */}
+        {importPreview && estructuraPlantilla && (
+          <RevisionImportExcel
+            filas={importPreview.filas}
+            resumen={importPreview.resumen}
+            estructura={estructuraPlantilla}
+            onConfirmar={aplicarImportacion}
+            onCerrar={() => setImportPreview(null)}
+          />
+        )}
       </div>
     </main>
   );
@@ -1793,12 +1962,27 @@ function EspaciosEditor({
   const nHab = espacioOps.contar(espacios, "Habitación");
   const nBano = espacioOps.contar(espacios, "Baño");
   const [otro, setOtro] = useState("");
+  // Aviso sutil cuando auto-numeramos un nombre duplicado ("Cocina 2").
+  const [aviso, setAviso] = useState<{ id: string; nombre: string } | null>(null);
 
   function agregarOtro() {
     const v = otro.trim();
     if (!v) return;
-    setEspacios((prev) => espacioOps.toggleEspacioSingular(prev, v));
+    // Un espacio con texto libre SIEMPRE se agrega (auto-numerado si el nombre
+    // ya existe en este piso), en vez de togglear/eliminar el existente.
+    setEspacios((prev) => [...prev, { id: nuevoId(), nombre: nombreUnico(prev, v), tareas: [] }]);
     setOtro("");
+  }
+
+  // Al salir del campo de renombrar: si el nombre quedó duplicado dentro de este
+  // piso/grupo, lo auto-numeramos y lo avisamos sutilmente.
+  function resolverUnicidad(id: string) {
+    const esp = espacios.find((e) => e.id === id);
+    if (!esp) return;
+    const unico = nombreUnico(espacios, esp.nombre, id);
+    if (unico === esp.nombre) return;
+    setEspacios((prev) => prev.map((e) => (e.id === id ? { ...e, nombre: unico } : e)));
+    setAviso({ id, nombre: unico });
   }
 
   return (
@@ -1879,11 +2063,20 @@ function EspaciosEditor({
               key={esp.id}
               espacio={esp}
               mostrarMetraje={mostrarMetraje}
-              onRename={(n) => setEspacios((e) => espacioOps.renombrarEspacio(e, esp.id, n))}
+              onRename={(n) => {
+                if (aviso) setAviso(null);
+                setEspacios((e) => espacioOps.renombrarEspacio(e, esp.id, n));
+              }}
+              onCommit={() => resolverUnicidad(esp.id)}
               onMetraje={(m) => setEspacios((e) => espacioOps.setMetraje(e, esp.id, m))}
               onRemove={() => setEspacios((e) => e.filter((x) => x.id !== esp.id))}
             />
           ))}
+          {aviso && (
+            <p className="text-[11px] text-amber-600 pt-0.5">
+              Ya tenías un espacio con ese nombre en este piso; lo dejamos como “{aviso.nombre}”.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -1894,12 +2087,15 @@ function EspacioRow({
   espacio,
   mostrarMetraje,
   onRename,
+  onCommit,
   onMetraje,
   onRemove,
 }: {
   espacio: EspacioW;
   mostrarMetraje: boolean;
   onRename: (n: string) => void;
+  /** Se dispara al salir del campo: resuelve nombres duplicados. */
+  onCommit?: () => void;
   onMetraje: (m?: number) => void;
   onRemove: () => void;
 }) {
@@ -1912,6 +2108,7 @@ function EspacioRow({
         <input
           value={espacio.nombre}
           onChange={(e) => onRename(e.target.value)}
+          onBlur={onCommit}
           className="w-full text-sm text-slate-800 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-1 pr-5"
         />
         <Pencil className="w-3 h-3 text-slate-300 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />

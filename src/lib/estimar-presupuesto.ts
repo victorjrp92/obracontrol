@@ -26,6 +26,12 @@ export interface TareaEstim {
   dias: number;
   /** Solo se estiman las tareas activas (pendientes). */
   on: boolean;
+  /**
+   * Fase curada de la tarea si el llamador ya la conoce (p. ej. import del
+   * Excel único). Opcional: el motor de duración usa `faseDeTarea(nombre)`
+   * como fallback determinista.
+   */
+  fase?: string;
 }
 
 export interface EspacioEstim {
@@ -109,7 +115,8 @@ const ML_DEFECTO: Record<string, number> = {
   closet: 3, mueble_bajo_cocina: 4, mueble_alto_cocina: 4,
 };
 
-function areaTipica(nombreEspacio: string): number {
+/** Área típica (m² de piso) de un espacio por su nombre, si no dio metraje. */
+export function areaTipica(nombreEspacio: string): number {
   const n = nombreEspacio.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   for (const [k, v] of Object.entries(AREA_TIPICA_M2)) {
     if (n.includes(k)) return v;
@@ -117,19 +124,37 @@ function areaTipica(nombreEspacio: string): number {
   return 12; // genérico
 }
 
-/** Cantidad estimada (en la unidad del precio) para una tarea en un espacio. */
-function cantidadEstim(p: PrecioSemilla, espacio: EspacioEstim): number {
-  const areaPiso = espacio.metraje && espacio.metraje > 0 ? espacio.metraje : areaTipica(espacio.nombre);
-  switch (p.unidad) {
+/**
+ * Cantidad estimada para una clave/unidad en un espacio (m², ml o unidades).
+ * Compartida por el estimador de COSTOS y el motor de DURACIÓN
+ * (estimar-duracion.ts): misma lógica de cantidades, una sola definición.
+ *  - m2 de PARED (KEYS_PARED): área de piso × FACTOR_PARED.
+ *  - m2 de piso: el metraje del espacio (o su área típica).
+ *  - ml: default por clave (closet/muebles de cocina) o 3 ml.
+ *  - unidad/global: 1 por espacio (el usuario ajusta).
+ */
+export function cantidadPorUnidad(
+  key: string,
+  unidad: PrecioSemilla["unidad"],
+  espacio: EspacioEstim,
+): number {
+  const areaPiso =
+    espacio.metraje && espacio.metraje > 0 ? espacio.metraje : areaTipica(espacio.nombre);
+  switch (unidad) {
     case "m2":
-      return KEYS_PARED.has(p.key) ? Math.round(areaPiso * FACTOR_PARED) : areaPiso;
+      return KEYS_PARED.has(key) ? Math.round(areaPiso * FACTOR_PARED) : areaPiso;
     case "ml":
-      return ML_DEFECTO[p.key] ?? 3;
+      return ML_DEFECTO[key] ?? 3;
     case "unidad":
       return 1; // 1 por espacio por defecto (1 puerta, 1 sanitario…); el usuario ajusta
     case "global":
       return 1;
   }
+}
+
+/** Cantidad estimada (en la unidad del precio) para una tarea en un espacio. */
+function cantidadEstim(p: PrecioSemilla, espacio: EspacioEstim): number {
+  return cantidadPorUnidad(p.key, p.unidad, espacio);
 }
 
 export interface EstimOpts {
@@ -151,7 +176,7 @@ export interface EstimOpts {
  * distribuye solo sobre el remanente. Esto permite que "Sugerir presupuesto"
  * use el m² total que dio el usuario sin perder la granularidad que ya exista.
  */
-function distribuirAreaTotal(
+export function distribuirAreaTotal(
   espacios: EspacioEstim[],
   areaTotal: number,
 ): EspacioEstim[] {

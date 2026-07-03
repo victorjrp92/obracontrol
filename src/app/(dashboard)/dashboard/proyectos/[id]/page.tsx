@@ -9,6 +9,8 @@ import Link from "next/link";
 import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 import CompartirAvanceCliente from "@/components/dashboard/CompartirAvanceCliente";
+import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
+import type { EspacioEstim } from "@/lib/estimar-presupuesto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
 
@@ -296,6 +298,26 @@ export default async function ProyectoDetallePage({
     progresoByTipo.push({ nombre: group.nombre, aprobadas: prog.aprobadas, total: prog.total, porcentaje: prog.porcentajeAprobado });
   }
 
+  // Espacios en el formato del motor de duración para la línea de tiempo
+  // estimada (solo cuentas personales; para B2B no se muestra).
+  const espaciosTimeline: EspacioEstim[] = personal
+    ? proyecto.edificios.flatMap((ed, ei) =>
+        ed.pisos.flatMap((pi, pj) =>
+          pi.unidades.flatMap((u, uk) =>
+            u.espacios.map((e, esi) => ({
+              id: `${ei}-${pj}-${uk}-${esi}`,
+              nombre: e.nombre,
+              tareas: e.tareas.map((t) => ({
+                nombre: t.nombre,
+                dias: t.tiempo_acordado_dias,
+                on: true,
+              })),
+            })),
+          ),
+        ),
+      )
+    : [];
+
   return (
     <>
       <Topbar
@@ -421,6 +443,18 @@ export default async function ProyectoDetallePage({
             </div>
           </div>
         </div>
+
+        {/* Cronograma estimado con ramas (solo cuentas personales; no rompe B2B). */}
+        {personal && espaciosTimeline.some((e) => e.tareas.length > 0) && (
+          <div className="mb-6">
+            <LineaTiempoObra
+              espacios={espaciosTimeline}
+              colapsable
+              defaultAbierto={false}
+              titulo="Cronograma estimado de la obra"
+            />
+          </div>
+        )}
 
         {/* Progress by unit type */}
         {progresoByTipo.length > 1 && (
