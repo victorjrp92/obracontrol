@@ -518,7 +518,8 @@ Si ya tienes tu presupuesto en Excel (como acostumbran arquitectos y contratista
 
 1. En el paso "¿Qué te falta?", **descarga la plantilla**: viene con listas desplegables de **fase** (obra gris, pintura, instalaciones…) y de **ubicación** con tus propios espacios ("Toda la propiedad", "Piso 2", "Piso 1 – Cocina"…).
 2. Copia tus ítems a la plantilla. Del presupuesto puedes dar la **mano de obra y los materiales por separado**, o **solo el valor total** de cada ítem.
-3. **Súbela**: Seiricon la revisa contigo antes de aplicar — te muestra qué encontró y te deja decidir (incluir ítems sin valor, estimar la división trabajo/materiales cuando solo diste el total, reasignar ubicaciones que cambiaron).
+3. **Súbela**: Seiricon la revisa contigo antes de aplicar — te muestra qué encontró y te deja decidir (incluir ítems sin valor, estimar la división trabajo/materiales cuando solo diste el total, reasignar ubicaciones que cambiaron). Los montos aceptan los formatos comunes ($1.500.000, $1'500.000).
+4. ¿Te equivocaste en el archivo? Corrígelo y **súbelo de nuevo**: lo importado se **reemplaza** con la versión nueva; las tareas que creaste a mano no se tocan.
 
 Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espacio no se repiten dentro de un mismo piso (si agregas dos cocinas, quedan "Cocina" y "Cocina 2").
 
