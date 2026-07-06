@@ -5,6 +5,7 @@ import { recalcularScoreContratista, recalcularScoreObrerosDeTarea } from "@/lib
 import { sendEmail } from "@/lib/email";
 import { tareaAprobadaEmailHtml, tareaNoAprobadaEmailHtml } from "@/lib/email-templates/notifications";
 import { crearNotificacion } from "@/lib/notifications";
+import { capturarDuracionAprobada } from "@/lib/duraciones-mercado";
 import { getAccessibleProjectIds, canAccessProject, canApproveTasks, isProjectAdmin, checkAdminProjectPermission } from "@/lib/access";
 
 // POST /api/tareas/[id]/aprobar — supervisor aprueba o no aprueba
@@ -141,6 +142,13 @@ export async function POST(
         },
       }),
     ]);
+
+    // Flywheel de duraciones (captura pasiva): al APROBAR, si la tarea tiene
+    // fecha_inicio + fecha de fin real, registra días reales vs. estimados.
+    // Nunca rompe la aprobación (try/catch interno, patrón flushPreciosCapturados).
+    if (estado === "APROBADA") {
+      await capturarDuracionAprobada(id);
+    }
 
     // Recalcular score del contratista si tiene uno asignado
     if (tareaActualizada.asignado_a) {

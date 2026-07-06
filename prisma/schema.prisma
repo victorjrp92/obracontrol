@@ -21,7 +21,7 @@ model Constructora {
   descripcion      String?
   plan_suscripcion PlanTipo   @default(OBRA)
   // Tipo de cuenta: gobierna qué módulos/menú ve y el tono del producto.
-  // CONSTRUCTORA = comportamiento actual (empresa). ARQUITECTO y PROPIETARIO
+  // CONSTRUCTORA = comportamiento actual (empresa). CONTRATISTA y PROPIETARIO
   // son los perfiles "personales" (modo simple). Ver src/lib/plan.ts.
   tipo_cuenta      TipoCuenta @default(CONSTRUCTORA)
   created_at       DateTime   @default(now())
@@ -33,8 +33,42 @@ model Constructora {
   obreros            Obrero[]
   tareas_aprendidas  TareaAprendida[]
   clientes           Cliente[]
+  perfil_onboarding  PerfilOnboarding?
 
   @@map("constructoras")
+}
+
+// ─── PERFIL ONBOARDING ───────────────────────────────────────────────────────
+// Respuestas del cuestionario post-registro (Fase 2). Una fila por cuenta
+// (la cuenta = constructora, incluidas las personales CONTRATISTA/PROPIETARIO).
+// Todos los campos de perfil son opcionales: cada perfil llena solo los suyos.
+
+model PerfilOnboarding {
+  id               String   @id @default(cuid())
+  constructora_id  String   @unique // 1 por cuenta (la cuenta = constructora, incl. personales)
+  tipo_cuenta      String // CONSTRUCTORA | CONTRATISTA | PROPIETARIO
+  // Contratista B2C
+  oficio           String?
+  tamano_equipo    String?
+  control_actual   String[]  @default([]) // multi-select: WHATSAPP_FOTOS | EXCEL | CUADERNO | OTRA_APP | SIN_CONTROL
+  control_otra     String?   // texto libre de "¿cuál?" cuando incluye OTRA_APP (≤80)
+  // Propietario
+  primera_obra      Boolean?
+  tiene_contratista String?
+  // Empresa
+  obras_activas    String?
+  tipo_obra        String?
+  num_contratistas String?
+  // Común
+  departamento     String?
+  ciudad           String?
+  completado       Boolean  @default(false)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  constructora     Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+
+  @@map("perfil_onboarding")
 }
 
 // ─── CLIENTE (empresa externa) ──────────────────────────────────────────────
@@ -79,14 +113,18 @@ model Proyecto {
   // Contexto B2C + índice de negocio (telemetría interna)
   tipo_obra               String?        // "REFORMA" | "MODIFICACION" | "OBRA_NUEVA"
   tipo_propiedad          String?        // "CASA" | "APARTAMENTO" | "EDIFICIO" | "LOCAL"
+  punto_partida           String?        // "NUEVA" | "MEDIAS" | "AVANZADA" (estado de la obra)
   ciudad                  String?        // índice de precios por región
-  presupuesto_total       Int?           // COP, opcional
+  presupuesto_total       Int?           // COP, opcional (modo "general" o sin presupuesto)
+  presupuesto_mano_obra   Int?           // COP, opcional (modo "separado": bolsa de mano de obra)
+  presupuesto_materiales  Int?           // COP, opcional (modo "separado": bolsa de materiales)
   metraje_total           Float?         // m² de toda la obra (alternativa a metraje por espacio)
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt
 
   constructora            Constructora   @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
   cliente                 Cliente?       @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
+  cliente_acceso_tokens   ClienteAccesoToken[]
   edificios               Edificio[]
   fases                   Fase[]
   tipos_unidad            TipoUnidad[]
@@ -105,6 +143,26 @@ model Proyecto {
   @@index([contratista_default_id])
   @@index([cliente_id])
   @@map("proyectos")
+}
+
+// ─── ACCESO DEL CLIENTE (solo lectura del avance) — Fase 6 ───────────────────
+// Token público por proyecto que el Contratista B2C comparte con su cliente
+// para que VEA el avance de la obra (sin reportar, sin login). Read-only.
+// `token` es aleatorio urlsafe (no cuid, para no filtrar orden de creación).
+// Tenant-safe por construcción: el token apunta a un proyecto_id concreto.
+// Máximo 1 token activo por proyecto (regenerar invalida el anterior).
+
+model ClienteAccesoToken {
+  id          String   @id @default(cuid())
+  token       String   @unique // aleatorio, urlsafe
+  proyecto_id String
+  activo      Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+
+  @@index([proyecto_id])
+  @@map("cliente_acceso_token")
 }
 
 // ─── EDIFICIO / TORRE ────────────────────────────────────────────────────────
@@ -202,6 +260,11 @@ model Tarea {
   nombre                    String
   subfase                   String?
   precio                    Float?
+  // Desglose de presupuesto POR TAREA (B2C, import de Excel único). Opcional:
+  // una tarea puede tener solo `precio` (total), solo M.O., solo materiales, o
+  // el desglose completo. Cierra el diferido de la fase 5 anterior.
+  presupuesto_mano_obra     Int?
+  presupuesto_materiales    Int?
   codigo_referencia         String?
   nombre_pieza              String?
   marca_linea               String?
@@ -783,11 +846,13 @@ enum PlanTipo {
 
 // Tipo de cuenta: perfil con el que se usa la app.
 //   CONSTRUCTORA → empresa (flujo completo actual).
-//   ARQUITECTO   → independiente: contrata contratistas, maneja varias obras/clientes.
+//   CONTRATISTA  → contratista B2C: emprendedor de oficio; envía a su personal a
+//                  ejecutar trabajos en obras de sus clientes. Maneja varias
+//                  obras/clientes. (Antes ARQUITECTO.)
 //   PROPIETARIO  → persona natural: maneja su propia obra y contrata obreros directos.
 enum TipoCuenta {
   CONSTRUCTORA
-  ARQUITECTO
+  CONTRATISTA
   PROPIETARIO
 }
 
@@ -876,5 +941,29 @@ model RegistroPrecio {
 
   @@index([tarea_normalizada, ciudad])
   @@map("registros_precio")
+}
+
+// ─── REGISTRO DE DURACIONES (flywheel, sin IA) ───────────────────────────────
+// Espejo de RegistroPrecio para DURACIONES: cuando una tarea pasa a APROBADA y
+// tiene `fecha_inicio` + fecha real de fin, dejamos el rastro de días reales
+// vs. estimados. La capa de lectura (duraciones-mercado.ts) devuelve la mediana
+// de días reales por tarea normalizada (+ ciudad). NO conectado a la UI aún:
+// el motor determinista (estimar-duracion.ts) es la fuente por ahora.
+// Sin foreign keys a propósito (mismo criterio que RegistroPrecio: la captura
+// pasiva jamás debe romper la aprobación, ni el borrado de una obra cascar).
+model RegistroDuracion {
+  id                String   @id @default(cuid())
+  tarea_normalizada String   // misma normalización que normalizarTarea()
+  fase              String   // fase curada (faseDeTarea) o, si no matchea, la fase de la obra
+  ciudad            String?
+  metraje           Float?   // m² del espacio de la tarea, si existía
+  dias_estimados    Float    // tiempo_acordado_dias vigente al aprobar
+  dias_reales       Float    // fecha_inicio → fecha_fin_real (días calendario, mín 0.5)
+  proyecto_id       String?
+  constructora_id   String?
+  created_at        DateTime @default(now())
+
+  @@index([tarea_normalizada, ciudad])
+  @@map("registros_duracion")
 }
 

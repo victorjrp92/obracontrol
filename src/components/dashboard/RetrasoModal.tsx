@@ -135,13 +135,13 @@ export default function RetrasoModal({ tareaId, onClose }: RetrasoModalProps) {
           {tipo === "POR_FALTA_PISTA" && (
             <div>
               <label className="text-sm font-semibold text-slate-700 mb-2 block">
-                Evidencia (descripciones o links) <span className="text-red-500">*</span>
+                Evidencia (descripciones o enlaces) <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={evidenciaUrls}
                 onChange={(e) => setEvidenciaUrls(e.target.value)}
                 rows={3}
-                placeholder="Una entrada por línea. Ej: 'Cocina sin instalación eléctrica' o link a foto"
+                placeholder="Una entrada por línea. Ej: 'Cocina sin instalación eléctrica' o enlace a una foto"
                 className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
               />
               <p className="text-xs text-slate-500 mt-1">

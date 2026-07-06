@@ -18,12 +18,13 @@ import {
   Compass,
   ChevronRight,
 } from "lucide-react";
-import { registro } from "../actions";
+import { registro, loginConGoogle } from "../actions";
+import PasswordField from "./PasswordField";
 
 const INPUT_CLS =
   "w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-900 placeholder:text-slate-400";
 
-type Perfil = "PROPIETARIO" | "ARQUITECTO" | "CONSTRUCTORA";
+type Perfil = "PROPIETARIO" | "CONTRATISTA" | "CONSTRUCTORA";
 
 const PERFILES: {
   key: Perfil;
@@ -35,22 +36,22 @@ const PERFILES: {
   {
     key: "PROPIETARIO",
     icon: Home,
-    titulo: "Estoy arreglando lo mío",
-    desc: "Remodelo o construyo mi propia casa/apartamento y contrato obreros que me reportan.",
+    titulo: "Gestiono mi propia obra",
+    desc: "Remodelo o construyo mi vivienda y superviso a los obreros que contrato.",
     acento: "text-emerald-600 bg-emerald-50 border-emerald-200",
   },
   {
-    key: "ARQUITECTO",
+    key: "CONTRATISTA",
     icon: Compass,
-    titulo: "Soy arquitecto independiente",
-    desc: "Llevo obras de mis clientes y trabajo con contratistas que me reportan para validar.",
+    titulo: "Soy contratista",
+    desc: "Eres arquitecto o tienes un negocio de pintura, instalación eléctrica, cocinas, carpintería… y envías a tu personal a ejecutar trabajos donde tus clientes.",
     acento: "text-blue-600 bg-blue-50 border-blue-200",
   },
   {
     key: "CONSTRUCTORA",
     icon: Building2,
-    titulo: "Somos una empresa",
-    desc: "Constructora con equipo, varios proyectos, contratistas y obreros.",
+    titulo: "Soy una empresa constructora",
+    desc: "Gestiono varios proyectos con equipo, contratistas y obreros.",
     acento: "text-slate-700 bg-slate-100 border-slate-200",
   },
 ];
@@ -67,17 +68,20 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [empresaTelefono, setEmpresaTelefono] = useState("");
   const [empresaSitioWeb, setEmpresaSitioWeb] = useState("");
 
-  // Personal (arquitecto)
+  // Personal (contratista B2C): nombre del negocio
   const [estudioNombre, setEstudioNombre] = useState("");
 
   // Cuenta (todos)
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [consent, setConsent] = useState(false);
 
-  const esPersonal = perfil === "PROPIETARIO" || perfil === "ARQUITECTO";
+  const esPersonal = perfil === "PROPIETARIO" || perfil === "CONTRATISTA";
   const canProceed1 = empresaNombre.trim().length >= 1;
+  const passwordsCoinciden = password === passwordConfirm;
 
   function elegirPerfil(p: Perfil) {
     setPerfil(p);
@@ -90,6 +94,13 @@ export default function RegistroWizard({ error }: { error?: string }) {
   }
 
   async function handleSubmit(formData: FormData) {
+    // Validación de front: las dos contraseñas deben coincidir. Si difieren, no
+    // enviamos al backend (el confirmar es solo validación; nunca viaja).
+    if (password !== passwordConfirm) {
+      setPasswordError("Las contraseñas no coinciden");
+      return;
+    }
+    setPasswordError("");
     formData.set("tipo_cuenta", perfil ?? "CONSTRUCTORA");
     if (perfil === "CONSTRUCTORA") {
       formData.set("company", empresaNombre);
@@ -98,7 +109,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
       formData.set("empresa_ciudad", empresaCiudad);
       formData.set("empresa_telefono", empresaTelefono);
       formData.set("empresa_sitio_web", empresaSitioWeb);
-    } else if (perfil === "ARQUITECTO") {
+    } else if (perfil === "CONTRATISTA") {
       formData.set("estudio_nombre", estudioNombre);
     }
     await registro(formData);
@@ -109,8 +120,8 @@ export default function RegistroWizard({ error }: { error?: string }) {
     return (
       <>
         <div className="mb-6">
-          <h2 className="text-lg font-bold text-slate-900">¿Cómo vas a usar la app?</h2>
-          <p className="text-sm text-slate-500">Elige la opción que más se parece a ti. Esto adapta todo a tu medida.</p>
+          <h2 className="text-lg font-bold text-slate-900">¿Cómo usarás Seiricon?</h2>
+          <p className="text-sm text-slate-500">Selecciona el perfil que mejor te describe; adaptamos la plataforma a tu caso.</p>
         </div>
 
         {error && (
@@ -152,7 +163,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
     );
   }
 
-  // ── Flujo PERSONAL (propietario / arquitecto): un solo paso ────────────────
+  // ── Flujo PERSONAL (contratista B2C / propietario): un solo paso ───────────
   if (esPersonal) {
     return (
       <>
@@ -160,12 +171,12 @@ export default function RegistroWizard({ error }: { error?: string }) {
 
         <div className="mb-6">
           <h2 className="text-lg font-bold text-slate-900">
-            {perfil === "ARQUITECTO" ? "Crea tu cuenta de arquitecto" : "Crea tu cuenta"}
+            {perfil === "CONTRATISTA" ? "Crea tu cuenta de contratista" : "Crea tu cuenta"}
           </h2>
           <p className="text-sm text-slate-500">
-            {perfil === "ARQUITECTO"
-              ? "En un minuto estás dentro. Lo demás lo armamos juntos."
-              : "Solo lo básico. Tu primera obra la montamos apenas entres."}
+            {perfil === "CONTRATISTA"
+              ? "En unos minutos tendrás tu cuenta lista. El resto lo configuramos juntos."
+              : "Solo lo esencial. Tu primera obra la creamos en cuanto ingreses."}
           </p>
         </div>
 
@@ -178,25 +189,37 @@ export default function RegistroWizard({ error }: { error?: string }) {
         <form action={handleSubmit} className="flex flex-col gap-4">
           <Field id="name" name="name" label="Tu nombre" required icon={User} placeholder="Juan Pérez" value={nombre} onChange={setNombre} autoFocus />
 
-          {perfil === "ARQUITECTO" && (
+          {perfil === "CONTRATISTA" && (
             <Field
               id="estudio_nombre"
-              label="Nombre de tu estudio o taller"
-              icon={Compass}
-              placeholder="Estudio Pérez (opcional)"
+              label="Nombre del negocio"
+              icon={Building2}
+              placeholder="Pinturas Pérez (opcional)"
               value={estudioNombre}
               onChange={setEstudioNombre}
             />
           )}
 
           <Field id="email" name="email" type="email" label="Correo electrónico" required icon={Mail} placeholder="tu@correo.com" value={email} onChange={setEmail} autoComplete="email" />
-          <Field id="password" name="password" type="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField id="password" name="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField
+            id="password_confirm"
+            label="Confirmar contraseña"
+            required
+            icon={Lock}
+            placeholder="Repite la contraseña"
+            value={passwordConfirm}
+            onChange={(v) => { setPasswordConfirm(v); if (passwordError) setPasswordError(""); }}
+            autoComplete="new-password"
+            error={passwordConfirm.length > 0 && !passwordsCoinciden ? "Las contraseñas no coinciden" : passwordError}
+          />
 
           <ConsentCheckbox consent={consent} setConsent={setConsent} />
 
           <button
             type="submit"
-            className="mt-1 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
+            disabled={!passwordsCoinciden}
+            className="mt-1 w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
           >
             Crear cuenta y empezar
             <ArrowRight className="w-4 h-4" />
@@ -273,7 +296,18 @@ export default function RegistroWizard({ error }: { error?: string }) {
         <form action={handleSubmit} className="flex flex-col gap-4">
           <Field id="name" name="name" label="Nombre completo" required icon={User} placeholder="Juan Pérez" value={nombre} onChange={setNombre} autoComplete="name" autoFocus />
           <Field id="email" name="email" type="email" label="Correo electrónico" required icon={Mail} placeholder="tu@constructora.co" value={email} onChange={setEmail} autoComplete="email" />
-          <Field id="password" name="password" type="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField id="password" name="password" label="Contraseña" required icon={Lock} placeholder="Mínimo 6 caracteres" value={password} onChange={setPassword} autoComplete="new-password" minLength={6} />
+          <PasswordField
+            id="password_confirm"
+            label="Confirmar contraseña"
+            required
+            icon={Lock}
+            placeholder="Repite la contraseña"
+            value={passwordConfirm}
+            onChange={(v) => { setPasswordConfirm(v); if (passwordError) setPasswordError(""); }}
+            autoComplete="new-password"
+            error={passwordConfirm.length > 0 && !passwordsCoinciden ? "Las contraseñas no coinciden" : passwordError}
+          />
 
           <ConsentCheckbox consent={consent} setConsent={setConsent} />
 
@@ -288,12 +322,20 @@ export default function RegistroWizard({ error }: { error?: string }) {
             </button>
             <button
               type="submit"
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
+              disabled={!passwordsCoinciden}
+              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
             >
               Crear cuenta
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
+          {/* "Continuar con Google" SOLO en el flujo de empresa: el callback de
+              OAuth provisiona como CONSTRUCTORA por defecto. Ofrecerlo en los
+              perfiles personales (Propietario/Contratista B2C) crearía el tipo de
+              cuenta equivocado y perdería el perfil personal. */}
+          <GoogleDivider />
+          <GoogleButton />
         </form>
       )}
     </>
@@ -364,6 +406,38 @@ function Field({
         />
       </div>
     </div>
+  );
+}
+
+function GoogleDivider() {
+  return (
+    <div className="relative my-1">
+      <div className="absolute inset-0 flex items-center">
+        <div className="w-full border-t border-slate-200" />
+      </div>
+      <div className="relative flex justify-center">
+        <span className="bg-white px-3 text-xs text-slate-400">o continúa con</span>
+      </div>
+    </div>
+  );
+}
+
+function GoogleButton() {
+  return (
+    <form action={loginConGoogle}>
+      <button
+        type="submit"
+        className="w-full flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium py-3 rounded-xl transition-colors text-sm cursor-pointer"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+        </svg>
+        Continuar con Google
+      </button>
+    </form>
   );
 }
 

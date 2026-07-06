@@ -20,20 +20,20 @@ const PERFILES = [
     estudioNombre: undefined as string | undefined,
   },
   {
-    email: "arquitecto.test@obracontrol.local",
-    nombre: "Ana Arquitecta",
-    tipoCuenta: "ARQUITECTO" as const,
-    estudioNombre: "Estudio Ana",
+    email: "contratista.test@obracontrol.local",
+    nombre: "Ana Contratista",
+    tipoCuenta: "CONTRATISTA" as const,
+    estudioNombre: "Negocio Ana",
   },
 ];
 
 async function ensurePerfil(
   prisma: PrismaClient,
   supabaseAdmin: SupabaseClient,
-  perfil: { email: string; nombre: string; tipoCuenta: Extract<TipoCuenta, "ARQUITECTO" | "PROPIETARIO">; estudioNombre?: string },
+  perfil: { email: string; nombre: string; tipoCuenta: Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO">; estudioNombre?: string },
 ) {
   const { email, nombre, tipoCuenta, estudioNombre } = perfil;
-  const esArquitecto = tipoCuenta === "ARQUITECTO";
+  const esContratista = tipoCuenta === "CONTRATISTA";
 
   // 1. Auth user en Supabase (idempotente, ya confirmado para poder loguear)
   const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers();
@@ -71,22 +71,25 @@ async function ensurePerfil(
   // 3. Crear constructora + rol(es) + usuario (espejo de provisionarPersonal)
   const constructora = await prisma.constructora.create({
     data: {
-      nombre: estudioNombre?.trim() || (esArquitecto ? `Estudio de ${nombre}` : `Obra de ${nombre}`),
+      nombre: estudioNombre?.trim() || (esContratista ? `Negocio de ${nombre}` : `Obra de ${nombre}`),
       plan_suscripcion: "PERSONAL",
       tipo_cuenta: tipoCuenta,
     },
   });
 
+  // Para CONTRATISTA el rol admin se llama "Dueño" (no "Contratista") porque más
+  // abajo se crea otro rol llamado "Contratista" (nivel CONTRATISTA); con el
+  // mismo nombre chocarían contra @@unique([constructora_id, nombre]) → P2002.
   const rolAdmin = await prisma.rol.create({
     data: {
       constructora_id: constructora.id,
-      nombre: esArquitecto ? "Arquitecto" : "Propietario",
+      nombre: esContratista ? "Dueño" : "Propietario",
       nivel_acceso: "ADMIN_GENERAL",
       es_default: true,
     },
   });
 
-  if (esArquitecto) {
+  if (esContratista) {
     await prisma.rol.create({
       data: {
         constructora_id: constructora.id,
@@ -137,9 +140,9 @@ async function main() {
     console.log(`  URL:      ${siteUrl}/login`);
     console.log(`  Email:    propietario.test@obracontrol.local`);
     console.log(`  Password: ${PASSWORD}`);
-    console.log("\n── ARQUITECTO ──────────────────────────────────────");
+    console.log("\n── CONTRATISTA ─────────────────────────────────────");
     console.log(`  URL:      ${siteUrl}/login`);
-    console.log(`  Email:    arquitecto.test@obracontrol.local`);
+    console.log(`  Email:    contratista.test@obracontrol.local`);
     console.log(`  Password: ${PASSWORD}`);
     console.log("\nAl entrar (sin obras) caen directo en el asistente /empezar.");
   } finally {

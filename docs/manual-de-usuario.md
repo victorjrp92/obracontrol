@@ -485,9 +485,17 @@ Seiricon es una **app instalable** (PWA): funciona en el navegador y puedes inst
 
 ---
 
-## 18. Cuentas personales (B2C): Propietario y Arquitecto
+## 18. Cuentas personales (B2C): Propietario y Contratista
 
-> Además de las constructoras, Seiricon tiene un flujo simplificado para quien gestiona **su propia obra**: el **Propietario** (dueño de una casa o apartamento) y el **Arquitecto** (que gestiona la obra de su cliente). No necesitan estructura de constructora ni equipo: arman su obra en minutos con ayuda de la inteligencia artificial.
+> Además de las constructoras, Seiricon tiene un flujo simplificado para quien gestiona **su propia obra**:
+> - **Propietario** — dueño de una casa o apartamento que remodela o construye lo suyo.
+> - **Contratista (B2C)** — emprendedor de un oficio (arquitecto, pintor, carpintero, electricista, instalador de cocinas…) que **envía a su personal a ejecutar trabajos donde sus clientes**. Monitorea a sus trabajadores y, si quiere, comparte el avance con su cliente.
+>
+> No necesitan estructura de constructora ni equipo: arman su obra en minutos con ayuda de la inteligencia artificial. *(El "Contratista B2C" es distinto del rol "Contratista" dentro de una empresa constructora: aquí tiene su propia cuenta y administra sus propios proyectos.)*
+
+### Al registrarte: un cuestionario rápido
+
+Después de crear la cuenta (y antes de entrar), Seiricon hace un **cuestionario corto** adaptado a tu perfil (oficio, tamaño del equipo, ciudad, cómo controlas hoy el trabajo, etc.). Son pocas preguntas con opciones de clic; puedes omitirlas. Todos los perfiles —incluidas las empresas— tienen su propio cuestionario.
 
 ### Asistente para armar la obra
 
@@ -498,16 +506,41 @@ Al entrar, un asistente guía la creación paso a paso:
 3. **Arma tu obra** — define los espacios (cocina, baños, habitaciones…). Puedes indicar los **m² de toda la obra** o el área **por espacio**, lo que te resulte más cómodo.
 4. **¿Cuándo y dónde?** — fechas y ubicación.
 5. **¿Qué te falta por hacer?** — por cada espacio, Seiricon **sugiere las tareas relevantes con inteligencia artificial** (solo las que aplican a ese espacio) con sus **días sugeridos**. Marca lo pendiente, **elimina** lo que no aplica y agrega tus propias tareas.
-6. **Costos** — el botón **"Sugerir presupuesto"** estima el costo (mano de obra + materiales) de cada tarea, **anclado en precios de referencia reales de Colombia**, y te entrega un rango. Es un punto de partida totalmente editable.
+6. **Costos** — define el presupuesto de tres maneras (ver abajo) y Seiricon reparte el dinero entre las tareas de forma inteligente.
 
 ### Sugerencias inteligentes (IA)
 
-- **Tareas por espacio**: la IA propone únicamente tareas que aplican (no pone tareas de pared en un piso, por ejemplo). Si la IA no está disponible, usa plantillas base.
-- **Presupuesto**: estima el costo total por tarea anclado en una base de precios de construcción de Colombia. A medida que se registran precios reales en las obras, las sugerencias van mejorando.
+- **Tareas por espacio**: la IA propone únicamente tareas que aplican a ese espacio **y a la etapa de la obra** (si la obra está por terminar, sugiere acabados —pintura, puertas, cocina—, no estructura). Usa **lenguaje sencillo**, sin tecnicismos ("levantar paredes" en vez de "mampostería"). Si la IA no está disponible, usa plantillas base.
+
+### Importa tus tareas y presupuesto desde Excel
+
+Si ya tienes tu presupuesto en Excel (como acostumbran arquitectos y contratistas), no hace falta redigitarlo:
+
+1. En el paso "¿Qué te falta?", **descarga la plantilla**: viene con listas desplegables de **fase** (obra gris, pintura, instalaciones…) y de **ubicación** con tus propios espacios ("Toda la propiedad", "Piso 2", "Piso 1 – Cocina"…).
+2. Copia tus ítems a la plantilla. Del presupuesto puedes dar la **mano de obra y los materiales por separado**, o **solo el valor total** de cada ítem.
+3. **Súbela**: Seiricon la revisa contigo antes de aplicar — te muestra qué encontró y te deja decidir (incluir ítems sin valor, estimar la división trabajo/materiales cuando solo diste el total, reasignar ubicaciones que cambiaron).
+
+Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espacio no se repiten dentro de un mismo piso (si agregas dos cocinas, quedan "Cocina" y "Cocina 2").
+
+### Cronograma: cuánto debería tardar tu obra
+
+- Al definir tus tareas, Seiricon calcula **cuánto suele tardar** lo que planeas, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos).
+- Si pusiste fechas, te da un **contra-pronóstico que solo guía**: "para lo que planeas, usualmente toma ~N días hábiles — tu plan es más corto de lo usual / está dentro de lo normal / es holgado". Nunca te bloquea.
+- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
+- Con cada obra que se completa, Seiricon aprende de las duraciones reales para afinar sus estimados.
+
+### Cómo defines el presupuesto (3 modos)
+
+1. **Aún no tengo presupuesto** — Seiricon estima el costo de cada tarea (trabajo + materiales) con precios de referencia reales de Colombia.
+2. **Tengo un presupuesto total** — escribes un monto y Seiricon lo reparte entre las tareas según cuánto pesa cada una (no en partes iguales).
+3. **Tengo separado: trabajo y materiales** (lo más común) — escribes cuánto es de **mano de obra** y cuánto de **materiales**, y Seiricon reparte cada bolsa.
+
+En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es **trabajo** (lo que pagas a tus trabajadores) y cuánto **materiales** — y eso se conecta con el módulo de gastos y anticipos. Todo es editable.
 
 ### Gestión de la obra
 
-- **Edición total**: después puedes editar toda la obra (espacios, tareas, costos, fechas, ubicación) sin perder el historial de lo ya reportado.
+- **Edición total**: después puedes editar toda la obra (espacios, tareas, costos, fechas, ubicación) sin perder el historial de lo ya reportado. En edición, puedes **guardar desde cualquier paso**, sin recorrer todo el asistente.
+- **Compartir avance con el cliente** (Contratista B2C): generas un **enlace de solo lectura** y tu cliente ve el progreso de la obra (semáforo, tareas y fotos del avance) sin crear cuenta. No ve costos ni datos de tus trabajadores.
 - **Mapa de obras**: aparece solo si gestionas **2 o más obras activas** (con una sola obra no hace falta; la ubicación igual se guarda).
 - **Mismo control que el B2B** para lo demás: evidencia con foto, GPS y hora aprobada por ti, gastos y anticipos, y acceso por enlace para obreros sin instalar nada.
 

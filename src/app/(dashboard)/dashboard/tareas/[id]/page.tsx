@@ -180,7 +180,7 @@ export default async function TareaDetallePage({
                     className="w-full max-h-64 object-cover"
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-2">Así debe quedar la tarea al completarse</p>
+                <p className="text-xs text-slate-400 mt-2">Así debe verse la tarea al completarse</p>
               </div>
             )}
 

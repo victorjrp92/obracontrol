@@ -99,7 +99,7 @@ export default function InstallBannerTopbar() {
                   1
                 </span>
                 <span className="flex-1">
-                  Tap el botón{" "}
+                  Toca el botón{" "}
                   <Share className="inline w-4 h-4 text-blue-600 mb-0.5" />{" "}
                   <strong>Compartir</strong> en la barra inferior.
                 </span>
@@ -109,7 +109,7 @@ export default function InstallBannerTopbar() {
                   2
                 </span>
                 <span className="flex-1">
-                  Desplázate y tap{" "}
+                  Desplázate y toca{" "}
                   <span className="inline-flex items-center gap-1 font-semibold">
                     <Plus className="w-3.5 h-3.5" />
                     Agregar al inicio
@@ -122,7 +122,7 @@ export default function InstallBannerTopbar() {
                   3
                 </span>
                 <span className="flex-1">
-                  Tap <strong>Agregar</strong> arriba a la derecha. ¡Listo!
+                  Toca <strong>Agregar</strong> arriba a la derecha. Listo.
                 </span>
               </li>
             </ol>

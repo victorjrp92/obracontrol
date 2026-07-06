@@ -299,7 +299,7 @@ export async function provisionarUsuario(
 }
 
 /**
- * Provisiona una cuenta PERSONAL (arquitecto o propietario).
+ * Provisiona una cuenta PERSONAL (contratista B2C o propietario).
  *
  * A diferencia de `provisionarUsuario`, NO crea datos demo (proyectos,
  * contratistas, obreros). El usuario entra "en limpio" y el módulo de intención
@@ -308,15 +308,17 @@ export async function provisionarUsuario(
  * Mapeo de roles (ver src/lib/access.ts y src/lib/plan.ts):
  *   - PROPIETARIO → 1 rol "Propietario" (ADMIN_GENERAL): crea su obra, contrata
  *     obreros directos y valida lo reportado.
- *   - ARQUITECTO  → "Arquitecto" (ADMIN_GENERAL) + "Contratista" (CONTRATISTA)
- *     por defecto, para que pueda invitar contratistas que le reporten.
+ *   - CONTRATISTA → "Dueño" (ADMIN_GENERAL) + "Contratista" (CONTRATISTA) por
+ *     defecto, para que pueda invitar personal/contratistas que le reporten.
+ *     Los dos roles DEBEN tener nombres distintos: comparten constructora y hay
+ *     un @@unique([constructora_id, nombre]) que provocaría P2002 si colisionan.
  */
 export async function provisionarPersonal(
   email: string,
   nombre: string,
-  tipoCuenta: Extract<TipoCuenta, "ARQUITECTO" | "PROPIETARIO">,
+  tipoCuenta: Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO">,
   opts?: {
-    /** Nombre del estudio/taller (arquitecto). Si falta, se usa el nombre de la persona. */
+    /** Nombre del negocio/taller (contratista B2C). Si falta, se usa el nombre de la persona. */
     estudioNombre?: string;
     telefono?: string;
     ciudad?: string;
@@ -325,10 +327,10 @@ export async function provisionarPersonal(
   const existing = await prisma.usuario.findUnique({ where: { email } });
   if (existing) return;
 
-  const esArquitecto = tipoCuenta === "ARQUITECTO";
+  const esContratista = tipoCuenta === "CONTRATISTA";
   const nombreCuenta =
     (opts?.estudioNombre?.trim() || "") ||
-    (esArquitecto ? `Estudio de ${nombre}` : `Obra de ${nombre}`);
+    (esContratista ? `Negocio de ${nombre}` : `Obra de ${nombre}`);
 
   const constructora = await prisma.constructora.create({
     data: {
@@ -341,17 +343,20 @@ export async function provisionarPersonal(
   });
 
   // Rol admin del dueño de la cuenta (ADMIN_GENERAL = puede crear obra y validar).
+  // Para CONTRATISTA usamos "Dueño" (no "Contratista") porque más abajo se crea
+  // también un rol de nivel CONTRATISTA llamado "Contratista"; si ambos se
+  // llamaran igual colisionarían con @@unique([constructora_id, nombre]) → P2002.
   const rolAdmin = await prisma.rol.create({
     data: {
       constructora_id: constructora.id,
-      nombre: esArquitecto ? "Arquitecto" : "Propietario",
+      nombre: esContratista ? "Dueño" : "Propietario",
       nivel_acceso: "ADMIN_GENERAL",
       es_default: true,
     },
   });
 
-  // El arquitecto trabaja con contratistas → dejamos un rol de contratista listo.
-  if (esArquitecto) {
+  // El contratista B2C trabaja con personal/contratistas → dejamos un rol de contratista listo.
+  if (esContratista) {
     await prisma.rol.create({
       data: {
         constructora_id: constructora.id,

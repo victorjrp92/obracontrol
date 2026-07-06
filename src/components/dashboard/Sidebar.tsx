@@ -50,7 +50,7 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", tipoCuenta = "C
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
-  // Cuentas personales (arquitecto/propietario) usan un menú reducido (modo
+  // Cuentas personales (contratista B2C/propietario) usan un menú reducido (modo
   // simple); las empresas conservan el menú por permisos de siempre.
   const personal = esCuentaPersonal(tipoCuenta);
   const itemKeys = personal ? modulosVisibles(tipoCuenta) : getPermissions(nivelAcceso).sidebarItems;

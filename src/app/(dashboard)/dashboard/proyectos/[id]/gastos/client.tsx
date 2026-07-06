@@ -143,7 +143,7 @@ export default function GastosClient({
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Wallet className="w-5 h-5 text-blue-600" />
-            <h2 className="font-bold text-slate-900">¿En qué va tu plata?</h2>
+            <h2 className="font-bold text-slate-900">¿En qué va tu dinero?</h2>
           </div>
           {presupuestoTotal != null ? (
             <>
@@ -182,12 +182,12 @@ export default function GastosClient({
 
           {presupuestoTotal == null && (
             <p className="text-xs text-slate-400 mt-3">
-              Agrega un presupuesto a la obra para ver cuánto te queda.
+              Agrega un presupuesto a la obra para ver cuánto te queda disponible.
             </p>
           )}
           {sobrepasado && (
             <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-red-600">
-              <AlertTriangle className="w-4 h-4" /> Te pasaste {cop(gastadoTotal - presupuestoTotal!)} del presupuesto.
+              <AlertTriangle className="w-4 h-4" /> Has superado el presupuesto en {cop(gastadoTotal - presupuestoTotal!)}.
             </div>
           )}
         </div>
@@ -209,7 +209,7 @@ export default function GastosClient({
 
           <div className="grid grid-cols-2 gap-2 text-sm mb-3">
             <div className="rounded-xl bg-white/70 p-3">
-              <div className="text-xs text-slate-500">Le entregaste</div>
+              <div className="text-xs text-slate-500">Has entregado</div>
               <div className="font-bold text-slate-800">{cop(sumaAnticipos)}</div>
             </div>
             <div className="rounded-xl bg-white/70 p-3">
@@ -222,7 +222,7 @@ export default function GastosClient({
             <div className="rounded-xl bg-red-600 text-white p-4 text-center">
               <div className="text-xs font-medium opacity-90">Sin sustentar</div>
               <div className="text-3xl font-extrabold">{cop(sinSustentar)}</div>
-              <div className="text-xs mt-1 opacity-90">Nadie cobra sin factura. Pídele las cuentas.</div>
+              <div className="text-xs mt-1 opacity-90">Nadie cobra sin factura. Solicita las cuentas.</div>
             </div>
           ) : (
             <div className="rounded-xl bg-green-600 text-white p-4 text-center">
@@ -250,7 +250,7 @@ export default function GastosClient({
         </div>
         {gastos.length === 0 ? (
           <p className="text-sm text-slate-400 bg-white border border-slate-100 rounded-2xl p-6 text-center">
-            Aún no hay gastos. Registra el primero con foto de la factura.
+            Aún no hay gastos. Registra el primero con la foto de la factura.
           </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -355,7 +355,7 @@ function RegistrarGasto({
     setError(null);
     const monto = parseMonto(montoStr);
     if (monto <= 0) {
-      setError("Pon el monto del gasto.");
+      setError("Indica el monto del gasto.");
       return;
     }
     if (!descripcion.trim()) {
@@ -451,7 +451,7 @@ function RegistrarGasto({
               ) : (
                 <>
                   <Camera className="w-8 h-8 mb-1" />
-                  <span className="text-xs font-medium">Toma la factura</span>
+                  <span className="text-xs font-medium">Toma la foto de la factura</span>
                 </>
               )}
             </label>

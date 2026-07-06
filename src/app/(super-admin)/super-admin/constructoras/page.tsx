@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 // Etiqueta + color del tipo de cuenta para distinguir de un vistazo.
 const TIPO_CUENTA_BADGE: Record<TipoCuenta, { label: string; cls: string }> = {
   CONSTRUCTORA: { label: "Empresa", cls: "bg-slate-100 text-slate-600 border-slate-200" },
-  ARQUITECTO: { label: "Arquitecto", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  CONTRATISTA: { label: "Contratista", cls: "bg-blue-50 text-blue-700 border-blue-200" },
   PROPIETARIO: { label: "Propietario", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
 
@@ -31,7 +31,7 @@ export default async function ConstructorasPage() {
           <p className="text-sm text-slate-500">
             {constructoras.length} cuentas ·{" "}
             {constructoras.filter((c) => c.tipo_cuenta === "CONSTRUCTORA").length} empresas ·{" "}
-            {constructoras.filter((c) => c.tipo_cuenta === "ARQUITECTO").length} arquitectos ·{" "}
+            {constructoras.filter((c) => c.tipo_cuenta === "CONTRATISTA").length} contratistas ·{" "}
             {constructoras.filter((c) => c.tipo_cuenta === "PROPIETARIO").length} propietarios
           </p>
           <Link

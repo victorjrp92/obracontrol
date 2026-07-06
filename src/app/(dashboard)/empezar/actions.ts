@@ -13,6 +13,7 @@ import type {
   CrearObraResult,
   EspacioInput,
   PisoInput,
+  TareaInput,
   TipoAptoInput,
 } from "./types";
 
@@ -39,6 +40,100 @@ function precioValido(v: unknown): number | null {
 function metrajeValido(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return undefined;
   return Math.min(v, MAX_METRAJE);
+}
+
+/** Punto de partida de la obra (estado); null si no es un valor permitido. */
+function puntoPartidaValido(v: unknown): "NUEVA" | "MEDIAS" | "AVANZADA" | null {
+  return v === "NUEVA" || v === "MEDIAS" || v === "AVANZADA" ? v : null;
+}
+
+/**
+ * Desglose de presupuesto POR TAREA (spec Excel único): valida y normaliza
+ * `precio` (total) + `presupuesto_mano_obra` + `presupuesto_materiales`.
+ * Regla del spec: si vienen M.O. Y materiales, el total es su SUMA y prevalece
+ * sobre un `precio` distinto; si solo viene una de las dos bolsas y no hay
+ * total, el total se completa con lo que haya.
+ */
+function desgloseTarea(t: TareaInput): {
+  precio: number | null;
+  manoObra: number | null;
+  materiales: number | null;
+} {
+  const manoObra = precioValido(t.presupuesto_mano_obra);
+  const materiales = precioValido(t.presupuesto_materiales);
+  let precio = precioValido(t.precio);
+  if (manoObra != null && materiales != null) {
+    precio = Math.min(manoObra + materiales, INT_CAP);
+  } else if (precio == null && (manoObra != null || materiales != null)) {
+    precio = (manoObra ?? 0) + (materiales ?? 0);
+  }
+  return { precio, manoObra, materiales };
+}
+
+/**
+ * UNICIDAD SERVER-SIDE (spec §3): dentro de una misma unidad (piso) no puede
+ * haber dos espacios con el mismo nombre. Los duplicados NO se rechazan: se
+ * renombran con sufijo numérico ("Cocina", "Cocina 2", "Cocina 3"…),
+ * comparando sin mayúsculas/tildes. Espeja la regla del wizard, protege la
+ * importación de Excel y la sincronización por nombre de la edición. Aplica
+ * también al nombre reservado "General" (ubicaciones globales): un "General"
+ * creado a mano por el usuario pasaría a "General 2".
+ */
+function renombrarEspaciosDuplicados(espacios: EspacioInput[]): EspacioInput[] {
+  const norm = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+  const vistos = new Set<string>();
+  return espacios.map((esp) => {
+    const base = esp.nombre?.trim();
+    if (!base) return esp;
+    let nombre = base;
+    let i = 2;
+    while (vistos.has(norm(nombre))) {
+      nombre = `${base} ${i}`;
+      i++;
+    }
+    vistos.add(norm(nombre));
+    return nombre === base ? esp : { ...esp, nombre };
+  });
+}
+
+/**
+ * Normaliza los 3 campos de presupuesto según el `modoPresupuesto` elegido,
+ * para persistirlos de forma consistente (los modos son mutuamente excluyentes):
+ *  - "separado" → guarda M.O. + materiales; total = su suma (para compatibilidad
+ *                 con lo que ya lee `presupuesto_total`). Limpia nada si vacío.
+ *  - "general"  → guarda solo total; limpia las dos bolsas separadas.
+ *  - "ninguno"/indefinido → todo null (sin presupuesto). Por retrocompat, si NO
+ *                 viene `modoPresupuesto` pero sí `presupuestoTotal`, se trata
+ *                 como "general".
+ */
+function normalizarPresupuesto(input: {
+  modoPresupuesto?: "ninguno" | "general" | "separado";
+  presupuestoTotal?: number;
+  presupuestoManoObra?: number;
+  presupuestoMateriales?: number;
+}): {
+  presupuestoTotal: number | null;
+  presupuestoManoObra: number | null;
+  presupuestoMateriales: number | null;
+} {
+  const modo = input.modoPresupuesto
+    ?? (typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0 ? "general" : "ninguno");
+
+  if (modo === "separado") {
+    const mo = precioValido(input.presupuestoManoObra);
+    const mat = precioValido(input.presupuestoMateriales);
+    const total = mo != null || mat != null
+      ? Math.min((mo ?? 0) + (mat ?? 0), INT_CAP)
+      : null;
+    return { presupuestoTotal: total, presupuestoManoObra: mo, presupuestoMateriales: mat };
+  }
+  if (modo === "general") {
+    const total = precioValido(input.presupuestoTotal);
+    return { presupuestoTotal: total, presupuestoManoObra: null, presupuestoMateriales: null };
+  }
+  // "ninguno"
+  return { presupuestoTotal: null, presupuestoManoObra: null, presupuestoMateriales: null };
 }
 
 /** Una fila de RegistroPrecio acumulada para captura pasiva (flush en batch). */
@@ -113,10 +208,20 @@ async function crearEspaciosYTareas(
   unidadId: string,
   espacios: EspacioInput[],
 ): Promise<void> {
-  const espaciosLimitados = espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD);
+  const espaciosLimitados = renombrarEspaciosDuplicados(
+    espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD),
+  );
   for (const espacioInput of espaciosLimitados) {
     const nombreEspacio = espacioInput.nombre?.trim();
     if (!nombreEspacio) continue;
+
+    const tareasActivas = (espacioInput.tareas ?? [])
+      .filter((t) => t.activa && t.nombre?.trim())
+      .slice(0, MAX_TAREAS_POR_ESPACIO);
+
+    // #2: no crear espacios nuevos vacíos (sin ninguna tarea activa). Se ignoran
+    // silenciosamente para no dejar cuartos huérfanos al guardar en cada paso.
+    if (tareasActivas.length === 0) continue;
 
     const espacio = await ctx.tx.espacio.create({
       data: {
@@ -128,16 +233,12 @@ async function crearEspaciosYTareas(
       },
     });
 
-    const tareasActivas = (espacioInput.tareas ?? [])
-      .filter((t) => t.activa)
-      .slice(0, MAX_TAREAS_POR_ESPACIO);
-
     for (const t of tareasActivas) {
       const nombreTarea = t.nombre?.trim();
       if (!nombreTarea) continue;
       if (ctx.seq.n >= MAX_TAREAS_TOTALES) throw new Error("MAX_TAREAS");
       ctx.seq.n++;
-      const precio = precioValido(t.precio);
+      const { precio, manoObra, materiales } = desgloseTarea(t);
       await ctx.tx.tarea.create({
         data: {
           espacio_id: espacio.id,
@@ -146,6 +247,8 @@ async function crearEspaciosYTareas(
           nombre: nombreTarea.slice(0, MAX_NOMBRE),
           tiempo_acordado_dias: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
           ...(precio != null ? { precio } : {}),
+          ...(manoObra != null ? { presupuesto_mano_obra: manoObra } : {}),
+          ...(materiales != null ? { presupuesto_materiales: materiales } : {}),
           // Las tareas se asignan al dueño de la cuenta: sus obreros (que cuelgan
           // de él como contratista) las reportan y él mismo las valida.
           asignado_a: ctx.usuarioId,
@@ -267,10 +370,10 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
     }
   }
 
-  // ── Cliente (solo arquitecto, opcional) ────────────────────────────────────
+  // ── Cliente (solo contratista B2C, opcional) ───────────────────────────────
   let clienteId: string | null = null;
   const clienteNombre = input.clienteNombre?.trim();
-  if (tipoCuenta === "ARQUITECTO" && clienteNombre) {
+  if (tipoCuenta === "CONTRATISTA" && clienteNombre) {
     const cliente = await prisma.cliente.upsert({
       where: { constructora_id_nombre: { constructora_id: constructoraId, nombre: clienteNombre } },
       update: {},
@@ -295,10 +398,8 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
   const fechaInicio = input.fechaInicio ? new Date(input.fechaInicio) : new Date();
   const fechaFin = input.fechaFin ? new Date(input.fechaFin) : null;
   const ciudad = input.ciudad?.trim().slice(0, 120) || null;
-  const presupuestoTotal =
-    typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0
-      ? Math.min(Math.round(input.presupuestoTotal), INT_CAP)
-      : null;
+  const { presupuestoTotal, presupuestoManoObra, presupuestoMateriales } =
+    normalizarPresupuesto(input);
   const metrajeTotal = metrajeValido(input.metrajeTotal);
 
   // Acumulador de precios para captura pasiva (se persiste FUERA de la tx).
@@ -331,8 +432,11 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
             ubicacion_lng: typeof input.ubicacionLng === "number" ? input.ubicacionLng : null,
             tipo_obra: input.tipoObra,
             tipo_propiedad: input.tipoPropiedad,
+            punto_partida: puntoPartidaValido(input.puntoPartida),
             ciudad,
             presupuesto_total: presupuestoTotal,
+            presupuesto_mano_obra: presupuestoManoObra,
+            presupuesto_materiales: presupuestoMateriales,
             ...(metrajeTotal != null ? { metraje_total: metrajeTotal } : {}),
           },
         });
@@ -543,7 +647,13 @@ export async function cargarObraParaEditar(
   const espacioToInput = (esp: {
     nombre: string;
     metraje: number | null;
-    tareas: { nombre: string; tiempo_acordado_dias: number; precio: number | null }[];
+    tareas: {
+      nombre: string;
+      tiempo_acordado_dias: number;
+      precio: number | null;
+      presupuesto_mano_obra: number | null;
+      presupuesto_materiales: number | null;
+    }[];
   }): EspacioInput => ({
     nombre: esp.nombre,
     ...(esp.metraje != null ? { metraje: esp.metraje } : {}),
@@ -551,6 +661,12 @@ export async function cargarObraParaEditar(
       nombre: t.nombre,
       tiempo_acordado_dias: t.tiempo_acordado_dias,
       ...(t.precio != null ? { precio: t.precio } : {}),
+      ...(t.presupuesto_mano_obra != null
+        ? { presupuesto_mano_obra: t.presupuesto_mano_obra }
+        : {}),
+      ...(t.presupuesto_materiales != null
+        ? { presupuesto_materiales: t.presupuesto_materiales }
+        : {}),
       activa: true,
     })),
   });
@@ -560,6 +676,9 @@ export async function cargarObraParaEditar(
     estado: proyecto.estado,
     tipoObra,
     tipoPropiedad,
+    ...(puntoPartidaValido(proyecto.punto_partida) != null
+      ? { puntoPartida: puntoPartidaValido(proyecto.punto_partida)! }
+      : {}),
     nombreObra: proyecto.nombre,
     ...(proyecto.cliente?.nombre ? { clienteNombre: proyecto.cliente.nombre } : {}),
     fechaInicio: proyecto.fecha_inicio?.toISOString().slice(0, 10),
@@ -568,6 +687,14 @@ export async function cargarObraParaEditar(
     ubicacionLng: proyecto.ubicacion_lng,
     ...(proyecto.ciudad ? { ciudad: proyecto.ciudad } : {}),
     ...(proyecto.presupuesto_total != null ? { presupuestoTotal: proyecto.presupuesto_total } : {}),
+    ...(proyecto.presupuesto_mano_obra != null ? { presupuestoManoObra: proyecto.presupuesto_mano_obra } : {}),
+    ...(proyecto.presupuesto_materiales != null ? { presupuestoMateriales: proyecto.presupuesto_materiales } : {}),
+    // Deriva el modo guardado para precargar el selector del wizard.
+    modoPresupuesto: (proyecto.presupuesto_mano_obra != null || proyecto.presupuesto_materiales != null
+      ? "separado"
+      : proyecto.presupuesto_total != null
+        ? "general"
+        : "ninguno") as CrearObraInput["modoPresupuesto"],
     ...(proyecto.metraje_total != null ? { metrajeTotal: proyecto.metraje_total } : {}),
   };
 
@@ -665,7 +792,7 @@ function tareaTieneHistorial(t: {
 /**
  * Edición TOTAL de una obra personal (B2C): atributos del proyecto + estructura
  * (espacios y tareas). Espeja la seguridad de `crearObraPersonal`:
- *   - cuenta personal (ARQUITECTO/PROPIETARIO)
+ *   - cuenta personal (CONTRATISTA/PROPIETARIO)
  *   - rol ADMIN_GENERAL (dueño de la cuenta)
  *   - tenant isolation por `constructora_id`
  * (No exige contraseña: el flujo de creación tampoco la exige; la confirmación
@@ -775,16 +902,14 @@ export async function editarObraPersonal(
   const fechaInicio = input.fechaInicio ? new Date(input.fechaInicio) : null;
   const fechaFin = input.fechaFin ? new Date(input.fechaFin) : null;
   const ciudad = input.ciudad?.trim().slice(0, 120) || null;
-  const presupuestoTotal =
-    typeof input.presupuestoTotal === "number" && input.presupuestoTotal > 0
-      ? Math.min(Math.round(input.presupuestoTotal), INT_CAP)
-      : null;
+  const { presupuestoTotal, presupuestoManoObra, presupuestoMateriales } =
+    normalizarPresupuesto(input);
   const metrajeTotal = metrajeValido(input.metrajeTotal);
 
-  // Cliente (solo arquitecto): upsert por nombre.
+  // Cliente (solo contratista B2C): upsert por nombre.
   let clienteId: string | null = proyecto.cliente?.id ?? null;
   const clienteNombre = input.clienteNombre?.trim();
-  if (tipoCuenta === "ARQUITECTO" && clienteNombre) {
+  if (tipoCuenta === "CONTRATISTA" && clienteNombre) {
     try {
       const cliente = await prisma.cliente.upsert({
         where: { constructora_id_nombre: { constructora_id: constructoraId, nombre: clienteNombre } },
@@ -806,8 +931,11 @@ export async function editarObraPersonal(
     ubicacion_lng: typeof input.ubicacionLng === "number" ? input.ubicacionLng : null,
     tipo_obra: input.tipoObra,
     tipo_propiedad: input.tipoPropiedad,
+    punto_partida: puntoPartidaValido(input.puntoPartida),
     ciudad,
     presupuesto_total: presupuestoTotal,
+    presupuesto_mano_obra: presupuestoManoObra,
+    presupuesto_materiales: presupuestoMateriales,
     metraje_total: metrajeTotal ?? null,
   };
 
@@ -825,7 +953,8 @@ export async function editarObraPersonal(
     for (const esp of espacios) {
       for (const t of esp.tareas ?? []) {
         if (!t.activa) continue;
-        const precio = precioValido(t.precio);
+        // Mismo total que se persiste (la suma M.O.+materiales prevalece).
+        const { precio } = desgloseTarea(t);
         const nombre = t.nombre?.trim();
         if (precio == null || !nombre) continue;
         precios.push({
@@ -1025,7 +1154,10 @@ async function sincronizarUnidad(
   tx: CrearCtx["tx"],
   args: SyncUnidadArgs,
 ): Promise<void> {
-  const { unidad, espaciosInput, faseId, usuarioId, numeroRegistro, seq } = args;
+  const { unidad, faseId, usuarioId, numeroRegistro, seq } = args;
+  // Unicidad server-side: espacios duplicados en el mismo piso se auto-numeran
+  // ANTES de emparejar por nombre (evita fusionar dos "Cocina" en una).
+  const espaciosInput = renombrarEspaciosDuplicados(args.espaciosInput);
 
   const espaciosPorNombre = new Map(unidad.espacios.map((e) => [e.nombre.trim(), e]));
   const nombresInput = new Set<string>();
@@ -1033,10 +1165,23 @@ async function sincronizarUnidad(
   for (const espInput of espaciosInput) {
     const nombreEsp = espInput.nombre?.trim();
     if (!nombreEsp) continue;
+
+    // ── Tareas activas del input para este espacio ──────────────────────────
+    const tareasActivasInput = (espInput.tareas ?? [])
+      .filter((t) => t.activa && t.nombre?.trim())
+      .slice(0, MAX_TAREAS_POR_ESPACIO);
+
+    const existente = espaciosPorNombre.get(nombreEsp);
+
+    // #2: no crear espacios NUEVOS vacíos (sin ninguna tarea activa). Se ignoran
+    // en silencio. Los espacios EXISTENTES no se tocan aquí: quedan fuera de
+    // `nombresInput`, y el bloque de "espacios quitados" decide si se conservan
+    // (historial) o se borran — respetando la lógica de historial ya existente.
+    if (!existente && tareasActivasInput.length === 0) continue;
+
     nombresInput.add(nombreEsp);
     const metraje = metrajeValido(espInput.metraje);
 
-    const existente = espaciosPorNombre.get(nombreEsp);
     let espacioId: string;
     let tareasExistentes: SyncUnidadArgs["unidad"]["espacios"][0]["tareas"];
 
@@ -1059,10 +1204,6 @@ async function sincronizarUnidad(
       tareasExistentes = [];
     }
 
-    // ── Emparejar tareas por nombre dentro del espacio ──────────────────────
-    const tareasActivasInput = (espInput.tareas ?? [])
-      .filter((t) => t.activa)
-      .slice(0, MAX_TAREAS_POR_ESPACIO);
     const tareasPorNombre = new Map(tareasExistentes.map((t) => [t.nombre.trim(), t]));
     const nombresTareaInput = new Set<string>();
 
@@ -1070,13 +1211,18 @@ async function sincronizarUnidad(
       const nombreTarea = t.nombre?.trim();
       if (!nombreTarea) continue;
       nombresTareaInput.add(nombreTarea);
-      const precio = precioValido(t.precio);
+      const { precio, manoObra, materiales } = desgloseTarea(t);
       const dias = Math.max(1, Math.round(t.tiempo_acordado_dias || 1));
       const existenteT = tareasPorNombre.get(nombreTarea);
       if (existenteT) {
         await tx.tarea.update({
           where: { id: existenteT.id },
-          data: { tiempo_acordado_dias: dias, precio: precio ?? null },
+          data: {
+            tiempo_acordado_dias: dias,
+            precio: precio ?? null,
+            presupuesto_mano_obra: manoObra,
+            presupuesto_materiales: materiales,
+          },
         });
       } else {
         if (seq.n >= MAX_TAREAS_TOTALES) throw new Error("MAX_TAREAS");
@@ -1089,6 +1235,8 @@ async function sincronizarUnidad(
             nombre: nombreTarea.slice(0, MAX_NOMBRE),
             tiempo_acordado_dias: dias,
             ...(precio != null ? { precio } : {}),
+            ...(manoObra != null ? { presupuesto_mano_obra: manoObra } : {}),
+            ...(materiales != null ? { presupuesto_materiales: materiales } : {}),
             asignado_a: usuarioId,
             estado: "PENDIENTE",
           },

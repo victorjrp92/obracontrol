@@ -35,7 +35,7 @@ const plans = [
     price: "$1.800.000",
     currency: "COP/mes",
     usd: "~$415 USD",
-    description: "Para quien maneja varias obras",
+    description: "Para quien gestiona varias obras",
     features: [
       "Hasta 5 obras activas",
       "Unidades y fases ilimitadas",

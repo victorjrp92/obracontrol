@@ -20,17 +20,17 @@ export interface TourDef {
 
 const PASO_INTRO = (nombre: string): TourStep => ({
   title: `¡Hola${nombre ? `, ${nombre}` : ""}! 👋`,
-  body: "Te muestro en 30 segundos para qué sirve cada parte. Puedes saltarla cuando quieras y volver a verla con el botón “¿Cómo funciona?”.",
+  body: "En 30 segundos te explicamos para qué sirve cada parte. Puedes omitirla cuando quieras y volver a verla con el botón “¿Cómo funciona?”.",
   placement: "center",
 });
 
 const PASO_FIN: TourStep = {
   title: "¡Eso es todo! 🎉",
-  body: "Ya conoces el mapa. Si te pierdes, abre esta guía otra vez con el botón “¿Cómo funciona?” abajo a la derecha.",
+  body: "Ya conoces el mapa. Si tienes dudas, vuelve a abrir esta guía con el botón “¿Cómo funciona?” en la parte inferior derecha.",
   placement: "center",
 };
 
-/** Tour del mapa del sistema para cuentas personales (arquitecto / propietario). */
+/** Tour del mapa del sistema para cuentas personales (contratista B2C / propietario). */
 function tourPersonal(nombre: string): TourDef {
   return {
     id: "dashboard-personal-v1",
@@ -38,20 +38,20 @@ function tourPersonal(nombre: string): TourDef {
       PASO_INTRO(nombre),
       {
         target: "nav-nueva-obra",
-        title: "1. Empieza tu obra",
-        body: "Aquí creas una obra nueva con un asistente que te pregunta qué vas a hacer, en qué espacios y qué tareas. Es tu punto de partida.",
+        title: "1. Inicia tu obra",
+        body: "Aquí creas una obra nueva con un asistente que te pregunta qué vas a hacer, en qué espacios y con qué tareas. Es tu punto de partida.",
         placement: "right",
       },
       {
         target: "nav-proyectos",
         title: "2. Tus obras",
-        body: "Aquí viven todas tus obras. Entra a una para ver su avance, los espacios y el estado de cada tarea con su semáforo.",
+        body: "Aquí están todas tus obras. Entra a cualquiera para ver su avance, los espacios y el estado de cada tarea con su semáforo.",
         placement: "right",
       },
       {
         target: "nav-equipo",
         title: "3. Tu equipo",
-        body: "Agrega a tus obreros con sus datos y cópiales su enlace personal. Con ese enlace ellos ven las tareas y te reportan desde el celular con fotos.",
+        body: "Agrega a tus obreros con sus datos y comparte con cada uno su enlace personal. Con ese enlace pueden ver las tareas y reportarte desde el celular con fotos.",
         placement: "right",
       },
       {
@@ -114,6 +114,6 @@ function tourEmpresa(nombre: string): TourDef {
 
 /** Devuelve el tour del dashboard adecuado al tipo de cuenta. */
 export function getDashboardTour(tipoCuenta: TipoCuenta, nombre: string): TourDef {
-  if (tipoCuenta === "ARQUITECTO" || tipoCuenta === "PROPIETARIO") return tourPersonal(nombre);
+  if (tipoCuenta === "CONTRATISTA" || tipoCuenta === "PROPIETARIO") return tourPersonal(nombre);
   return tourEmpresa(nombre);
 }

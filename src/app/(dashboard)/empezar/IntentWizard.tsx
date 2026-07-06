@@ -37,12 +37,37 @@ import {
 } from "@/components/personal/icons";
 import { crearObraPersonal, editarObraPersonal, type ObraParaEditar } from "./actions";
 import { estimarPresupuesto, type EspacioEstim } from "@/lib/estimar-presupuesto";
-import type { CrearObraInput, EspacioInput } from "./types";
+import { normalizarComparacion, type EstructuraPlantilla, type TipoPropiedadPlantilla } from "@/lib/plantilla-obra";
+import type { FaseObra } from "@/lib/fases-obra";
+import ImportExcelPanel from "@/components/personal/ImportExcelPanel";
+import RevisionImportExcel from "@/components/personal/RevisionImportExcel";
+import ContraPronostico from "@/components/personal/ContraPronostico";
+import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
+import type { PreviewImport, TareaImportadaResuelta } from "@/components/personal/import-excel-types";
+import { ESPACIO_GENERAL, type CrearObraInput, type EspacioInput } from "./types";
 
 // ─── Modelo interno del wizard ────────────────────────────────────────────────
 
 let _uid = 0;
 const nuevoId = () => `e${++_uid}`;
+
+/**
+ * Nombre único dentro de una lista de espacios (mismo piso/grupo): si `deseado`
+ * ya existe (comparación sin tildes/mayúsculas), lo auto-numera ("Cocina 2",
+ * "Cocina 3"…). `exceptId` excluye el propio espacio al renombrar.
+ */
+function nombreUnico(espacios: EspacioW[], deseado: string, exceptId?: string): string {
+  const base = deseado.trim();
+  if (!base) return base;
+  const existe = (nombre: string) =>
+    espacios.some(
+      (e) => e.id !== exceptId && normalizarComparacion(e.nombre) === normalizarComparacion(nombre),
+    );
+  if (!existe(base)) return base;
+  let i = 2;
+  while (existe(`${base} ${i}`)) i++;
+  return `${base} ${i}`;
+}
 
 /**
  * Convierte los espacios precargados (modo edición) al modelo interno del wizard.
@@ -60,6 +85,10 @@ function espaciosDesdeInput(espacios: EspacioInput[] | undefined): EspacioW[] {
       dias: t.tiempo_acordado_dias,
       on: t.activa,
       precio: t.precio,
+      // Desglose de PRESUPUESTO por tarea (import del Excel único): hay que
+      // conservarlo al editar, o `sincronizarUnidad` lo sobrescribe con null.
+      ...(t.presupuesto_mano_obra != null ? { presupuestoManoObra: t.presupuesto_mano_obra } : {}),
+      ...(t.presupuesto_materiales != null ? { presupuestoMateriales: t.presupuesto_materiales } : {}),
     })),
   }));
 }
@@ -70,6 +99,15 @@ interface TareaW {
   /** true = pendiente (se trackea). false = ya hecho. */
   on: boolean;
   precio?: number;
+  /** Desglose del costo de la tarea (paso de costos). */
+  manoObra?: number;
+  materiales?: number;
+  /** Desglose de PRESUPUESTO por tarea (import del Excel único). Se persiste
+   *  como presupuesto_mano_obra / presupuesto_materiales en la tarea. */
+  presupuestoManoObra?: number;
+  presupuestoMateriales?: number;
+  /** Fase curada conocida (import del Excel). Afina el motor de duración. */
+  fase?: FaseObra;
 }
 
 interface EspacioW {
@@ -81,6 +119,9 @@ interface EspacioW {
   cargado?: boolean;
   /** Costo asignado al espacio (paso 6). */
   costo?: number;
+  /** Desglose del costo del espacio (trabajo / materiales). */
+  costoManoObra?: number;
+  costoMateriales?: number;
   /** Espacio expandido en el paso de costos. */
   expandido?: boolean;
 }
@@ -96,6 +137,32 @@ interface TipoAptoW {
 }
 
 type PuntoPartida = "NUEVA" | "MEDIAS" | "AVANZADA";
+
+type ModoPresupuesto = "ninguno" | "general" | "separado";
+
+const MODOS_PRESUPUESTO: {
+  key: ModoPresupuesto;
+  titulo: string;
+  desc: string;
+  comun?: boolean;
+}[] = [
+  {
+    key: "separado",
+    titulo: "Tengo separado: trabajo y materiales",
+    desc: "Sabes cuánto destinas a tus trabajadores y cuánto a materiales.",
+    comun: true,
+  },
+  {
+    key: "general",
+    titulo: "Tengo un presupuesto total",
+    desc: "Un solo monto para toda la obra; nosotros lo repartimos.",
+  },
+  {
+    key: "ninguno",
+    titulo: "Aún no tengo presupuesto",
+    desc: "Calculamos un estimado por ti con precios de referencia.",
+  },
+];
 
 const PUNTOS_PARTIDA: { key: PuntoPartida; titulo: string; desc: string }[] = [
   { key: "NUEVA", titulo: "Aún no ha iniciado", desc: "Todavía no se ha ejecutado ninguna tarea." },
@@ -172,7 +239,7 @@ export default function IntentWizard({
   initial?: ObraParaEditar;
 }) {
   const router = useRouter();
-  const esArquitecto = tipoCuenta === "ARQUITECTO";
+  const esContratista = tipoCuenta === "CONTRATISTA";
   const esEdicion = modo === "editar" && !!initial;
   const primerNombre = nombreUsuario.split(" ")[0];
 
@@ -181,7 +248,8 @@ export default function IntentWizard({
 
   // Paso 1
   const [tipoObra, setTipoObra] = useState<TipoObra | null>(initial?.tipoObra ?? null);
-  // `puntoPartida` no se persiste en la obra: en modo edición arrancamos con un
+  // `puntoPartida` ahora se persiste: en edición se precarga desde
+  // `initial.puntoPartida`. Si la obra no tiene valor guardado, caemos a un
   // default seguro ("MEDIAS" = en proceso) para no bloquear el paso 0 (que exige
   // un valor no-nulo para avanzar). En creación arranca en null como siempre.
   const [puntoPartida, setPuntoPartida] = useState<PuntoPartida | null>(
@@ -264,6 +332,22 @@ export default function IntentWizard({
   const [presupuestoTotal, setPresupuestoTotal] = useState<number | "">(
     initial?.presupuestoTotal != null && initial.presupuestoTotal > 0 ? initial.presupuestoTotal : "",
   );
+  // Modo de presupuesto (3 opciones). En edición precargamos del initial; al
+  // crear el default es "separado" (lo más común para un contratista).
+  const [modoPresupuesto, setModoPresupuesto] = useState<ModoPresupuesto>(
+    initial?.modoPresupuesto ?? "separado",
+  );
+  // Modo "separado": dos bolsas independientes.
+  const [presupuestoManoObra, setPresupuestoManoObra] = useState<number | "">(
+    initial?.presupuestoManoObra != null && initial.presupuestoManoObra > 0 ? initial.presupuestoManoObra : "",
+  );
+  const [presupuestoMateriales, setPresupuestoMateriales] = useState<number | "">(
+    initial?.presupuestoMateriales != null && initial.presupuestoMateriales > 0 ? initial.presupuestoMateriales : "",
+  );
+  // Totales del último reparto (para el resumen trabajo/materiales de abajo).
+  const [desgloseTotales, setDesgloseTotales] = useState<
+    { costo: number; manoObra: number; materiales: number } | null
+  >(null);
   // Para no pisar ediciones manuales de costo/días al re-entrar al paso de costos.
   // En edición arranca en true: los días/precios vienen de la obra guardada y no
   // queremos repartirlos automáticamente encima (el usuario puede re-sugerir).
@@ -282,6 +366,9 @@ export default function IntentWizard({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState("");
   const [limiteAlcanzado, setLimiteAlcanzado] = useState(false);
+
+  // Import del Excel único: preview a revisar (null = modal de revisión cerrado).
+  const [importPreview, setImportPreview] = useState<PreviewImport | null>(null);
 
   // Paso "¿Qué te falta?": mensajes guía de primera vez (dismissibles).
   // Por defecto false (SSR-safe); en cliente se activa solo si nunca se han visto.
@@ -321,6 +408,94 @@ export default function IntentWizard({
   }, [esEdificio, tipos, pisos]);
 
   const todosEspacios = useMemo(() => grupos.flatMap((g) => g.espacios), [grupos]);
+
+  // Estructura para la plantilla/parse del Excel único. Solo CASA/APARTAMENTO/
+  // LOCAL (EDIFICIO fuera de alcance del import en esta ronda).
+  const estructuraPlantilla = useMemo<EstructuraPlantilla | null>(() => {
+    if (esEdificio || !tipoPropiedad) return null;
+    return {
+      tipoPropiedad: tipoPropiedad as TipoPropiedadPlantilla,
+      pisos: pisos.map((p, i) => ({
+        numero: i + 1,
+        espacios: p.espacios.map((e) => e.nombre.trim()).filter(Boolean),
+      })),
+    };
+  }, [esEdificio, tipoPropiedad, pisos]);
+
+  // m² total de la obra si el usuario lo dio (afina duración y estimados).
+  const areaTotalNum =
+    modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
+      ? metrajeTotal
+      : undefined;
+
+  // Espacios en el formato del motor de duración/estimador (tareas con fase).
+  const espaciosEstim = useMemo<EspacioEstim[]>(
+    () =>
+      todosEspacios.map((e) => ({
+        id: e.id,
+        nombre: e.nombre,
+        ...(e.metraje ? { metraje: e.metraje } : {}),
+        tareas: e.tareas.map((t) => ({
+          nombre: t.nombre,
+          dias: t.dias,
+          on: t.on,
+          ...(t.fase ? { fase: t.fase } : {}),
+        })),
+      })),
+    [todosEspacios],
+  );
+
+  /**
+   * Vuelca al estado del wizard las tareas confirmadas en el paso de revisión.
+   * Crea cada tarea en su espacio destino; para destinos globales (propiedad /
+   * piso) usa el espacio reservado "General" del piso, creándolo si no existe
+   * (convención ESPACIO_GENERAL). Marca las tareas activas y protege lo
+   * importado del reparto automático de costos/días (repartoHecho).
+   */
+  function aplicarImportacion(tareas: TareaImportadaResuelta[]) {
+    if (tareas.length > 0) {
+      setPisos((prev) => {
+        const next: PisoW[] = prev.map((p) => ({
+          espacios: p.espacios.map((e) => ({ ...e, tareas: e.tareas.map((t) => ({ ...t })) })),
+        }));
+        const buscarOCrear = (pisoIdx: number, nombre: string): EspacioW => {
+          const idx = Math.min(Math.max(0, pisoIdx), next.length - 1);
+          const piso = next[idx];
+          const objetivo = normalizarComparacion(nombre);
+          let esp = piso.espacios.find((e) => normalizarComparacion(e.nombre) === objetivo);
+          if (!esp) {
+            esp = { id: nuevoId(), nombre, tareas: [], cargado: true };
+            piso.espacios.push(esp);
+          }
+          return esp;
+        };
+        for (const t of tareas) {
+          let pisoIdx = 0;
+          let nombreEsp = ESPACIO_GENERAL;
+          if (t.destino.tipo === "piso") {
+            pisoIdx = t.destino.piso - 1;
+          } else if (t.destino.tipo === "espacio") {
+            pisoIdx = t.destino.piso - 1;
+            nombreEsp = t.destino.espacio;
+          }
+          const esp = buscarOCrear(pisoIdx, nombreEsp);
+          esp.tareas.push({
+            nombre: t.nombre,
+            dias: 1,
+            on: true,
+            ...(t.precio != null ? { precio: t.precio } : {}),
+            ...(t.presupuestoManoObra != null ? { presupuestoManoObra: t.presupuestoManoObra } : {}),
+            ...(t.presupuestoMateriales != null ? { presupuestoMateriales: t.presupuestoMateriales } : {}),
+            ...(t.fase ? { fase: t.fase } : {}),
+          });
+        }
+        return next;
+      });
+      // Lo importado no debe ser pisado por el reparto automático (costos/días).
+      setRepartoHecho(true);
+    }
+    setImportPreview(null);
+  }
 
   // ── Navegación ──────────────────────────────────────────────────────────────
   const puedeAvanzar = useMemo(() => {
@@ -372,6 +547,7 @@ export default function IntentWizard({
           tipoObra: tipoObraSafe,
           tipoPropiedad,
           ciudad: ciudadDesde(ubicacion?.direccion),
+          puntoPartida,
         }),
       });
       if (res.ok) {
@@ -650,9 +826,18 @@ export default function IntentWizard({
   }
 
   /**
-   * "Sugerir presupuesto": pide a DeepSeek el COSTO TOTAL (mano de obra +
-   * materiales) por tarea, ANCLADO en la base semilla de precios de Colombia.
-   * Si la IA no está disponible, cae al estimador determinista (solo M.O.).
+   * Reparte el presupuesto entre tareas según el modo elegido. Llama al motor de
+   * costos (`/api/sugerencias/presupuesto`) que devuelve, por tarea,
+   * `{ costo, manoObra, materiales }` + `totales`. El reparto NO es parejo: el
+   * backend pondera por el "peso real" de cada tarea (cocina pesa más que un
+   * baño). Aplica el desglose a cada espacio/tarea para mostrarlo.
+   *
+   *  - "ninguno"  → la IA estima el costo total por tarea (sin monto del usuario).
+   *  - "general"  → reparte `presupuestoTotal` (un solo monto).
+   *  - "separado" → reparte cada bolsa (`presupuestoManoObra` / `presupuestoMateriales`).
+   *
+   * Si la IA no está disponible, el backend igual devuelve números (respaldo
+   * determinista): no mostramos error duro, solo seguimos con esos valores.
    */
   async function sugerirPresupuesto() {
     // Mapa índice global → (espacioId, posición de la tarea en el espacio).
@@ -668,8 +853,21 @@ export default function IntentWizard({
     });
     if (items.length === 0) return;
 
+    // Montos según el modo. En "general"/"separado" enviamos lo que el usuario
+    // escribió; en "ninguno" el backend estima sin monto.
+    const totalGeneral = typeof presupuestoTotal === "number" ? presupuestoTotal : 0;
+    const moSeparado = typeof presupuestoManoObra === "number" ? presupuestoManoObra : 0;
+    const matSeparado = typeof presupuestoMateriales === "number" ? presupuestoMateriales : 0;
+
     setPresupuestoCargando(true);
-    let precios: Record<number, number> | null = null;
+    type RTarea = { i: number; costo: number; manoObra: number; materiales: number };
+    let data:
+      | {
+          fuente: "ia" | "sin_key" | "error";
+          tareas: RTarea[];
+          totales: { costo: number; manoObra: number; materiales: number };
+        }
+      | null = null;
     try {
       const res = await fetch("/api/sugerencias/presupuesto", {
         method: "POST",
@@ -679,60 +877,73 @@ export default function IntentWizard({
           tipoObra: tipoObraSafe,
           tipoPropiedad,
           ciudad: ciudadDesde(ubicacion?.direccion),
+          modo: modoPresupuesto,
+          ...(modoPresupuesto === "general" ? { total: totalGeneral } : {}),
+          ...(modoPresupuesto === "separado"
+            ? { manoObra: moSeparado, materiales: matSeparado }
+            : {}),
         }),
       });
       if (res.ok) {
         const j = await res.json();
-        precios = j?.precios ?? null;
+        if (Array.isArray(j?.tareas)) {
+          data = { fuente: j.fuente ?? "error", tareas: j.tareas, totales: j.totales };
+        }
       }
     } catch {
-      precios = null;
+      data = null;
     }
 
-    if (!precios) {
-      // Sin IA → respaldo determinista (base semilla, solo mano de obra).
+    if (!data) {
+      // Red caída o respuesta inválida → respaldo determinista local (M.O.).
       sugerirPresupuestoDeterminista();
       setPresupuestoCargando(false);
       return;
     }
 
-    // Aplica los precios de la IA por (espacioId, posición de tarea).
+    // Indexa el desglose por (espacioId, posición de tarea).
     const clave = (eid: string, idx: number) => `${eid}:${idx}`;
-    const mp = new Map<string, number>();
-    let total = 0;
-    ref.forEach((r, i) => {
-      const p = precios![i];
-      if (typeof p === "number" && p >= 0) {
-        mp.set(clave(r.espacioId, r.taskIdx), p);
-        total += p;
-      }
+    const mp = new Map<string, RTarea>();
+    data.tareas.forEach((rt) => {
+      const r = ref[rt.i];
+      if (r) mp.set(clave(r.espacioId, r.taskIdx), rt);
     });
 
     const aplicar = (espacios: EspacioW[]): EspacioW[] =>
       espacios.map((e) => {
         let costo = 0;
+        let mo = 0;
+        let mat = 0;
+        let tocado = false;
         const tareas = e.tareas.map((t, idx) => {
           if (!t.on) return t;
-          const p = mp.get(clave(e.id, idx));
-          if (typeof p === "number") {
-            costo += p;
-            return { ...t, precio: p };
+          const rt = mp.get(clave(e.id, idx));
+          if (rt) {
+            tocado = true;
+            costo += rt.costo;
+            mo += rt.manoObra;
+            mat += rt.materiales;
+            return { ...t, precio: rt.costo, manoObra: rt.manoObra, materiales: rt.materiales };
           }
           return t;
         });
-        return { ...e, costo: costo || e.costo, tareas };
+        if (!tocado) return { ...e, tareas };
+        return { ...e, costo, costoManoObra: mo, costoMateriales: mat, tareas };
       });
     if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
     else setPisos((prev) => prev.map((p) => ({ ...p, espacios: aplicar(p.espacios) })));
 
-    setPresupuestoTotal(total);
+    const tot = data.totales ?? { costo: 0, manoObra: 0, materiales: 0 };
+    // El total general refleja la suma repartida; en "separado" es M.O.+materiales.
+    setPresupuestoTotal(tot.costo > 0 ? tot.costo : "");
+    setDesgloseTotales(tot);
     setRepartoHecho(true);
     setEstimNota({
-      total,
-      min: Math.round(total * 0.8),
-      max: Math.round(total * 1.25),
+      total: tot.costo,
+      min: Math.round(tot.costo * 0.8),
+      max: Math.round(tot.costo * 1.25),
       sinDato: 0,
-      fuente: "ia",
+      fuente: data.fuente === "ia" ? "ia" : "base",
     });
     setPresupuestoCargando(false);
   }
@@ -781,6 +992,17 @@ export default function IntentWizard({
     () => todosEspacios.reduce((acc, e) => acc + e.tareas.filter((t) => t.on).length, 0),
     [todosEspacios],
   );
+  // Presupuesto a mostrar en el resumen final: en "separado" es la suma de las
+  // dos bolsas (aunque el usuario no haya repartido aún); si no, el total.
+  const presupuestoResumen = useMemo(() => {
+    if (modoPresupuesto === "separado") {
+      const mo = typeof presupuestoManoObra === "number" ? presupuestoManoObra : 0;
+      const mat = typeof presupuestoMateriales === "number" ? presupuestoMateriales : 0;
+      const suma = mo + mat;
+      if (suma > 0) return suma;
+    }
+    return typeof presupuestoTotal === "number" ? presupuestoTotal : 0;
+  }, [modoPresupuesto, presupuestoManoObra, presupuestoMateriales, presupuestoTotal]);
 
   // ── Crear ─────────────────────────────────────────────────────────────────
   async function crear() {
@@ -806,6 +1028,14 @@ export default function IntentWizard({
               nombre: t.nombre,
               tiempo_acordado_dias: t.dias,
               precio: t.on ? (t.precio ?? (precios.length ? precios[pi++] : undefined)) : undefined,
+              // Desglose por tarea del import del Excel único (opcional). El
+              // backend recalcula el total como su suma cuando vienen los dos.
+              ...(t.on && t.presupuestoManoObra != null
+                ? { presupuesto_mano_obra: t.presupuestoManoObra }
+                : {}),
+              ...(t.on && t.presupuestoMateriales != null
+                ? { presupuesto_materiales: t.presupuestoMateriales }
+                : {}),
               activa: t.on,
             })),
           };
@@ -816,7 +1046,7 @@ export default function IntentWizard({
       puntoPartida: puntoPartida ?? undefined,
       tipoPropiedad: tipoPropiedad!,
       nombreObra: nombreObra.trim(),
-      clienteNombre: esArquitecto ? clienteNombre.trim() || undefined : undefined,
+      clienteNombre: esContratista ? clienteNombre.trim() || undefined : undefined,
       fechaInicio: fechaInicio || undefined,
       fechaFin: fechaFin || undefined,
       ubicacionLat: ubicacion?.lat ?? null,
@@ -825,7 +1055,18 @@ export default function IntentWizard({
       // no aporta dirección legible (p.ej. coords precargadas), conservamos la
       // ciudad original para no borrarla al guardar.
       ciudad: ciudadDesde(ubicacion?.direccion) ?? (esEdicion ? initial?.ciudad : undefined),
+      // Presupuesto según el modo elegido. El backend normaliza qué columnas
+      // persiste según `modoPresupuesto` (general → total, separado → bolsas).
+      modoPresupuesto,
       presupuestoTotal: typeof presupuestoTotal === "number" && presupuestoTotal > 0 ? presupuestoTotal : undefined,
+      presupuestoManoObra:
+        modoPresupuesto === "separado" && typeof presupuestoManoObra === "number" && presupuestoManoObra > 0
+          ? presupuestoManoObra
+          : undefined,
+      presupuestoMateriales:
+        modoPresupuesto === "separado" && typeof presupuestoMateriales === "number" && presupuestoMateriales > 0
+          ? presupuestoMateriales
+          : undefined,
       // m² de toda la obra: solo si el usuario eligió ese modo y dio un valor.
       metrajeTotal:
         modoMetraje === "total" && typeof metrajeTotal === "number" && metrajeTotal > 0
@@ -868,7 +1109,7 @@ export default function IntentWizard({
   const titulosPaso = [
     "¿Qué vas a hacer y cómo va?",
     "¿Qué tipo de propiedad?",
-    "Arma tu obra",
+    "Configura tu obra",
     "¿Cuándo y dónde?",
     "¿Qué te falta por hacer?",
     "Costos",
@@ -893,7 +1134,7 @@ export default function IntentWizard({
             <p className="text-sm text-slate-500 mt-1">
               {esEdicion
                 ? "Ajusta lo que necesites. Tus cambios se guardan al final."
-                : "Vamos a armar tu obra en unos pasos. Tú mandas."}
+                : "Configuraremos tu obra en unos pasos. Tú decides."}
             </p>
           )}
         </div>
@@ -977,7 +1218,7 @@ export default function IntentWizard({
               </div>
             </div>
 
-            {esArquitecto && (
+            {esContratista && (
               <Campo
                 label="¿Para qué cliente? (opcional)"
                 placeholder="Ej: Familia Gómez"
@@ -987,8 +1228,8 @@ export default function IntentWizard({
             )}
 
             <Campo
-              label="Ponle un nombre a la obra"
-              placeholder={esArquitecto ? "Ej: Remodelación apto Gómez" : "Ej: Remodelación de mi casa"}
+              label="Asígnale un nombre a la obra"
+              placeholder={esContratista ? "Ej: Remodelación apto Gómez" : "Ej: Remodelación de mi casa"}
               value={nombreObra}
               onChange={setNombreObra}
             />
@@ -998,6 +1239,7 @@ export default function IntentWizard({
         {/* ── Paso 3: Arma tu obra ──────────────────────────────────────── */}
         {paso === 2 && tipoPropiedad && (
           <div className="flex flex-col gap-4">
+            {esEdicion && esEdificio && <AvisoEdificioSoloGenerales />}
             <AreaObra
               modo={modoMetraje}
               metrajeTotal={metrajeTotal}
@@ -1042,17 +1284,17 @@ export default function IntentWizard({
         {paso === 3 && (
           <div className="flex flex-col gap-5">
             <p className="text-sm text-slate-500">
-              Pon fechas estimadas y dónde queda. Todo es opcional y lo puedes cambiar después.
+              Indica las fechas estimadas y la ubicación. Todo es opcional y lo puedes cambiar después.
             </p>
             <div className="grid grid-cols-2 gap-3">
-              <CampoFecha label="¿Cuándo arranca?" value={fechaInicio} onChange={setFechaInicio} />
-              <CampoFecha label="¿Cuándo crees que termina?" value={fechaFin} onChange={setFechaFin} min={fechaInicio} />
+              <CampoFecha label="¿Cuándo inicia?" value={fechaInicio} onChange={setFechaInicio} />
+              <CampoFecha label="¿Cuándo estimas que termina?" value={fechaFin} onChange={setFechaFin} min={fechaInicio} />
             </div>
             {plazoDias !== null && (
               <p className="text-xs text-blue-600 -mt-2">≈ {plazoDias} días hábiles de plazo.</p>
             )}
             <div>
-              <p className="text-sm font-medium text-slate-700 mb-2">¿Dónde queda la obra?</p>
+              <p className="text-sm font-medium text-slate-700 mb-2">¿Dónde se ubica la obra?</p>
               <LocationPicker value={ubicacion} onChange={setUbicacion} />
             </div>
           </div>
@@ -1061,9 +1303,10 @@ export default function IntentWizard({
         {/* ── Paso 5: ¿Qué te falta? ────────────────────────────────────── */}
         {paso === 4 && (
           <div className="flex flex-col gap-5">
+            {esEdicion && esEdificio && <AvisoEdificioSoloGenerales />}
             <p className="text-sm text-slate-500">
-              Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Apaga lo que ya está
-              terminado. Solo lo que dejes prendido se trackea y exige foto.
+              Marca lo que <strong className="text-slate-700">te falta por hacer</strong>. Desactiva lo que ya está
+              terminado. Solo lo que dejes activo se hace seguimiento y requiere foto.
             </p>
             {/* Guía de primera vez (dismissible). Aparece solo si nunca se ha visto. */}
             {ayudaQFalta && (
@@ -1072,11 +1315,11 @@ export default function IntentWizard({
                   <Info className="w-4 h-4" />
                 </span>
                 <div className="flex-1 min-w-0 text-sm text-slate-600 leading-relaxed">
-                  <p className="font-semibold text-slate-800">¿Cómo armar cada espacio?</p>
+                  <p className="font-semibold text-slate-800">¿Cómo configurar cada espacio?</p>
                   <p className="mt-0.5">
-                    Para cada espacio te proponemos las tareas usuales. Deja prendidas las que
-                    faltan por hacer, apaga las que ya están listas y, si hace falta, agrega las
-                    tuyas. Los días son una sugerencia: ajústalos a tu ritmo.
+                    Para cada espacio te proponemos las tareas usuales. Deja activas las que
+                    faltan por hacer, desactiva las que ya están listas y, si hace falta, agrega
+                    las tuyas. Los días son una sugerencia: ajústalos a tu ritmo.
                   </p>
                 </div>
                 <button
@@ -1088,6 +1331,14 @@ export default function IntentWizard({
                   <X className="w-4 h-4" />
                 </button>
               </div>
+            )}
+            {/* Descargar plantilla + subir Excel (solo crear · CASA/APTO/LOCAL). */}
+            {!esEdicion && estructuraPlantilla && (
+              <ImportExcelPanel
+                estructura={estructuraPlantilla}
+                puedeDescargar={todosEspacios.length > 0}
+                onRevisar={setImportPreview}
+              />
             )}
             {/* Señal de fuente: si la IA no corrió, lo decimos (ayuda a diagnosticar). */}
             {!iaCargando && iaFuente && iaFuente !== "ia" && (
@@ -1129,67 +1380,124 @@ export default function IntentWizard({
         {/* ── Paso 6: Costos ────────────────────────────────────────────── */}
         {paso === 5 && (
           <div className="flex flex-col gap-5">
-            {/* Totales arriba (sensación de control) */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 sticky top-0 z-10">
-              <label className="text-sm font-medium text-slate-700">Presupuesto total de la obra (opcional)</label>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-slate-400 text-sm">$</span>
-                <input
-                  inputMode="numeric"
-                  value={presupuestoTotal === "" ? "" : presupuestoTotal.toLocaleString("es-CO")}
-                  onChange={(e) => onCambiarTotal(e.target.value)}
-                  placeholder="0"
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-                />
-              </div>
-              <div className="flex justify-between text-xs text-slate-500 mt-3 pt-3 border-t border-slate-100">
-                <span>
-                  Repartido en espacios: <strong className="text-slate-800">{fmtCOP(sumaCostosEspacios)}</strong>
-                </span>
-                <span>
-                  {totalTareasActivas} tareas · {totalDias} días
-                </span>
+            {/* Selector de modo de presupuesto */}
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium text-slate-700">¿Cómo manejas el presupuesto de esta obra?</p>
+              <div className="flex flex-col gap-2.5">
+                {MODOS_PRESUPUESTO.map((m) => (
+                  <ModoPresupuestoCard
+                    key={m.key}
+                    titulo={m.titulo}
+                    desc={m.desc}
+                    comun={m.comun}
+                    activo={modoPresupuesto === m.key}
+                    onClick={() => {
+                      if (m.key === modoPresupuesto) return;
+                      setModoPresupuesto(m.key);
+                      // El desglose previo es de otro modo: lo limpiamos para no
+                      // mostrar números que ya no corresponden hasta re-repartir.
+                      setDesgloseTotales(null);
+                      setEstimNota(null);
+                    }}
+                  />
+                ))}
               </div>
             </div>
-            {/* Sugerir presupuesto: IA anclada en precios de referencia (con respaldo) */}
+
+            {/* Inputs de monto según el modo */}
+            {modoPresupuesto === "general" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <label className="text-sm font-medium text-slate-700">Presupuesto total de la obra</label>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-slate-400 text-sm">$</span>
+                  <input
+                    inputMode="numeric"
+                    value={presupuestoTotal === "" ? "" : presupuestoTotal.toLocaleString("es-CO")}
+                    onChange={(e) => onCambiarTotal(e.target.value)}
+                    placeholder="0"
+                    className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
+                  Repartimos este monto entre los espacios según el peso real de cada tarea (la cocina pesa más
+                  que un baño). Pulsa <strong>Repartir mi presupuesto</strong> para calcularlo.
+                </p>
+              </div>
+            )}
+
+            {modoPresupuesto === "separado" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 grid grid-cols-2 gap-3">
+                <MontoCampo
+                  label="Mano de obra / trabajo"
+                  ayuda="Lo que pagas a tus trabajadores."
+                  value={presupuestoManoObra}
+                  onChange={setPresupuestoManoObra}
+                />
+                <MontoCampo
+                  label="Materiales"
+                  ayuda="Lo que gastas en compras con factura."
+                  value={presupuestoMateriales}
+                  onChange={setPresupuestoMateriales}
+                />
+                <p className="col-span-2 text-xs text-slate-400">
+                  Repartimos cada bolsa entre las tareas según su peso de trabajo y de materiales. Pulsa{" "}
+                  <strong>Repartir mi presupuesto</strong> para calcularlo.
+                </p>
+              </div>
+            )}
+
+            {modoPresupuesto === "ninguno" && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  No hay problema: calculamos un estimado del costo de cada tarea (trabajo + materiales) con
+                  precios de referencia de Colombia. Es un punto de partida que puedes ajustar.
+                </p>
+              </div>
+            )}
+
+            {/* Botón que dispara el reparto / cálculo */}
             <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={sugerirPresupuesto}
                 disabled={presupuestoCargando}
-                className="inline-flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 disabled:opacity-60 text-blue-700 font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm cursor-pointer disabled:cursor-wait"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 px-4 rounded-xl transition-colors text-sm cursor-pointer disabled:cursor-wait shadow-sm shadow-blue-600/20"
               >
                 {presupuestoCargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {presupuestoCargando ? "Calculando presupuesto…" : "Sugerir presupuesto"}
+                {presupuestoCargando
+                  ? "Calculando…"
+                  : modoPresupuesto === "ninguno"
+                    ? "Calcular un estimado"
+                    : "Repartir mi presupuesto"}
               </button>
-              <p className="text-xs text-slate-400">
-                ¿No sabes cuánto presupuestar? Estimamos el costo (mano de obra + materiales) con precios de
-                referencia de Colombia. Es un punto de partida: ajusta lo que quieras.
-              </p>
-              {estimNota && (
-                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 text-xs text-slate-600 leading-relaxed">
-                  Estimado: <strong className="text-slate-900">{fmtCOP(estimNota.total)}</strong>{" "}
-                  <span className="text-slate-400">
-                    (rango {fmtCOP(estimNota.min)} – {fmtCOP(estimNota.max)})
-                  </span>
-                  {estimNota.fuente === "base" && (
-                    <>
-                      {" · "}
-                      <span className="text-amber-600">
-                        estimado base (mano de obra). Conéctate para un estimado con materiales más preciso.
-                      </span>
-                    </>
-                  )}
-                  {estimNota.fuente === "ia" && (
-                    <span className="text-slate-400"> · incluye materiales. Ajusta lo que no cuadre.</span>
-                  )}
+
+              {/* Resumen trabajo / materiales del último reparto */}
+              {desgloseTotales && desgloseTotales.costo > 0 && (
+                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3.5 text-sm text-slate-700 leading-relaxed">
+                  <p>
+                    De tu presupuesto, <strong className="text-slate-900">{fmtCOP(desgloseTotales.manoObra)}</strong>{" "}
+                    son <strong>trabajo</strong> (lo que pagas a tus trabajadores) y{" "}
+                    <strong className="text-slate-900">{fmtCOP(desgloseTotales.materiales)}</strong>{" "}
+                    <strong>materiales</strong>.
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    Total estimado: {fmtCOP(desgloseTotales.costo)}
+                    {estimNota?.fuente === "base" && " · estimado con precios base"}.
+                    {" "}Ajusta lo que no corresponda.
+                  </p>
                 </div>
               )}
             </div>
-            <p className="text-xs text-slate-400">
-              Repartimos parejo entre espacios y, dentro de cada uno, según los días de cada tarea. Ajusta lo que
-              quieras; los totales se recalculan solos.
-            </p>
+
+            {/* Totales en curso */}
+            <div className="flex justify-between text-xs text-slate-500 pt-1">
+              <span>
+                Repartido en espacios: <strong className="text-slate-800">{fmtCOP(sumaCostosEspacios)}</strong>
+              </span>
+              <span>
+                {totalTareasActivas} tareas · {totalDias} días
+              </span>
+            </div>
 
             {grupos.map((g, gi) => (
               <div key={gi} className="flex flex-col gap-3">
@@ -1208,6 +1516,22 @@ export default function IntentWizard({
                   ))}
               </div>
             ))}
+
+            {/* Cronograma estimado: contra-pronóstico (guía) + línea de tiempo
+                con ramas. Va en este paso —el último editable antes de crear—
+                porque es donde ya coexisten las tareas Y las fechas: el paso de
+                fechas es ANTERIOR a "¿qué falta?", así que allí todavía no hay
+                tareas que estimar. Nunca bloquea; solo orienta. */}
+            {totalTareasActivas > 0 && (
+              <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+                <ContraPronostico
+                  espacios={espaciosEstim}
+                  plazoDias={plazoDias}
+                  areaTotal={areaTotalNum}
+                />
+                <LineaTiempoObra espacios={espaciosEstim} areaTotal={areaTotalNum} />
+              </div>
+            )}
           </div>
         )}
 
@@ -1230,9 +1554,18 @@ export default function IntentWizard({
                 <ResumenFila k="Tipo" v={TIPOS_PROPIEDAD.find((p) => p.key === tipoPropiedad)?.label ?? ""} />
                 <ResumenFila k="Espacios" v={`${todosEspacios.filter((e) => e.tareas.some((t) => t.on)).length}`} />
                 <ResumenFila k="Tareas pendientes" v={`${totalTareasActivas}`} />
-                {typeof presupuestoTotal === "number" && presupuestoTotal > 0 && (
-                  <ResumenFila k="Presupuesto" v={fmtCOP(presupuestoTotal)} />
+                {presupuestoResumen > 0 && (
+                  <ResumenFila k="Presupuesto" v={fmtCOP(presupuestoResumen)} />
                 )}
+                {modoPresupuesto === "separado" &&
+                  (typeof presupuestoManoObra === "number" || typeof presupuestoMateriales === "number") && (
+                    <ResumenFila
+                      k="Trabajo / materiales"
+                      v={`${fmtCOP(typeof presupuestoManoObra === "number" ? presupuestoManoObra : 0)} · ${fmtCOP(
+                        typeof presupuestoMateriales === "number" ? presupuestoMateriales : 0,
+                      )}`}
+                    />
+                  )}
               </dl>
             </div>
           </div>
@@ -1248,6 +1581,18 @@ export default function IntentWizard({
               className="inline-flex items-center justify-center gap-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-medium py-3 px-5 rounded-xl transition-colors text-sm cursor-pointer disabled:opacity-50"
             >
               <ArrowLeft className="w-4 h-4" /> Atrás
+            </button>
+          )}
+          {/* En edición: guardar desde cualquier paso, sin recorrer todo el wizard. */}
+          {esEdicion && paso < TOTAL_PASOS - 1 && (
+            <button
+              type="button"
+              onClick={crear}
+              disabled={enviando}
+              className="inline-flex items-center justify-center gap-2 border border-blue-600 bg-white text-blue-700 hover:bg-blue-50 font-semibold py-3 px-5 rounded-xl transition-colors text-sm cursor-pointer disabled:opacity-50"
+            >
+              {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {enviando ? "Guardando…" : "Guardar cambios"}
             </button>
           )}
           {paso < TOTAL_PASOS - 1 ? (
@@ -1277,6 +1622,17 @@ export default function IntentWizard({
             </button>
           ) : null}
         </div>
+
+        {/* Paso de revisión del import (Excel único). Se abre al subir el archivo. */}
+        {importPreview && estructuraPlantilla && (
+          <RevisionImportExcel
+            filas={importPreview.filas}
+            resumen={importPreview.resumen}
+            estructura={estructuraPlantilla}
+            onConfirmar={aplicarImportacion}
+            onCerrar={() => setImportPreview(null)}
+          />
+        )}
       </div>
     </main>
   );
@@ -1413,7 +1769,7 @@ function CasaBuilder({
         <div className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-800">¿Cuántos pisos tiene?</p>
-            <p className="text-xs text-slate-500">Arma cada piso por separado.</p>
+            <p className="text-xs text-slate-500">Configura cada piso por separado.</p>
           </div>
           <Stepper value={pisos.length} onChange={onNumPisos} min={1} max={10} />
         </div>
@@ -1606,12 +1962,27 @@ function EspaciosEditor({
   const nHab = espacioOps.contar(espacios, "Habitación");
   const nBano = espacioOps.contar(espacios, "Baño");
   const [otro, setOtro] = useState("");
+  // Aviso sutil cuando auto-numeramos un nombre duplicado ("Cocina 2").
+  const [aviso, setAviso] = useState<{ id: string; nombre: string } | null>(null);
 
   function agregarOtro() {
     const v = otro.trim();
     if (!v) return;
-    setEspacios((prev) => espacioOps.toggleEspacioSingular(prev, v));
+    // Un espacio con texto libre SIEMPRE se agrega (auto-numerado si el nombre
+    // ya existe en este piso), en vez de togglear/eliminar el existente.
+    setEspacios((prev) => [...prev, { id: nuevoId(), nombre: nombreUnico(prev, v), tareas: [] }]);
     setOtro("");
+  }
+
+  // Al salir del campo de renombrar: si el nombre quedó duplicado dentro de este
+  // piso/grupo, lo auto-numeramos y lo avisamos sutilmente.
+  function resolverUnicidad(id: string) {
+    const esp = espacios.find((e) => e.id === id);
+    if (!esp) return;
+    const unico = nombreUnico(espacios, esp.nombre, id);
+    if (unico === esp.nombre) return;
+    setEspacios((prev) => prev.map((e) => (e.id === id ? { ...e, nombre: unico } : e)));
+    setAviso({ id, nombre: unico });
   }
 
   return (
@@ -1692,11 +2063,20 @@ function EspaciosEditor({
               key={esp.id}
               espacio={esp}
               mostrarMetraje={mostrarMetraje}
-              onRename={(n) => setEspacios((e) => espacioOps.renombrarEspacio(e, esp.id, n))}
+              onRename={(n) => {
+                if (aviso) setAviso(null);
+                setEspacios((e) => espacioOps.renombrarEspacio(e, esp.id, n));
+              }}
+              onCommit={() => resolverUnicidad(esp.id)}
               onMetraje={(m) => setEspacios((e) => espacioOps.setMetraje(e, esp.id, m))}
               onRemove={() => setEspacios((e) => e.filter((x) => x.id !== esp.id))}
             />
           ))}
+          {aviso && (
+            <p className="text-[11px] text-amber-600 pt-0.5">
+              Ya tenías un espacio con ese nombre en este piso; lo dejamos como “{aviso.nombre}”.
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -1707,12 +2087,15 @@ function EspacioRow({
   espacio,
   mostrarMetraje,
   onRename,
+  onCommit,
   onMetraje,
   onRemove,
 }: {
   espacio: EspacioW;
   mostrarMetraje: boolean;
   onRename: (n: string) => void;
+  /** Se dispara al salir del campo: resuelve nombres duplicados. */
+  onCommit?: () => void;
   onMetraje: (m?: number) => void;
   onRemove: () => void;
 }) {
@@ -1725,6 +2108,7 @@ function EspacioRow({
         <input
           value={espacio.nombre}
           onChange={(e) => onRename(e.target.value)}
+          onBlur={onCommit}
           className="w-full text-sm text-slate-800 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-blue-400 focus:outline-none py-1 pr-5"
         />
         <Pencil className="w-3 h-3 text-slate-300 absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1777,7 +2161,7 @@ function EspacioTareas({
       {/* Mensaje contextual de primera vez para este espacio (no intrusivo). */}
       {primeraVez && (
         <p className="px-4 pt-2.5 -mb-1 text-[11px] text-slate-400 leading-relaxed">
-          Deja prendido lo que falta por hacer en {espacio.nombre.toLowerCase()} y ajusta los días.
+          Deja activo lo que falta por hacer en {espacio.nombre.toLowerCase()} y ajusta los días.
         </p>
       )}
       {/* Encabezados de columna */}
@@ -1886,6 +2270,11 @@ function EspacioCosto({
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-800 text-sm truncate">{espacio.nombre}</p>
           <p className="text-[11px] text-slate-400">{activas.length} tareas · {dias} días</p>
+          {(espacio.costoManoObra || espacio.costoMateriales) && (
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              trabajo {fmtCOP(espacio.costoManoObra ?? 0)} · materiales {fmtCOP(espacio.costoMateriales ?? 0)}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <span className="text-slate-400 text-sm">$</span>
@@ -1947,6 +2336,86 @@ function EspacioCosto({
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Tarjeta seleccionable de modo de presupuesto (radio). Marca "lo más común"
+ * cuando aplica. Llano y formal, sin tecnicismos.
+ */
+function ModoPresupuestoCard({
+  titulo,
+  desc,
+  comun,
+  activo,
+  onClick,
+}: {
+  titulo: string;
+  desc: string;
+  comun?: boolean;
+  activo: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-start gap-3 text-left p-3.5 rounded-2xl border transition-all cursor-pointer ${
+        activo ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500/20" : "border-slate-200 bg-white hover:border-blue-300"
+      }`}
+    >
+      <span
+        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+          activo ? "border-blue-600 bg-blue-600" : "border-slate-300"
+        }`}
+      >
+        {activo && <Check className="w-3 h-3 text-white" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-slate-900 text-sm">{titulo}</span>
+          {comun && (
+            <span className="text-[10px] font-semibold text-blue-600 bg-blue-100 rounded-full px-2 py-0.5">
+              Lo más común
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-slate-500 mt-0.5 leading-snug">{desc}</div>
+      </div>
+    </button>
+  );
+}
+
+/** Campo de monto en COP con etiqueta y ayuda corta (modo "separado"). */
+function MontoCampo({
+  label,
+  ayuda,
+  value,
+  onChange,
+}: {
+  label: string;
+  ayuda: string;
+  value: number | "";
+  onChange: (v: number | "") => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <div className="flex items-center gap-2">
+        <span className="text-slate-400 text-sm">$</span>
+        <input
+          inputMode="numeric"
+          value={value === "" ? "" : value.toLocaleString("es-CO")}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, "");
+            onChange(v === "" ? "" : Math.min(parseInt(v) || 0, 2_000_000_000));
+          }}
+          placeholder="0"
+          className="flex-1 w-full min-w-0 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+        />
+      </div>
+      <p className="text-[11px] text-slate-400 leading-snug">{ayuda}</p>
     </div>
   );
 }
@@ -2047,6 +2516,27 @@ function ChipPropiedad({
 
 function GrupoTitulo({ titulo }: { titulo: string }) {
   return <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">{titulo}</p>;
+}
+
+/**
+ * Aviso honesto para la EDICIÓN de un EDIFICIO: `editarObraPersonal` solo
+ * persiste los datos generales del edificio (nombre, fechas, ubicación,
+ * presupuesto). Los cambios de estructura (espacios) y tareas NO se aplican
+ * todavía, así que se lo decimos al usuario para no dar un falso "guardado".
+ */
+function AvisoEdificioSoloGenerales() {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start gap-3">
+      <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+        <Info className="w-4 h-4" />
+      </span>
+      <p className="flex-1 min-w-0 text-sm text-amber-800 leading-relaxed">
+        En edificios, por ahora solo se guardan los datos generales (nombre,
+        fechas, ubicación, presupuesto); los cambios de espacios y tareas no se
+        aplican.
+      </p>
+    </div>
+  );
 }
 
 function Campo({

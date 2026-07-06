@@ -6,7 +6,11 @@ import { provisionarUsuario, provisionarPersonal } from "@/lib/onboarding";
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  // Por defecto, una cuenta que confirma correo / entra por OAuth pasa por
+  // /onboarding (que decide su destino o lo salta si ya respondió). Flujos
+  // especiales como la recuperación de contraseña fijan su propio `next`
+  // (p. ej. /nueva-contrasena) y NO deben caer en el onboarding.
+  const next = searchParams.get("next") ?? "/onboarding";
 
   if (code) {
     const supabase = await createClient();
@@ -23,7 +27,7 @@ export async function GET(req: NextRequest) {
         const tipoCuenta = user.user_metadata?.tipo_cuenta;
 
         try {
-          if (tipoCuenta === "ARQUITECTO" || tipoCuenta === "PROPIETARIO") {
+          if (tipoCuenta === "CONTRATISTA" || tipoCuenta === "PROPIETARIO") {
             // Cuenta personal: sin datos demo, entra al módulo de intención.
             await provisionarPersonal(user.email, nombre, tipoCuenta, {
               estudioNombre: user.user_metadata?.estudio_nombre,
