@@ -141,7 +141,9 @@ function parseMonto(v: ExcelJS.CellValue): { valor?: number; flags: string[] } {
   } else {
     const texto = cellText(v);
     if (texto === "") return { flags };
-    const limpio = texto.replace(/[$\s]/g, "").replace(/COP/gi, "");
+    // Tolera el apóstrofo colombiano de millones ($1'500.000 / $1’500.000)
+    // además de $, espacios y "COP".
+    const limpio = texto.replace(/[$\s'’]/g, "").replace(/COP/gi, "");
     if (/^-?[\d.,]+$/.test(limpio)) {
       n = Number(limpio.replace(/[.,]/g, ""));
     } else {

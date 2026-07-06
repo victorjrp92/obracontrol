@@ -108,6 +108,10 @@ interface TareaW {
   presupuestoMateriales?: number;
   /** Fase curada conocida (import del Excel). Afina el motor de duración. */
   fase?: FaseObra;
+  /** true = vino de una importación de Excel. Una re-importación REEMPLAZA
+   *  todas las tareas con este flag (decisión de producto: si el archivo tenía
+   *  un error, corregirlo y volver a subir lo arregla de inmediato). */
+  importada?: boolean;
 }
 
 interface EspacioW {
@@ -124,6 +128,9 @@ interface EspacioW {
   costoMateriales?: number;
   /** Espacio expandido en el paso de costos. */
   expandido?: boolean;
+  /** true = creado por una importación de Excel (p. ej. "General"). Si una
+   *  re-importación lo deja sin tareas, se elimina del estado. */
+  importado?: boolean;
 }
 
 interface PisoW {
@@ -451,12 +458,24 @@ export default function IntentWizard({
    * piso) usa el espacio reservado "General" del piso, creándolo si no existe
    * (convención ESPACIO_GENERAL). Marca las tareas activas y protege lo
    * importado del reparto automático de costos/días (repartoHecho).
+   *
+   * Re-importar REEMPLAZA lo importado antes (no lo suma): primero se quitan
+   * las tareas con flag `importada` (y los espacios `importado` que queden
+   * vacíos) y luego entra el lote nuevo. Así, corregir el Excel y volverlo a
+   * subir arregla el error de inmediato. Lo creado a mano no se toca.
    */
   function aplicarImportacion(tareas: TareaImportadaResuelta[]) {
     if (tareas.length > 0) {
       setPisos((prev) => {
+        // 1) Reemplazo: retira las tareas de importaciones anteriores y los
+        //    espacios que la importación creó y quedaron vacíos.
         const next: PisoW[] = prev.map((p) => ({
-          espacios: p.espacios.map((e) => ({ ...e, tareas: e.tareas.map((t) => ({ ...t })) })),
+          espacios: p.espacios
+            .map((e) => ({
+              ...e,
+              tareas: e.tareas.filter((t) => !t.importada).map((t) => ({ ...t })),
+            }))
+            .filter((e) => !(e.importado && e.tareas.length === 0)),
         }));
         const buscarOCrear = (pisoIdx: number, nombre: string): EspacioW => {
           const idx = Math.min(Math.max(0, pisoIdx), next.length - 1);
@@ -464,11 +483,12 @@ export default function IntentWizard({
           const objetivo = normalizarComparacion(nombre);
           let esp = piso.espacios.find((e) => normalizarComparacion(e.nombre) === objetivo);
           if (!esp) {
-            esp = { id: nuevoId(), nombre, tareas: [], cargado: true };
+            esp = { id: nuevoId(), nombre, tareas: [], cargado: true, importado: true };
             piso.espacios.push(esp);
           }
           return esp;
         };
+        // 2) Aplica el lote nuevo.
         for (const t of tareas) {
           let pisoIdx = 0;
           let nombreEsp = ESPACIO_GENERAL;
@@ -483,6 +503,7 @@ export default function IntentWizard({
             nombre: t.nombre,
             dias: 1,
             on: true,
+            importada: true,
             ...(t.precio != null ? { precio: t.precio } : {}),
             ...(t.presupuestoManoObra != null ? { presupuestoManoObra: t.presupuestoManoObra } : {}),
             ...(t.presupuestoMateriales != null ? { presupuestoMateriales: t.presupuestoMateriales } : {}),
