@@ -180,41 +180,25 @@
   color: var(--gris);
 }
 
-/* titular rotatorio: "Tu {obra|equipo|…} bajo control" */
+/* titular rotatorio: "Tu {obra|equipo|…} bajo control" — el slot abraza a la
+   palabra visible (como el landing original); el ancho lo anima GSAP. */
 .lv2 .rotor {
   position: relative;
   display: inline-block;
   color: var(--azul);
+  white-space: nowrap;
 }
 .lv2 .rotor .medida {
-  /* medidor invisible: fija el ancho del slot a la palabra más larga */
-  visibility: hidden;
-  display: inline-block;
-}
-.lv2 .rotor .pals {
+  /* medidor invisible: da el ancho destino de la palabra que entra */
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
 }
 .lv2 .rotor .pal {
-  position: absolute;
-  inset: 0;
-  text-align: center;
-  opacity: 0;
+  display: inline-block;
   will-change: transform, opacity;
-}
-.lv2 .rotor .pal.on {
-  opacity: 1;
-}
-.lv2 .rotor::after {
-  /* subrayado sutil que marca el "espacio en blanco" del titular */
-  content: "";
-  position: absolute;
-  left: 4%;
-  right: 4%;
-  bottom: 0.03em;
-  height: 0.055em;
-  border-radius: 99px;
-  background: rgba(37, 99, 235, 0.2);
 }
 .lv2 .vh {
   position: absolute;
@@ -686,6 +670,20 @@
   background: #e3ecfb;
   border: 1px solid #cfe0f6;
   opacity: 0;
+  transition: background 0.3s, border-color 0.3s;
+}
+/* semáforo del mini-armado: se enciende unidad por unidad tras aparecer */
+.lv2 .und.sem-v {
+  background: #22c55e;
+  border-color: #16a34a;
+}
+.lv2 .und.sem-a {
+  background: #fbbf24;
+  border-color: #d97706;
+}
+.lv2 .und.sem-r {
+  background: #ef4444;
+  border-color: #dc2626;
 }
 .lv2 .crea-meta {
   margin-top: 12px;

@@ -18,6 +18,10 @@ import { Check, MapPin, Receipt, TriangleAlert } from "lucide-react";
 /** Las 48 unidades del mini-armado de la secuencia ④ (8 pisos × 6 unidades). */
 const UNIDADES = Array.from({ length: 48 });
 
+/** Semáforo de cada unidad del mini-armado (v=verde, a=ámbar, r=rojo), fila
+ *  por fila — mayoría al día con retrasos salpicados, como una obra real. */
+const SEMAFOROS = "vvavvv" + "vrvvav" + "vvvvra" + "avvvvv" + "vvravv" + "vavvvv" + "rvvvav" + "vvavvr";
+
 export default function LiveDemo() {
   const root = useRef<HTMLDivElement>(null);
 
@@ -250,6 +254,7 @@ export default function LiveDemo() {
         creaNom.textContent = "";
         creaMeta.classList.remove("on");
         gsap.set(unidades, { opacity: 0, scale: 0.4 });
+        unidades.forEach((u) => u.classList.remove("sem-v", "sem-a", "sem-r"));
       };
       const seq4 = () => {
         const t = gsap.timeline();
@@ -269,16 +274,20 @@ export default function LiveDemo() {
           },
           1.5
         );
+        // …y los semáforos se encienden unidad por unidad (verde/ámbar/rojo)
+        unidades.forEach((u, idx) => {
+          t.add(() => u.classList.add("sem-" + SEMAFOROS[idx]), 2.7 + idx * 0.02);
+        });
         t.add(() => creaMeta.classList.add("on"), 2.9);
         t.add(() => {
           toastTxt.textContent = "Proyecto creado — Torre 2 · 8 pisos · 48 unidades";
           toast.classList.add("on");
-        }, 3.3);
+        }, 3.9);
         t.add(() => {
           st.classList.add("ok");
           stTxt.textContent = "Listo para asignar tareas";
-        }, 3.8);
-        t.add(() => toast.classList.remove("on"), 5.6);
+        }, 4.3);
+        t.add(() => toast.classList.remove("on"), 6.0);
         t.to({}, { duration: 0.6 });
         return t;
       };
