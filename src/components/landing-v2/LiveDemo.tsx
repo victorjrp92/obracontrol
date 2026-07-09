@@ -84,6 +84,7 @@ export default function LiveDemo() {
         metaTxt.textContent = "esperando reporte…";
         pill.textContent = "Pendiente";
         pill.classList.remove("ok", "rep");
+        btn.classList.remove("lista");
         toast.classList.remove("on");
         st.classList.remove("ok");
         stTxt.textContent = "Obrero reportando…";
@@ -147,6 +148,8 @@ export default function LiveDemo() {
           pill.textContent = "Aprobada";
           pill.classList.remove("rep");
           pill.classList.add("ok");
+          // El botón desaparece: una tarea aprobada ya no se puede aprobar.
+          btn.classList.add("lista");
           toastTxt.textContent = "Evidencia aprobada — Estuco alcoba 2";
           toast.classList.add("on");
           st.classList.add("ok");
@@ -154,11 +157,15 @@ export default function LiveDemo() {
           kA.textContent = "64%";
         }, 3.7);
         t.to(kB, { width: "64%", duration: 0.6, ease: "power2.out" }, 3.7);
+        // Primero cambia el color (verde) y un instante después el texto:
+        // evita el fotograma "check verde sobre alarma roja" a mitad de transición.
+        t.add(() => {
+          alarma.classList.add("ok");
+        }, 4.6);
         t.add(() => {
           kS.textContent = "$281M";
-          alarma.classList.add("ok");
           alarmaTxt.textContent = "Anticipo sustentado — quedan $29M por revisar";
-        }, 4.6);
+        }, 4.85);
         t.add(() => {
           toast.classList.remove("on");
           fila.classList.remove("foco");

@@ -451,6 +451,14 @@
   border: none;
   cursor: pointer;
 }
+.lv2 .btn-aprobar {
+  transition: opacity 0.35s, transform 0.35s;
+}
+.lv2 .btn-aprobar.lista {
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+}
 .lv2 .btn-aprobar .anillo {
   position: absolute;
   inset: -4px;
@@ -566,7 +574,7 @@
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #b91c1c;
-  transition: all 0.5s;
+  transition: all 0.22s;
 }
 .lv2 .alarma-d.ok {
   background: #eaf7ef;
