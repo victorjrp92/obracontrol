@@ -97,6 +97,7 @@
   font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--gris);
+  white-space: nowrap;
 }
 .lv2 .nav-links {
   display: flex;
@@ -216,6 +217,11 @@
   text-align: left;
 }
 .lv2 .demo-frame {
+  /* containing block del .cursor y el .toast (hijos absolutos): LiveDemo
+     calcula sus posiciones en % contra el rect del frame, y el toast lleva
+     right/bottom pensados para la esquina del frame — sin esto resolvían
+     contra .demo (que incluye los dots de abajo) y quedaban descuadrados */
+  position: relative;
   background: #fff;
   border: 1px solid var(--linea);
   border-radius: 16px;

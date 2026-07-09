@@ -59,6 +59,8 @@ export default function LiveDemo() {
         metaTxt.textContent = "GPS verificado · hoy 10:42 a. m.";
         pill.textContent = "Aprobada";
         pill.classList.add("ok");
+        // Tarea aprobada → el botón Aprobar no debe verse (igual que en la animación)
+        btn.classList.add("lista");
         st.classList.add("ok");
         stTxt.textContent = "Aprobada — historial guardado";
         alarma.classList.add("ok");
