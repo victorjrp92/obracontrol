@@ -347,31 +347,29 @@
   transform: none;
   animation: none;
 }
-/* miniaturas reales: recortes con zoom de las fotos/capturas del demo */
+/* miniaturas reales: cada fila con su propia foto, recorte centrado por CSS */
 .lv2 .trow .th img {
   position: absolute;
-  max-width: none;
-  height: auto;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
-.lv2 .th-f2 img {
-  width: 80px;
-  left: -35px;
-  top: -65px;
+.lv2 .th-estuco img {
+  object-position: 15% 50%;
 }
-.lv2 .th-f2b img {
-  width: 60px;
-  left: -19px;
-  top: -43px;
+.lv2 .th-panete img {
+  object-position: 50% 82%;
+  transform: scale(1.8);
+  transform-origin: 63% 64%;
 }
-.lv2 .th-f2c img {
-  width: 120px;
-  left: -64px;
-  top: -108px;
+.lv2 .th-enchape img {
+  object-position: 50% 74%;
+  transform: scale(1.35);
+  transform-origin: 62% 56%;
 }
-.lv2 .th-shot img {
-  width: 365px;
-  left: -69px;
-  top: -111px;
+.lv2 .th-pintura img {
+  object-position: 48% 26%;
 }
 .lv2 .th-ic {
   display: grid;
@@ -1519,11 +1517,15 @@
   background: repeating-linear-gradient(0deg, transparent, transparent 30px, #eaf0f7 31px),
     repeating-linear-gradient(90deg, transparent, transparent 30px, #eaf0f7 31px), #f4f7fb;
 }
-/* el "mundo" que la cámara recorre (pines + calles); lo escala/mueve GSAP */
+/* el "mundo" que la cámara recorre (pines + calles). GSAP anima su layout
+   (width/height/left/top) en vez de transform: scale rasteriza la capa y el
+   texto de las etiquetas se ve pixelado al hacer zoom. */
 .lv2 .mapa-cam {
   position: absolute;
-  inset: 0;
-  will-change: transform;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
 }
 /* panel de detalle del pin — vive fuera de la cámara para no escalarse */
 .lv2 .pin-panel {

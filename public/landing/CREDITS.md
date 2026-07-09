@@ -6,6 +6,9 @@
 - f3-planos-mesa.jpg — Pexels · Tima Miroshnichenko · pexels.com/photo/6615095 (⚠ texto cirílico en márgenes: usar recortada)
 - f4-cali-panoramica.jpg — Unsplash · Andres F. Uran · unsplash.com/photos/5_kk36LtviA (casi B/N)
 - f5-medellin-atardecer.jpg — Pexels · Ba11estas Photography · pexels.com/photo/12127531
+- f7-estuco-llana.jpg — Unsplash · Sasun Bughdaryan · unsplash.com/photos/Re1O5byZ8bY (manos con llana y estuco)
+- f8-enchape-baldosa.jpg — Unsplash · charlesdeluvio · unsplash.com/photos/LyQi9DS7AEg (mano instalando baldosa)
+- f9-pintura-rodillo.jpg — Unsplash · Andrew Itaga · unsplash.com/photos/rMVjOX8nm2U (mano con rodillo)
 
 ## Videos y capturas
 Grabaciones propias (Playwright) sobre datos demo "Constructora Horizonte Demo" en producción. Sin datos de clientes reales. Mudos, H.264 1280px.

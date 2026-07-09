@@ -357,7 +357,7 @@ export default function LiveDemo() {
 
             {/* fila de reporte entrante — solo secuencia ③ */}
             <div className="trow extra" data-d="filaReporte">
-              <span className="th th-f2c fijo" aria-hidden="true">
+              <span className="th th-panete fijo" aria-hidden="true">
                 <Image src="/landing/fotos/f2-manos-panete.jpg" alt="" width={120} height={180} />
               </span>
               <div>
@@ -372,8 +372,8 @@ export default function LiveDemo() {
 
             {/* fila protagonista — secuencia ① */}
             <div className="trow" data-d="fila">
-              <span className="th th-f2" data-d="th" aria-hidden="true">
-                <Image src="/landing/fotos/f2-manos-panete.jpg" alt="" width={80} height={120} />
+              <span className="th th-estuco" data-d="th" aria-hidden="true">
+                <Image src="/landing/fotos/f7-estuco-llana.jpg" alt="" width={120} height={80} />
               </span>
               <div>
                 <b>Estuco alcoba 2 — Apto 302</b>
@@ -392,13 +392,8 @@ export default function LiveDemo() {
             </div>
 
             <div className="trow">
-              <span className="th th-shot fijo" aria-hidden="true">
-                <Image
-                  src="/landing/capturas/shot-tarea-evidencia.png"
-                  alt=""
-                  width={365}
-                  height={228}
-                />
+              <span className="th th-enchape fijo" aria-hidden="true">
+                <Image src="/landing/fotos/f8-enchape-baldosa.jpg" alt="" width={80} height={120} />
               </span>
               <div>
                 <b>Enchape baño ppal — Apto 504</b>
@@ -410,8 +405,8 @@ export default function LiveDemo() {
               <span className="estado-pill ok">Aprobada</span>
             </div>
             <div className="trow">
-              <span className="th th-f2b fijo" aria-hidden="true">
-                <Image src="/landing/fotos/f2-manos-panete.jpg" alt="" width={60} height={90} />
+              <span className="th th-pintura fijo" aria-hidden="true">
+                <Image src="/landing/fotos/f9-pintura-rodillo.jpg" alt="" width={96} height={72} />
               </span>
               <div>
                 <b>Pintura fachada norte — T2</b>

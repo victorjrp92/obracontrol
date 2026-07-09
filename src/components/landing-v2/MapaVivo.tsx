@@ -98,16 +98,20 @@ export default function MapaVivo() {
       }
 
       const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.8, paused: true });
-      // vista general de arranque
-      tl.set(cam, { scale: 1, xPercent: 0, yPercent: 0 });
+      // vista general de arranque. El zoom anima el LAYOUT del mundo (width/left),
+      // no transform: escalar rasteriza la capa y el texto pierde nitidez al
+      // acercarse; así todo se re-renderiza nítido y los pines/etiquetas
+      // conservan su tamaño, como en un mapa real.
+      tl.set(cam, { width: "100%", height: "100%", left: "0%", top: "0%" });
       tl.to({}, { duration: 1.2 });
 
       OBRAS.forEach((o, i) => {
         // la cámara viaja al pin (centrándolo) mientras hace zoom
         tl.to(cam, {
-          scale: ZOOM,
-          xPercent: (50 - o.x) * ZOOM,
-          yPercent: (50 - o.y) * ZOOM,
+          width: ZOOM * 100 + "%",
+          height: ZOOM * 100 + "%",
+          left: 50 - o.x * ZOOM + "%",
+          top: 50 - o.y * ZOOM + "%",
           duration: 1.35,
           ease: "power2.inOut",
         });
@@ -127,7 +131,14 @@ export default function MapaVivo() {
       });
 
       // vuelve a la vista general antes de repetir
-      tl.to(cam, { scale: 1, xPercent: 0, yPercent: 0, duration: 1.2, ease: "power2.inOut" });
+      tl.to(cam, {
+        width: "100%",
+        height: "100%",
+        left: "0%",
+        top: "0%",
+        duration: 1.2,
+        ease: "power2.inOut",
+      });
 
       // corre solo cuando el mapa está en pantalla
       const io = new IntersectionObserver(
@@ -161,12 +172,13 @@ export default function MapaVivo() {
           </div>
           <div className="mapa-demo reveal">
             <div className="mapa-zona">
-              {/* el "mundo" que mueve la cámara: retícula de calles + pines */}
+              {/* el "mundo" que mueve la cámara: retícula de calles + pines.
+                  Posiciones en % para que acompañen el zoom por layout. */}
               <div className="mapa-cam" aria-hidden="true">
                 {/* las calles se pasan de los bordes: la cámara nunca muestra su final */}
-                <span className="via-d" style={{ left: "-40%", top: 110, width: "180%", height: 11 }}></span>
-                <span className="via-d" style={{ left: 180, top: "-40%", width: 11, height: "180%" }}></span>
-                <span className="via-d" style={{ left: "-40%", top: 225, width: "105%", height: 8 }}></span>
+                <span className="via-d" style={{ left: "-40%", top: "32%", width: "180%", height: 11 }}></span>
+                <span className="via-d" style={{ left: "27%", top: "-40%", width: 11, height: "180%" }}></span>
+                <span className="via-d" style={{ left: "-40%", top: "66%", width: "105%", height: 8 }}></span>
                 <span className="via-d" style={{ left: "72%", top: "-40%", width: 8, height: "115%" }}></span>
                 {OBRAS.map((o) => (
                   <span key={o.nombre}>
