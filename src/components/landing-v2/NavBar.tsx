@@ -1,21 +1,22 @@
+import Image from "next/image";
 import Link from "next/link";
 
 /**
- * Nav "ADN técnico": semáforo (verde/ámbar/rojo) como marca + wordmark SEIRICON.
- * Sin menú móvil (los enlaces se ocultan en pantallas pequeñas, igual que el
- * mockup aprobado). Componente estático → Server Component.
+ * Nav con el logo real de Seiricon (icono transparente + wordmark + lema,
+ * como el navbar del resto del sitio). Sin menú móvil (los enlaces se
+ * ocultan en pantallas pequeñas, igual que el mockup aprobado).
+ * Componente estático → Server Component.
  */
 export default function NavBar() {
   return (
     <nav>
       <div className="wrap nav-in">
-        <Link className="logo" href="/nueva" aria-label="Seiricon — inicio">
-          <span className="sem" aria-hidden="true">
-            <i></i>
-            <i></i>
-            <i></i>
+        <Link className="logo" href="/" aria-label="Seiricon — inicio">
+          <Image src="/seiricon-icon.png" alt="" width={34} height={34} priority />
+          <span className="logo-txt">
+            SEIRICON
+            <small>construyendo en orden</small>
           </span>
-          SEIRICON
         </Link>
         <div className="nav-links">
           <a href="#producto">Producto</a>

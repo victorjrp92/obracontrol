@@ -7,20 +7,13 @@ import { gsap } from "gsap";
 import { Check, MapPin, Receipt, TriangleAlert } from "lucide-react";
 
 /**
- * Demo viva del hero, EN CÓDIGO (nunca video). v2.1: cuatro secuencias rotando
- * en loop — ① aprobar evidencia · ② se registra un gasto · ③ llega un reporte ·
- * ④ se crea un proyecto — con transición de fade entre ellas, dots indicadores
- * y pausa al hacer hover. El panel derecho lleva la doble barra reportado
- * (azul) vs. aprobado (verde), como la app. Con prefers-reduced-motion se
- * pinta el estado final estático de la secuencia ①.
+ * Demo viva del hero, EN CÓDIGO (nunca video). Tres secuencias rotando en
+ * loop — ① aprobar evidencia · ② se registra un gasto · ③ llega un reporte —
+ * con transición de fade entre ellas, dots indicadores y pausa al hacer
+ * hover. El panel derecho lleva la doble barra reportado (azul) vs. aprobado
+ * (verde), como la app. Con prefers-reduced-motion se pinta el estado final
+ * estático de la secuencia ①.
  */
-
-/** Las 48 unidades del mini-armado de la secuencia ④ (8 pisos × 6 unidades). */
-const UNIDADES = Array.from({ length: 48 });
-
-/** Semáforo de cada unidad del mini-armado (v=verde, a=ámbar, r=rojo), fila
- *  por fila — mayoría al día con retrasos salpicados, como una obra real. */
-const SEMAFOROS = "vvavvv" + "vrvvav" + "vvvvra" + "avvvvv" + "vvravv" + "vavvvv" + "rvvvav" + "vvavvr";
 
 export default function LiveDemo() {
   const root = useRef<HTMLDivElement>(null);
@@ -53,10 +46,6 @@ export default function LiveDemo() {
       const filaGasto = get('[data-d="filaGasto"]');
       const monto = get('[data-d="monto"]');
       const filaReporte = get('[data-d="filaReporte"]');
-      const crea = get('[data-d="crea"]');
-      const creaNom = get('[data-d="creaNom"]');
-      const creaMeta = get('[data-d="creaMeta"]');
-      const unidades = Array.from(el.querySelectorAll<HTMLElement>(".crea-grid .und"));
       const dots = Array.from(el.querySelectorAll<HTMLElement>(".ddot"));
 
       const setDot = (i: number) => dots.forEach((d, j) => d.classList.toggle("on", j === i));
@@ -103,7 +92,6 @@ export default function LiveDemo() {
         filaGasto.classList.remove("res");
         monto.textContent = "";
         filaReporte.classList.remove("res");
-        crea.classList.remove("on");
         gsap.set([filaGasto, filaReporte], { clearProps: "opacity,transform" });
         cur.style.left = "76%";
         cur.style.top = "82%";
@@ -246,52 +234,6 @@ export default function LiveDemo() {
         return t;
       };
 
-      /** ④ Se crea un proyecto: nombre tipeado + torres/pisos armándose. */
-      const prep4 = () => {
-        st.classList.remove("ok");
-        stTxt.textContent = "Creando proyecto…";
-        crea.classList.add("on");
-        creaNom.textContent = "";
-        creaMeta.classList.remove("on");
-        gsap.set(unidades, { opacity: 0, scale: 0.4 });
-        unidades.forEach((u) => u.classList.remove("sem-v", "sem-a", "sem-r"));
-      };
-      const seq4 = () => {
-        const t = gsap.timeline();
-        "Torre 2".split("").forEach((c, i) => {
-          t.add(() => {
-            creaNom.textContent += c;
-          }, 0.4 + i * 0.11);
-        });
-        t.to(
-          unidades,
-          {
-            opacity: 1,
-            scale: 1,
-            duration: 0.3,
-            ease: "back.out(2)",
-            stagger: { each: 0.02, from: "end" },
-          },
-          1.5
-        );
-        // …y los semáforos se encienden unidad por unidad (verde/ámbar/rojo)
-        unidades.forEach((u, idx) => {
-          t.add(() => u.classList.add("sem-" + SEMAFOROS[idx]), 2.7 + idx * 0.02);
-        });
-        t.add(() => creaMeta.classList.add("on"), 2.9);
-        t.add(() => {
-          toastTxt.textContent = "Proyecto creado — Torre 2 · 8 pisos · 48 unidades";
-          toast.classList.add("on");
-        }, 3.9);
-        t.add(() => {
-          st.classList.add("ok");
-          stTxt.textContent = "Listo para asignar tareas";
-        }, 4.3);
-        t.add(() => toast.classList.remove("on"), 6.0);
-        t.to({}, { duration: 0.6 });
-        return t;
-      };
-
       const tl = gsap.timeline({ repeat: -1, onRepeat: reset });
       tl.fromTo(esc, { opacity: 0 }, { opacity: 1, duration: 0.32, ease: "power1.out" });
       tl.add(seq1());
@@ -299,8 +241,6 @@ export default function LiveDemo() {
       tl.add(seq2());
       tl.add(transicion(2, prep3));
       tl.add(seq3());
-      tl.add(transicion(3, prep4));
-      tl.add(seq4());
       tl.to(esc, { opacity: 0, duration: 0.28, ease: "power1.in" });
 
       // Pausa en hover + pausa fuera de viewport (ahorra CPU y batería)
@@ -427,22 +367,6 @@ export default function LiveDemo() {
               <span className="estado-pill ok">Aprobada</span>
             </div>
 
-            {/* overlay secuencia ④ — se crea un proyecto */}
-            <div className="crea" data-d="crea" aria-hidden="true">
-              <div className="ph4">Nuevo proyecto</div>
-              <div className="crea-nombre">
-                <span data-d="creaNom"></span>
-                <i className="caret"></i>
-              </div>
-              <div className="crea-grid" data-d="creaGrid">
-                {UNIDADES.map((_, i) => (
-                  <span key={i} className="und"></span>
-                ))}
-              </div>
-              <small className="crea-meta" data-d="creaMeta">
-                8 pisos · 48 unidades
-              </small>
-            </div>
           </div>
 
           <div className="panel-der">
@@ -499,7 +423,6 @@ export default function LiveDemo() {
       {/* indicador sutil de secuencia */}
       <div className="demo-dots" aria-hidden="true">
         <span className="ddot on"></span>
-        <span className="ddot"></span>
         <span className="ddot"></span>
         <span className="ddot"></span>
       </div>
