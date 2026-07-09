@@ -18,7 +18,7 @@ export default function Cierre() {
             />
           </div>
           <h2>Tu próxima obra, bajo control desde el día uno</h2>
-          <p>14 días gratis, sin tarjeta. Crea tu obra o importa tu Excel — hoy mismo.</p>
+          <p>14 días gratis, sin tarjeta. Tu primer proyecto puede quedar montado hoy mismo.</p>
           <Link className="btn btn-azul" href="/registro">
             Empezar gratis →
           </Link>

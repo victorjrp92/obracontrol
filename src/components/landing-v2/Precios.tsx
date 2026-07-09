@@ -8,6 +8,7 @@ export default function Precios() {
         <div className="denso-head reveal">
           <span className="eyebrow">Precios claros, en pesos</span>
           <h2>Un plan para cada etapa</h2>
+          <p className="precios-nota">14 días gratis en cualquier plan, sin tarjeta de crédito.</p>
         </div>
         <div className="precios-grid">
           <div className="plan-d reveal">

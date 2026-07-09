@@ -1,3 +1,5 @@
+import { HardHat } from "lucide-react";
+
 /**
  * Testimonio — PLACEHOLDER marcado. Se reemplaza cuando haya testimonio real de
  * un beta tester (el contrato del beta incluye caso de éxito). Nada inventado.
@@ -8,7 +10,7 @@ export default function Testimonio() {
       <div className="wrap">
         <div className="testi-caja reveal">
           <span className="av" aria-hidden="true">
-            👷‍♀️
+            <HardHat size={26} />
           </span>
           <div>
             <span className="testi-nota">Espacio para beta tester</span>

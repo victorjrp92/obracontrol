@@ -222,7 +222,7 @@ export default function GastosClient({
             <div className="rounded-xl bg-red-600 text-white p-4 text-center">
               <div className="text-xs font-medium opacity-90">Sin sustentar</div>
               <div className="text-3xl font-extrabold">{cop(sinSustentar)}</div>
-              <div className="text-xs mt-1 opacity-90">Nadie cobra sin factura. Solicita las cuentas.</div>
+              <div className="text-xs mt-1 opacity-90">No pagas sin factura. Solicita las cuentas.</div>
             </div>
           ) : (
             <div className="rounded-xl bg-green-600 text-white p-4 text-center">

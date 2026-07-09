@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * Nav "ADN técnico": semáforo 🟢🟡🔴 como marca + wordmark SEIRICON.
+ * Nav "ADN técnico": semáforo (verde/ámbar/rojo) como marca + wordmark SEIRICON.
  * Sin menú móvil (los enlaces se ocultan en pantallas pequeñas, igual que el
  * mockup aprobado). Componente estático → Server Component.
  */

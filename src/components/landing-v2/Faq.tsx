@@ -12,10 +12,10 @@ export default function Faq() {
             </p>
           </details>
           <details className="reveal">
-            <summary>¿Qué tan difícil es montar mi primera obra?</summary>
+            <summary>¿Qué tan difícil es montar mi primer proyecto?</summary>
             <p>
-              Minutos. Defines torres, pisos y tipos de apartamento, o importas el Excel de
-              presupuesto que ya tienes.
+              Minutos. La estructura de torres, pisos y apartamentos la armas con un asistente, y el
+              presupuesto entra por Excel: queda convertido en tareas, fases y cronograma.
             </p>
           </details>
           <details className="reveal">
@@ -23,6 +23,13 @@ export default function Faq() {
             <p>
               Cada foto queda con GPS, fecha y hora; cada aprobación o rechazo con su motivo y autor.
               El historial es permanente.
+            </p>
+          </details>
+          <details className="reveal">
+            <summary>¿Puedo controlar qué ve cada persona de mi equipo?</summary>
+            <p>
+              Sí. Tú lo ves todo; tus administradores de proyecto solo lo suyo, con permisos que tú
+              ajustas; contratistas y obreros, únicamente sus tareas.
             </p>
           </details>
           <details className="reveal">

@@ -10,7 +10,10 @@ const EVENTOS = [
     10:15 — <b>ANTICIPO SUSTENTADO</b> · $4.2M · FERRETERÍA EL PUNTO
   </>,
   <>
-    09:58 — <b>SEMÁFORO ÁMBAR</b> · PINTURA FACHADA · T2
+    09:58 — <b>SEMÁFORO EN ALERTA</b> · PINTURA FACHADA · T2
+  </>,
+  <>
+    09:31 — <b>PROYECTO CREADO</b> · CONJUNTO ROBLE · 2 TORRES
   </>,
 ];
 

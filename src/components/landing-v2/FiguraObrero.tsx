@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Link as LinkIcon } from "lucide-react";
 import VideoLoop from "./VideoLoop";
 
 /**
@@ -60,7 +61,7 @@ export default function FiguraObrero() {
 
           <div className="insignia" style={{ right: 6, bottom: -18 }}>
             <span className="ic" style={{ background: "var(--azul)" }}>
-              🔗
+              <LinkIcon size={12} aria-hidden="true" />
             </span>{" "}
             Entró por un enlace — sin app, sin cuenta
           </div>

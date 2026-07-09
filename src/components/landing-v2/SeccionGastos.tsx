@@ -2,9 +2,11 @@ import Image from "next/image";
 import VideoLoop from "./VideoLoop";
 
 /**
- * La plata: gastos y reportes. Video real (v2) de las gráficas de gastos.
- * f3 (planos sobre la mesa) entra RECORTADA como ambiente — la foto trae texto
- * cirílico en los márgenes, así que se muestra con recorte centrado.
+ * FIG.04 — La plata. Video real (v2, regrabado): se registra un gasto en cámara
+ * y luego la lista de gastos. El lenguaje es el mismo del dashboard de gastos
+ * de la app ("¿Te están sustentando?", "No pagas sin factura"): la página
+ * promete con las palabras con las que la app cumple. f3 (planos sobre la
+ * mesa) entra RECORTADA como ambiente.
  */
 export default function SeccionGastos() {
   return (
@@ -14,16 +16,16 @@ export default function SeccionGastos() {
           <span className="mono" style={{ color: "var(--gris)", display: "block", marginBottom: 8 }}>
             FIG. 04 — LA PLATA
           </span>
-          <span className="eyebrow">Control de plata</span>
+          <span className="eyebrow">¿Te están sustentando?</span>
           <h2>Cada peso entregado, cruzado con su factura</h2>
           <p className="txt">
             Anticipos, facturas y presupuesto en un mismo lugar. Ves cuánto entregaste a cada
-            contratista, cuánto está sustentado y qué falta por justificar — sin hojas de cálculo
-            sueltas.
+            contratista, cuánto está sustentado y qué falta por justificar en cada proyecto — sin
+            hojas de cálculo sueltas.
           </p>
           <div className="puntos">
-            <span>Anticipos y facturas ligados a cada obra</span>
-            <span>Lo no justificado aparece en rojo, de una</span>
+            <span>No pagas sin factura: lo no justificado aparece en rojo, de una</span>
+            <span>Anticipos y facturas ligados a cada proyecto</span>
             <span>Reportes de gasto listos para presentar</span>
           </div>
         </div>
@@ -41,7 +43,7 @@ export default function SeccionGastos() {
             <VideoLoop
               src="/landing/videos/v2-gastos.mp4"
               poster="/landing/videos/v2-gastos-poster.jpg"
-              label="Recorrido real de las gráficas de gastos y reportes en Seiricon"
+              label="Registro real de un gasto en Seiricon y la lista de gastos del proyecto"
             />
           </div>
 

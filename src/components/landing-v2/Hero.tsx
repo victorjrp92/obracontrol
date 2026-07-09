@@ -1,10 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Check, CircleDollarSign, FileSpreadsheet, Plus } from "lucide-react";
 import LiveDemo from "./LiveDemo";
+import RotadorPalabras from "./RotadorPalabras";
 
 /**
  * Hero: el producto trabajando frente a los ojos. Sin video (LCP): la demo es
- * en código (<LiveDemo/>). f1 se usa como textura muy sutil de fondo.
+ * en código (<LiveDemo/>). Titular rotatorio "Tu {obra|equipo|…} bajo control"
+ * (v2.1) con RotadorPalabras. f1 se usa como textura muy sutil de fondo.
  */
 export default function Hero() {
   return (
@@ -36,13 +39,13 @@ export default function Hero() {
           <span>COLOMBIA · 2026</span>
         </div>
         <h1>
-          El control de obra que
+          Tu <RotadorPalabras />
           <br />
-          trabaja frente a tus ojos
+          bajo control
         </h1>
         <p className="sub">
-          Mira cómo Seiricon verifica un avance real: foto con GPS, tu aprobación y la plata al día —
-          todo en una pantalla.
+          Así trabaja Seiricon: el avance llega con foto, GPS y hora, tú lo apruebas y la plata
+          queda al día — todo en una pantalla.
         </p>
         <div>
           <Link className="btn btn-azul" href="/registro">
@@ -52,14 +55,25 @@ export default function Hero() {
             Agendar demo
           </Link>
         </div>
+        <p className="micro-cta">14 días gratis · Sin tarjeta de crédito</p>
 
         <LiveDemo />
 
         <div className="usos">
-          <span className="uso">＋ Crear una obra en minutos</span>
-          <span className="uso">⇪ Importar mi Excel</span>
-          <span className="uso">✓ Aprobar avances con GPS</span>
-          <span className="uso">$ Controlar la plata</span>
+          <span className="uso">
+            <Plus className="uso-ic" aria-hidden="true" /> Crear un proyecto en minutos
+          </span>
+          <span className="uso">
+            <FileSpreadsheet className="uso-ic" aria-hidden="true" /> Convertir mi presupuesto en
+            cronograma
+          </span>
+          <span className="uso">
+            <Check className="uso-ic" aria-hidden="true" /> Aprobar avances con foto y GPS
+          </span>
+          <span className="uso">
+            <CircleDollarSign className="uso-ic" aria-hidden="true" /> Controlar la plata de la
+            obra
+          </span>
         </div>
       </div>
     </header>
