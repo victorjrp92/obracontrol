@@ -24,7 +24,7 @@ npm run db:seed    # seed base (tsx prisma/seed.ts)
 - Next.js **16.2.2** (App Router) + React 19 + TypeScript. Gotchas de Next 16 en este repo:
   - El middleware es `src/proxy.ts` (exporta `proxy()`, no `middleware`).
   - Los `params` de rutas son **Promise**: `{ params }: { params: Promise<{ id: string }> }` → `await params`.
-- Prisma 7 con driver adapter pg. **El cliente generado está commiteado en `src/generated/prisma`**: se importa desde `@/generated/prisma` (NO desde `@prisma/client`), nunca se edita a mano, y `prisma generate` ya corre dentro de `npm run build`.
+- Prisma 7 con driver adapter pg. **El cliente se genera en `src/generated/prisma` (GITIGNORADO, no viaja en git)**: se importa desde `@/generated/prisma` (NO desde `@prisma/client`), nunca se edita a mano, y `prisma generate` ya corre dentro de `npm run build` (el deploy lo regenera). Tras tocar `schema.prisma` en local: `npx prisma generate` para que tsc vea los tipos nuevos.
 - Supabase: auth (email/password + Google OAuth) y Postgres. Tailwind v4. ExcelJS, Resend (email), Serwist (PWA — solo se activa en build de producción, incompatible con dev), Mapbox.
 - Env vars: la key pública de Supabase que el código lee es `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` (el `.env.example` documenta un nombre viejo sin `_DEFAULT` — usa el del código). Las vars `NEXTAUTH_*` son residuos: NO hay NextAuth en este proyecto.
 

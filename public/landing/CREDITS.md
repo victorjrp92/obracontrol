@@ -10,5 +10,12 @@
 - f8-enchape-baldosa.jpg — Unsplash · charlesdeluvio · unsplash.com/photos/LyQi9DS7AEg (mano instalando baldosa)
 - f9-pintura-rodillo.jpg — Unsplash · Andrew Itaga · unsplash.com/photos/rMVjOX8nm2U (mano con rodillo)
 
+### Seiricon Go (landing B2C, Dirección A «Presente»)
+- go-hero-noche.jpg — Unsplash · Julio Lopez · unsplash.com/photos/zJirqXfJKXU (hombre de noche mirando el celular)
+- go-obrero-link.jpg — Unsplash · Emmanuel Ikwuegbu · unsplash.com/photos/xdS9XEoKBLY (obrero reportando desde el celular)
+- go-contratista-planos.jpg — Unsplash · GN Group · unsplash.com/photos/9gCRnfwSkwo (contratista revisando planos)
+- go-pareja-casa.jpg — Unsplash · Vitaly Gariev · unsplash.com/photos/x8l4lN6-xd0 (pareja estrenando casa)
+- (f2-manos-panete.jpg se reutiliza: borrosa en el chat y nítida en la tarjeta de avance)
+
 ## Videos y capturas
 Grabaciones propias (Playwright) sobre datos demo "Constructora Horizonte Demo" en producción. Sin datos de clientes reales. Mudos, H.264 1280px.

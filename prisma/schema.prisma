@@ -967,3 +967,20 @@ model RegistroDuracion {
   @@map("registros_duracion")
 }
 
+// ─── LISTA DE ESPERA GO (landing B2C) ────────────────────────────────────────
+// Correos captados por el CTA "Reserva tu cupo" de la landing Seiricon Go
+// (/go-nueva). Captura pública pre-registro: sin relación con Constructora ni
+// Usuario a propósito. `correo` UNIQUE + upsert en el API = sin duplicados y
+// sin revelar si un correo ya estaba en la lista.
+
+model ListaEsperaGo {
+  id         String   @id @default(cuid())
+  correo     String   @unique
+  audiencia  String // "propietario" | "contratista"
+  respuesta  String // pregunta segmentadora: ciudad/país (propietario) u obras al tiempo (contratista)
+  origen     String? // CTA desde el que se abrió el modal (nav, hero, contratista, precio, cierre)
+  created_at DateTime @default(now())
+
+  @@map("lista_espera_go")
+}
+
