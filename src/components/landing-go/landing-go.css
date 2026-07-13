@@ -1357,23 +1357,31 @@
 
 /* responsive */
 @media (max-width: 900px) {
+  /* móvil: foto de noche → copy sobre el navy del hero → teléfono.
+     display:contents disuelve el grid para poder intercalar el copy
+     (antes el wrap absoluto dejaba el texto blanco sobre fondo blanco). */
+  .lgo .hero {
+    display: flex;
+    flex-direction: column;
+  }
   .lgo .hero-grid {
-    grid-template-columns: 1fr;
-    min-height: 0;
+    display: contents;
   }
   .lgo .mundo-noche {
-    height: 470px;
+    order: 1;
+    height: 340px;
   }
   .lgo .hero-copy {
+    order: 2;
     position: relative;
-    padding: 0;
+    padding: 30px 0 38px;
   }
   .lgo .hero-copy .wrap {
     grid-template-columns: 1fr;
-    position: absolute;
-    top: 64px;
-    left: 0;
-    right: 0;
+    position: static;
+  }
+  .lgo .mundo-dia {
+    order: 3;
   }
   .lgo .mundo-dia::before {
     display: none;
@@ -1406,6 +1414,18 @@
   }
   .lgo .nav-links {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  /* nav apretado: fuera "Ingresar", CTA compacto en una sola línea */
+  .lgo nav .btn-borde {
+    display: none;
+  }
+  .lgo nav .btn-azul {
+    padding: 9px 14px;
+    font-size: 12.5px;
+    white-space: nowrap;
   }
 }
 
