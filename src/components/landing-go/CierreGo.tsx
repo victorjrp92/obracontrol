@@ -1,15 +1,17 @@
 import Image from "next/image";
 import RelojesGo from "./RelojesGo";
 import CtaCupo from "./CtaCupo";
+import Particulas from "./Particulas";
 
 /**
  * Cierre nocturno: los relojes vuelven (esta instancia arranca en Nueva
- * York, como el mockup), el eco emocional y la foto payoff de la pareja
- * estrenando casa. CTA final: lista de espera.
+ * York, como el mockup), el eco emocional, partículas de fondo y la foto
+ * payoff de la pareja estrenando casa. CTA final: lista de espera.
  */
 export default function CierreGo() {
   return (
     <section className="cierre">
+      <Particulas cantidad={60} color="#ffffff" />
       <div className="wrap cierre-grid">
         <div className="reveal">
           <RelojesGo inicial={1} />

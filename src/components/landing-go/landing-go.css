@@ -336,7 +336,7 @@
 }
 .lgo .avance-foto {
   position: relative;
-  height: 170px;
+  height: 200px;
   background: #e8edf4;
   overflow: hidden;
 }
@@ -344,7 +344,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 42%;
+  object-position: 50% 58%;
 }
 .lgo .chip {
   position: absolute;
@@ -651,14 +651,15 @@
   position: relative;
   border-radius: 20px;
   overflow: hidden;
-  height: 420px;
+  /* proporción cercana a la foto real (vertical 2:3): se ve casi completa */
+  aspect-ratio: 4 / 5;
   box-shadow: 0 30px 70px -30px rgba(12, 23, 40, 0.35);
 }
 .lgo .maestro-foto img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 20%;
+  object-position: 50% 30%;
 }
 .lgo .maestro-foto figcaption {
   position: absolute;
@@ -982,7 +983,8 @@
   margin-top: 22px;
   border-radius: 16px;
   overflow: hidden;
-  height: 150px;
+  /* proporción de la foto real (3:2): se ve completa, no una franja */
+  aspect-ratio: 3 / 2;
 }
 .lgo .contra-foto img {
   width: 100%;
@@ -1103,7 +1105,8 @@
   position: relative;
   border-radius: 20px;
   overflow: hidden;
-  height: 330px;
+  /* proporción de la foto real (3:2): la pareja se ve completa */
+  aspect-ratio: 3 / 2;
   box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.5);
 }
 .lgo .cierre-foto img {
@@ -1297,6 +1300,61 @@
   font-size: 13.5px;
 }
 
+/* ── atmósfera v2 (revisión de Victor): partículas, membrete y glows ── */
+
+/* fondo de partículas (canvas), siempre decorativo y sin capturar el mouse */
+.lgo .particulas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.lgo .particulas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* en el panel nocturno del hero van SOBRE el degradado (::after, z auto):
+   se leen como luces de ciudad a lo lejos */
+.lgo .particulas-noche {
+  z-index: 2;
+}
+
+/* los bloques navy alojan partículas: su contenido sube de capa */
+.lgo .contra {
+  position: relative;
+  overflow: hidden;
+}
+.lgo .contra .wrap,
+.lgo .cierre .wrap {
+  position: relative;
+  z-index: 2;
+}
+
+/* membrete técnico sobre el H1 (la página dice QUÉ es antes de emocionar) */
+.lgo .membrete {
+  display: block;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 14px;
+}
+
+/* glows suaves en las franjas grises: clara pero con atmósfera */
+.lgo .gris-suave {
+  background:
+    radial-gradient(ellipse 720px 400px at 88% -5%, rgba(37, 99, 235, 0.06), transparent 70%),
+    radial-gradient(ellipse 600px 340px at 8% 105%, rgba(242, 178, 76, 0.05), transparent 70%),
+    var(--f2);
+}
+/* y un respiro azul muy tenue en las secciones blancas */
+.lgo section:not(.contra):not(.cierre):not(.gris-suave):not(.hero) {
+  background:
+    radial-gradient(ellipse 640px 360px at 10% 0%, rgba(37, 99, 235, 0.04), transparent 70%),
+    #fff;
+}
+
 /* responsive */
 @media (max-width: 900px) {
   .lgo .hero-grid {
@@ -1304,7 +1362,7 @@
     min-height: 0;
   }
   .lgo .mundo-noche {
-    height: 420px;
+    height: 470px;
   }
   .lgo .hero-copy {
     position: relative;
@@ -1340,7 +1398,11 @@
     margin-left: 0;
   }
   .lgo .maestro-foto {
-    height: 300px;
+    aspect-ratio: 4 / 5;
+    height: auto;
+  }
+  .lgo .mundo-noche img {
+    object-position: 55% 14%;
   }
   .lgo .nav-links {
     display: none;

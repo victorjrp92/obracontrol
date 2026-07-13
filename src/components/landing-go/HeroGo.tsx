@@ -3,12 +3,14 @@ import { ArrowRight } from "lucide-react";
 import RelojesGo from "./RelojesGo";
 import FeedVivo from "./FeedVivo";
 import CtaCupo from "./CtaCupo";
+import Particulas from "./Particulas";
 
 /**
  * Hero de dos mundos: la foto nocturna (él, lejos, mirando el celular) a la
  * izquierda y el teléfono con el feed EN VIVO de su obra en Cali a la
- * derecha. El copy flota encima con el chip de relojes rotando. CTA: lista
- * de espera.
+ * derecha. Partículas blancas sobre la noche (luces de ciudad a lo lejos).
+ * El copy flota encima con el membrete y el chip de relojes rotando.
+ * CTA: lista de espera.
  */
 export default function HeroGo() {
   return (
@@ -22,6 +24,7 @@ export default function HeroGo() {
             priority
             sizes="(max-width: 900px) 100vw, 47vw"
           />
+          <Particulas className="particulas-noche" cantidad={90} color="#ffffff" />
         </div>
         <div className="mundo-dia">
           <FeedVivo />
@@ -30,6 +33,9 @@ export default function HeroGo() {
       <div className="hero-copy">
         <div className="wrap">
           <div className="hc">
+            <span className="membrete mono">
+              Seiricon Go — Control de obra para personas · Colombia
+            </span>
             <RelojesGo inicial={0} />
             <h1>Nadie cuida tu obra como tú.</h1>
             <p className="sub">
