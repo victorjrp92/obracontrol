@@ -37,7 +37,7 @@ export default function HeroGo() {
               Seiricon Go — Control de obra para personas · Colombia
             </span>
             <RelojesGo inicial={0} />
-            <h1>Nadie cuida tu obra como tú.</h1>
+            <h1>Nadie cuida tu proyecto como tú.</h1>
             <p className="sub">
               Y ya no necesitas estar ahí para hacerlo. Cada avance te llega con foto, ubicación y
               hora — y tú lo apruebas desde tu celular, así estés a diez mil kilómetros.

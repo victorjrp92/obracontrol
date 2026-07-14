@@ -684,13 +684,18 @@
 }
 .lgo .paso-l {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 11px;
   border: 1px solid var(--linea);
   border-radius: 14px;
   padding: 13px 15px;
   background: #fff;
   font-size: 13.5px;
+}
+.lgo .paso-cab {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
 .lgo .paso-l .n {
   flex: none;
@@ -1355,6 +1360,440 @@
     #fff;
 }
 
+/* ══ v3: micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══ */
+
+/* cursor fantasma común (GSAP controla la opacidad; el desplazamiento lo
+   hace esta transición CSS de left/top, como el mini-cursor del B2B) */
+.lgo .mcur {
+  position: absolute;
+  z-index: 6;
+  left: 80%;
+  top: 82%;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  transition: left 0.7s cubic-bezier(0.5, 0.1, 0.3, 1), top 0.7s cubic-bezier(0.5, 0.1, 0.3, 1);
+}
+.lgo .mcur svg {
+  display: block;
+}
+
+/* fade del contenido del chat al cerrar cada ciclo */
+.lgo .chat-burs {
+  transition: opacity 0.45s ease;
+}
+.lgo .chat-burs.fuera {
+  opacity: 0;
+}
+
+/* área de demo dentro de cada paso del maestro */
+.lgo .paso-demo {
+  position: relative;
+  min-height: 112px;
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  background: var(--f2);
+  overflow: hidden;
+}
+
+/* demo paso 1: copiar link → burbuja → pantalla del que lo recibe */
+.lgo .demo-link {
+  height: 112px;
+}
+.lgo .dl-a,
+.lgo .dl-b {
+  position: absolute;
+  inset: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lgo .dl-b {
+  opacity: 0;
+}
+.lgo .dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 9px;
+  padding: 7px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--azul);
+}
+.lgo .dl-btn .ic {
+  width: 12px;
+  height: 12px;
+}
+.lgo .dl-btn .dl-ic-ok {
+  display: none;
+}
+.lgo .dl-btn.ok {
+  color: var(--verde);
+  border-color: #bfe6cb;
+  background: #edf9f0;
+}
+.lgo .dl-btn.ok .dl-ic-lk {
+  display: none;
+}
+.lgo .dl-btn.ok .dl-ic-ok {
+  display: inline;
+}
+.lgo .dl-bur {
+  align-self: flex-end;
+  background: #e8f0fe;
+  border-radius: 12px;
+  border-bottom-right-radius: 4px;
+  padding: 7px 11px;
+  font-weight: 600;
+  color: var(--tinta);
+  opacity: 0;
+  transform: translateY(8px);
+}
+.lgo .dl-rotulo {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gris);
+}
+.lgo .dl-tarea {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(8px);
+}
+.lgo .dl-tarea i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--azul);
+  flex: none;
+}
+.lgo .demo-link.fin .dl-a {
+  opacity: 0;
+}
+.lgo .demo-link.fin .dl-b {
+  opacity: 1;
+}
+.lgo .demo-link.fin .dl-tarea {
+  opacity: 1;
+  transform: none;
+}
+
+/* demo paso 2: marco de cámara → foto con flash → comentario tipeado → enviar */
+.lgo .demo-foto {
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.lgo .df-marco {
+  position: relative;
+  height: 52px;
+  border-radius: 8px;
+  border: 1.5px dashed #b9c6d8;
+  background: #e6ecf4;
+  overflow: hidden;
+}
+.lgo .df-cam {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--gris);
+}
+.lgo .df-foto {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+.lgo .df-foto img {
+  object-fit: cover;
+  object-position: 50% 58%;
+}
+.lgo .df-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+.lgo .df-coment {
+  display: flex;
+  align-items: center;
+  min-height: 17px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+.lgo .df-caret,
+.lgo .fo-caret {
+  flex: none;
+  width: 1.5px;
+  height: 12px;
+  background: var(--azul);
+  margin-left: 2px;
+  animation: lgo-caret 1s steps(1) infinite;
+}
+.lgo .df-btn {
+  align-self: flex-start;
+  background: var(--azul);
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.lgo .demo-foto.fin .df-foto {
+  opacity: 1;
+}
+.lgo .demo-foto.fin .df-caret {
+  display: none;
+}
+
+/* demo paso 3: la tarjeta entra al sistema → chips → clic en la coordenada
+   → minimapa (retícula de calles + pin con onda, como CelGps del B2B) */
+.lgo .demo-sis {
+  /* altura fija: el minimapa abre dentro del espacio reservado, sin
+     empujar los pasos de abajo en cada vuelta del loop */
+  height: 130px;
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lgo .ds-card {
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 10px;
+  padding: 8px 10px;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+.lgo .ds-card b {
+  display: block;
+  font-size: 11.5px;
+  margin-bottom: 6px;
+}
+.lgo .ds-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lgo .ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #edf3ff;
+  color: var(--azul);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.7);
+}
+.lgo .ds-chip .ic {
+  width: 11px;
+  height: 11px;
+}
+.lgo .ds-chip.mono {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.lgo .ds-mapa {
+  position: relative;
+  height: 0;
+  opacity: 0;
+  flex: none;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #dbe5f0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 12px, #dfe9f3 13px),
+    repeating-linear-gradient(90deg, transparent, transparent 12px, #dfe9f3 13px), #eef3f9;
+}
+.lgo .ds-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--azul);
+  color: var(--azul);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(12, 23, 40, 0.3);
+  transform: translate(-50%, -50%);
+}
+.lgo .ds-pin::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: lgo-onda 2.2s infinite;
+}
+.lgo .demo-sis.fin .ds-card {
+  opacity: 1;
+  transform: none;
+}
+.lgo .demo-sis.fin .ds-chip {
+  opacity: 1;
+  transform: none;
+}
+.lgo .demo-sis.fin .ds-mapa {
+  height: 46px;
+  opacity: 1;
+}
+
+/* "Tu plata": pantalla móvil del gasto + lista de gastos */
+.lgo .plata-demo {
+  max-width: 430px;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.lgo .fonito {
+  position: relative;
+  width: 264px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 22px;
+  padding: 16px 14px 14px;
+  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.25);
+}
+.lgo .fo-cab {
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.lgo .fo-campo {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid var(--linea);
+  border-radius: 10px;
+  padding: 8px 11px;
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+.lgo .fo-zona {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px dashed #c3cfdf;
+  border-radius: 10px;
+  padding: 9px 11px;
+  min-height: 58px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.lgo .fo-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.lgo .fo-recibo {
+  width: 34px;
+  height: 42px;
+  margin-left: auto;
+  flex: none;
+  opacity: 0;
+  transform: scale(0.85);
+}
+.lgo .fo-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+.lgo .fo-btn {
+  display: block;
+  text-align: center;
+  background: var(--azul);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12.5px;
+  border-radius: 10px;
+  padding: 10px 0;
+}
+.lgo .plata-demo.fin .fo-recibo {
+  opacity: 1;
+  transform: none;
+}
+.lgo .plata-demo.fin .fo-caret {
+  display: none;
+}
+
+/* semáforo en loop: filas que entran una a una y el porqué de cada color */
+.lgo .sem-rows {
+  transition: opacity 0.45s ease;
+}
+.lgo .sem-rows.fuera {
+  opacity: 0;
+}
+.lgo .sem-lista .s-row {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.lgo .sem-lista .s-row.on {
+  opacity: 1;
+  transform: none;
+}
+.lgo .s-tarea {
+  flex: 1;
+}
+.lgo .s-est {
+  text-align: right;
+}
+.lgo .s-dias {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+@keyframes lgo-caret {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes lgo-onda {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.9;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
 /* responsive */
 @media (max-width: 900px) {
   /* móvil: foto de noche → copy sobre el navy del hero → teléfono.
@@ -1402,7 +1841,8 @@
     gap: 34px;
   }
   .lgo .chat,
-  .lgo .sem-lista {
+  .lgo .sem-lista,
+  .lgo .plata-demo {
     margin-left: 0;
   }
   .lgo .maestro-foto {
@@ -1439,14 +1879,16 @@
   .lgo .reveal,
   .lgo .bur,
   .lgo .g-row,
-  .lgo .chip {
+  .lgo .chip,
+  .lgo .s-row {
     opacity: 1 !important;
     transform: none !important;
   }
   .lgo .aprobado-nota {
     opacity: 1;
   }
-  .lgo .tap {
+  .lgo .tap,
+  .lgo .mcur {
     display: none;
   }
 }
