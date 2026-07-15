@@ -23,11 +23,13 @@ export default function NavBar() {
           <a href="#como-funciona">Cómo funciona</a>
           <a href="#precios">Precios</a>
         </div>
+        {/* el tamaño de estos botones vive en el CSS (.lv2 nav .btn): inline
+            pisaría la compactación del breakpoint móvil */}
         <div style={{ display: "flex", gap: 9 }}>
-          <Link className="btn btn-borde" href="/login" style={{ padding: "9px 16px" }}>
+          <Link className="btn btn-borde" href="/login">
             Ingresar
           </Link>
-          <Link className="btn btn-azul" href="/registro" style={{ padding: "9px 18px" }}>
+          <Link className="btn btn-azul" href="/registro">
             Empezar gratis
           </Link>
         </div>

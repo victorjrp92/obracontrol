@@ -1,7 +1,7 @@
 /** Preguntas frecuentes. */
 export default function Faq() {
   return (
-    <section className="testi-d" style={{ paddingTop: 0 }}>
+    <section className="testi-d">
       <div className="wrap">
         <div className="faq-d">
           <details className="reveal">

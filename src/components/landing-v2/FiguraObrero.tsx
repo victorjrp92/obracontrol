@@ -59,7 +59,8 @@ export default function FiguraObrero() {
             />
           </div>
 
-          <div className="insignia" style={{ right: 6, bottom: -18 }}>
+          {/* regla de familia: insignias abajo a la izquierda */}
+          <div className="insignia" style={{ left: -12, bottom: -18 }}>
             <span className="ic" style={{ background: "var(--azul)" }}>
               <LinkIcon size={12} aria-hidden="true" />
             </span>{" "}

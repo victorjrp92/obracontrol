@@ -30,7 +30,8 @@ export default function FiguraEquipo() {
               style={{ width: "100%", height: "auto" }}
             />
           </div>
-          <div className="insignia" style={{ left: -12, top: -16, animationDelay: ".6s" }}>
+          {/* regla de familia: insignias abajo a la izquierda */}
+          <div className="insignia" style={{ left: -12, bottom: -18, animationDelay: ".6s" }}>
             <span className="ic" style={{ background: "var(--navy)" }}>
               <Lock size={12} aria-hidden="true" />
             </span>{" "}

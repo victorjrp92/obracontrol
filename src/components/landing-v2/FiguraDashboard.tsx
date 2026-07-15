@@ -42,8 +42,10 @@ export default function FiguraDashboard() {
               label="Recorrido real del dashboard del gerente en Seiricon: estadísticas, mapa de obras y tareas por aprobar"
             />
           </div>
-          <span className="cota" style={{ right: -14, top: "26%" }}>
-            ← MAPA DE OBRAS
+          {/* regla de familia: rótulos flotantes abajo a la izquierda; las dos
+              cotas se apilan y ambas apuntan hacia dentro de la captura */}
+          <span className="cota" style={{ left: -14, bottom: "calc(22% + 38px)" }}>
+            MAPA DE OBRAS →
           </span>
           <span className="cota" style={{ left: -14, bottom: "22%", animationDelay: "1.2s" }}>
             SEMÁFORO DE PLAZOS →

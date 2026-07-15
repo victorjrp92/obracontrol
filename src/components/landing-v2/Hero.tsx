@@ -47,11 +47,13 @@ export default function Hero() {
           Así trabaja Seiricon: el avance llega con foto, GPS y hora, tú lo apruebas y la plata
           queda al día — todo en una pantalla.
         </p>
-        <div>
+        {/* flex con gap: en ≤390px los dos botones no caben en una línea y,
+            como inline-flex sueltos, el segundo bajaba pegado sin aire */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
           <Link className="btn btn-azul" href="/registro">
             Empezar gratis →
           </Link>
-          <Link className="btn btn-borde" href="/contacto" style={{ marginLeft: 8 }}>
+          <Link className="btn btn-borde" href="/contacto">
             Agendar demo
           </Link>
         </div>

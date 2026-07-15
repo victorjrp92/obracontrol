@@ -6,7 +6,7 @@ import { HardHat } from "lucide-react";
  */
 export default function Testimonio() {
   return (
-    <section className="testi-d" style={{ paddingBottom: 44 }}>
+    <section className="testi-d">
       <div className="wrap">
         <div className="testi-caja reveal">
           <span className="av" aria-hidden="true">

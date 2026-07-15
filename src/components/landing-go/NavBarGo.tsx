@@ -21,19 +21,13 @@ export default function NavBarGo() {
             <small>construyendo en orden</small>
           </span>
         </Link>
+        {/* el tamaño de estos botones vive en el CSS (.lgo nav .btn): inline
+            pisaba la compactación del breakpoint de 520px */}
         <div style={{ display: "flex", gap: 9 }}>
-          <Link
-            className="btn btn-borde"
-            href="/login"
-            style={{ padding: "9px 16px", fontSize: "13.5px" }}
-          >
+          <Link className="btn btn-borde" href="/login">
             Ingresar
           </Link>
-          <CtaCupo
-            origen="nav"
-            className="btn btn-azul"
-            style={{ padding: "9px 18px", fontSize: "13.5px" }}
-          >
+          <CtaCupo origen="nav" className="btn btn-azul">
             Reserva tu cupo
           </CtaCupo>
         </div>

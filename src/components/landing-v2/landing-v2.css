@@ -20,6 +20,11 @@
   --ambar: #d97706;
   --rojo: #dc2626;
 
+  /* Escala vertical de secciones (compartida con la landing Go):
+     84px estándar · 42px media (bloques encadenados entre sí o a una banda) */
+  --pad-sec: 84px;
+  --pad-sec-media: 42px;
+
   /* Tipografía neutra igual al mockup aprobado (mejor LCP, sin descarga extra) */
   font-family: "Helvetica Neue", system-ui, -apple-system, sans-serif;
   background: var(--fondo);
@@ -112,12 +117,21 @@
 .lv2 .nav-links a:hover {
   color: var(--azul);
 }
+/* tamaño de los botones del nav en CSS (no inline): así el breakpoint de
+   520px puede compactarlos sin perder contra un style= */
+.lv2 nav .btn {
+  padding: 9px 16px;
+}
+.lv2 nav .btn-azul {
+  padding: 9px 18px;
+}
 
 /* ── HERO: el producto trabajando ── */
 .lv2 .hero {
   /* v2.1: aire extra arriba para que la primera línea del h1 nunca quede
-     pegada/oculta tras el nav pegajoso */
-  padding: 92px 0 30px;
+     pegada/oculta tras el nav pegajoso; abajo, media sección (los pasos
+     continúan el hero) */
+  padding: 92px 0 var(--pad-sec-media);
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -661,7 +675,7 @@
 
 /* ── Secciones producto ── */
 .lv2 .sec {
-  padding: 84px 0;
+  padding: var(--pad-sec) 0;
 }
 .lv2 .sec.gris {
   background: var(--fondo-2);
@@ -817,7 +831,7 @@
 
 /* ── Grid denso de capacidades ── */
 .lv2 .denso {
-  padding: 84px 0;
+  padding: var(--pad-sec) 0;
 }
 .lv2 .denso-head {
   text-align: center;
@@ -1373,7 +1387,8 @@
 
 /* ── pasos ── */
 .lv2 .pasos {
-  padding: 70px 0 10px;
+  /* media sección a ambos lados: continúa el hero y lo encadena la banda del ticker */
+  padding: var(--pad-sec-media) 0;
 }
 .lv2 .pasos-grid {
   display: grid;
@@ -1588,7 +1603,7 @@
 
 /* ── precios ── */
 .lv2 .precios {
-  padding: 84px 0;
+  padding: var(--pad-sec) 0;
 }
 .lv2 .precios-nota {
   margin-top: 10px;
@@ -1674,9 +1689,10 @@
   justify-content: center;
 }
 
-/* testimonio + faq */
+/* testimonio + faq: bloque encadenado tras precios (el padding estándar de
+   precios ya da el aire de arriba; entre ellos y hacia el cierre, media) */
 .lv2 .testi-d {
-  padding: 20px 0 84px;
+  padding: 0 0 var(--pad-sec-media);
 }
 .lv2 .testi-caja {
   background: #fff;
@@ -1766,7 +1782,7 @@
 
 /* ── CTA ── */
 .lv2 .cierre {
-  padding: 30px 0 96px;
+  padding: var(--pad-sec-media) 0 var(--pad-sec);
 }
 .lv2 .cierre-in {
   background: linear-gradient(135deg, var(--navy), #16233c);
@@ -1822,7 +1838,10 @@
   z-index: 1;
 }
 .lv2 footer.pie {
-  padding: 24px 0 46px;
+  /* solo padding vertical: el shorthand (más específico que .wrap) pisaba el
+     `0 22px` lateral del .wrap y el texto quedaba pegado al borde en móvil */
+  padding-top: 24px;
+  padding-bottom: 46px;
   font-size: 13px;
   color: #8ca0b8;
   display: flex;
@@ -1903,6 +1922,34 @@
   .lv2 .cifra:nth-child(odd) {
     border-left: none;
     padding-left: 0;
+  }
+  /* footer apilado y centrado (misma regla que la landing Go) */
+  .lv2 footer.pie {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+  }
+}
+
+/* nav apretado en teléfonos — mismo tratamiento que la landing Go: fuera
+   "Ingresar", CTA compacto en una sola línea */
+@media (max-width: 520px) {
+  .lv2 nav .btn-borde {
+    display: none;
+  }
+  .lv2 nav .btn-azul {
+    padding: 9px 14px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  /* la URL de la demo no cabe junto al status y lo empujaba fuera del marco */
+  .lv2 .demo-url {
+    display: none;
+  }
+  /* 2 planes por fila desbordan el grid en 360-430px (los precios no comprimen) */
+  .lv2 .precios-grid {
+    grid-template-columns: 1fr;
   }
 }
 
