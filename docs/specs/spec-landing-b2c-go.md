@@ -95,8 +95,12 @@ Vaciado de placa segundo piso · Enchape baño social · Pañete y estuco de fac
 - **B:** H1 "No te contamos cómo funciona. Tócalo." — demo con instrucciones ("Toca Aprobar" → "Quedó registrado con tu nombre y la hora"; gasto sin factura → "$600.000 sin sustentar hace 3 días. Pide la factura antes del siguiente pago."). Tres verdades: foto+GPS+hora / tú apruebas / no pagas sin factura. Bifurcación "Es mi casa" / "Son mis clientes". Cierre: "Ya lo probaste. Ahora con tu obra de verdad."
 - **C:** H1 "Cuentas claras, obra tranquila." — tablero "Plata entregada $12,4M · Sustentada $11,1M · Sin sustentar $1,3M" + frases espejo. "Tres preguntas dañan más obras que el invierno: ¿En qué va? ¿En qué se fue la plata? ¿Cuándo termina?" Sección espejo "Pones la plata / Pones el trabajo". Cierre: "La transparencia no se promete. Se muestra."
 
+## Estado final (2026-07-16): LANZADA
+- ✅ Construida (`landing-go/`), gate bugs+seguridad, lista de espera E2E, iteraciones v2 (partículas/membrete/fotos) y v3 (micro-demos animadas), responsive iPhone.
+- ✅ **`/go` es la ruta oficial e indexable** (commit 3a53019); `/para-ti` y `/go-nueva` → 308 a `/go`.
+
 ## Pendientes
-1. Revisión de Victor del mockup v1 (artifact) → iteración.
-2. Decisión CTA: registro directo vs lista de espera (Tally).
-3. Decidir destino de la página: reemplaza `/para-ti` (ruta sugerida `/go` o `/mi-obra`) — resolver de paso los 3 problemas conocidos del /para-ti de Karen (claim offline falso, naming "arquitecto", conflicto waitlist).
-4. Producción: fotos definitivas a `public/landing/fotos/` con CREDITS.md, video Remotion "La foto que sí dice la verdad", build real en el repo (componentes `landing-go/`), gate bugs+seguridad, deploy.
+1. Video Remotion "La foto que sí dice la verdad" (guion arriba) — cuando Victor quiera.
+2. Regla de rate limit en Vercel para `/api/lista-espera-go` (capa extra; el throttle propio ya existe).
+3. Decidir si la home B2B enlaza a `/go` (hoy no hay enlace cruzado) y canal de anuncio del lanzamiento a la diáspora.
+4. Limpieza opcional: componentes `b2c/` (B2CNavbar, PhoneMockup…) quedaron sin uso tras el reemplazo de /para-ti.
