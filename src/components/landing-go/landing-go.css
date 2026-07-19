@@ -903,6 +903,14 @@
 }
 /* la demo (teléfono blanco + lista de gastos) queda como tarjetas elevadas
    sobre la noche — conserva su animación de registrar gasto */
+/* las tarjetas blancas recuperan el texto oscuro: sin esto heredaban el
+   color:#fff de la franja noche y el nombre/monto de cada gasto quedaba
+   blanco sobre blanco (invisible). Los colores propios (verde de factura,
+   rojo de sin-sustentar, blanco del botón) tienen su color y se respetan. */
+.lgo .plata .gastos,
+.lgo .plata .fonito {
+  color: var(--tinta);
+}
 .lgo .gastos {
   background: #fff;
   border: 1.5px solid var(--linea);
