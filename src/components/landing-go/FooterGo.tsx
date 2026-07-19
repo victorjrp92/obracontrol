@@ -8,8 +8,8 @@ export default function FooterGo() {
       <div className="wrap">
         <span className="mono">SEIRICON GO — CONTROL DE OBRA PERSONAL · COLOMBIA 2026</span>
         <span style={{ fontSize: 10 }}>
-          Fotos: Unsplash (Alexander Mass, rylan krupp, Emmanuel Ikwuegbu, GN Group, Vitaly
-          Gariev) · Pexels (Ksenia Chernaya)
+          Fotos: Unsplash (Julian Gojani, rylan krupp, Emmanuel Ikwuegbu, GN Group) · Pexels
+          (Ksenia Chernaya)
         </span>
       </div>
     </footer>

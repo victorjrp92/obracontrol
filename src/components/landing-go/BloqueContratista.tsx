@@ -3,10 +3,10 @@ import { Check } from "lucide-react";
 import CtaCupo from "./CtaCupo";
 
 /**
- * Bloque contratista en banda CLARA crema2 («Cerca»): el link de
- * transparencia como argumento de venta, con el mock del link público que ve
- * su cliente. Se retiraron las partículas (eran atmósfera de noche y no
- * encajan con la banda clara). Su CTA abre el ModalCupo con la audiencia
+ * "FIG. 03 — SI SON TUS CLIENTES": bloque contratista en banda NOCHE editorial
+ * (fondo oscuro, texto blanco). El link de transparencia como argumento de
+ * venta, con el mock del link público que ve su cliente presentado como pieza
+ * rotada con borde blanco. Su CTA (naranja) abre el ModalCupo con la audiencia
  * contratista preseleccionada.
  */
 export default function BloqueContratista() {
@@ -14,7 +14,7 @@ export default function BloqueContratista() {
     <section className="contra" id="contratista">
       <div className="wrap contra-grid">
         <div className="reveal">
-          <span className="eyebrow">¿Manejas obras de clientes?</span>
+          <span className="fig">FIG. 03 — SI SON TUS CLIENTES</span>
           <h2>El mismo link que tranquiliza a un dueño es tu mejor carta de presentación.</h2>
           <p className="txt">
             Envíale a cada cliente un link de transparencia: ve el avance en vivo — qué va, qué
@@ -36,7 +36,7 @@ export default function BloqueContratista() {
               Varias obras de varios clientes, en una sola pantalla.
             </li>
           </ul>
-          <CtaCupo origen="contratista" audiencia="contratista">
+          <CtaCupo origen="contratista" audiencia="contratista" className="btn btn-naranja">
             Reserva tu cupo de contratista
           </CtaCupo>
           <div className="micro" style={{ color: "rgba(255,255,255,.5)" }}>

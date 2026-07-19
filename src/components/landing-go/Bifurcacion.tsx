@@ -1,33 +1,24 @@
-import { House, Link as LinkIcon } from "lucide-react";
-
 /**
- * Bifurcación temprana bajo el hero: dos tarjetas-ancla que mandan al
- * propietario a la escena (#escena) y al contratista a su bloque
+ * Índice de planos bajo la placa (bifurcación temprana): dos entradas-ancla
+ * numeradas ("PLANO 01"/"PLANO 02" en mono, título Jost, flecha naranja) que
+ * mandan al propietario a la escena (#escena) y al contratista a su bloque
  * (#contratista). Son anclas de navegación, no CTAs de lista de espera.
  */
 export default function Bifurcacion() {
   return (
-    <div className="bifu">
-      <div className="wrap bifu-grid">
+    <div className="indice">
+      <div className="wrap indice-grid">
         <a href="#escena" className="reveal">
-          <b>
-            <span className="pico p1">
-              <House className="ic" size={17} strokeWidth={2.2} aria-hidden="true" />
-            </span>
-            Construyo o remodelo lo mío
-          </b>
+          <span className="num">PLANO 01</span>
+          <b className="disp">Construyo o remodelo lo mío</b>
           <p>La casa que estás pagando tú, vista con tus propios ojos, estés donde estés.</p>
-          <span className="flecha">Así funciona ↓</span>
+          <span className="flecha">Así funciona →</span>
         </a>
         <a href="#contratista" className="reveal">
-          <b>
-            <span className="pico p2">
-              <LinkIcon className="ic" size={17} strokeWidth={2.2} aria-hidden="true" />
-            </span>
-            Manejo obras de clientes
-          </b>
+          <span className="num">PLANO 02</span>
+          <b className="disp">Manejo obras de clientes</b>
           <p>Eres maestro o remodelador y quieres clientes tranquilos que paguen sin pelear.</p>
-          <span className="flecha">Tu parte está aquí ↓</span>
+          <span className="flecha">Tu parte está aquí →</span>
         </a>
       </div>
     </div>

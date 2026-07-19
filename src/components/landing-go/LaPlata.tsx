@@ -1,17 +1,18 @@
 import LaPlataDemo from "./LaPlataDemo";
 
 /**
- * Sección "Tu plata" en franja NOCHE oscura cálida («Cerca»): la demo del
- * gasto registrado desde el celular en loop (pantalla móvil + lista de gastos
- * con la fila roja y la alarma, en <LaPlataDemo/>). El copy va en blanco/lima
- * sobre la noche; la demo queda como tarjetas elevadas sobre el fondo oscuro.
+ * "FIG. 02 — LA PLATA": libro contable sobre papel. La demo del gasto
+ * registrado desde el celular en loop se conserva intacta (pantalla móvil +
+ * lista de gastos con la fila roja y la alarma, en <LaPlataDemo/>); solo se
+ * re-viste como un libro de cuentas (filas con estado Factura/Sin sustentar y
+ * la fila total en banda noche). Sección clara: texto tinta sobre papel.
  */
 export default function LaPlata() {
   return (
-    <section className="plata">
+    <section className="libro">
       <div className="wrap sec-grid">
         <div className="sec-copy reveal">
-          <span className="eyebrow">Tu plata</span>
+          <span className="fig">FIG. 02 — LA PLATA</span>
           <h2>No pagas sin factura.</h2>
           <p className="txt">
             Cada gasto entra con la foto de su factura. Y si entregaste plata que nadie ha

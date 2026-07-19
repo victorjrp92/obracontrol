@@ -23,3 +23,4 @@ Grabaciones propias (Playwright) sobre datos demo "Constructora Horizonte Demo" 
 ### Seiricon Go — rediseño «Cerca» (2026-07-19)
 - go-familia-casa.jpg — Unsplash · Alexander Mass · unsplash.com/photos/7nEpVIMFys0 (familia frente a su casa — hero)
 - go-familia-ladrillo.jpg — Unsplash · rylan krupp · unsplash.com/photos/55rGIXarlD0 (familia frente a casa de ladrillo — cierre)
+- go-obra-atardecer.jpg — Unsplash · Julian Gojani · unsplash.com/photos/4rlIsAuFJAY (tejados al atardecer con grúa — hero «De obra»)

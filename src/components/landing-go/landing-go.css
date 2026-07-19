@@ -1,146 +1,158 @@
-/* Figtree variable (subset latin, ~20KB). Declarado al inicio para que el
+/* Tipografía «De obra»: Jost (display geométrica tipo Futura) para titulares
+   y Lora (serif editorial) para el cuerpo. Declaradas al inicio para que el
    font-display:swap gobierne toda la landing Go. */
 @font-face {
-  font-family: "Figtree";
-  src: url("/fonts/figtree/figtree-latin.woff2") format("woff2");
-  font-weight: 300 900;
+  font-family: "Jost";
+  src: url("/fonts/jost/jost-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Lora";
+  src: url("/fonts/lora/lora-latin.woff2") format("woff2");
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
 
 /* ==========================================================================
-   Landing B2C "Seiricon Go" — Dirección visual «Cerca»
-   Re-skin profundo del mockup aprobado (mockup-go2-cerca): paleta cálida
-   crema, tipografía Figtree, botones pill, hero full-bleed con widget de
-   kilómetros. La lógica de animación (loops GSAP, IntersectionObserver,
-   reveals, reduced-motion) se conserva intacta — solo cambia su vestido.
-   Todo el estilo vive bajo `.lgo`; los @keyframes van prefijados `lgo-`.
+   Landing B2C "Seiricon Go" — Dirección visual «De obra» (editorial-
+   arquitectónico). Re-skin del mockup aprobado (mockup-go2-deobra): el plano
+   como lenguaje — papel crudo, tinta oscura, azul estructural, naranja de
+   acento; display Jost en mayúsculas, cuerpo Lora serif, membretes y cotas en
+   mono. Marcos hairline, botones rectangulares, hero cinemático con cotas.
+   La lógica de animación (loops GSAP, IntersectionObserver, reveals,
+   reduced-motion) se conserva intacta — solo cambia su vestido. Todo el estilo
+   vive bajo `.lgo`; los @keyframes van prefijados `lgo-`.
    ========================================================================== */
 
 .lgo {
-  /* Tokens «Cerca» (scoped) */
-  --azul: #2563eb;
-  --azul2: #3b82f6;
-  --tinta: #1a2233;
-  --gris: #66707f;
-  --crema: #fbf7f0;
-  --crema2: #f4ede1;
-  --linea: #e8e0d2;
-  --verde: #1a9e52;
-  --lima: #d8f55a;
-  --coral: #ff6b4a;
-  --ambar: #f2a93b;
-  --noche: #111a2c;
-  --rojo: #d93b3b;
-  /* alias heredados (componentes/CSS antiguos): revalorados a la paleta cálida */
-  --navy: #111a2c;
-  --f2: #f4ede1;
-  --dusk: #f2a93b;
+  /* Tokens «De obra» (scoped) */
+  --papel: #f6f3ec; /* fondo de página */
+  --tinta: #141b26;
+  --gris: #6a7280;
+  --plano: #2557d6; /* azul estructural */
+  --plano-suave: #b9c9f2;
+  --naranja: #e8622c; /* acento cálido */
+  --verde: #177e45;
+  --rojo: #c4321f;
+  --noche: #10151e;
+  --linea: #ddd7c9;
 
-  /* Escala vertical de secciones (compartida con la home B2B):
-     84px estándar · 42px media (bloques encadenados entre sí o a una banda) */
-  --pad-sec: 84px;
-  --pad-sec-media: 42px;
+  /* Alias heredados (componentes/CSS antiguos) revalorados a «De obra»:
+     así el re-skin no obliga a renombrar clases en cada componente. */
+  --azul: var(--plano);
+  --crema: var(--papel);
+  --crema2: var(--papel);
+  --f2: var(--papel);
+  --lima: var(--naranja);
+  --coral: var(--naranja);
+  --ambar: var(--naranja);
+  --dusk: var(--naranja);
+  --navy: var(--noche);
 
-  font-family: "Figtree", "Avenir Next", system-ui, sans-serif;
+  /* Escala vertical de secciones */
+  --pad-sec: 88px;
+  --pad-sec-media: 44px;
+
+  font-family: "Lora", Georgia, "Iowan Old Style", serif;
   color: var(--tinta);
-  background: var(--crema);
-  line-height: 1.55;
+  background: var(--papel);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 
 .lgo .wrap {
-  max-width: 1140px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 0 24px;
-}
-.lgo h1,
-.lgo h2 {
-  letter-spacing: -0.02em;
-  line-height: 1.04;
-  text-wrap: balance;
-  font-weight: 700;
-}
-.lgo .mono {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 11px;
-  letter-spacing: 0.09em;
-}
-.lgo .eyebrow {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--coral);
-  margin-bottom: 12px;
-}
-/* membrete: rótulo lima sobre el H1 del hero y del cierre */
-.lgo .membrete {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--lima);
-  margin-bottom: 16px;
+  padding: 0 26px;
 }
 
-/* botones PILL (mockup «Cerca») */
+/* Display Jost en mayúsculas para TODOS los titulares grandes */
+.lgo h1,
+.lgo h2,
+.lgo .disp {
+  font-family: "Jost", "Futura", "Avenir Next", sans-serif;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 0.94;
+  text-wrap: balance;
+}
+
+/* Mono técnico: cotas, membretes, labels FIG/PLANO */
+.lgo .mono {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Membrete/eyebrow editorial (mono azul) y su variante numerada FIG. */
+.lgo .fig,
+.lgo .eyebrow {
+  display: block;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--plano);
+  margin-bottom: 14px;
+}
+
+/* botones RECTANGULARES (mockup «De obra») */
 .lgo .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  border-radius: 99px;
+  gap: 10px;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
   font-weight: 700;
-  font-size: 15.5px;
-  padding: 15px 28px;
+  font-size: 13.5px;
+  letter-spacing: 0.1em;
+  border-radius: 2px;
+  padding: 16px 30px;
   text-decoration: none;
-  color: inherit;
+  color: #fff;
   cursor: pointer;
   border: none;
-  font-family: inherit;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.lgo .btn:hover {
-  transform: translateY(-2px);
+  transition: background 0.2s;
 }
 .lgo .btn-azul {
-  background: var(--azul);
-  color: #fff;
-  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.32);
-}
-.lgo .btn-tinta {
-  background: var(--tinta);
+  background: var(--plano);
   color: #fff;
 }
-.lgo .btn-coral {
-  background: var(--coral);
-  color: #fff;
-  box-shadow: 0 10px 26px rgba(255, 107, 74, 0.3);
+.lgo .btn-azul:hover {
+  background: #1d46b4;
 }
-.lgo .btn-borde {
-  border: 1.5px solid var(--linea);
-  background: #fff;
+.lgo .btn-naranja {
+  background: var(--naranja);
+  color: #fff;
+}
+.lgo .btn-naranja:hover {
+  background: #c94e1e;
 }
 .lgo .micro {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 12px;
   color: var(--gris);
   margin-top: 10px;
+  font-style: italic;
 }
 .lgo .ic {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   flex: none;
   vertical-align: -2px;
 }
 .lgo section {
   padding: var(--pad-sec) 0;
+  position: relative;
 }
-/* Anclas internas (#escena, #contratista, #precio): que el nav pegajoso
-   no tape el arranque de la sección al saltar desde la bifurcación */
+/* Anclas internas (#escena, #contratista, #precio): que el nav pegajoso no
+   tape el arranque de la sección al saltar desde el índice */
 .lgo section[id] {
   scroll-margin-top: 72px;
 }
@@ -154,14 +166,19 @@
   transform: none;
 }
 
-/* ── PROMO BAR (banda lima sobre el nav) ── */
-.lgo .promo {
-  background: var(--lima);
-  color: var(--tinta);
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 9px 14px;
+/* marco de plano global (patrón Block): recuadro hairline fijo sobre el
+   viewport, oculto en móvil */
+.lgo .marco {
+  position: fixed;
+  inset: 14px;
+  border: 1px solid var(--plano-suave);
+  pointer-events: none;
+  z-index: 60;
+}
+@media (max-width: 700px) {
+  .lgo .marco {
+    display: none;
+  }
 }
 
 /* ── NAV ── */
@@ -169,7 +186,7 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(251, 247, 240, 0.92);
+  background: rgba(246, 243, 236, 0.93);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--linea);
@@ -178,12 +195,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 62px;
+  height: 64px;
 }
 .lgo .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   text-decoration: none;
   color: var(--tinta);
 }
@@ -195,8 +212,10 @@
   display: flex;
   flex-direction: column;
   line-height: 1.08;
-  font-weight: 800;
+  font-family: "Jost", "Futura", sans-serif;
+  font-weight: 700;
   font-size: 15px;
+  letter-spacing: 0.02em;
 }
 .lgo .logo-txt .l1 {
   display: flex;
@@ -204,35 +223,36 @@
   gap: 6px;
 }
 .lgo .logo-txt small {
-  font-size: 8.5px;
-  font-weight: 600;
+  font-size: 8px;
+  font-weight: 400;
   color: var(--gris);
   white-space: nowrap;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .lgo .go {
   display: inline-block;
-  background: var(--azul);
+  background: var(--naranja);
   color: #fff;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  border-radius: 5px;
   padding: 1.5px 6px;
 }
 /* tamaño del CTA del nav en CSS (no inline): así la compactación del
    breakpoint de 520px le puede ganar */
 .lgo nav .btn {
-  padding: 11px 22px;
-  font-size: 14px;
+  padding: 12px 20px;
+  font-size: 12px;
 }
 
-/* ── HERO: foto de familia full-bleed + widget de kilómetros ── */
+/* ── HERO cinemático ── */
 .lgo .hero {
   position: relative;
-  min-height: 660px;
+  min-height: 88vh;
   display: flex;
-  align-items: stretch;
+  flex-direction: column;
+  justify-content: flex-end;
   overflow: hidden;
   background: var(--noche);
 }
@@ -244,253 +264,199 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 72% 30%;
-  opacity: 0.9;
+  object-position: 50% 38%;
+  opacity: 0.94;
 }
 .lgo .hero-foto::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    96deg,
-    rgba(17, 26, 44, 0.87) 22%,
-    rgba(17, 26, 44, 0.55) 48%,
-    rgba(17, 26, 44, 0.08) 75%
+    180deg,
+    rgba(16, 21, 30, 0.25) 0%,
+    rgba(16, 21, 30, 0.05) 45%,
+    rgba(16, 21, 30, 0.72) 100%
   );
+}
+.lgo .hero-cotas {
+  position: absolute;
+  inset: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  z-index: 2;
+  pointer-events: none;
+}
+.lgo .hero-cotas span {
+  position: absolute;
+  background: rgba(16, 21, 30, 0.72);
+  color: #fff;
+  padding: 5px 10px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.lgo .cota-a {
+  left: 14px;
+  top: -1px;
+  transform: translateY(-50%);
+}
+.lgo .cota-b {
+  right: 14px;
+  bottom: -1px;
+  transform: translateY(50%);
 }
 .lgo .hero .wrap {
   position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 40px;
-  align-items: center;
+  z-index: 3;
   padding-top: 64px;
-  padding-bottom: 72px;
-}
-.lgo .hc {
-  color: #fff;
-  max-width: 500px;
-}
-.lgo .hc h1 {
-  font-size: clamp(38px, 4.9vw, 62px);
+  padding-bottom: 64px;
   color: #fff;
 }
-.lgo .hc .sub {
-  margin: 18px 0 0;
-  font-size: 17px;
-  color: rgba(255, 255, 255, 0.85);
-  max-width: 430px;
+.lgo .hero .memb {
+  color: #fff;
+  opacity: 0.85;
+  display: block;
+  margin-bottom: 18px;
 }
-.lgo .estrellas {
+.lgo .hero h1 {
+  font-size: clamp(52px, 8.6vw, 124px);
+  color: #fff;
+  max-width: 1000px;
+}
+.lgo .hero h1 em {
+  font-style: normal;
+  color: var(--naranja);
+}
+.lgo .hero .sub {
+  font-size: clamp(15px, 1.5vw, 18.5px);
+  max-width: 560px;
+  margin: 22px 0 30px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.lgo .hero-cta {
   display: flex;
+  gap: 14px;
   align-items: center;
-  gap: 8px;
-  margin-top: 26px;
-  font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.75);
-  font-weight: 600;
+  flex-wrap: wrap;
 }
-.lgo .estrellas b {
-  color: #fff;
-}
-.lgo .estrellas .ic {
-  color: var(--ambar);
+.lgo .hero .micro {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
 }
 
-/* widget de kilómetros (calculadora del hero) */
-.lgo .km-card {
-  background: #fff;
-  border-radius: 22px;
-  padding: 26px;
-  color: var(--tinta);
-  box-shadow: 0 44px 90px -26px rgba(0, 0, 0, 0.5);
-  max-width: 400px;
-  margin-left: auto;
+/* ── PLACA EDITORIAL (3 celdas) — reemplaza la franja de confianza ── */
+.lgo .placa {
+  background: var(--papel);
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
 }
-.lgo .km-card h3 {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  margin-bottom: 16px;
+.lgo .placa .wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+  padding: 0;
 }
-.lgo .km-campo {
-  margin-bottom: 12px;
-}
-.lgo .km-campo label {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gris);
-  margin-bottom: 6px;
-}
-.lgo .km-campo select {
-  width: 100%;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--tinta);
-  padding: 13px 14px;
-  border: 1.5px solid var(--linea);
-  border-radius: 13px;
-  background: #fff;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2366707F' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  cursor: pointer;
-}
-.lgo .km-campo select:focus {
-  outline: none;
-  border-color: var(--azul);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-}
-.lgo .km-resultado {
-  background: var(--crema);
-  border-radius: 14px;
-  padding: 14px 16px;
-  margin: 14px 0 16px;
+.lgo .placa .celda {
+  padding: 26px 30px;
+  border-right: 1px solid var(--linea);
   font-size: 13.5px;
   color: var(--gris);
 }
-.lgo .km-resultado b.num {
+.lgo .placa .celda:first-child {
+  padding-left: 26px;
+}
+.lgo .placa .celda:last-child {
+  border-right: 0;
+}
+.lgo .placa .celda b {
   display: block;
-  font-size: 26px;
-  color: var(--tinta);
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-}
-.lgo .km-resultado .frase {
-  display: block;
-  margin-top: 4px;
-  font-weight: 600;
-  color: var(--tinta);
-}
-.lgo .km-card .btn {
-  width: 100%;
-}
-.lgo .km-card .micro {
-  text-align: center;
-}
-
-/* ── FRANJA DE CONFIANZA ── */
-.lgo .confia {
-  background: #fff;
-  border-bottom: 1px solid var(--linea);
-}
-.lgo .confia .wrap {
-  display: flex;
-  justify-content: center;
-  gap: 38px;
-  flex-wrap: wrap;
-  padding-top: 18px;
-  padding-bottom: 18px;
   font-size: 12.5px;
-  font-weight: 700;
-  color: var(--gris);
-}
-.lgo .confia span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.lgo .confia .ic {
-  color: var(--verde);
+  letter-spacing: 0.02em;
+  color: var(--tinta);
+  margin-bottom: 5px;
 }
 
-/* ── BIFURCACIÓN ── */
-.lgo .bifu {
-  /* media sección tras la franja de confianza; el aire de abajo lo pone el
-     padding estándar de la sección siguiente */
-  padding: var(--pad-sec-media) 0 0;
+/* ── ÍNDICE DE PLANOS — reemplaza la bifurcación ── */
+.lgo .indice {
+  padding: var(--pad-sec) 0 0;
 }
-.lgo .bifu-grid {
+.lgo .indice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.lgo .bifu a {
-  display: block;
+  gap: 0;
+  border: 1px solid var(--linea);
   background: #fff;
-  border: 1.5px solid var(--linea);
-  border-radius: 20px;
-  padding: 24px 26px;
+}
+.lgo .indice a {
+  display: block;
+  padding: 30px 32px;
   text-decoration: none;
   color: inherit;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  position: relative;
+  transition: background 0.2s;
 }
-.lgo .bifu a:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 40px -20px rgba(26, 34, 51, 0.25);
+.lgo .indice a:first-child {
+  border-right: 1px solid var(--linea);
 }
-.lgo .bifu b {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 17.5px;
+.lgo .indice a:hover {
+  background: var(--papel);
 }
-.lgo .bifu b .pico {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  display: grid;
-  place-items: center;
-  flex: none;
+.lgo .indice .num {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--plano);
+  display: block;
+  margin-bottom: 10px;
 }
-.lgo .bifu .p1 {
-  background: #e9f0fe;
-  color: var(--azul);
+.lgo .indice b {
+  display: block;
+  font-size: 19px;
+  letter-spacing: 0.02em;
 }
-.lgo .bifu .p2 {
-  background: #ffefe9;
-  color: var(--coral);
-}
-.lgo .bifu p {
+.lgo .indice p {
   color: var(--gris);
   font-size: 13.5px;
   margin-top: 8px;
+  max-width: 34ch;
 }
-.lgo .bifu .flecha {
-  color: var(--azul);
-  font-weight: 700;
+.lgo .indice .flecha {
+  color: var(--naranja);
   font-size: 12.5px;
-  margin-top: 10px;
+  font-weight: 700;
+  margin-top: 14px;
   display: inline-block;
 }
 
-/* ── secciones tipo "escena" ── */
+/* ── secciones tipo "escena" (dos columnas) ── */
 .lgo .sec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 56px;
+  gap: 64px;
   align-items: center;
 }
 .lgo .sec-copy h2 {
-  font-size: clamp(27px, 3.1vw, 38px);
-  font-weight: 700;
-  margin-bottom: 14px;
+  font-size: clamp(30px, 4vw, 52px);
+  margin-bottom: 16px;
 }
 .lgo .sec-copy .txt {
   color: var(--gris);
-  font-size: 16px;
+  font-size: 16.5px;
   max-width: 460px;
 }
-/* banda clara alterna cálida */
+/* banda papel alterna */
 .lgo .gris-suave {
-  background: var(--crema2);
+  background: var(--papel);
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
 }
 
-/* chat mock */
+/* chat mock (EscenaChat — conserva el loop) */
 .lgo .chat {
   background: #fff;
-  border: 1.5px solid var(--linea);
-  border-radius: 20px;
+  border: 1px solid var(--linea);
   padding: 18px;
-  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.25);
+  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.28);
   max-width: 400px;
   margin-left: auto;
 }
@@ -506,25 +472,28 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--crema2);
+  background: var(--papel);
+  border: 1px solid var(--linea);
   display: grid;
   place-items: center;
+  font-family: "Jost", "Futura", sans-serif;
   font-size: 12px;
   font-weight: 700;
   color: var(--gris);
 }
 .lgo .chat-top b {
+  font-family: "Jost", "Futura", sans-serif;
   font-size: 13px;
+  letter-spacing: 0.02em;
 }
 .lgo .chat-top small {
   display: block;
   font-size: 10px;
   color: var(--gris);
-  font-weight: 500;
 }
 .lgo .bur {
   max-width: 78%;
-  border-radius: 15px;
+  border-radius: 3px;
   padding: 10px 13px;
   font-size: 13px;
   margin-bottom: 9px;
@@ -543,14 +512,14 @@
   margin-top: 3px;
 }
 .lgo .bur-yo {
-  background: #e9f0fe;
+  background: #e3ebfa;
   margin-left: auto;
-  border-bottom-right-radius: 5px;
+  border-bottom-right-radius: 1px;
 }
 .lgo .bur-el {
-  background: var(--crema);
+  background: var(--papel);
   border: 1px solid var(--linea);
-  border-bottom-left-radius: 5px;
+  border-bottom-left-radius: 1px;
 }
 .lgo .bur-foto {
   padding: 7px;
@@ -559,7 +528,6 @@
   position: relative;
   width: 190px;
   height: 110px;
-  border-radius: 10px;
   overflow: hidden;
 }
 .lgo .foto-borrosa img {
@@ -576,47 +544,45 @@
   font-weight: 700;
 }
 
-/* tarjeta de avance "lo que cambia" (la MISMA foto, nítida y con pruebas) */
-.lgo .avance {
-  border: 1.5px solid var(--linea);
-  border-radius: 20px;
-  overflow: hidden;
-  background: #fff;
+/* ── LA EVIDENCIA como pieza de exhibición (LoQueCambia) ── */
+.lgo .exhibe-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 64px;
+  align-items: center;
 }
-.lgo .avance-solo {
-  max-width: 400px;
-  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.25);
-}
-.lgo .avance-foto {
+.lgo .pieza {
   position: relative;
-  height: 200px;
-  background: var(--crema2);
+  background: #fff;
+  border: 1px solid var(--linea);
+  padding: 16px 16px 18px;
+  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.4);
+  transform: rotate(1.2deg);
+  max-width: 460px;
+}
+.lgo .pieza .pfoto {
+  position: relative;
+  height: 250px;
   overflow: hidden;
 }
-.lgo .avance-foto img {
+.lgo .pieza .pfoto img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: 50% 58%;
 }
+/* chips GPS/hora de la pieza: mono, siempre visibles (no hay loop aquí) */
 .lgo .chip {
   position: absolute;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(17, 26, 44, 0.85);
+  background: rgba(16, 21, 30, 0.85);
   color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  border-radius: 8px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
   padding: 5px 9px;
-  opacity: 0;
-  transform: scale(0.7);
-  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-.lgo .chip.on {
-  opacity: 1;
-  transform: none;
 }
 .lgo .chip .ic {
   width: 11px;
@@ -626,50 +592,46 @@
   left: 10px;
   bottom: 10px;
 }
-.lgo .chip-hora {
+.lgo .chip-h {
   right: 10px;
   bottom: 10px;
 }
-.lgo .avance-body {
-  padding: 12px 14px 14px;
-}
-.lgo .avance-body b {
-  font-size: 15px;
-  display: block;
-}
-.lgo .avance-body small {
-  color: var(--gris);
-  font-size: 11.5px;
-}
-.lgo .avance-cta {
-  display: flex;
-  gap: 9px;
-  margin-top: 12px;
-}
-.lgo .b-ap {
-  flex: 1;
-  text-align: center;
+.lgo .aprobado-sello {
+  position: absolute;
+  right: -16px;
+  top: -16px;
+  z-index: 2;
   background: var(--verde);
   color: #fff;
-  font-weight: 800;
-  font-size: 13px;
-  border-radius: 99px;
-  padding: 11px 0;
-  position: relative;
-  transition: background 0.25s;
-}
-.lgo .b-re {
-  flex: 1;
-  text-align: center;
-  border: 1.5px solid var(--linea);
-  color: var(--gris);
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  font-size: 11px;
   font-weight: 700;
-  font-size: 13px;
-  border-radius: 99px;
-  padding: 11px 0;
+  letter-spacing: 0.12em;
+  padding: 9px 14px;
+  transform: rotate(6deg);
+  box-shadow: 0 10px 24px rgba(23, 126, 69, 0.4);
 }
-.lgo .b-ap.ok {
-  background: var(--verde);
+.lgo .dato {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  border-bottom: 1px dashed var(--linea);
+  padding: 10px 2px;
+  font-size: 13.5px;
+}
+.lgo .dato:last-child {
+  border-bottom: 0;
+}
+.lgo .dato .mono {
+  color: var(--gris);
+}
+.lgo .dato b {
+  font-family: "Jost", "Futura", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-align: right;
 }
 .lgo .comparado {
   display: inline-flex;
@@ -678,152 +640,24 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--verde);
-  background: #e4f7ec;
-  border-radius: 8px;
+  background: #e7f3ec;
   padding: 5px 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
-/* ── FeedVivo / RelojesGo: componentes conservados en el repo pero NO
-   montados en esta versión «Cerca» (el widget de km expresa la distancia).
-   Su CSS se mantiene para que sigan siendo estilables si se re-montaran. ── */
-.lgo .relojes {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 99px;
-  padding: 7px 14px;
-  margin-bottom: 22px;
-  color: #fff;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-.lgo .relojes .pto {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--dusk);
-}
-.lgo .reloj-ext {
-  display: inline-block;
-  min-width: 128px;
-  text-align: left;
-}
-.lgo .reloj-ext span {
-  display: inline-block;
-}
-.lgo .reloj-cali {
-  color: #9ddba9;
-}
-.lgo .fono {
-  position: relative;
-  width: 340px;
-  background: #fff;
-  border-radius: 30px;
-  border: 1px solid var(--linea);
-  box-shadow: 0 44px 90px -30px rgba(17, 26, 44, 0.45);
-  padding: 14px;
-}
-.lgo .fono-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 6px 12px;
-}
-.lgo .fono-top b {
-  font-size: 12.5px;
-}
-.lgo .fono-top small {
-  display: block;
-  font-size: 10px;
-  color: var(--gris);
-  font-weight: 500;
-}
-.lgo .led-vivo {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--verde);
-}
-.lgo .led-vivo i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--verde);
-  animation: lgo-parpa 1.6s infinite;
-}
-@keyframes lgo-parpa {
-  50% {
-    opacity: 0.25;
-  }
-}
-.lgo .tap {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 2.5px solid #fff;
-  opacity: 0;
-  pointer-events: none;
-}
-.lgo .aprobado-nota {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  color: var(--verde);
-  font-weight: 600;
-  margin-top: 10px;
-  opacity: 0;
-  transition: opacity 0.35s;
-}
-.lgo .aprobado-nota.on {
-  opacity: 1;
-}
-.lgo .estado-obra {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: var(--crema2);
-  border-radius: 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-}
-.lgo .pill-tiempo {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--verde);
-}
-.lgo .pill-tiempo i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--verde);
-}
-
-/* ── maestro / link ── */
+/* ── maestro / link (ObjecionMaestro — conserva las 3 micro-demos) ── */
 .lgo .maestro-grid {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
-  gap: 56px;
+  gap: 64px;
   align-items: center;
 }
 .lgo .maestro-foto {
   position: relative;
-  border-radius: 20px;
   overflow: hidden;
-  /* proporción cercana a la foto real (vertical 2:3): se ve casi completa */
   aspect-ratio: 4 / 5;
-  box-shadow: 0 30px 70px -30px rgba(26, 34, 51, 0.35);
+  border: 6px solid #fff;
+  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.4);
 }
 .lgo .maestro-foto img {
   width: 100%;
@@ -835,30 +669,30 @@
   position: absolute;
   left: 12px;
   bottom: 12px;
-  background: rgba(17, 26, 44, 0.82);
+  background: rgba(16, 21, 30, 0.85);
   color: #fff;
-  font-size: 10.5px;
-  font-weight: 600;
-  border-radius: 8px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   padding: 6px 10px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 .lgo .pasos-link {
-  margin-top: 18px;
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 430px;
+  max-width: 440px;
 }
 .lgo .paso-l {
   display: flex;
   flex-direction: column;
   gap: 11px;
-  border: 1.5px solid var(--linea);
-  border-radius: 14px;
-  padding: 13px 15px;
+  border: 1px solid var(--linea);
+  padding: 14px 16px;
   background: #fff;
   font-size: 13.5px;
 }
@@ -871,13 +705,17 @@
   flex: none;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  background: var(--azul);
+  background: var(--plano);
   color: #fff;
   display: grid;
   place-items: center;
+  font-family: "Jost", "Futura", sans-serif;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
+}
+.lgo .paso-l b {
+  font-family: "Jost", "Futura", sans-serif;
+  letter-spacing: 0.02em;
 }
 .lgo .paso-l small {
   display: block;
@@ -886,48 +724,125 @@
   margin-top: 2px;
 }
 
-/* ── LA PLATA: franja noche oscura cálida ── */
-.lgo .plata {
-  background: var(--noche);
-  color: #fff;
+/* ── LA PLATA: libro contable sobre papel (LaPlata — conserva la demo) ── */
+.lgo .libro {
+  background: #fff;
+  border-top: 1px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
 }
-.lgo .plata .eyebrow {
-  color: var(--lima);
-}
-.lgo .plata h2 {
-  color: #fff;
-}
-.lgo .plata .txt {
-  color: rgba(255, 255, 255, 0.75);
-  max-width: 440px;
-}
-/* la demo (teléfono blanco + lista de gastos) queda como tarjetas elevadas
-   sobre la noche — conserva su animación de registrar gasto */
-/* las tarjetas blancas recuperan el texto oscuro: sin esto heredaban el
-   color:#fff de la franja noche y el nombre/monto de cada gasto quedaba
-   blanco sobre blanco (invisible). Los colores propios (verde de factura,
-   rojo de sin-sustentar, blanco del botón) tienen su color y se respetan. */
-.lgo .plata .gastos,
-.lgo .plata .fonito {
+.lgo .libro .sec-copy h2 {
   color: var(--tinta);
 }
-.lgo .gastos {
-  background: #fff;
-  border: 1.5px solid var(--linea);
-  border-radius: 18px;
-  padding: 18px;
+.lgo .libro .txt {
+  color: var(--gris);
   max-width: 430px;
-  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.4);
 }
-.lgo .g-row {
+/* la demo (pantalla móvil + lista de gastos) conserva su animación de
+   registrar gasto; se re-viste como libro de cuentas */
+.lgo .plata-demo {
+  max-width: 430px;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.lgo .fonito {
+  position: relative;
+  width: 264px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid var(--linea);
+  padding: 16px 14px 14px;
+  box-shadow: 0 26px 60px -30px rgba(20, 27, 38, 0.35);
+}
+.lgo .fo-cab {
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tinta);
+  margin-bottom: 10px;
+}
+.lgo .fo-campo {
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 11px 10px;
+  min-height: 38px;
   border: 1px solid var(--linea);
-  border-radius: 12px;
-  margin-bottom: 9px;
-  font-size: 12.5px;
+  padding: 8px 11px;
+  font-family: "Jost", "Futura", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+.lgo .fo-zona {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px dashed #c3cbd8;
+  padding: 9px 11px;
+  min-height: 58px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.lgo .fo-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.lgo .fo-recibo {
+  width: 34px;
+  height: 42px;
+  margin-left: auto;
+  flex: none;
+  opacity: 0;
+  transform: scale(0.85);
+}
+.lgo .fo-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+.lgo .fo-btn {
+  display: block;
+  text-align: center;
+  background: var(--plano);
+  color: #fff;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 11px 0;
+}
+.lgo .plata-demo.fin .fo-recibo {
+  opacity: 1;
+  transform: none;
+}
+.lgo .plata-demo.fin .fo-caret {
+  display: none;
+}
+/* lista de gastos como cuenta contable */
+.lgo .gastos {
+  background: #fff;
+  border: 1px solid var(--linea);
+  max-width: 430px;
+}
+.lgo .g-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--linea);
+  font-size: 14px;
   background: #fff;
   opacity: 0;
   transform: translateY(10px);
@@ -939,70 +854,83 @@
 }
 .lgo .g-row b {
   display: block;
-  font-size: 12.5px;
+  font-size: 13.5px;
+  color: var(--tinta);
 }
-.lgo .g-row .g-fac {
-  margin-left: auto;
+.lgo .g-fac {
   text-align: right;
 }
 .lgo .g-monto {
-  font-weight: 800;
+  font-family: "Jost", "Futura", sans-serif;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--tinta);
 }
 .lgo .g-ok {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--verde);
-  font-weight: 700;
+  background: #e7f3ec;
+  padding: 3px 7px;
+  margin-top: 5px;
 }
 .lgo .g-rojo {
-  border-color: #f2c6c0;
-  background: #fdf3f2;
+  background: #fdf6f4;
 }
 .lgo .g-rojo .g-monto,
 .lgo .g-rojo .g-sin {
   color: var(--rojo);
 }
 .lgo .g-sin {
-  font-size: 10px;
-  font-weight: 700;
+  display: inline-block;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #f9e5e0;
+  padding: 3px 7px;
+  margin-top: 5px;
 }
+/* fila total del libro: banda noche con la alarma */
 .lgo .alarma {
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #fde9e7;
-  border: 1px solid #f2c6c0;
-  color: var(--rojo);
+  background: var(--noche);
+  color: #fff;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   font-weight: 700;
   font-size: 12.5px;
-  border-radius: 12px;
-  padding: 11px 13px;
-  margin-top: 4px;
+  padding: 15px 16px;
 }
 .lgo .alarma svg {
   flex: none;
+  color: var(--naranja);
 }
 
-/* ── panorama / semáforo ── */
+/* ── panorama / semáforo (Panorama — conserva el loop de filas) ── */
 .lgo .sem-lista {
   background: #fff;
-  border: 1.5px solid var(--linea);
-  border-radius: 18px;
+  border: 1px solid var(--linea);
   padding: 18px;
   max-width: 430px;
   margin-left: auto;
-  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.2);
+  box-shadow: 0 26px 60px -30px rgba(20, 27, 38, 0.2);
 }
 .lgo .s-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 10px;
+  padding: 13px 10px;
   border-bottom: 1px solid var(--linea);
-  font-size: 13px;
+  font-size: 13.5px;
 }
 .lgo .s-row:last-child {
   border-bottom: 0;
@@ -1013,58 +941,73 @@
   border-radius: 50%;
   flex: none;
 }
+.lgo .s-tarea {
+  flex: 1;
+}
 .lgo .s-est {
   margin-left: auto;
+  text-align: right;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
   font-size: 11px;
   font-weight: 700;
 }
+.lgo .s-dias {
+  display: block;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  font-weight: 400;
+  opacity: 0.85;
+}
 .lgo .s-verde .s-led {
   background: var(--verde);
-  box-shadow: 0 0 0 4px rgba(26, 158, 82, 0.14);
+  box-shadow: 0 0 0 4px rgba(23, 126, 69, 0.14);
 }
 .lgo .s-verde .s-est {
   color: var(--verde);
 }
 .lgo .s-ambar .s-led {
-  background: var(--ambar);
-  box-shadow: 0 0 0 4px rgba(242, 169, 59, 0.16);
+  background: var(--naranja);
+  box-shadow: 0 0 0 4px rgba(232, 98, 44, 0.16);
 }
 .lgo .s-ambar .s-est {
-  color: var(--ambar);
+  color: var(--naranja);
 }
 .lgo .s-rojo .s-led {
   background: var(--rojo);
-  box-shadow: 0 0 0 4px rgba(217, 59, 59, 0.14);
+  box-shadow: 0 0 0 4px rgba(196, 50, 31, 0.14);
 }
 .lgo .s-rojo .s-est {
   color: var(--rojo);
 }
 
-/* ── bloque contratista: banda clara crema2 ── */
+/* ── BLOQUE CONTRATISTA: banda noche editorial ── */
 .lgo .contra {
   position: relative;
   overflow: hidden;
-  background: var(--crema2);
-  color: var(--tinta);
+  background: var(--noche);
+  color: #fff;
 }
+.lgo .contra .fig,
 .lgo .contra .eyebrow {
-  color: var(--coral);
+  color: var(--naranja);
 }
 .lgo .contra h2 {
-  color: var(--tinta);
-  font-size: clamp(27px, 3.1vw, 38px);
-  margin-bottom: 14px;
-  font-weight: 700;
+  color: #fff;
+  font-size: clamp(30px, 4vw, 52px);
+  margin-bottom: 16px;
 }
 .lgo .contra .txt {
-  color: var(--gris);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 16px;
   max-width: 470px;
 }
 .lgo .contra-grid {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
-  gap: 56px;
+  gap: 64px;
   align-items: center;
 }
 .lgo .contra .wrap {
@@ -1080,50 +1023,56 @@
 .lgo .bullets li {
   list-style: none;
   display: flex;
-  gap: 10px;
+  gap: 11px;
   font-size: 14.5px;
-  color: var(--tinta);
+  color: rgba(255, 255, 255, 0.88);
 }
 .lgo .bullets svg {
-  color: var(--verde);
+  color: #7ed09a;
   flex: none;
   margin-top: 3px;
 }
+/* el link público como pieza rotada con borde blanco */
 .lgo .link-pub {
-  background: #fff;
-  border-radius: 20px;
-  padding: 20px;
+  background: var(--papel);
   color: var(--tinta);
-  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.3);
+  padding: 20px;
+  border: 6px solid #fff;
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.55);
+  transform: rotate(-1deg);
 }
 .lgo .lp-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   border-bottom: 1px solid var(--linea);
   padding-bottom: 10px;
   margin-bottom: 12px;
 }
 .lgo .lp-top b {
-  font-size: 13.5px;
+  font-family: "Jost", "Futura", sans-serif;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
 }
 .lgo .lp-url {
-  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--gris);
-  background: var(--crema);
-  border-radius: 7px;
-  padding: 3px 9px;
 }
 .lgo .lp-avance {
-  font-size: 12px;
-  font-weight: 800;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--gris);
   margin-bottom: 6px;
 }
 .lgo .lp-bar {
-  height: 10px;
-  border-radius: 99px;
-  background: var(--crema2);
+  height: 9px;
+  background: var(--linea);
   overflow: hidden;
   margin-bottom: 14px;
 }
@@ -1131,26 +1080,22 @@
   display: block;
   height: 100%;
   width: 68%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--verde), #3fcb7a);
+  background: var(--verde);
 }
 .lgo .lp-item {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 10px 9px;
-  border: 1px solid var(--linea);
-  border-radius: 12px;
-  margin-bottom: 8px;
-  font-size: 12.5px;
+  padding: 9px 2px;
+  border-bottom: 1px dashed var(--linea);
+  font-size: 13px;
 }
 .lgo .lp-item .mini {
   width: 40px;
   height: 32px;
-  border-radius: 7px;
   overflow: hidden;
   flex: none;
-  background: var(--crema2);
+  background: var(--papel);
 }
 .lgo .lp-item .mini img {
   width: 100%;
@@ -1159,26 +1104,29 @@
 }
 .lgo .lp-tag {
   margin-left: auto;
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  border-radius: 7px;
-  padding: 3px 8px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
 }
 .lgo .t-ok {
-  background: #e4f7ec;
+  background: #e7f3ec;
   color: var(--verde);
 }
 .lgo .t-curso {
-  background: #e9f0fe;
-  color: var(--azul);
+  background: #e3ebfa;
+  color: var(--plano);
 }
 .lgo .t-falta {
-  background: var(--crema);
+  background: var(--linea);
   color: var(--gris);
 }
 .lgo .lp-pie {
-  font-size: 10px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--gris);
   text-align: center;
   margin-top: 10px;
@@ -1186,11 +1134,10 @@
 .lgo .contra-foto {
   position: relative;
   margin-top: 22px;
-  border-radius: 16px;
   overflow: hidden;
-  /* proporción de la foto real (3:2): se ve completa, no una franja */
   aspect-ratio: 3 / 2;
-  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.28);
+  border: 6px solid #fff;
+  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.5);
 }
 .lgo .contra-foto img {
   width: 100%;
@@ -1199,21 +1146,19 @@
   object-position: 50% 30%;
 }
 
-/* ── precio ── */
+/* ── PRECIO ── */
 .lgo .precio-card {
-  max-width: 620px;
+  max-width: 640px;
   margin: 0 auto;
   text-align: center;
-  border: 1.5px solid var(--linea);
-  border-radius: 22px;
-  padding: 44px 36px;
+  border: 1px solid var(--linea);
+  padding: 48px 36px;
   background: #fff;
-  box-shadow: 0 30px 70px -34px rgba(26, 34, 51, 0.22);
+  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.22);
 }
 .lgo .precio-card h2 {
-  font-size: clamp(27px, 3.1vw, 38px);
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-size: clamp(30px, 4vw, 48px);
+  margin-bottom: 14px;
 }
 .lgo .precio-card .g1 {
   font-size: 16px;
@@ -1230,25 +1175,25 @@
 
 /* ── FAQ ── */
 .lgo .faq {
-  max-width: 680px;
+  max-width: 720px;
   margin: 0 auto;
 }
 .lgo .faq h2 {
-  font-size: clamp(27px, 3.1vw, 36px);
+  font-size: clamp(30px, 4vw, 44px);
   text-align: center;
   margin-bottom: 30px;
-  font-weight: 700;
 }
 .lgo .faq details {
-  border: 1.5px solid var(--linea);
-  border-radius: 14px;
+  border: 1px solid var(--linea);
   background: #fff;
   padding: 16px 20px;
   margin-bottom: 10px;
 }
 .lgo .faq summary {
-  font-weight: 700;
-  font-size: 15px;
+  font-family: "Jost", "Futura", sans-serif;
+  letter-spacing: 0.01em;
+  font-weight: 600;
+  font-size: 15.5px;
   cursor: pointer;
   list-style: none;
   display: flex;
@@ -1262,7 +1207,7 @@
 .lgo .faq summary::after {
   content: "+";
   font-size: 19px;
-  color: var(--azul);
+  color: var(--plano);
   font-weight: 600;
 }
 .lgo .faq details[open] summary::after {
@@ -1270,62 +1215,45 @@
 }
 .lgo .faq p {
   color: var(--gris);
-  font-size: 14px;
+  font-size: 14.5px;
   margin-top: 10px;
-  max-width: 600px;
+  max-width: 640px;
 }
 
-/* ── cierre con foto payoff (franja noche) ── */
+/* ── CIERRE: texto gigante centrado sobre papel ── */
 .lgo .cierre {
-  background: var(--noche);
-  color: #fff;
-  position: relative;
-  overflow: hidden;
+  background: var(--papel);
+  text-align: center;
+  padding: 110px 0;
 }
-.lgo .cierre .wrap {
-  position: relative;
-  z-index: 2;
-}
-.lgo .cierre-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 50px;
-  align-items: center;
+.lgo .cierre .fig {
+  color: var(--plano);
 }
 .lgo .cierre h2 {
-  font-size: clamp(30px, 3.8vw, 48px);
-  color: #fff;
-  font-weight: 700;
-  margin-bottom: 12px;
+  font-size: clamp(44px, 7vw, 96px);
+}
+.lgo .cierre h2 em {
+  font-style: normal;
+  color: var(--plano);
 }
 .lgo .cierre .eco {
-  color: rgba(255, 255, 255, 0.75);
-  font-size: 16.5px;
-  max-width: 420px;
-  margin-bottom: 26px;
+  font-family: "Lora", Georgia, serif;
+  font-style: italic;
+  font-size: 17px;
+  color: var(--gris);
+  margin: 20px auto 34px;
+  max-width: 460px;
 }
 .lgo .cierre .micro {
-  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
 }
-.lgo .cierre-foto {
-  position: relative;
-  border-radius: 22px;
-  overflow: hidden;
-  aspect-ratio: 4 / 5;
-  max-height: 460px;
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.6);
-}
-.lgo .cierre-foto img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 30%;
-}
+
+/* ── FOOTER: noche, mono ── */
 .lgo footer {
   background: var(--noche);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 22px 0;
   color: rgba(255, 255, 255, 0.5);
+  padding: 24px 0;
+  font-size: 10.5px;
 }
 .lgo footer .wrap {
   display: flex;
@@ -1340,7 +1268,7 @@
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(17, 26, 44, 0.6);
+  background: rgba(16, 21, 30, 0.6);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -1353,10 +1281,10 @@
   width: min(460px, 100%);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  background: var(--crema);
-  border-radius: 22px;
-  padding: 28px 26px 26px;
-  box-shadow: 0 44px 90px -30px rgba(17, 26, 44, 0.55);
+  background: var(--papel);
+  border: 1px solid var(--linea);
+  padding: 30px 28px 26px;
+  box-shadow: 0 44px 90px -30px rgba(16, 21, 30, 0.6);
   outline: none;
 }
 .lgo .cupo-x {
@@ -1365,8 +1293,7 @@
   right: 14px;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid var(--linea);
+  border: 1px solid var(--linea);
   background: #fff;
   color: var(--gris);
   display: grid;
@@ -1375,17 +1302,19 @@
   transition: border-color 0.15s, color 0.15s;
 }
 .lgo .cupo-x:hover {
-  border-color: var(--azul);
-  color: var(--azul);
+  border-color: var(--plano);
+  color: var(--plano);
 }
 .lgo .cupo-panel h3 {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 0.98;
 }
 .lgo .cupo-panel .micro {
-  margin: 6px 0 18px;
+  margin: 8px 0 18px;
 }
 .lgo .cupo-tarjetas {
   display: grid;
@@ -1394,8 +1323,7 @@
   margin-bottom: 16px;
 }
 .lgo .cupo-tarjeta {
-  border: 1.5px solid var(--linea);
-  border-radius: 14px;
+  border: 1px solid var(--linea);
   padding: 12px 13px;
   background: #fff;
   text-align: left;
@@ -1410,14 +1338,14 @@
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 .lgo .cupo-tarjeta svg {
-  color: var(--azul);
+  color: var(--plano);
   flex: none;
   margin-top: 1px;
 }
 .lgo .cupo-tarjeta.sel {
-  border-color: var(--azul);
+  border-color: var(--plano);
   background: #eef3fe;
-  box-shadow: 0 0 0 1px var(--azul);
+  box-shadow: 0 0 0 1px var(--plano);
 }
 .lgo .cupo-campo {
   margin-bottom: 14px;
@@ -1432,8 +1360,7 @@
 .lgo .cupo-campo input,
 .lgo .cupo-campo select {
   width: 100%;
-  border: 1.5px solid var(--linea);
-  border-radius: 12px;
+  border: 1px solid var(--linea);
   padding: 11px 12px;
   font-size: 14px;
   font-family: inherit;
@@ -1443,8 +1370,8 @@
 .lgo .cupo-campo input:focus,
 .lgo .cupo-campo select:focus {
   outline: none;
-  border-color: var(--azul);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: var(--plano);
+  box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.15);
 }
 .lgo .cupo-hp {
   position: absolute;
@@ -1461,16 +1388,14 @@
 .lgo .cupo-enviar:disabled {
   opacity: 0.6;
   cursor: default;
-  transform: none;
 }
 .lgo .cupo-error {
   margin-top: 10px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--rojo);
-  background: #fde9e7;
+  background: #f9e5e0;
   border: 1px solid #f2c6c0;
-  border-radius: 10px;
   padding: 9px 12px;
 }
 .lgo .cupo-legal {
@@ -1480,7 +1405,7 @@
   line-height: 1.5;
 }
 .lgo .cupo-legal a {
-  color: var(--azul);
+  color: var(--plano);
   text-decoration: underline;
 }
 .lgo .cupo-exito {
@@ -1491,7 +1416,7 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: #e4f7ec;
+  background: #e7f3ec;
   color: var(--verde);
   display: grid;
   place-items: center;
@@ -1499,7 +1424,9 @@
 }
 .lgo .cupo-exito b {
   display: block;
-  font-size: 17px;
+  font-family: "Jost", "Futura", sans-serif;
+  text-transform: uppercase;
+  font-size: 18px;
   margin-bottom: 6px;
 }
 .lgo .cupo-exito p {
@@ -1507,27 +1434,12 @@
   font-size: 13.5px;
 }
 
-/* ── fondo de partículas (canvas): decorativo, sin capturar el mouse.
-   Solo se monta sobre la noche del cierre. ── */
-.lgo .particulas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.lgo .particulas canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.lgo .particulas-noche {
-  z-index: 2;
-}
+/* ══ micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══
+   La estructura DOM y los enganches JS (clases .on/.fin/.fuera, selectores de
+   GSAP) se conservan; solo cambia el vestido a «De obra». ══════════════════ */
 
-/* ══ micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══ */
-
-/* cursor fantasma común (GSAP controla la opacidad; el desplazamiento lo
-   hace esta transición CSS de left/top) */
+/* cursor fantasma común (GSAP controla la opacidad; el desplazamiento lo hace
+   esta transición CSS de left/top) */
 .lgo .mcur {
   position: absolute;
   z-index: 6;
@@ -1555,8 +1467,7 @@
   position: relative;
   min-height: 112px;
   border: 1px solid var(--linea);
-  border-radius: 12px;
-  background: var(--crema);
+  background: var(--papel);
   overflow: hidden;
 }
 
@@ -1583,11 +1494,10 @@
   align-self: flex-start;
   background: #fff;
   border: 1px solid var(--linea);
-  border-radius: 9px;
   padding: 7px 12px;
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--azul);
+  color: var(--plano);
 }
 .lgo .dl-btn .ic {
   width: 12px;
@@ -1599,7 +1509,7 @@
 .lgo .dl-btn.ok {
   color: var(--verde);
   border-color: #bfe6cb;
-  background: #e4f7ec;
+  background: #e7f3ec;
 }
 .lgo .dl-btn.ok .dl-ic-lk {
   display: none;
@@ -1609,9 +1519,7 @@
 }
 .lgo .dl-bur {
   align-self: flex-end;
-  background: #e9f0fe;
-  border-radius: 12px;
-  border-bottom-right-radius: 4px;
+  background: #e3ebfa;
   padding: 7px 11px;
   font-weight: 600;
   color: var(--tinta);
@@ -1619,8 +1527,9 @@
   transform: translateY(8px);
 }
 .lgo .dl-rotulo {
-  font-size: 9.5px;
-  font-weight: 800;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gris);
@@ -1631,7 +1540,6 @@
   gap: 7px;
   background: #fff;
   border: 1px solid var(--linea);
-  border-radius: 9px;
   padding: 6px 10px;
   font-size: 11.5px;
   font-weight: 600;
@@ -1642,7 +1550,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--azul);
+  background: var(--plano);
   flex: none;
 }
 .lgo .demo-link.fin .dl-a {
@@ -1666,9 +1574,8 @@
 .lgo .df-marco {
   position: relative;
   height: 52px;
-  border-radius: 8px;
-  border: 1.5px dashed #cdbfa6;
-  background: var(--crema2);
+  border: 1.5px dashed #c3cbd8;
+  background: var(--papel);
   overflow: hidden;
 }
 .lgo .df-cam {
@@ -1706,15 +1613,14 @@
   flex: none;
   width: 1.5px;
   height: 12px;
-  background: var(--azul);
+  background: var(--plano);
   margin-left: 2px;
   animation: lgo-caret 1s steps(1) infinite;
 }
 .lgo .df-btn {
   align-self: flex-start;
-  background: var(--azul);
+  background: var(--plano);
   color: #fff;
-  border-radius: 8px;
   padding: 6px 12px;
   font-size: 11px;
   font-weight: 700;
@@ -1726,11 +1632,9 @@
   display: none;
 }
 
-/* demo paso 3: la tarjeta entra al sistema → chips → clic en la coordenada
-   → minimapa (retícula de calles + pin con onda) */
+/* demo paso 3: la tarjeta entra al sistema → chips → clic en la coordenada →
+   minimapa (retícula de calles + pin con onda) */
 .lgo .demo-sis {
-  /* altura fija: el minimapa abre dentro del espacio reservado, sin
-     empujar los pasos de abajo en cada vuelta del loop */
   height: 130px;
   padding: 9px 12px;
   display: flex;
@@ -1740,7 +1644,6 @@
 .lgo .ds-card {
   background: #fff;
   border: 1px solid var(--linea);
-  border-radius: 10px;
   padding: 8px 10px;
   opacity: 0;
   transform: translateY(-10px);
@@ -1759,9 +1662,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #e9f0fe;
-  color: var(--azul);
-  border-radius: 6px;
+  background: #e3ebfa;
+  color: var(--plano);
   padding: 3px 8px;
   font-size: 10px;
   font-weight: 700;
@@ -1773,15 +1675,16 @@
   height: 11px;
 }
 .lgo .ds-chip.mono {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
   font-size: 10px;
   letter-spacing: 0.02em;
+  text-transform: none;
 }
 .lgo .ds-mapa {
   position: relative;
   height: 0;
   opacity: 0;
   flex: none;
-  border-radius: 8px;
   overflow: hidden;
   border: 1px solid #dbe5f0;
   background: repeating-linear-gradient(0deg, transparent, transparent 12px, #dfe9f3 13px),
@@ -1794,10 +1697,10 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--azul);
-  color: var(--azul);
+  background: var(--plano);
+  color: var(--plano);
   border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(17, 26, 44, 0.3);
+  box-shadow: 0 2px 6px rgba(16, 21, 30, 0.3);
   transform: translate(-50%, -50%);
 }
 .lgo .ds-pin::after {
@@ -1822,94 +1725,7 @@
   opacity: 1;
 }
 
-/* "Tu plata": pantalla móvil del gasto + lista de gastos */
-.lgo .plata-demo {
-  max-width: 430px;
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.lgo .fonito {
-  position: relative;
-  width: 264px;
-  margin: 0 auto;
-  background: #fff;
-  border: 1px solid var(--linea);
-  border-radius: 22px;
-  padding: 16px 14px 14px;
-  box-shadow: 0 26px 60px -26px rgba(0, 0, 0, 0.4);
-}
-.lgo .fo-cab {
-  font-size: 13px;
-  font-weight: 800;
-  margin-bottom: 10px;
-}
-.lgo .fo-campo {
-  display: flex;
-  align-items: center;
-  min-height: 38px;
-  border: 1px solid var(--linea);
-  border-radius: 10px;
-  padding: 8px 11px;
-  font-size: 16px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 10px;
-}
-.lgo .fo-zona {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1.5px dashed #cdbfa6;
-  border-radius: 10px;
-  padding: 9px 11px;
-  min-height: 58px;
-  margin-bottom: 12px;
-  overflow: hidden;
-}
-.lgo .fo-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gris);
-}
-.lgo .fo-recibo {
-  width: 34px;
-  height: 42px;
-  margin-left: auto;
-  flex: none;
-  opacity: 0;
-  transform: scale(0.85);
-}
-.lgo .fo-flash {
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  opacity: 0;
-}
-.lgo .fo-btn {
-  display: block;
-  text-align: center;
-  background: var(--azul);
-  color: #fff;
-  font-weight: 700;
-  font-size: 12.5px;
-  border-radius: 10px;
-  padding: 10px 0;
-}
-.lgo .plata-demo.fin .fo-recibo {
-  opacity: 1;
-  transform: none;
-}
-.lgo .plata-demo.fin .fo-caret {
-  display: none;
-}
-
-/* semáforo en loop: filas que entran una a una y el porqué de cada color */
+/* semáforo en loop: filas que entran una a una */
 .lgo .sem-rows {
   transition: opacity 0.45s ease;
 }
@@ -1924,18 +1740,6 @@
 .lgo .sem-lista .s-row.on {
   opacity: 1;
   transform: none;
-}
-.lgo .s-tarea {
-  flex: 1;
-}
-.lgo .s-est {
-  text-align: right;
-}
-.lgo .s-dias {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.8;
 }
 
 @keyframes lgo-caret {
@@ -1960,52 +1764,51 @@
 
 /* ── responsive ── */
 @media (max-width: 900px) {
-  /* hero: la foto queda de fondo full-bleed con degradado vertical; el copy
-     va sobre el overlay y el widget debajo, en una sola columna */
   .lgo .hero {
-    min-height: 0;
+    min-height: 74vh;
   }
-  .lgo .hero .wrap {
+  .lgo .placa .wrap {
     grid-template-columns: 1fr;
-    gap: 30px;
-    padding-top: 48px;
   }
-  .lgo .hero-foto img {
-    object-position: 70% 20%;
+  .lgo .placa .celda {
+    border-right: 0;
+    border-bottom: 1px solid var(--linea);
   }
-  .lgo .hero-foto::after {
-    background: linear-gradient(
-      180deg,
-      rgba(17, 26, 44, 0.88) 30%,
-      rgba(17, 26, 44, 0.5) 70%
-    );
+  .lgo .placa .celda:last-child {
+    border-bottom: 0;
   }
-  .lgo .km-card {
-    margin: 0 auto;
-    max-width: 420px;
+  .lgo .indice-grid {
+    grid-template-columns: 1fr;
   }
-  .lgo .bifu-grid,
+  .lgo .indice a:first-child {
+    border-right: 0;
+    border-bottom: 1px solid var(--linea);
+  }
   .lgo .sec-grid,
+  .lgo .exhibe-grid,
   .lgo .maestro-grid,
-  .lgo .contra-grid,
-  .lgo .cierre-grid {
+  .lgo .contra-grid {
     grid-template-columns: 1fr;
-    gap: 34px;
+    gap: 36px;
   }
   .lgo .chat,
   .lgo .sem-lista,
-  .lgo .plata-demo {
+  .lgo .plata-demo,
+  .lgo .gastos {
     margin-left: 0;
+  }
+  .lgo .pieza {
+    transform: none;
+    max-width: 440px;
+  }
+  .lgo .link-pub {
+    transform: none;
   }
   .lgo .maestro-foto {
     aspect-ratio: 4 / 5;
     height: auto;
   }
-  .lgo .cierre-foto {
-    max-height: 340px;
-    aspect-ratio: 3 / 2;
-  }
-  /* footer apilado y centrado (misma regla que la home B2B) */
+  /* footer apilado y centrado */
   .lgo footer .wrap {
     flex-direction: column;
     align-items: center;
@@ -2016,18 +1819,19 @@
 @media (max-width: 520px) {
   /* nav apretado: CTA compacto en una sola línea */
   .lgo nav .btn {
-    padding: 10px 16px;
-    font-size: 13px;
+    padding: 11px 16px;
+    font-size: 11px;
     white-space: nowrap;
+  }
+  /* hero: titular más contenido para no desbordar en iPhone */
+  .lgo .hero h1 {
+    font-size: clamp(44px, 13vw, 64px);
   }
 }
 
 @media (max-width: 430px) {
-  /* En columnas estrechas los chips de GPS y hora del paso 3 caían a dos
-     líneas según el ancho, y el alto fijo de 130px (reservado para que el
-     minimapa no empuje el layout en cada vuelta del loop) recortaba el
-     minimapa contra el overflow:hidden. Chips SIEMPRE en columna (estado
-     determinista) y alto reservado acorde. */
+  /* Chips de GPS y hora del paso 3 SIEMPRE en columna (estado determinista) y
+     alto reservado acorde para que el minimapa no se recorte en cada vuelta. */
   .lgo .ds-chips {
     flex-direction: column;
     align-items: flex-start;
@@ -2051,9 +1855,6 @@
   .lgo .s-row {
     opacity: 1 !important;
     transform: none !important;
-  }
-  .lgo .aprobado-nota {
-    opacity: 1;
   }
   .lgo .tap,
   .lgo .mcur {
