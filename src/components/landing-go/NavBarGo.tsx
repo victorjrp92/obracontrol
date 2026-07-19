@@ -3,10 +3,12 @@ import Link from "next/link";
 import CtaCupo from "./CtaCupo";
 
 /**
- * Nav de Seiricon Go: logo real (icono transparente) + wordmark con el badge
- * GO + lema, como el mockup. El CTA es la lista de espera (decisión del
- * founder: todos los CTAs abren el ModalCupo). Server Component: la
- * interactividad vive en <CtaCupo/>.
+ * Nav de Seiricon Go «Cerca»: solo el logo (icono real + wordmark con el
+ * badge GO + lema) a la izquierda y UN CTA "Reserva tu cupo" (pill azul) a la
+ * derecha que abre el ModalCupo con origen "nav". Fuera el "Ingresar". El
+ * tamaño del CTA vive en el CSS (.lgo nav .btn) para no pisar la compactación
+ * del breakpoint de 520px. Server Component: la interactividad vive en
+ * <CtaCupo/>.
  */
 export default function NavBarGo() {
   return (
@@ -21,16 +23,9 @@ export default function NavBarGo() {
             <small>construyendo en orden</small>
           </span>
         </Link>
-        {/* el tamaño de estos botones vive en el CSS (.lgo nav .btn): inline
-            pisaba la compactación del breakpoint de 520px */}
-        <div style={{ display: "flex", gap: 9 }}>
-          <Link className="btn btn-borde" href="/login">
-            Ingresar
-          </Link>
-          <CtaCupo origen="nav" className="btn btn-azul">
-            Reserva tu cupo
-          </CtaCupo>
-        </div>
+        <CtaCupo origen="nav" className="btn btn-azul">
+          Reserva tu cupo
+        </CtaCupo>
       </div>
     </nav>
   );

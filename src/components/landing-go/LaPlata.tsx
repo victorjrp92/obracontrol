@@ -1,13 +1,14 @@
 import LaPlataDemo from "./LaPlataDemo";
 
 /**
- * Sección "Tu plata": la demo del gasto registrado desde el celular en loop
- * (pantalla móvil + lista de gastos con la fila roja y la alarma, en
- * <LaPlataDemo/>).
+ * Sección "Tu plata" en franja NOCHE oscura cálida («Cerca»): la demo del
+ * gasto registrado desde el celular en loop (pantalla móvil + lista de gastos
+ * con la fila roja y la alarma, en <LaPlataDemo/>). El copy va en blanco/lima
+ * sobre la noche; la demo queda como tarjetas elevadas sobre el fondo oscuro.
  */
 export default function LaPlata() {
   return (
-    <section className="gris-suave">
+    <section className="plata">
       <div className="wrap sec-grid">
         <div className="sec-copy reveal">
           <span className="eyebrow">Tu plata</span>

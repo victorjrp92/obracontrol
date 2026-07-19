@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import "@/components/landing-go/landing-go.css";
 
+import PromoBarGo from "@/components/landing-go/PromoBarGo";
 import NavBarGo from "@/components/landing-go/NavBarGo";
 import HeroGo from "@/components/landing-go/HeroGo";
+import ConfianzaGo from "@/components/landing-go/ConfianzaGo";
 import Bifurcacion from "@/components/landing-go/Bifurcacion";
 import EscenaChat from "@/components/landing-go/EscenaChat";
 import LoQueCambia from "@/components/landing-go/LoQueCambia";
@@ -37,8 +39,10 @@ export const metadata: Metadata = {
 export default function SeiriconGoPage() {
   return (
     <div className="lgo">
+      <PromoBarGo />
       <NavBarGo />
       <HeroGo />
+      <ConfianzaGo />
       <Bifurcacion />
       <EscenaChat />
       <LoQueCambia />

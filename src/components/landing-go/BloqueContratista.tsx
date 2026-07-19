@@ -1,18 +1,17 @@
 import Image from "next/image";
 import { Check } from "lucide-react";
 import CtaCupo from "./CtaCupo";
-import Particulas from "./Particulas";
 
 /**
- * Bloque contratista (navy, autocontenido): el link de transparencia como
- * argumento de venta, con el mock del link público que ve su cliente y
- * partículas de fondo. Su CTA abre el ModalCupo con la audiencia
+ * Bloque contratista en banda CLARA crema2 («Cerca»): el link de
+ * transparencia como argumento de venta, con el mock del link público que ve
+ * su cliente. Se retiraron las partículas (eran atmósfera de noche y no
+ * encajan con la banda clara). Su CTA abre el ModalCupo con la audiencia
  * contratista preseleccionada.
  */
 export default function BloqueContratista() {
   return (
     <section className="contra" id="contratista">
-      <Particulas cantidad={55} color="#ffffff" />
       <div className="wrap contra-grid">
         <div className="reveal">
           <span className="eyebrow">¿Manejas obras de clientes?</span>

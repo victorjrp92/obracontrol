@@ -11,7 +11,9 @@ export default function Bifurcacion() {
       <div className="wrap bifu-grid">
         <a href="#escena" className="reveal">
           <b>
-            <House className="ic" size={18} strokeWidth={2.2} aria-hidden="true" />
+            <span className="pico p1">
+              <House className="ic" size={17} strokeWidth={2.2} aria-hidden="true" />
+            </span>
             Construyo o remodelo lo mío
           </b>
           <p>La casa que estás pagando tú, vista con tus propios ojos, estés donde estés.</p>
@@ -19,7 +21,9 @@ export default function Bifurcacion() {
         </a>
         <a href="#contratista" className="reveal">
           <b>
-            <LinkIcon className="ic" size={18} strokeWidth={2.2} aria-hidden="true" />
+            <span className="pico p2">
+              <LinkIcon className="ic" size={17} strokeWidth={2.2} aria-hidden="true" />
+            </span>
             Manejo obras de clientes
           </b>
           <p>Eres maestro o remodelador y quieres clientes tranquilos que paguen sin pelear.</p>

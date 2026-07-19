@@ -1,47 +1,65 @@
+/* Figtree variable (subset latin, ~20KB). Declarado al inicio para que el
+   font-display:swap gobierne toda la landing Go. */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/figtree/figtree-latin.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ==========================================================================
-   Landing B2C "Seiricon Go" — Dirección A «Presente»
-   Portado fielmente del mockup aprobado (mockup-go-a). Todo el estilo vive
-   bajo el wrapper `.lgo` para aislarlo del resto del sitio (Tailwind, globals
-   y la landing B2B `.lv2`). Los @keyframes van prefijados `lgo-`.
+   Landing B2C "Seiricon Go" — Dirección visual «Cerca»
+   Re-skin profundo del mockup aprobado (mockup-go2-cerca): paleta cálida
+   crema, tipografía Figtree, botones pill, hero full-bleed con widget de
+   kilómetros. La lógica de animación (loops GSAP, IntersectionObserver,
+   reveals, reduced-motion) se conserva intacta — solo cambia su vestido.
+   Todo el estilo vive bajo `.lgo`; los @keyframes van prefijados `lgo-`.
    ========================================================================== */
 
 .lgo {
-  /* Tokens del mockup (scoped) */
+  /* Tokens «Cerca» (scoped) */
   --azul: #2563eb;
   --azul2: #3b82f6;
-  --navy: #0f172a;
-  --tinta: #0c1728;
-  --gris: #5b6b82;
-  --linea: #e5eaf1;
-  --f2: #f6f8fb;
-  --verde: #16a34a;
-  --ambar: #d97706;
-  --rojo: #dc2626;
-  --noche: #0b1220;
-  --dusk: #f2b24c;
+  --tinta: #1a2233;
+  --gris: #66707f;
+  --crema: #fbf7f0;
+  --crema2: #f4ede1;
+  --linea: #e8e0d2;
+  --verde: #1a9e52;
+  --lima: #d8f55a;
+  --coral: #ff6b4a;
+  --ambar: #f2a93b;
+  --noche: #111a2c;
+  --rojo: #d93b3b;
+  /* alias heredados (componentes/CSS antiguos): revalorados a la paleta cálida */
+  --navy: #111a2c;
+  --f2: #f4ede1;
+  --dusk: #f2a93b;
 
   /* Escala vertical de secciones (compartida con la home B2B):
      84px estándar · 42px media (bloques encadenados entre sí o a una banda) */
   --pad-sec: 84px;
   --pad-sec-media: 42px;
 
-  font-family: "Helvetica Neue", system-ui, -apple-system, sans-serif;
+  font-family: "Figtree", "Avenir Next", system-ui, sans-serif;
   color: var(--tinta);
-  background: #fff;
+  background: var(--crema);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
 .lgo .wrap {
-  max-width: 1120px;
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 0 22px;
+  padding: 0 24px;
 }
 .lgo h1,
 .lgo h2 {
-  letter-spacing: -0.025em;
-  line-height: 1.06;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
   text-wrap: balance;
+  font-weight: 700;
 }
 .lgo .mono {
   font-family: "SF Mono", ui-monospace, Menlo, monospace;
@@ -50,37 +68,60 @@
 }
 .lgo .eyebrow {
   display: inline-block;
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--azul);
+  color: var(--coral);
   margin-bottom: 12px;
 }
+/* membrete: rótulo lima sobre el H1 del hero y del cierre */
+.lgo .membrete {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lima);
+  margin-bottom: 16px;
+}
+
+/* botones PILL (mockup «Cerca») */
 .lgo .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 13px 24px;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 99px;
+  font-weight: 700;
+  font-size: 15.5px;
+  padding: 15px 28px;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: none;
+  font-family: inherit;
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .lgo .btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
 }
 .lgo .btn-azul {
   background: var(--azul);
   color: #fff;
-  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 10px 26px rgba(37, 99, 235, 0.32);
+}
+.lgo .btn-tinta {
+  background: var(--tinta);
+  color: #fff;
+}
+.lgo .btn-coral {
+  background: var(--coral);
+  color: #fff;
+  box-shadow: 0 10px 26px rgba(255, 107, 74, 0.3);
 }
 .lgo .btn-borde {
-  border-color: var(--linea);
+  border: 1.5px solid var(--linea);
   background: #fff;
 }
 .lgo .micro {
@@ -90,8 +131,8 @@
   margin-top: 10px;
 }
 .lgo .ic {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   flex: none;
   vertical-align: -2px;
 }
@@ -99,7 +140,7 @@
   padding: var(--pad-sec) 0;
 }
 /* Anclas internas (#escena, #contratista, #precio): que el nav pegajoso
-   de 60px no tape el arranque de la sección al saltar desde la bifurcación */
+   no tape el arranque de la sección al saltar desde la bifurcación */
 .lgo section[id] {
   scroll-margin-top: 72px;
 }
@@ -113,21 +154,31 @@
   transform: none;
 }
 
+/* ── PROMO BAR (banda lima sobre el nav) ── */
+.lgo .promo {
+  background: var(--lima);
+  color: var(--tinta);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+}
+
 /* ── NAV ── */
 .lgo nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(251, 247, 240, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--linea);
 }
 .lgo .nav-in {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: 62px;
 }
 .lgo .logo {
   display: flex;
@@ -143,7 +194,7 @@
 .lgo .logo-txt {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  line-height: 1.08;
   font-weight: 800;
   font-size: 15px;
 }
@@ -154,7 +205,7 @@
 }
 .lgo .logo-txt small {
   font-size: 8.5px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--gris);
   white-space: nowrap;
   letter-spacing: 0.01em;
@@ -169,91 +220,473 @@
   border-radius: 5px;
   padding: 1.5px 6px;
 }
-/* tamaño de los botones del nav en CSS (no inline): antes vivían en un
-   style= de NavBarGo y le ganaban a la compactación del breakpoint de 520px */
+/* tamaño del CTA del nav en CSS (no inline): así la compactación del
+   breakpoint de 520px le puede ganar */
 .lgo nav .btn {
-  padding: 9px 16px;
-  font-size: 13.5px;
-}
-.lgo nav .btn-azul {
-  padding: 9px 18px;
+  padding: 11px 22px;
+  font-size: 14px;
 }
 
-/* ── HERO: dos mundos ── */
+/* ── HERO: foto de familia full-bleed + widget de kilómetros ── */
 .lgo .hero {
   position: relative;
+  min-height: 660px;
+  display: flex;
+  align-items: stretch;
   overflow: hidden;
   background: var(--noche);
 }
-.lgo .hero-grid {
-  display: grid;
-  grid-template-columns: 0.94fr 1.06fr;
-  min-height: 620px;
-}
-.lgo .mundo-noche {
-  position: relative;
-  overflow: hidden;
-}
-.lgo .mundo-noche img {
+.lgo .hero-foto {
   position: absolute;
   inset: 0;
+}
+.lgo .hero-foto img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 58% 8%;
-  opacity: 0.72;
+  object-position: 72% 30%;
+  opacity: 0.9;
 }
-.lgo .mundo-noche::after {
+.lgo .hero-foto::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, rgba(11, 18, 32, 0.42) 40%, var(--noche) 96%),
-    radial-gradient(ellipse at 22% 78%, rgba(242, 178, 76, 0.22), transparent 55%);
+  background: linear-gradient(
+    96deg,
+    rgba(17, 26, 44, 0.87) 22%,
+    rgba(17, 26, 44, 0.55) 48%,
+    rgba(17, 26, 44, 0.08) 75%
+  );
 }
-.lgo .mundo-dia {
+.lgo .hero .wrap {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(160deg, #eaf1fb 0%, #f6f8fb 55%, #fff 100%);
-  padding: 56px 30px;
-}
-.lgo .mundo-dia::before {
-  content: "";
-  position: absolute;
-  left: -70px;
-  top: -12%;
-  width: 140px;
-  height: 124%;
-  background: linear-gradient(100deg, var(--noche) 45%, transparent 72%);
-}
-.lgo .hero-copy {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  top: 0;
-  padding: 74px 0 0;
-}
-.lgo .hero-copy .wrap {
+  z-index: 2;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 40px;
+  align-items: center;
+  padding-top: 64px;
+  padding-bottom: 72px;
 }
 .lgo .hc {
   color: #fff;
-  max-width: 460px;
+  max-width: 500px;
 }
 .lgo .hc h1 {
-  font-size: clamp(36px, 4.6vw, 58px);
-  font-weight: 700;
+  font-size: clamp(38px, 4.9vw, 62px);
   color: #fff;
 }
 .lgo .hc .sub {
-  margin: 18px 0 24px;
-  font-size: 16.5px;
-  color: rgba(255, 255, 255, 0.82);
-  max-width: 420px;
+  margin: 18px 0 0;
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 430px;
 }
+.lgo .estrellas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 26px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+}
+.lgo .estrellas b {
+  color: #fff;
+}
+.lgo .estrellas .ic {
+  color: var(--ambar);
+}
+
+/* widget de kilómetros (calculadora del hero) */
+.lgo .km-card {
+  background: #fff;
+  border-radius: 22px;
+  padding: 26px;
+  color: var(--tinta);
+  box-shadow: 0 44px 90px -26px rgba(0, 0, 0, 0.5);
+  max-width: 400px;
+  margin-left: auto;
+}
+.lgo .km-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+}
+.lgo .km-campo {
+  margin-bottom: 12px;
+}
+.lgo .km-campo label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gris);
+  margin-bottom: 6px;
+}
+.lgo .km-campo select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tinta);
+  padding: 13px 14px;
+  border: 1.5px solid var(--linea);
+  border-radius: 13px;
+  background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2366707F' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+}
+.lgo .km-campo select:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+.lgo .km-resultado {
+  background: var(--crema);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 14px 0 16px;
+  font-size: 13.5px;
+  color: var(--gris);
+}
+.lgo .km-resultado b.num {
+  display: block;
+  font-size: 26px;
+  color: var(--tinta);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.lgo .km-resultado .frase {
+  display: block;
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--tinta);
+}
+.lgo .km-card .btn {
+  width: 100%;
+}
+.lgo .km-card .micro {
+  text-align: center;
+}
+
+/* ── FRANJA DE CONFIANZA ── */
+.lgo .confia {
+  background: #fff;
+  border-bottom: 1px solid var(--linea);
+}
+.lgo .confia .wrap {
+  display: flex;
+  justify-content: center;
+  gap: 38px;
+  flex-wrap: wrap;
+  padding-top: 18px;
+  padding-bottom: 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.lgo .confia span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.lgo .confia .ic {
+  color: var(--verde);
+}
+
+/* ── BIFURCACIÓN ── */
+.lgo .bifu {
+  /* media sección tras la franja de confianza; el aire de abajo lo pone el
+     padding estándar de la sección siguiente */
+  padding: var(--pad-sec-media) 0 0;
+}
+.lgo .bifu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.lgo .bifu a {
+  display: block;
+  background: #fff;
+  border: 1.5px solid var(--linea);
+  border-radius: 20px;
+  padding: 24px 26px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.lgo .bifu a:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -20px rgba(26, 34, 51, 0.25);
+}
+.lgo .bifu b {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17.5px;
+}
+.lgo .bifu b .pico {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.lgo .bifu .p1 {
+  background: #e9f0fe;
+  color: var(--azul);
+}
+.lgo .bifu .p2 {
+  background: #ffefe9;
+  color: var(--coral);
+}
+.lgo .bifu p {
+  color: var(--gris);
+  font-size: 13.5px;
+  margin-top: 8px;
+}
+.lgo .bifu .flecha {
+  color: var(--azul);
+  font-weight: 700;
+  font-size: 12.5px;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+/* ── secciones tipo "escena" ── */
+.lgo .sec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 56px;
+  align-items: center;
+}
+.lgo .sec-copy h2 {
+  font-size: clamp(27px, 3.1vw, 38px);
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+.lgo .sec-copy .txt {
+  color: var(--gris);
+  font-size: 16px;
+  max-width: 460px;
+}
+/* banda clara alterna cálida */
+.lgo .gris-suave {
+  background: var(--crema2);
+}
+
+/* chat mock */
+.lgo .chat {
+  background: #fff;
+  border: 1.5px solid var(--linea);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.25);
+  max-width: 400px;
+  margin-left: auto;
+}
+.lgo .chat-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--linea);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.lgo .chat-ava {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--crema2);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.lgo .chat-top b {
+  font-size: 13px;
+}
+.lgo .chat-top small {
+  display: block;
+  font-size: 10px;
+  color: var(--gris);
+  font-weight: 500;
+}
+.lgo .bur {
+  max-width: 78%;
+  border-radius: 15px;
+  padding: 10px 13px;
+  font-size: 13px;
+  margin-bottom: 9px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.lgo .bur.on {
+  opacity: 1;
+  transform: none;
+}
+.lgo .bur small {
+  display: block;
+  font-size: 10px;
+  color: var(--gris);
+  margin-top: 3px;
+}
+.lgo .bur-yo {
+  background: #e9f0fe;
+  margin-left: auto;
+  border-bottom-right-radius: 5px;
+}
+.lgo .bur-el {
+  background: var(--crema);
+  border: 1px solid var(--linea);
+  border-bottom-left-radius: 5px;
+}
+.lgo .bur-foto {
+  padding: 7px;
+}
+.lgo .bur-foto .foto-borrosa {
+  position: relative;
+  width: 190px;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lgo .foto-borrosa img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(5px) brightness(0.82) contrast(0.85);
+  transform: scale(1.15);
+}
+.lgo .visto {
+  font-size: 10.5px;
+  color: var(--gris);
+  text-align: right;
+  font-weight: 700;
+}
+
+/* tarjeta de avance "lo que cambia" (la MISMA foto, nítida y con pruebas) */
+.lgo .avance {
+  border: 1.5px solid var(--linea);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+}
+.lgo .avance-solo {
+  max-width: 400px;
+  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.25);
+}
+.lgo .avance-foto {
+  position: relative;
+  height: 200px;
+  background: var(--crema2);
+  overflow: hidden;
+}
+.lgo .avance-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 58%;
+}
+.lgo .chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(17, 26, 44, 0.85);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 5px 9px;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.lgo .chip.on {
+  opacity: 1;
+  transform: none;
+}
+.lgo .chip .ic {
+  width: 11px;
+  height: 11px;
+}
+.lgo .chip-gps {
+  left: 10px;
+  bottom: 10px;
+}
+.lgo .chip-hora {
+  right: 10px;
+  bottom: 10px;
+}
+.lgo .avance-body {
+  padding: 12px 14px 14px;
+}
+.lgo .avance-body b {
+  font-size: 15px;
+  display: block;
+}
+.lgo .avance-body small {
+  color: var(--gris);
+  font-size: 11.5px;
+}
+.lgo .avance-cta {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+}
+.lgo .b-ap {
+  flex: 1;
+  text-align: center;
+  background: var(--verde);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  border-radius: 99px;
+  padding: 11px 0;
+  position: relative;
+  transition: background 0.25s;
+}
+.lgo .b-re {
+  flex: 1;
+  text-align: center;
+  border: 1.5px solid var(--linea);
+  color: var(--gris);
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 99px;
+  padding: 11px 0;
+}
+.lgo .b-ap.ok {
+  background: var(--verde);
+}
+.lgo .comparado {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--verde);
+  background: #e4f7ec;
+  border-radius: 8px;
+  padding: 5px 10px;
+  margin-bottom: 12px;
+}
+
+/* ── FeedVivo / RelojesGo: componentes conservados en el repo pero NO
+   montados en esta versión «Cerca» (el widget de km expresa la distancia).
+   Su CSS se mantiene para que sigan siendo estilables si se re-montaran. ── */
 .lgo .relojes {
   display: inline-flex;
   align-items: center;
@@ -266,8 +699,6 @@
   color: #fff;
   font-size: 12.5px;
   font-weight: 600;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 .lgo .relojes .pto {
   width: 5px;
@@ -286,26 +717,14 @@
 .lgo .reloj-cali {
   color: #9ddba9;
 }
-.lgo .hero-cred {
-  position: absolute;
-  left: 22px;
-  bottom: 14px;
-  z-index: 6;
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 9px;
-}
-
-/* teléfono del feed */
 .lgo .fono {
   position: relative;
-  z-index: 4;
   width: 340px;
   background: #fff;
   border-radius: 30px;
   border: 1px solid var(--linea);
-  box-shadow: 0 44px 90px -30px rgba(12, 23, 40, 0.45);
+  box-shadow: 0 44px 90px -30px rgba(17, 26, 44, 0.45);
   padding: 14px;
-  margin-top: 150px;
 }
 .lgo .fono-top {
   display: flex;
@@ -342,92 +761,6 @@
     opacity: 0.25;
   }
 }
-.lgo .avance {
-  border: 1px solid var(--linea);
-  border-radius: 16px;
-  overflow: hidden;
-  background: #fff;
-}
-.lgo .avance-foto {
-  position: relative;
-  height: 200px;
-  background: #e8edf4;
-  overflow: hidden;
-}
-.lgo .avance-foto img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 58%;
-}
-.lgo .chip {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(12, 23, 40, 0.82);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  border-radius: 7px;
-  padding: 4px 8px;
-  opacity: 0;
-  transform: scale(0.7);
-  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-.lgo .chip.on {
-  opacity: 1;
-  transform: none;
-}
-.lgo .chip-gps {
-  left: 10px;
-  bottom: 10px;
-}
-.lgo .chip-hora {
-  right: 10px;
-  bottom: 10px;
-}
-.lgo .avance-body {
-  padding: 12px 14px 14px;
-}
-.lgo .avance-body b {
-  font-size: 14px;
-  display: block;
-}
-.lgo .avance-body small {
-  color: var(--gris);
-  font-size: 11px;
-}
-.lgo .avance-cta {
-  display: flex;
-  gap: 8px;
-  margin-top: 11px;
-}
-.lgo .b-ap {
-  flex: 1;
-  text-align: center;
-  background: var(--azul);
-  color: #fff;
-  font-weight: 700;
-  font-size: 12.5px;
-  border-radius: 9px;
-  padding: 9px 0;
-  position: relative;
-  transition: background 0.25s;
-}
-.lgo .b-re {
-  flex: 1;
-  text-align: center;
-  border: 1px solid var(--linea);
-  color: var(--gris);
-  font-weight: 600;
-  font-size: 12.5px;
-  border-radius: 9px;
-  padding: 9px 0;
-}
-.lgo .b-ap.ok {
-  background: var(--verde);
-}
 .lgo .tap {
   position: absolute;
   left: 50%;
@@ -459,7 +792,7 @@
   justify-content: space-between;
   margin-top: 12px;
   padding: 10px 12px;
-  background: var(--f2);
+  background: var(--crema2);
   border-radius: 12px;
   font-size: 11.5px;
   font-weight: 600;
@@ -477,186 +810,7 @@
   background: var(--verde);
 }
 
-/* ── bifurcación ── */
-.lgo .bifu {
-  /* media sección tras el hero; el aire de abajo lo pone el padding estándar
-     de la sección siguiente */
-  padding: var(--pad-sec-media) 0 0;
-}
-.lgo .bifu-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-.lgo .bifu a {
-  display: block;
-  border: 1px solid var(--linea);
-  border-radius: 16px;
-  padding: 22px 24px;
-  text-decoration: none;
-  color: inherit;
-  background: #fff;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-}
-.lgo .bifu a:hover {
-  border-color: var(--azul);
-  box-shadow: 0 14px 34px -18px rgba(37, 99, 235, 0.35);
-  transform: translateY(-2px);
-}
-.lgo .bifu b {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 16.5px;
-}
-.lgo .bifu b svg {
-  color: var(--azul);
-}
-.lgo .bifu p {
-  color: var(--gris);
-  font-size: 13.5px;
-  margin-top: 6px;
-}
-.lgo .bifu .flecha {
-  color: var(--azul);
-  font-weight: 700;
-  font-size: 12.5px;
-  margin-top: 10px;
-  display: inline-block;
-}
-
-/* ── secciones tipo "escena" ── */
-.lgo .sec-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 56px;
-  align-items: center;
-}
-.lgo .sec-copy h2 {
-  font-size: clamp(26px, 3vw, 36px);
-  font-weight: 700;
-  margin-bottom: 14px;
-}
-.lgo .sec-copy .txt {
-  color: var(--gris);
-  font-size: 16px;
-  max-width: 460px;
-}
-.lgo .gris-suave {
-  background: var(--f2);
-}
-
-/* chat mock */
-.lgo .chat {
-  background: #fff;
-  border: 1px solid var(--linea);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.18);
-  max-width: 400px;
-  margin-left: auto;
-}
-.lgo .chat-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--linea);
-  padding-bottom: 10px;
-  margin-bottom: 12px;
-}
-.lgo .chat-ava {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #dce5f0;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gris);
-}
-.lgo .chat-top b {
-  font-size: 13px;
-}
-.lgo .chat-top small {
-  display: block;
-  font-size: 10px;
-  color: var(--gris);
-  font-weight: 500;
-}
-.lgo .bur {
-  max-width: 78%;
-  border-radius: 14px;
-  padding: 9px 12px;
-  font-size: 12.5px;
-  margin-bottom: 8px;
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.4s, transform 0.4s;
-}
-.lgo .bur.on {
-  opacity: 1;
-  transform: none;
-}
-.lgo .bur small {
-  display: block;
-  font-size: 9.5px;
-  color: var(--gris);
-  margin-top: 3px;
-}
-.lgo .bur-yo {
-  background: #e8f0fe;
-  margin-left: auto;
-  border-bottom-right-radius: 4px;
-}
-.lgo .bur-el {
-  background: var(--f2);
-  border: 1px solid var(--linea);
-  border-bottom-left-radius: 4px;
-}
-.lgo .bur-foto {
-  padding: 6px;
-}
-.lgo .bur-foto .foto-borrosa {
-  position: relative;
-  width: 190px;
-  height: 120px;
-  border-radius: 9px;
-  overflow: hidden;
-}
-.lgo .foto-borrosa img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(5px) brightness(0.8) contrast(0.85);
-  transform: scale(1.15);
-}
-.lgo .visto {
-  font-size: 10px;
-  color: var(--gris);
-  text-align: right;
-  font-weight: 600;
-}
-
-/* tarjeta de avance "lo que cambia" (misma foto, nítida) */
-.lgo .avance-solo {
-  max-width: 400px;
-  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.2);
-}
-.lgo .comparado {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--verde);
-  background: #edf9f0;
-  border-radius: 8px;
-  padding: 5px 10px;
-  margin-bottom: 12px;
-}
-
-/* maestro / link */
+/* ── maestro / link ── */
 .lgo .maestro-grid {
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
@@ -669,7 +823,7 @@
   overflow: hidden;
   /* proporción cercana a la foto real (vertical 2:3): se ve casi completa */
   aspect-ratio: 4 / 5;
-  box-shadow: 0 30px 70px -30px rgba(12, 23, 40, 0.35);
+  box-shadow: 0 30px 70px -30px rgba(26, 34, 51, 0.35);
 }
 .lgo .maestro-foto img {
   width: 100%;
@@ -681,7 +835,7 @@
   position: absolute;
   left: 12px;
   bottom: 12px;
-  background: rgba(12, 23, 40, 0.78);
+  background: rgba(17, 26, 44, 0.82);
   color: #fff;
   font-size: 10.5px;
   font-weight: 600;
@@ -702,7 +856,7 @@
   display: flex;
   flex-direction: column;
   gap: 11px;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   border-radius: 14px;
   padding: 13px 15px;
   background: #fff;
@@ -732,14 +886,30 @@
   margin-top: 2px;
 }
 
-/* gastos */
+/* ── LA PLATA: franja noche oscura cálida ── */
+.lgo .plata {
+  background: var(--noche);
+  color: #fff;
+}
+.lgo .plata .eyebrow {
+  color: var(--lima);
+}
+.lgo .plata h2 {
+  color: #fff;
+}
+.lgo .plata .txt {
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 440px;
+}
+/* la demo (teléfono blanco + lista de gastos) queda como tarjetas elevadas
+   sobre la noche — conserva su animación de registrar gasto */
 .lgo .gastos {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   border-radius: 18px;
   padding: 18px;
   max-width: 430px;
-  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.18);
+  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.4);
 }
 .lgo .g-row {
   display: flex;
@@ -780,8 +950,8 @@
   font-weight: 700;
 }
 .lgo .g-rojo {
-  border-color: #f3c1c1;
-  background: #fdf3f3;
+  border-color: #f2c6c0;
+  background: #fdf3f2;
 }
 .lgo .g-rojo .g-monto,
 .lgo .g-rojo .g-sin {
@@ -795,8 +965,8 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #fde9e9;
-  border: 1px solid #f3c1c1;
+  background: #fde9e7;
+  border: 1px solid #f2c6c0;
   color: var(--rojo);
   font-weight: 700;
   font-size: 12.5px;
@@ -808,15 +978,15 @@
   flex: none;
 }
 
-/* panorama / semáforo */
+/* ── panorama / semáforo ── */
 .lgo .sem-lista {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   border-radius: 18px;
   padding: 18px;
   max-width: 430px;
   margin-left: auto;
-  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.18);
+  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.2);
 }
 .lgo .s-row {
   display: flex;
@@ -842,42 +1012,44 @@
 }
 .lgo .s-verde .s-led {
   background: var(--verde);
-  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.14);
+  box-shadow: 0 0 0 4px rgba(26, 158, 82, 0.14);
 }
 .lgo .s-verde .s-est {
   color: var(--verde);
 }
 .lgo .s-ambar .s-led {
   background: var(--ambar);
-  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.14);
+  box-shadow: 0 0 0 4px rgba(242, 169, 59, 0.16);
 }
 .lgo .s-ambar .s-est {
   color: var(--ambar);
 }
 .lgo .s-rojo .s-led {
   background: var(--rojo);
-  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.14);
+  box-shadow: 0 0 0 4px rgba(217, 59, 59, 0.14);
 }
 .lgo .s-rojo .s-est {
   color: var(--rojo);
 }
 
-/* bloque contratista (navy) */
+/* ── bloque contratista: banda clara crema2 ── */
 .lgo .contra {
-  background: var(--navy);
-  color: #fff;
+  position: relative;
+  overflow: hidden;
+  background: var(--crema2);
+  color: var(--tinta);
 }
 .lgo .contra .eyebrow {
-  color: #8fb4ff;
+  color: var(--coral);
 }
 .lgo .contra h2 {
-  color: #fff;
-  font-size: clamp(26px, 3vw, 36px);
+  color: var(--tinta);
+  font-size: clamp(27px, 3.1vw, 38px);
   margin-bottom: 14px;
   font-weight: 700;
 }
 .lgo .contra .txt {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--gris);
   font-size: 16px;
   max-width: 470px;
 }
@@ -886,6 +1058,10 @@
   grid-template-columns: 1.05fr 0.95fr;
   gap: 56px;
   align-items: center;
+}
+.lgo .contra .wrap {
+  position: relative;
+  z-index: 2;
 }
 .lgo .bullets {
   margin: 20px 0 26px;
@@ -898,19 +1074,19 @@
   display: flex;
   gap: 10px;
   font-size: 14.5px;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--tinta);
 }
 .lgo .bullets svg {
-  color: #7ed09a;
+  color: var(--verde);
   flex: none;
   margin-top: 3px;
 }
 .lgo .link-pub {
   background: #fff;
-  border-radius: 18px;
-  padding: 18px;
+  border-radius: 20px;
+  padding: 20px;
   color: var(--tinta);
-  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.3);
 }
 .lgo .lp-top {
   display: flex;
@@ -921,25 +1097,25 @@
   margin-bottom: 12px;
 }
 .lgo .lp-top b {
-  font-size: 13px;
+  font-size: 13.5px;
 }
 .lgo .lp-url {
   font-size: 10px;
   color: var(--gris);
-  background: var(--f2);
-  border-radius: 6px;
+  background: var(--crema);
+  border-radius: 7px;
   padding: 3px 9px;
 }
 .lgo .lp-avance {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 800;
   color: var(--gris);
   margin-bottom: 6px;
 }
 .lgo .lp-bar {
-  height: 9px;
+  height: 10px;
   border-radius: 99px;
-  background: var(--linea);
+  background: var(--crema2);
   overflow: hidden;
   margin-bottom: 14px;
 }
@@ -948,17 +1124,17 @@
   height: 100%;
   width: 68%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #15803d, var(--verde));
+  background: linear-gradient(90deg, var(--verde), #3fcb7a);
 }
 .lgo .lp-item {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 9px 8px;
+  padding: 10px 9px;
   border: 1px solid var(--linea);
-  border-radius: 11px;
+  border-radius: 12px;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 12.5px;
 }
 .lgo .lp-item .mini {
   width: 40px;
@@ -966,7 +1142,7 @@
   border-radius: 7px;
   overflow: hidden;
   flex: none;
-  background: #e8edf4;
+  background: var(--crema2);
 }
 .lgo .lp-item .mini img {
   width: 100%;
@@ -978,19 +1154,19 @@
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.05em;
-  border-radius: 6px;
-  padding: 3px 7px;
+  border-radius: 7px;
+  padding: 3px 8px;
 }
 .lgo .t-ok {
-  background: #edf9f0;
+  background: #e4f7ec;
   color: var(--verde);
 }
 .lgo .t-curso {
-  background: #e8f0fe;
+  background: #e9f0fe;
   color: var(--azul);
 }
 .lgo .t-falta {
-  background: var(--f2);
+  background: var(--crema);
   color: var(--gris);
 }
 .lgo .lp-pie {
@@ -1006,28 +1182,28 @@
   overflow: hidden;
   /* proporción de la foto real (3:2): se ve completa, no una franja */
   aspect-ratio: 3 / 2;
+  box-shadow: 0 26px 60px -30px rgba(26, 34, 51, 0.28);
 }
 .lgo .contra-foto img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: 50% 30%;
-  opacity: 0.92;
 }
 
-/* precio */
+/* ── precio ── */
 .lgo .precio-card {
   max-width: 620px;
   margin: 0 auto;
   text-align: center;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   border-radius: 22px;
   padding: 44px 36px;
   background: #fff;
-  box-shadow: 0 30px 70px -34px rgba(12, 23, 40, 0.22);
+  box-shadow: 0 30px 70px -34px rgba(26, 34, 51, 0.22);
 }
 .lgo .precio-card h2 {
-  font-size: clamp(26px, 3vw, 36px);
+  font-size: clamp(27px, 3.1vw, 38px);
   font-weight: 700;
   margin-bottom: 12px;
 }
@@ -1044,19 +1220,19 @@
   margin: 0 auto 24px;
 }
 
-/* FAQ */
+/* ── FAQ ── */
 .lgo .faq {
   max-width: 680px;
   margin: 0 auto;
 }
 .lgo .faq h2 {
-  font-size: clamp(26px, 3vw, 34px);
+  font-size: clamp(27px, 3.1vw, 36px);
   text-align: center;
   margin-bottom: 30px;
   font-weight: 700;
 }
 .lgo .faq details {
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   border-radius: 14px;
   background: #fff;
   padding: 16px 20px;
@@ -1091,27 +1267,31 @@
   max-width: 600px;
 }
 
-/* cierre */
+/* ── cierre con foto payoff (franja noche) ── */
 .lgo .cierre {
   background: var(--noche);
   color: #fff;
   position: relative;
   overflow: hidden;
 }
+.lgo .cierre .wrap {
+  position: relative;
+  z-index: 2;
+}
 .lgo .cierre-grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 56px;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
   align-items: center;
 }
 .lgo .cierre h2 {
-  font-size: clamp(30px, 3.6vw, 46px);
+  font-size: clamp(30px, 3.8vw, 48px);
   color: #fff;
   font-weight: 700;
   margin-bottom: 12px;
 }
 .lgo .cierre .eco {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 16.5px;
   max-width: 420px;
   margin-bottom: 26px;
@@ -1119,27 +1299,25 @@
 .lgo .cierre .micro {
   color: rgba(255, 255, 255, 0.55);
 }
-.lgo .cierre .relojes {
-  margin-bottom: 18px;
-}
 .lgo .cierre-foto {
   position: relative;
-  border-radius: 20px;
+  border-radius: 22px;
   overflow: hidden;
-  /* proporción de la foto real (3:2): la pareja se ve completa */
-  aspect-ratio: 3 / 2;
-  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.5);
+  aspect-ratio: 4 / 5;
+  max-height: 460px;
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.6);
 }
 .lgo .cierre-foto img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 30%;
 }
 .lgo footer {
   background: var(--noche);
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding: 22px 0;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.5);
 }
 .lgo footer .wrap {
   display: flex;
@@ -1154,7 +1332,7 @@
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(11, 18, 32, 0.6);
+  background: rgba(17, 26, 44, 0.6);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -1167,10 +1345,10 @@
   width: min(460px, 100%);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  background: #fff;
-  border-radius: 20px;
+  background: var(--crema);
+  border-radius: 22px;
   padding: 28px 26px 26px;
-  box-shadow: 0 44px 90px -30px rgba(12, 23, 40, 0.55);
+  box-shadow: 0 44px 90px -30px rgba(17, 26, 44, 0.55);
   outline: none;
 }
 .lgo .cupo-x {
@@ -1180,7 +1358,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
   background: #fff;
   color: var(--gris);
   display: grid;
@@ -1194,7 +1372,7 @@
 }
 .lgo .cupo-panel h3 {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
 }
@@ -1208,8 +1386,8 @@
   margin-bottom: 16px;
 }
 .lgo .cupo-tarjeta {
-  border: 1px solid var(--linea);
-  border-radius: 12px;
+  border: 1.5px solid var(--linea);
+  border-radius: 14px;
   padding: 12px 13px;
   background: #fff;
   text-align: left;
@@ -1230,7 +1408,7 @@
 }
 .lgo .cupo-tarjeta.sel {
   border-color: var(--azul);
-  background: #f3f8ff;
+  background: #eef3fe;
   box-shadow: 0 0 0 1px var(--azul);
 }
 .lgo .cupo-campo {
@@ -1246,8 +1424,8 @@
 .lgo .cupo-campo input,
 .lgo .cupo-campo select {
   width: 100%;
-  border: 1px solid var(--linea);
-  border-radius: 10px;
+  border: 1.5px solid var(--linea);
+  border-radius: 12px;
   padding: 11px 12px;
   font-size: 14px;
   font-family: inherit;
@@ -1282,8 +1460,8 @@
   font-size: 12.5px;
   font-weight: 600;
   color: var(--rojo);
-  background: #fde9e9;
-  border: 1px solid #f3c1c1;
+  background: #fde9e7;
+  border: 1px solid #f2c6c0;
   border-radius: 10px;
   padding: 9px 12px;
 }
@@ -1305,7 +1483,7 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: #edf9f0;
+  background: #e4f7ec;
   color: var(--verde);
   display: grid;
   place-items: center;
@@ -1321,9 +1499,8 @@
   font-size: 13.5px;
 }
 
-/* ── atmósfera v2 (revisión de Victor): partículas, membrete y glows ── */
-
-/* fondo de partículas (canvas), siempre decorativo y sin capturar el mouse */
+/* ── fondo de partículas (canvas): decorativo, sin capturar el mouse.
+   Solo se monta sobre la noche del cierre. ── */
 .lgo .particulas {
   position: absolute;
   inset: 0;
@@ -1335,51 +1512,14 @@
   width: 100%;
   height: 100%;
 }
-/* en el panel nocturno del hero van SOBRE el degradado (::after, z auto):
-   se leen como luces de ciudad a lo lejos */
 .lgo .particulas-noche {
   z-index: 2;
 }
 
-/* los bloques navy alojan partículas: su contenido sube de capa */
-.lgo .contra {
-  position: relative;
-  overflow: hidden;
-}
-.lgo .contra .wrap,
-.lgo .cierre .wrap {
-  position: relative;
-  z-index: 2;
-}
-
-/* membrete técnico sobre el H1 (la página dice QUÉ es antes de emocionar) */
-.lgo .membrete {
-  display: block;
-  font-size: 10.5px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 14px;
-}
-
-/* glows suaves en las franjas grises: clara pero con atmósfera */
-.lgo .gris-suave {
-  background:
-    radial-gradient(ellipse 720px 400px at 88% -5%, rgba(37, 99, 235, 0.06), transparent 70%),
-    radial-gradient(ellipse 600px 340px at 8% 105%, rgba(242, 178, 76, 0.05), transparent 70%),
-    var(--f2);
-}
-/* y un respiro azul muy tenue en las secciones blancas */
-.lgo section:not(.contra):not(.cierre):not(.gris-suave):not(.hero) {
-  background:
-    radial-gradient(ellipse 640px 360px at 10% 0%, rgba(37, 99, 235, 0.04), transparent 70%),
-    #fff;
-}
-
-/* ══ v3: micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══ */
+/* ══ micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══ */
 
 /* cursor fantasma común (GSAP controla la opacidad; el desplazamiento lo
-   hace esta transición CSS de left/top, como el mini-cursor del B2B) */
+   hace esta transición CSS de left/top) */
 .lgo .mcur {
   position: absolute;
   z-index: 6;
@@ -1408,7 +1548,7 @@
   min-height: 112px;
   border: 1px solid var(--linea);
   border-radius: 12px;
-  background: var(--f2);
+  background: var(--crema);
   overflow: hidden;
 }
 
@@ -1451,7 +1591,7 @@
 .lgo .dl-btn.ok {
   color: var(--verde);
   border-color: #bfe6cb;
-  background: #edf9f0;
+  background: #e4f7ec;
 }
 .lgo .dl-btn.ok .dl-ic-lk {
   display: none;
@@ -1461,7 +1601,7 @@
 }
 .lgo .dl-bur {
   align-self: flex-end;
-  background: #e8f0fe;
+  background: #e9f0fe;
   border-radius: 12px;
   border-bottom-right-radius: 4px;
   padding: 7px 11px;
@@ -1519,8 +1659,8 @@
   position: relative;
   height: 52px;
   border-radius: 8px;
-  border: 1.5px dashed #b9c6d8;
-  background: #e6ecf4;
+  border: 1.5px dashed #cdbfa6;
+  background: var(--crema2);
   overflow: hidden;
 }
 .lgo .df-cam {
@@ -1579,7 +1719,7 @@
 }
 
 /* demo paso 3: la tarjeta entra al sistema → chips → clic en la coordenada
-   → minimapa (retícula de calles + pin con onda, como CelGps del B2B) */
+   → minimapa (retícula de calles + pin con onda) */
 .lgo .demo-sis {
   /* altura fija: el minimapa abre dentro del espacio reservado, sin
      empujar los pasos de abajo en cada vuelta del loop */
@@ -1611,7 +1751,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #edf3ff;
+  background: #e9f0fe;
   color: var(--azul);
   border-radius: 6px;
   padding: 3px 8px;
@@ -1649,7 +1789,7 @@
   background: var(--azul);
   color: var(--azul);
   border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(12, 23, 40, 0.3);
+  box-shadow: 0 2px 6px rgba(17, 26, 44, 0.3);
   transform: translate(-50%, -50%);
 }
 .lgo .ds-pin::after {
@@ -1690,7 +1830,7 @@
   border: 1px solid var(--linea);
   border-radius: 22px;
   padding: 16px 14px 14px;
-  box-shadow: 0 26px 60px -26px rgba(12, 23, 40, 0.25);
+  box-shadow: 0 26px 60px -26px rgba(0, 0, 0, 0.4);
 }
 .lgo .fo-cab {
   font-size: 13px;
@@ -1714,7 +1854,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1.5px dashed #c3cfdf;
+  border: 1.5px dashed #cdbfa6;
   border-radius: 10px;
   padding: 9px 11px;
   min-height: 58px;
@@ -1810,43 +1950,31 @@
   }
 }
 
-/* responsive */
+/* ── responsive ── */
 @media (max-width: 900px) {
-  /* móvil: foto de noche → copy sobre el navy del hero → teléfono.
-     display:contents disuelve el grid para poder intercalar el copy
-     (antes el wrap absoluto dejaba el texto blanco sobre fondo blanco). */
+  /* hero: la foto queda de fondo full-bleed con degradado vertical; el copy
+     va sobre el overlay y el widget debajo, en una sola columna */
   .lgo .hero {
-    display: flex;
-    flex-direction: column;
+    min-height: 0;
   }
-  .lgo .hero-grid {
-    display: contents;
-  }
-  .lgo .mundo-noche {
-    order: 1;
-    height: 340px;
-  }
-  .lgo .hero-copy {
-    order: 2;
-    position: relative;
-    padding: 30px 0 38px;
-  }
-  .lgo .hero-copy .wrap {
+  .lgo .hero .wrap {
     grid-template-columns: 1fr;
-    position: static;
+    gap: 30px;
+    padding-top: 48px;
   }
-  .lgo .mundo-dia {
-    order: 3;
+  .lgo .hero-foto img {
+    object-position: 70% 20%;
   }
-  .lgo .mundo-dia::before {
-    display: none;
+  .lgo .hero-foto::after {
+    background: linear-gradient(
+      180deg,
+      rgba(17, 26, 44, 0.88) 30%,
+      rgba(17, 26, 44, 0.5) 70%
+    );
   }
-  .lgo .mundo-dia {
-    padding: 36px 20px 50px;
-  }
-  .lgo .fono {
-    margin-top: 0;
-    width: min(340px, 100%);
+  .lgo .km-card {
+    margin: 0 auto;
+    max-width: 420px;
   }
   .lgo .bifu-grid,
   .lgo .sec-grid,
@@ -1865,11 +1993,9 @@
     aspect-ratio: 4 / 5;
     height: auto;
   }
-  .lgo .mundo-noche img {
-    object-position: 55% 14%;
-  }
-  .lgo .nav-links {
-    display: none;
+  .lgo .cierre-foto {
+    max-height: 340px;
+    aspect-ratio: 3 / 2;
   }
   /* footer apilado y centrado (misma regla que la home B2B) */
   .lgo footer .wrap {
@@ -1880,13 +2006,10 @@
 }
 
 @media (max-width: 520px) {
-  /* nav apretado: fuera "Ingresar", CTA compacto en una sola línea */
-  .lgo nav .btn-borde {
-    display: none;
-  }
-  .lgo nav .btn-azul {
-    padding: 9px 14px;
-    font-size: 12.5px;
+  /* nav apretado: CTA compacto en una sola línea */
+  .lgo nav .btn {
+    padding: 10px 16px;
+    font-size: 13px;
     white-space: nowrap;
   }
 }

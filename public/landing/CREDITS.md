@@ -19,3 +19,7 @@
 
 ## Videos y capturas
 Grabaciones propias (Playwright) sobre datos demo "Constructora Horizonte Demo" en producción. Sin datos de clientes reales. Mudos, H.264 1280px.
+
+### Seiricon Go — rediseño «Cerca» (2026-07-19)
+- go-familia-casa.jpg — Unsplash · Alexander Mass · unsplash.com/photos/7nEpVIMFys0 (familia frente a su casa — hero)
+- go-familia-ladrillo.jpg — Unsplash · rylan krupp · unsplash.com/photos/55rGIXarlD0 (familia frente a casa de ladrillo — cierre)

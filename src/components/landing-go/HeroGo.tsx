@@ -1,58 +1,45 @@
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
-import RelojesGo from "./RelojesGo";
-import FeedVivo from "./FeedVivo";
-import CtaCupo from "./CtaCupo";
-import Particulas from "./Particulas";
+import WidgetKm from "./WidgetKm";
 
 /**
- * Hero de dos mundos: la foto nocturna (él, lejos, mirando el celular) a la
- * izquierda y el teléfono con el feed EN VIVO de su obra en Cali a la
- * derecha. Partículas blancas sobre la noche (luces de ciudad a lo lejos).
- * El copy flota encima con el membrete y el chip de relojes rotando.
- * CTA: lista de espera.
+ * Hero «Cerca»: foto de la familia frente a su casa a pantalla completa con
+ * un degradado noche (más oscuro a la izquierda) y, encima, en dos columnas:
+ * a la izquierda el copy blanco (membrete lima, H1, subtítulo y la línea de
+ * estrella ámbar) y a la derecha el <WidgetKm/> (la nueva expresión de la
+ * distancia; el feed en vivo y los relojes salieron del hero). En móvil la
+ * foto queda de fondo, el copy sobre el overlay y el widget debajo (CSS).
  */
 export default function HeroGo() {
   return (
     <header className="hero">
-      <div className="hero-grid">
-        <div className="mundo-noche">
-          <Image
-            src="/landing/fotos/go-hero-noche.jpg"
-            alt="Desde otro país, mirando su obra en el celular"
-            fill
-            priority
-            sizes="(max-width: 900px) 100vw, 47vw"
-          />
-          <Particulas className="particulas-noche" cantidad={90} color="#ffffff" />
-        </div>
-        <div className="mundo-dia">
-          <FeedVivo />
-        </div>
+      <div className="hero-foto">
+        <Image
+          src="/landing/fotos/go-familia-casa.jpg"
+          alt="Una familia frente a la casa que están construyendo"
+          fill
+          priority
+          sizes="100vw"
+        />
       </div>
-      <div className="hero-copy">
-        <div className="wrap">
-          <div className="hc">
-            <span className="membrete mono">
-              Seiricon Go — Control de obra para personas · Colombia
+      <div className="wrap">
+        <div className="hc">
+          <span className="membrete">Seiricon Go — Control de obra para personas</span>
+          <h1>Nadie cuida tu proyecto como tú.</h1>
+          <p className="sub">
+            Cada avance de tu obra te llega con foto, ubicación y hora — y tú lo apruebas desde tu
+            celular, así estés a diez mil kilómetros.
+          </p>
+          <div className="estrellas">
+            <svg className="ic" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8-6.1-3.5-6.1 3.5 1.4-6.8L2.2 9.1l6.9-.8L12 2z" />
+            </svg>
+            <span>
+              <b>Hecho en Colombia</b> — para los que construyen lo suyo, estén donde estén
             </span>
-            <RelojesGo inicial={0} />
-            <h1>Nadie cuida tu proyecto como tú.</h1>
-            <p className="sub">
-              Y ya no necesitas estar ahí para hacerlo. Cada avance te llega con foto, ubicación y
-              hora — y tú lo apruebas desde tu celular, así estés a diez mil kilómetros.
-            </p>
-            <CtaCupo origen="hero">
-              Reserva tu cupo
-              <ArrowRight className="ic" strokeWidth={2.4} aria-hidden="true" />
-            </CtaCupo>
-            <div className="micro" style={{ color: "rgba(255,255,255,.55)" }}>
-              Primera obra gratis · Sin tarjeta
-            </div>
           </div>
         </div>
+        <WidgetKm />
       </div>
-      <span className="hero-cred">Foto: Julio Lopez · Unsplash</span>
     </header>
   );
 }
