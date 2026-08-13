@@ -1,65 +1,78 @@
-/* Tipografía «De obra»: Jost (display geométrica tipo Futura) para titulares
-   y Lora (serif editorial) para el cuerpo. Declaradas al inicio para que el
-   font-display:swap gobierne toda la landing Go. */
+/* Tipografía «Vivo/Aizome»: Figtree para TODA la landing Go (display y
+   cuerpo). Declarada al inicio para que el font-display:swap gobierne la
+   página entera. Jost y Lora salieron con la dirección «De obra». */
 @font-face {
-  font-family: "Jost";
-  src: url("/fonts/jost/jost-latin.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Lora";
-  src: url("/fonts/lora/lora-latin.woff2") format("woff2");
-  font-weight: 400 700;
+  font-family: "Figtree";
+  src: url("/fonts/figtree/figtree-latin.woff2") format("woff2");
+  font-weight: 300 900;
   font-style: normal;
   font-display: swap;
 }
 
 /* ==========================================================================
-   Landing B2C "Seiricon Go" — Dirección visual «De obra» (editorial-
-   arquitectónico). Re-skin del mockup aprobado (mockup-go2-deobra): el plano
-   como lenguaje — papel crudo, tinta oscura, azul estructural, naranja de
-   acento; display Jost en mayúsculas, cuerpo Lora serif, membretes y cotas en
-   mono. Marcos hairline, botones rectangulares, hero cinemático con cotas.
+   Landing B2C "Seiricon Go" — Dirección visual «Vivo/Aizome» (mockup aprobado:
+   docs/specs/mockups/go-vivo-aizome.html). El lenguaje Wati traducido a
+   Seiricon sobre paleta Aizome: papel kinari, tinta sumi, índigo estructural,
+   ámbar al 5 %. Marcadores en el titular, botones pill con borde tinta y
+   sombra dura, tarjetas pastel por sección, chips flotantes y strip de precio
+   navy. El verde y el rojo son colores de UI REAL de la app (pastilla
+   Aprobada, check de factura, estados críticos), nunca colores de marca.
    La lógica de animación (loops GSAP, IntersectionObserver, reveals,
    reduced-motion) se conserva intacta — solo cambia su vestido. Todo el estilo
    vive bajo `.lgo`; los @keyframes van prefijados `lgo-`.
    ========================================================================== */
 
 .lgo {
-  /* Tokens «De obra» (scoped) */
-  --papel: #f6f3ec; /* fondo de página */
-  --tinta: #141b26;
-  --gris: #6a7280;
-  --plano: #2557d6; /* azul estructural */
-  --plano-suave: #b9c9f2;
-  --naranja: #e8622c; /* acento cálido */
-  --verde: #177e45;
-  --rojo: #c4321f;
-  --noche: #10151e;
-  --linea: #ddd7c9;
+  /* Tokens Aizome (scoped) */
+  --papel: #fbfaf7; /* fondo de página, dominante */
+  --tinta: #0b1220;
+  --navy: #0f172a;
+  --azul: #2563eb; /* índigo, acento estructural */
+  --azul-50: #eff4ff;
+  --azul-bde: #bfd3ff;
+  --ambar: #d97706; /* acento cálido, ~5 % de la página */
+  --ambar-50: #fff6e8;
+  --ambar-bde: #f5d9a8;
+  --gris-50: #f5f7fb;
+  --gris-bde: #dde4ef;
+  --gris: #5b6b82;
+  --linea: #e6eaf1;
+  --sombra: 4px 4px 0 var(--tinta);
 
-  /* Alias heredados (componentes/CSS antiguos) revalorados a «De obra»:
-     así el re-skin no obliga a renombrar clases en cada componente. */
-  --azul: var(--plano);
+  /* Colores de UI real de la app (NO de marca) */
+  --verde-app: #16a34a; /* barra de avance, leds, check de factura */
+  --rojo: #dc2626; /* estados críticos */
+
+  /* Derivados legibles: mismas familias, oscurecidos para que el texto (y el
+     texto blanco sobre ellos) pase contraste AA en tamaños pequeños. */
+  --ambar-txt: #b45309;
+  --verde-txt: #15803d;
+  --rojo-txt: #b91c1c;
+  --verde-50: #e7f6ec;
+  --rojo-50: #fdecec;
+
+  /* Alias heredados (componentes/CSS antiguos) revalorados a Aizome: así el
+     re-skin no obliga a renombrar clases en cascada. */
+  --plano: var(--azul);
+  --plano-suave: var(--azul-bde);
   --crema: var(--papel);
-  --crema2: var(--papel);
+  --crema2: #fff;
   --f2: var(--papel);
-  --lima: var(--naranja);
-  --coral: var(--naranja);
-  --ambar: var(--naranja);
-  --dusk: var(--naranja);
-  --navy: var(--noche);
+  --naranja: var(--ambar-txt);
+  --lima: var(--ambar);
+  --coral: var(--ambar);
+  --dusk: var(--ambar);
+  --noche: var(--navy);
+  --verde: var(--verde-txt);
 
   /* Escala vertical de secciones */
-  --pad-sec: 88px;
+  --pad-sec: 84px;
   --pad-sec-media: 44px;
 
-  font-family: "Lora", Georgia, "Iowan Old Style", serif;
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--tinta);
   background: var(--papel);
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -69,83 +82,107 @@
   padding: 0 26px;
 }
 
-/* Display Jost en mayúsculas para TODOS los titulares grandes */
+/* Titulares: Figtree 800, sentence case, tracking cerrado */
 .lgo h1,
 .lgo h2,
 .lgo .disp {
-  font-family: "Jost", "Futura", "Avenir Next", sans-serif;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 0.94;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
   text-wrap: balance;
 }
 
-/* Mono técnico: cotas, membretes, labels FIG/PLANO */
+/* Rótulo técnico (cotas, membretes) re-vestido en Figtree */
 .lgo .mono {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-/* Membrete/eyebrow editorial (mono azul) y su variante numerada FIG. */
+/* Eyebrow de sección y su variante numerada FIG. */
 .lgo .fig,
 .lgo .eyebrow {
   display: block;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 10.5px;
-  font-weight: 400;
-  letter-spacing: 0.16em;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--plano);
-  margin-bottom: 14px;
+  color: var(--azul);
+  margin-bottom: 12px;
 }
 
-/* botones RECTANGULARES (mockup «De obra») */
+/* ── Marcadores del titular (lenguaje Wati) ── */
+.lgo .marca {
+  display: inline-block;
+  background: var(--navy);
+  color: #fff;
+  border: 2.5px solid var(--tinta);
+  box-shadow: var(--sombra);
+  padding: 0 14px;
+  border-radius: 8px;
+  transform: rotate(-0.6deg);
+}
+.lgo .marca.v2 {
+  background: var(--azul);
+  color: #fff;
+  transform: rotate(0.6deg);
+}
+
+/* ── Botones pill con borde tinta y sombra dura ── */
 .lgo .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  font-weight: 700;
-  font-size: 13.5px;
-  letter-spacing: 0.1em;
-  border-radius: 2px;
-  padding: 16px 30px;
+  gap: 9px;
+  font-family: inherit;
+  border-radius: 99px;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 14px 28px;
   text-decoration: none;
-  color: #fff;
+  color: var(--tinta);
+  background: #fff;
   cursor: pointer;
-  border: none;
-  transition: background 0.2s;
+  border: 2.5px solid var(--tinta);
+  box-shadow: var(--sombra);
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.lgo .btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--tinta);
+}
+.lgo .btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--tinta);
 }
 .lgo .btn-azul {
-  background: var(--plano);
+  background: var(--azul);
   color: #fff;
 }
-.lgo .btn-azul:hover {
-  background: #1d46b4;
-}
+/* alias heredado: cualquier CTA que aún pida "naranja" sale en ámbar legible */
 .lgo .btn-naranja {
-  background: var(--naranja);
+  background: var(--ambar-txt);
   color: #fff;
 }
-.lgo .btn-naranja:hover {
-  background: #c94e1e;
+.lgo .btn-chico {
+  padding: 10px 20px;
+  font-size: 13.5px;
+  box-shadow: 3px 3px 0 var(--tinta);
 }
 .lgo .micro {
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--gris);
-  margin-top: 10px;
-  font-style: italic;
+  margin-top: 12px;
 }
 .lgo .ic {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   flex: none;
-  vertical-align: -2px;
+  vertical-align: -2.5px;
 }
 .lgo section {
   padding: var(--pad-sec) 0;
@@ -154,7 +191,7 @@
 /* Anclas internas (#escena, #contratista, #precio): que el nav pegajoso no
    tape el arranque de la sección al saltar desde el índice */
 .lgo section[id] {
-  scroll-margin-top: 72px;
+  scroll-margin-top: 76px;
 }
 .lgo .reveal {
   opacity: 0;
@@ -166,19 +203,24 @@
   transform: none;
 }
 
-/* marco de plano global (patrón Block): recuadro hairline fijo sobre el
-   viewport, oculto en móvil */
-.lgo .marco {
-  position: fixed;
-  inset: 14px;
-  border: 1px solid var(--plano-suave);
-  pointer-events: none;
-  z-index: 60;
+/* ── FRANJA PROMO (sobre el nav) ── */
+.lgo .promo {
+  background: var(--azul-50);
+  border-bottom: 1.5px solid var(--azul-bde);
+  text-align: center;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tinta);
 }
-@media (max-width: 700px) {
-  .lgo .marco {
-    display: none;
-  }
+.lgo .promo b {
+  display: inline-block;
+  background: var(--ambar-txt);
+  color: #fff;
+  border: 1.5px solid var(--tinta);
+  border-radius: 6px;
+  padding: 1px 9px;
+  margin-left: 6px;
 }
 
 /* ── NAV ── */
@@ -186,10 +228,10 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(246, 243, 236, 0.93);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--linea);
+  border-bottom: 1.5px solid var(--linea);
 }
 .lgo .nav-in {
   display: flex;
@@ -205,17 +247,15 @@
   color: var(--tinta);
 }
 .lgo .logo img {
-  width: 30px;
-  height: 30px;
+  width: 31px;
+  height: 31px;
 }
 .lgo .logo-txt {
   display: flex;
   flex-direction: column;
   line-height: 1.08;
-  font-family: "Jost", "Futura", sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
-  letter-spacing: 0.02em;
 }
 .lgo .logo-txt .l1 {
   display: flex;
@@ -223,240 +263,766 @@
   gap: 6px;
 }
 .lgo .logo-txt small {
-  font-size: 8px;
-  font-weight: 400;
+  font-size: 8.5px;
+  font-weight: 600;
   color: var(--gris);
   white-space: nowrap;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .lgo .go {
   display: inline-block;
-  background: var(--naranja);
+  background: var(--azul);
   color: #fff;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
+  border-radius: 5px;
   padding: 1.5px 6px;
+  border: 1.5px solid var(--tinta);
+}
+.lgo .nav-der {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.lgo .nav-der .entrar {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tinta);
+  text-decoration: none;
+}
+.lgo .nav-der .entrar:hover {
+  color: var(--azul);
 }
 /* tamaño del CTA del nav en CSS (no inline): así la compactación del
    breakpoint de 520px le puede ganar */
 .lgo nav .btn {
-  padding: 12px 20px;
-  font-size: 12px;
+  padding: 10px 18px;
+  font-size: 13px;
 }
 
-/* ── HERO cinemático ── */
+/* ── HERO ── */
 .lgo .hero {
+  text-align: center;
+  padding: 70px 0 44px;
   position: relative;
-  min-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
   overflow: hidden;
-  background: var(--noche);
-}
-.lgo .hero-foto {
-  position: absolute;
-  inset: 0;
-}
-.lgo .hero-foto img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 38%;
-  opacity: 0.94;
-}
-.lgo .hero-foto::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(16, 21, 30, 0.25) 0%,
-    rgba(16, 21, 30, 0.05) 45%,
-    rgba(16, 21, 30, 0.72) 100%
-  );
-}
-.lgo .hero-cotas {
-  position: absolute;
-  inset: 26px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  z-index: 2;
-  pointer-events: none;
-}
-.lgo .hero-cotas span {
-  position: absolute;
-  background: rgba(16, 21, 30, 0.72);
-  color: #fff;
-  padding: 5px 10px;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.lgo .cota-a {
-  left: 14px;
-  top: -1px;
-  transform: translateY(-50%);
-}
-.lgo .cota-b {
-  right: 14px;
-  bottom: -1px;
-  transform: translateY(50%);
-}
-.lgo .hero .wrap {
-  position: relative;
-  z-index: 3;
-  padding-top: 64px;
-  padding-bottom: 64px;
-  color: #fff;
-}
-.lgo .hero .memb {
-  color: #fff;
-  opacity: 0.85;
-  display: block;
-  margin-bottom: 18px;
+  background: radial-gradient(ellipse 900px 440px at 50% -8%, var(--azul-50), transparent 70%), #fff;
 }
 .lgo .hero h1 {
-  font-size: clamp(52px, 8.6vw, 124px);
-  color: #fff;
-  max-width: 1000px;
-}
-.lgo .hero h1 em {
-  font-style: normal;
-  color: var(--naranja);
+  font-size: clamp(38px, 5.6vw, 66px);
+  max-width: 820px;
+  margin: 0 auto;
 }
 .lgo .hero .sub {
-  font-size: clamp(15px, 1.5vw, 18.5px);
   max-width: 560px;
-  margin: 22px 0 30px;
-  color: rgba(255, 255, 255, 0.88);
+  margin: 24px auto 28px;
+  font-size: 17.5px;
+  color: var(--gris);
+  font-weight: 500;
 }
 .lgo .hero-cta {
   display: flex;
   gap: 14px;
-  align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
 }
 .lgo .hero .micro {
-  color: rgba(255, 255, 255, 0.6);
-  margin: 0;
+  margin-top: 12px;
 }
 
-/* ── PLACA EDITORIAL (3 celdas) — reemplaza la franja de confianza ── */
-.lgo .placa {
-  background: var(--papel);
-  border-top: 1px solid var(--linea);
+/* ══════════ DEMO ANIMADA DEL HERO (HeroDemoGo) ══════════
+   La pantalla "Proyectos" de la app recreada en HTML/CSS + los 4 chips
+   flotantes coreografiados. GSAP controla opacidad/transform de chips,
+   notificación, botón y barra; las clases .foco/.ok/.realce/.fin son los
+   enganches de estado. ═══════════════════════════════════════════════ */
+.lgo .escenario {
+  position: relative;
+  max-width: 880px;
+  margin: 48px auto 0;
+  padding: 0 22px;
+}
+.lgo .shot-marco {
+  position: relative;
+  border: 2.5px solid var(--tinta);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 8px 8px 0 var(--azul);
+  background: #fff;
+  /* el hero centra su texto; dentro del marco manda la app */
+  text-align: left;
+}
+
+/* chips flotantes (entran coreografiados; el balanceo lo hace GSAP) */
+.lgo .chip-flot {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  color: var(--tinta);
+  border: 2px solid var(--tinta);
+  border-radius: 12px;
+  padding: 8px 13px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  box-shadow: var(--sombra);
+  opacity: 0;
+}
+.lgo .chip-flot small {
+  display: block;
+  font-weight: 600;
+  color: var(--gris);
+  font-size: 10px;
+  line-height: 1.2;
+}
+.lgo .chip-flot .ic {
+  color: var(--azul);
+}
+/* Los dos de la izquierda orbitan sobre la barra lateral navy (contraste alto,
+   no tapan datos); los dos de la derecha cuelgan de las esquinas para no
+   pisar la tarjeta protagonista ni su botón. */
+.lgo .cf-gps {
+  left: -18px;
+  top: 20%;
+}
+.lgo .cf-apr {
+  right: -14px;
+  top: -16px;
+  background: var(--verde-txt);
+  color: #fff;
+  border-color: var(--tinta);
+}
+.lgo .cf-sem {
+  left: -12px;
+  bottom: 13%;
+}
+.lgo .cf-leds {
+  display: inline-flex;
+  gap: 3px;
+}
+.lgo .cf-leds i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.lgo .cf-leds .led-v {
+  background: var(--verde-app);
+}
+.lgo .cf-leds .led-a {
+  background: var(--ambar);
+}
+.lgo .cf-leds .led-r {
+  background: var(--rojo);
+}
+.lgo .cf-fac {
+  right: -16px;
+  bottom: -18px;
+}
+.lgo .cf-fac .ic {
+  color: var(--verde-txt);
+}
+
+/* la app: barra lateral navy + pantalla de proyectos */
+.lgo .hd-app {
+  display: grid;
+  grid-template-columns: 138px 1fr;
+  min-height: 320px;
+}
+.lgo .hd-side {
+  background: var(--navy);
+  padding: 13px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-width: 0;
+}
+.lgo .hd-logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.lgo .hd-logo img {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.lgo .hd-logo > span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+.lgo .hd-logo small {
+  font-size: 6.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9fb0c9;
+  white-space: nowrap;
+}
+.lgo .hd-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lgo .hd-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #c2cee2;
+  white-space: nowrap;
+}
+.lgo .hd-item .ic {
+  width: 12px;
+  height: 12px;
+  vertical-align: 0;
+}
+.lgo .hd-item.act {
+  background: var(--azul);
+  color: #fff;
+  font-weight: 800;
+}
+.lgo .hd-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--gris-50);
+}
+.lgo .hd-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: #fff;
   border-bottom: 1px solid var(--linea);
+}
+.lgo .hd-titulo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  font-size: 12.5px;
+  font-weight: 800;
+  min-width: 0;
+}
+.lgo .hd-titulo small {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--gris);
+  white-space: nowrap;
+}
+.lgo .hd-buscar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--linea);
+  border-radius: 99px;
+  background: var(--gris-50);
+  padding: 5px 12px;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--gris);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.lgo .hd-buscar .ic {
+  width: 11px;
+  height: 11px;
+}
+.lgo .hd-campana {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--gris);
+}
+.lgo .hd-cuerpo {
+  flex: 1;
+  padding: 12px 14px 16px;
+}
+.lgo .hd-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.lgo .hd-nuevo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--azul);
+  color: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 9.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.lgo .hd-nuevo .ic {
+  width: 11px;
+  height: 11px;
+}
+.lgo .hd-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+/* tarjeta de proyecto */
+.lgo .hd-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  padding: 10px 11px 9px;
+  min-width: 0;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.lgo .hd-card.foco {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 2px var(--azul-bde), 0 12px 24px -14px rgba(37, 99, 235, 0.65);
+  transform: translateY(-3px);
+}
+.lgo .hd-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.lgo .hd-codigo {
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--azul);
+  background: var(--azul-50);
+  border: 1px solid var(--azul-bde);
+  border-radius: 5px;
+  padding: 2px 5px;
+  white-space: nowrap;
+}
+.lgo .hd-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 800;
+  border-radius: 99px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.lgo .hd-estado i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.lgo .hd-estado.e-ok {
+  color: var(--verde-txt);
+  background: var(--verde-50);
+}
+.lgo .hd-estado.e-mal {
+  color: var(--rojo-txt);
+  background: var(--rojo-50);
+}
+.lgo .hd-nombre {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.lgo .hd-tipo {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--gris);
+  margin-bottom: 8px;
+}
+.lgo .hd-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--gris);
+  margin-bottom: 8px;
+}
+.lgo .hd-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lgo .hd-meta .ic {
+  width: 9px;
+  height: 9px;
+  vertical-align: 0;
+}
+.lgo .hd-tareas {
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--azul);
+  background: var(--azul-50);
+  border-radius: 6px;
+  padding: 3px 7px;
+  margin-bottom: 9px;
+  transition: color 0.35s ease, background 0.35s ease;
+}
+/* realce discreto del subtexto al pasar de 294 a 295 aprobadas */
+.lgo .hd-tareas.realce {
+  color: var(--navy);
+  background: var(--azul-bde);
+}
+.lgo .hd-prog {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--gris);
+  margin-bottom: 4px;
+}
+.lgo .hd-pct {
+  position: relative;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.lgo .hd-pct b {
+  display: inline-block;
+  font-weight: 800;
+  transition: color 0.35s ease, transform 0.35s ease;
+}
+.lgo .hd-pct b.realce {
+  color: var(--azul);
+  transform: scale(1.06);
+}
+/* el "+1%" diminuto que sube y se desvanece (no empuja el layout) */
+.lgo .hd-mas {
+  position: absolute;
+  right: 0;
+  top: -11px;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: var(--verde-txt);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+}
+.lgo .hd-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--gris-bde);
+  overflow: hidden;
+  margin-bottom: 9px;
+}
+.lgo .hd-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--azul);
+}
+/* avance real de cada obra (dato, no medida responsive) */
+.lgo .b-83 i {
+  width: 83%;
+}
+.lgo .b-47 i {
+  width: 47%;
+}
+.lgo .b-57 i {
+  width: 57%;
+}
+.lgo .hd-pie {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+.lgo .hd-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--gris);
+  white-space: nowrap;
+}
+.lgo .hd-ver .ic {
+  width: 10px;
+  height: 10px;
+  vertical-align: 0;
+}
+.lgo .hd-btn {
+  position: relative;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--azul);
+  color: #fff;
+  border: 1.5px solid var(--tinta);
+  border-radius: 99px;
+  padding: 4px 11px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--tinta);
+  opacity: 0;
+}
+.lgo .hd-btn .hd-ic-ok {
+  display: none;
+  width: 10px;
+  height: 10px;
+  vertical-align: 0;
+}
+.lgo .hd-btn.ok {
+  background: var(--verde-txt);
+}
+.lgo .hd-btn.ok .hd-ic-ok {
+  display: inline-block;
+}
+.lgo .hd-pulso {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 58px;
+  margin: -29px 0 0 -29px;
+  border-radius: 50%;
+  border: 2px solid var(--azul);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* notificación del avance, DENTRO del marco */
+.lgo .hd-noti {
+  position: absolute;
+  z-index: 4;
+  right: 12px;
+  top: 9px;
+  text-align: left;
+  width: min(246px, 62%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #fff;
+  border: 2px solid var(--tinta);
+  border-radius: 12px;
+  padding: 8px 10px;
+  box-shadow: var(--sombra);
+  opacity: 0;
+}
+.lgo .hd-noti-foto {
+  position: relative;
+  width: 38px;
+  height: 32px;
+  border-radius: 7px;
+  overflow: hidden;
+  flex: none;
+}
+.lgo .hd-noti-foto img {
+  object-fit: cover;
+  object-position: 50% 60%;
+}
+.lgo .hd-noti-txt {
+  min-width: 0;
+}
+.lgo .hd-noti-txt b {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.lgo .hd-noti-txt small {
+  display: block;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: var(--gris);
+  margin-top: 2px;
+}
+
+/* estado final estático (prefers-reduced-motion): 58 %, "Aprobada", chips y
+   notificación puestos, sin cursor */
+.lgo .escenario.fin .chip-flot,
+.lgo .escenario.fin .hd-noti,
+.lgo .escenario.fin .hd-btn {
+  opacity: 1;
+}
+.lgo .escenario.fin .b-57 i {
+  width: 58%;
+}
+
+/* ── PLACA DE CONFIANZA (ConfianzaGo): 3 celdas pastel ── */
+.lgo .placa {
+  padding: 54px 0 0;
 }
 .lgo .placa .wrap {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 0;
-  padding: 0;
+  gap: 14px;
 }
 .lgo .placa .celda {
-  padding: 26px 30px;
-  border-right: 1px solid var(--linea);
+  background: var(--gris-50);
+  border: 2px solid var(--gris-bde);
+  border-radius: 16px;
+  padding: 20px 22px;
   font-size: 13.5px;
+  font-weight: 500;
   color: var(--gris);
-}
-.lgo .placa .celda:first-child {
-  padding-left: 26px;
-}
-.lgo .placa .celda:last-child {
-  border-right: 0;
 }
 .lgo .placa .celda b {
   display: block;
-  font-size: 12.5px;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--tinta);
   margin-bottom: 5px;
 }
 
-/* ── ÍNDICE DE PLANOS — reemplaza la bifurcación ── */
+/* ── ÍNDICE (Bifurcacion): dos tarjetas pastel-ancla ── */
 .lgo .indice {
   padding: var(--pad-sec) 0 0;
 }
 .lgo .indice-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0;
-  border: 1px solid var(--linea);
-  background: #fff;
+  gap: 18px;
 }
 .lgo .indice a {
   display: block;
-  padding: 30px 32px;
+  padding: 28px 30px;
   text-decoration: none;
   color: inherit;
-  position: relative;
-  transition: background 0.2s;
+  border-radius: 20px;
+  border: 2px solid var(--azul-bde);
+  background: var(--azul-50);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.lgo .indice a:first-child {
-  border-right: 1px solid var(--linea);
+.lgo .indice a:last-child {
+  border-color: var(--ambar-bde);
+  background: var(--ambar-50);
 }
 .lgo .indice a:hover {
-  background: var(--papel);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--sombra);
 }
 .lgo .indice .num {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--plano);
   display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--azul);
   margin-bottom: 10px;
+}
+.lgo .indice a:last-child .num {
+  color: var(--ambar-txt);
 }
 .lgo .indice b {
   display: block;
-  font-size: 19px;
-  letter-spacing: 0.02em;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 .lgo .indice p {
   color: var(--gris);
-  font-size: 13.5px;
+  font-size: 14px;
+  font-weight: 500;
   margin-top: 8px;
   max-width: 34ch;
 }
 .lgo .indice .flecha {
-  color: var(--naranja);
-  font-size: 12.5px;
-  font-weight: 700;
-  margin-top: 14px;
   display: inline-block;
+  color: var(--azul);
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 14px;
+}
+.lgo .indice a:last-child .flecha {
+  color: var(--ambar-txt);
 }
 
-/* ── secciones tipo "escena" (dos columnas) ── */
+/* ── secciones de dos columnas ── */
 .lgo .sec-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 64px;
+  gap: 54px;
   align-items: center;
 }
 .lgo .sec-copy h2 {
-  font-size: clamp(30px, 4vw, 52px);
-  margin-bottom: 16px;
+  font-size: clamp(28px, 3.6vw, 42px);
+  margin-bottom: 14px;
 }
 .lgo .sec-copy .txt {
   color: var(--gris);
-  font-size: 16.5px;
+  font-size: 16px;
+  font-weight: 500;
   max-width: 460px;
 }
-/* banda papel alterna */
+/* banda alterna sobre papel (sin color propio: el color lo dan las tarjetas) */
 .lgo .gris-suave {
   background: var(--papel);
-  border-top: 1px solid var(--linea);
-  border-bottom: 1px solid var(--linea);
+}
+
+/* Tarjetas pastel por sección (lenguaje del mockup) */
+.lgo .libro .sec-grid,
+.lgo .panorama .sec-grid,
+.lgo .exhibe-grid,
+.lgo .maestro-grid,
+.lgo .contra-grid {
+  border-radius: 26px;
+  border: 2px solid;
+  padding: 48px;
+}
+.lgo .exhibe-grid,
+.lgo .contra-grid,
+.lgo .panorama .sec-grid {
+  background: var(--azul-50);
+  border-color: var(--azul-bde);
+}
+.lgo .libro .sec-grid {
+  background: var(--gris-50);
+  border-color: var(--gris-bde);
+}
+.lgo .maestro-grid {
+  background: var(--ambar-50);
+  border-color: var(--ambar-bde);
+}
+.lgo .maestro-grid .eyebrow {
+  color: var(--ambar-txt);
 }
 
 /* chat mock (EscenaChat — conserva el loop) */
 .lgo .chat {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
   padding: 18px;
-  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.28);
+  box-shadow: var(--sombra);
   max-width: 400px;
   margin-left: auto;
 }
@@ -464,7 +1030,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--linea);
+  border-bottom: 1.5px solid var(--linea);
   padding-bottom: 10px;
   margin-bottom: 12px;
 }
@@ -472,30 +1038,30 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--papel);
-  border: 1px solid var(--linea);
+  background: var(--azul-50);
+  border: 1.5px solid var(--azul-bde);
   display: grid;
   place-items: center;
-  font-family: "Jost", "Futura", sans-serif;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--gris);
+  font-weight: 800;
+  color: var(--azul);
 }
 .lgo .chat-top b {
-  font-family: "Jost", "Futura", sans-serif;
-  font-size: 13px;
-  letter-spacing: 0.02em;
+  font-size: 13.5px;
+  font-weight: 800;
 }
 .lgo .chat-top small {
   display: block;
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
   color: var(--gris);
 }
 .lgo .bur {
   max-width: 78%;
-  border-radius: 3px;
+  border-radius: 12px;
   padding: 10px 13px;
   font-size: 13px;
+  font-weight: 600;
   margin-bottom: 9px;
   opacity: 0;
   transform: translateY(10px);
@@ -508,18 +1074,20 @@
 .lgo .bur small {
   display: block;
   font-size: 10px;
+  font-weight: 600;
   color: var(--gris);
   margin-top: 3px;
 }
 .lgo .bur-yo {
-  background: #e3ebfa;
+  background: var(--azul-50);
+  border: 1.5px solid var(--azul-bde);
   margin-left: auto;
-  border-bottom-right-radius: 1px;
+  border-bottom-right-radius: 3px;
 }
 .lgo .bur-el {
-  background: var(--papel);
-  border: 1px solid var(--linea);
-  border-bottom-left-radius: 1px;
+  background: var(--gris-50);
+  border: 1.5px solid var(--gris-bde);
+  border-bottom-left-radius: 3px;
 }
 .lgo .bur-foto {
   padding: 7px;
@@ -528,6 +1096,7 @@
   position: relative;
   width: 190px;
   height: 110px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .lgo .foto-borrosa img {
@@ -538,7 +1107,7 @@
   transform: scale(1.15);
 }
 .lgo .visto {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--gris);
   text-align: right;
   font-weight: 700;
@@ -547,22 +1116,24 @@
 /* ── LA EVIDENCIA como pieza de exhibición (LoQueCambia) ── */
 .lgo .exhibe-grid {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: 64px;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 54px;
   align-items: center;
 }
 .lgo .pieza {
   position: relative;
   background: #fff;
-  border: 1px solid var(--linea);
-  padding: 16px 16px 18px;
-  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.4);
-  transform: rotate(1.2deg);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
+  padding: 14px 14px 16px;
+  box-shadow: var(--sombra);
+  transform: rotate(1deg);
   max-width: 460px;
 }
 .lgo .pieza .pfoto {
   position: relative;
   height: 250px;
+  border-radius: 10px;
   overflow: hidden;
 }
 .lgo .pieza .pfoto img {
@@ -571,17 +1142,18 @@
   object-fit: cover;
   object-position: 50% 58%;
 }
-/* chips GPS/hora de la pieza: mono, siempre visibles (no hay loop aquí) */
+/* chips GPS/hora de la pieza: siempre visibles (no hay loop aquí) */
 .lgo .chip {
   position: absolute;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(16, 21, 30, 0.85);
+  background: rgba(11, 18, 32, 0.86);
   color: #fff;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
   padding: 5px 9px;
 }
 .lgo .chip .ic {
@@ -598,26 +1170,26 @@
 }
 .lgo .aprobado-sello {
   position: absolute;
-  right: -16px;
+  right: -14px;
   top: -16px;
   z-index: 2;
-  background: var(--verde);
+  background: var(--verde-txt);
   color: #fff;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 9px 14px;
-  transform: rotate(6deg);
-  box-shadow: 0 10px 24px rgba(23, 126, 69, 0.4);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 2px solid var(--tinta);
+  border-radius: 8px;
+  padding: 8px 13px;
+  transform: rotate(5deg);
+  box-shadow: var(--sombra);
 }
 .lgo .dato {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  border-bottom: 1px dashed var(--linea);
+  border-bottom: 1.5px solid var(--linea);
   padding: 10px 2px;
   font-size: 13.5px;
 }
@@ -626,38 +1198,41 @@
 }
 .lgo .dato .mono {
   color: var(--gris);
+  font-size: 10px;
 }
 .lgo .dato b {
-  font-family: "Jost", "Futura", sans-serif;
   font-size: 13px;
-  letter-spacing: 0.03em;
+  font-weight: 800;
   text-align: right;
 }
 .lgo .comparado {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--verde);
-  background: #e7f3ec;
-  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--verde-txt);
+  background: var(--verde-50);
+  border: 1.5px solid #b9e3c8;
+  border-radius: 99px;
+  padding: 5px 12px;
   margin-bottom: 14px;
 }
 
 /* ── maestro / link (ObjecionMaestro — conserva las 3 micro-demos) ── */
 .lgo .maestro-grid {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: 64px;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 48px;
   align-items: center;
 }
 .lgo .maestro-foto {
   position: relative;
   overflow: hidden;
   aspect-ratio: 4 / 5;
-  border: 6px solid #fff;
-  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.4);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
+  box-shadow: var(--sombra);
 }
 .lgo .maestro-foto img {
   width: 100%;
@@ -669,31 +1244,33 @@
   position: absolute;
   left: 12px;
   bottom: 12px;
-  background: rgba(16, 21, 30, 0.85);
+  right: 12px;
+  background: rgba(11, 18, 32, 0.86);
   color: #fff;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 7px 10px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 .lgo .pasos-link {
   margin-top: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-width: 440px;
+  gap: 12px;
+  max-width: 460px;
 }
 .lgo .paso-l {
   display: flex;
   flex-direction: column;
   gap: 11px;
-  border: 1px solid var(--linea);
-  padding: 14px 16px;
+  border: 2px solid var(--tinta);
+  border-radius: 16px;
+  padding: 16px 18px;
   background: #fff;
+  box-shadow: var(--sombra);
   font-size: 13.5px;
 }
 .lgo .paso-cab {
@@ -703,42 +1280,37 @@
 }
 .lgo .paso-l .n {
   flex: none;
-  width: 24px;
-  height: 24px;
-  background: var(--plano);
-  color: #fff;
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  font-family: "Jost", "Futura", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--azul);
+  color: #fff;
+  border: 2px solid var(--tinta);
+  font-size: 13px;
+  font-weight: 800;
 }
 .lgo .paso-l b {
-  font-family: "Jost", "Futura", sans-serif;
-  letter-spacing: 0.02em;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 .lgo .paso-l small {
   display: block;
   color: var(--gris);
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
   margin-top: 2px;
 }
 
-/* ── LA PLATA: libro contable sobre papel (LaPlata — conserva la demo) ── */
-.lgo .libro {
-  background: #fff;
-  border-top: 1px solid var(--linea);
-  border-bottom: 1px solid var(--linea);
-}
+/* ── LA PLATA (LaPlata — conserva la demo del gasto) ── */
 .lgo .libro .sec-copy h2 {
   color: var(--tinta);
 }
 .lgo .libro .txt {
-  color: var(--gris);
   max-width: 430px;
 }
-/* la demo (pantalla móvil + lista de gastos) conserva su animación de
-   registrar gasto; se re-viste como libro de cuentas */
 .lgo .plata-demo {
   max-width: 430px;
   margin-left: auto;
@@ -751,16 +1323,14 @@
   width: 264px;
   margin: 0 auto;
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
   padding: 16px 14px 14px;
-  box-shadow: 0 26px 60px -30px rgba(20, 27, 38, 0.35);
+  box-shadow: var(--sombra);
 }
 .lgo .fo-cab {
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   color: var(--tinta);
   margin-bottom: 10px;
 }
@@ -768,11 +1338,12 @@
   display: flex;
   align-items: center;
   min-height: 38px;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--gris-bde);
+  border-radius: 10px;
+  background: var(--gris-50);
   padding: 8px 11px;
-  font-family: "Jost", "Futura", sans-serif;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--tinta);
   font-variant-numeric: tabular-nums;
   margin-bottom: 10px;
@@ -782,7 +1353,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1.5px dashed #c3cbd8;
+  border: 1.5px dashed var(--gris-bde);
+  border-radius: 10px;
   padding: 9px 11px;
   min-height: 58px;
   margin-bottom: 12px;
@@ -792,7 +1364,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
   color: var(--gris);
 }
@@ -813,14 +1385,14 @@
 .lgo .fo-btn {
   display: block;
   text-align: center;
-  background: var(--plano);
+  background: var(--azul);
   color: #fff;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  font-size: 12px;
-  padding: 11px 0;
+  border: 2px solid var(--tinta);
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 10px 0;
+  box-shadow: 3px 3px 0 var(--tinta);
 }
 .lgo .plata-demo.fin .fo-recibo {
   opacity: 1;
@@ -829,19 +1401,22 @@
 .lgo .plata-demo.fin .fo-caret {
   display: none;
 }
-/* lista de gastos como cuenta contable */
+/* lista de gastos */
 .lgo .gastos {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 2px solid var(--tinta);
+  border-radius: 16px;
+  overflow: hidden;
   max-width: 430px;
+  box-shadow: var(--sombra);
 }
 .lgo .g-row {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: center;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--linea);
+  padding: 13px 16px;
+  border-bottom: 1.5px solid var(--linea);
   font-size: 14px;
   background: #fff;
   opacity: 0;
@@ -855,14 +1430,14 @@
 .lgo .g-row b {
   display: block;
   font-size: 13.5px;
+  font-weight: 700;
   color: var(--tinta);
 }
 .lgo .g-fac {
   text-align: right;
 }
 .lgo .g-monto {
-  font-family: "Jost", "Futura", sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: var(--tinta);
 }
@@ -870,67 +1445,68 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--verde);
-  background: #e7f3ec;
+  color: var(--verde-txt);
+  background: var(--verde-50);
+  border-radius: 6px;
   padding: 3px 7px;
   margin-top: 5px;
 }
 .lgo .g-rojo {
-  background: #fdf6f4;
+  background: var(--rojo-50);
 }
 .lgo .g-rojo .g-monto,
 .lgo .g-rojo .g-sin {
-  color: var(--rojo);
+  color: var(--rojo-txt);
 }
 .lgo .g-sin {
   display: inline-block;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  background: #f9e5e0;
+  background: #fbd9d9;
+  border-radius: 6px;
   padding: 3px 7px;
   margin-top: 5px;
 }
-/* fila total del libro: banda noche con la alarma */
+/* alarma: banda navy de cierre de la lista */
 .lgo .alarma {
   display: flex;
   align-items: center;
   gap: 9px;
-  background: var(--noche);
+  background: var(--navy);
   color: #fff;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  font-weight: 700;
-  font-size: 12.5px;
+  font-size: 13px;
+  font-weight: 800;
   padding: 15px 16px;
 }
 .lgo .alarma svg {
   flex: none;
-  color: var(--naranja);
+  color: #fca5a5;
 }
 
 /* ── panorama / semáforo (Panorama — conserva el loop de filas) ── */
 .lgo .sem-lista {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
   padding: 18px;
   max-width: 430px;
   margin-left: auto;
-  box-shadow: 0 26px 60px -30px rgba(20, 27, 38, 0.2);
+  box-shadow: var(--sombra);
 }
 .lgo .s-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 13px 10px;
-  border-bottom: 1px solid var(--linea);
+  border-bottom: 1.5px solid var(--linea);
   font-size: 13.5px;
+  font-weight: 600;
 }
 .lgo .s-row:last-child {
   border-bottom: 0;
@@ -947,72 +1523,53 @@
 .lgo .s-est {
   margin-left: auto;
   text-align: right;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 11.5px;
+  font-weight: 800;
 }
 .lgo .s-dias {
   display: block;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.04em;
-  font-weight: 400;
-  opacity: 0.85;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gris);
 }
 .lgo .s-verde .s-led {
-  background: var(--verde);
-  box-shadow: 0 0 0 4px rgba(23, 126, 69, 0.14);
+  background: var(--verde-app);
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.16);
 }
 .lgo .s-verde .s-est {
-  color: var(--verde);
+  color: var(--verde-txt);
 }
 .lgo .s-ambar .s-led {
-  background: var(--naranja);
-  box-shadow: 0 0 0 4px rgba(232, 98, 44, 0.16);
+  background: var(--ambar);
+  box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.16);
 }
 .lgo .s-ambar .s-est {
-  color: var(--naranja);
+  color: var(--ambar-txt);
 }
 .lgo .s-rojo .s-led {
   background: var(--rojo);
-  box-shadow: 0 0 0 4px rgba(196, 50, 31, 0.14);
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16);
 }
 .lgo .s-rojo .s-est {
-  color: var(--rojo);
+  color: var(--rojo-txt);
 }
 
-/* ── BLOQUE CONTRATISTA: banda noche editorial ── */
-.lgo .contra {
-  position: relative;
-  overflow: hidden;
-  background: var(--noche);
-  color: #fff;
-}
-.lgo .contra .fig,
-.lgo .contra .eyebrow {
-  color: var(--naranja);
-}
-.lgo .contra h2 {
-  color: #fff;
-  font-size: clamp(30px, 4vw, 52px);
-  margin-bottom: 16px;
-}
-.lgo .contra .txt {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 16px;
-  max-width: 470px;
-}
+/* ── BLOQUE CONTRATISTA: tarjeta pastel azul ── */
 .lgo .contra-grid {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
-  gap: 64px;
+  gap: 48px;
   align-items: center;
 }
-.lgo .contra .wrap {
-  position: relative;
-  z-index: 2;
+.lgo .contra h2 {
+  font-size: clamp(28px, 3.6vw, 42px);
+  margin-bottom: 14px;
+}
+.lgo .contra .txt {
+  color: var(--gris);
+  font-size: 16px;
+  font-weight: 500;
+  max-width: 470px;
 }
 .lgo .bullets {
   margin: 20px 0 26px;
@@ -1023,55 +1580,60 @@
 .lgo .bullets li {
   list-style: none;
   display: flex;
-  gap: 11px;
+  gap: 10px;
   font-size: 14.5px;
-  color: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
+  color: var(--tinta);
 }
 .lgo .bullets svg {
-  color: #7ed09a;
+  color: var(--azul);
   flex: none;
   margin-top: 3px;
 }
-/* el link público como pieza rotada con borde blanco */
+/* el link público como pieza rotada con sombra dura */
 .lgo .link-pub {
-  background: var(--papel);
+  background: #fff;
   color: var(--tinta);
-  padding: 20px;
-  border: 6px solid #fff;
-  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.55);
-  transform: rotate(-1deg);
+  padding: 18px;
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
+  box-shadow: 8px 8px 0 var(--azul);
+  transform: rotate(0.6deg);
 }
 .lgo .lp-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid var(--linea);
+  border-bottom: 1.5px solid var(--linea);
   padding-bottom: 10px;
   margin-bottom: 12px;
 }
 .lgo .lp-top b {
-  font-family: "Jost", "Futura", sans-serif;
-  font-size: 12.5px;
-  letter-spacing: 0.02em;
+  font-size: 13.5px;
+  font-weight: 800;
 }
 .lgo .lp-url {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 9.5px;
+  font-weight: 700;
   color: var(--gris);
+  background: var(--azul-50);
+  border: 1px solid var(--azul-bde);
+  border-radius: 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 .lgo .lp-avance {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--gris);
   margin-bottom: 6px;
 }
 .lgo .lp-bar {
-  height: 9px;
+  height: 10px;
+  border-radius: 99px;
   background: var(--linea);
   overflow: hidden;
   margin-bottom: 14px;
@@ -1080,53 +1642,59 @@
   display: block;
   height: 100%;
   width: 68%;
-  background: var(--verde);
+  border-radius: 99px;
+  background: var(--verde-app);
 }
 .lgo .lp-item {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 9px 2px;
-  border-bottom: 1px dashed var(--linea);
-  font-size: 13px;
+  padding: 9px 10px;
+  border: 1.5px solid var(--linea);
+  border-radius: 11px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 .lgo .lp-item .mini {
-  width: 40px;
+  width: 42px;
   height: 32px;
+  border-radius: 7px;
   overflow: hidden;
   flex: none;
-  background: var(--papel);
+  background: var(--gris-50);
 }
 .lgo .lp-item .mini img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 60%;
 }
 .lgo .lp-tag {
   margin-left: auto;
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border-radius: 6px;
+  padding: 3px 8px;
+  border: 1.5px solid var(--tinta);
+  white-space: nowrap;
 }
 .lgo .t-ok {
-  background: #e7f3ec;
-  color: var(--verde);
+  background: #d9f3e1;
+  color: var(--verde-txt);
 }
 .lgo .t-curso {
-  background: #e3ebfa;
-  color: var(--plano);
+  background: var(--azul-50);
+  color: var(--azul);
 }
 .lgo .t-falta {
-  background: var(--linea);
+  background: #fff;
   color: var(--gris);
 }
 .lgo .lp-pie {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 8.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 600;
   color: var(--gris);
   text-align: center;
   margin-top: 10px;
@@ -1136,8 +1704,9 @@
   margin-top: 22px;
   overflow: hidden;
   aspect-ratio: 3 / 2;
-  border: 6px solid #fff;
-  box-shadow: 0 26px 60px -30px rgba(0, 0, 0, 0.5);
+  border: 2.5px solid var(--tinta);
+  border-radius: 16px;
+  box-shadow: var(--sombra);
 }
 .lgo .contra-foto img {
   width: 100%;
@@ -1146,31 +1715,50 @@
   object-position: 50% 30%;
 }
 
-/* ── PRECIO ── */
+/* ── PRECIO: strip navy a sangre ── */
+.lgo #precio {
+  background: var(--navy);
+}
+/* sobre la banda navy la sombra dura de tinta desaparece: pasa a blanca */
+.lgo #precio .btn {
+  border-color: #fff;
+  box-shadow: 4px 4px 0 #fff;
+}
+.lgo #precio .btn:hover {
+  box-shadow: 6px 6px 0 #fff;
+}
+.lgo #precio .btn:active {
+  box-shadow: 1px 1px 0 #fff;
+}
 .lgo .precio-card {
-  max-width: 640px;
+  max-width: 620px;
   margin: 0 auto;
   text-align: center;
-  border: 1px solid var(--linea);
-  padding: 48px 36px;
-  background: #fff;
-  box-shadow: 0 30px 70px -34px rgba(20, 27, 38, 0.22);
+}
+.lgo .precio-card .eyebrow {
+  color: #93b4fb;
 }
 .lgo .precio-card h2 {
   font-size: clamp(30px, 4vw, 48px);
-  margin-bottom: 14px;
+  color: #fff;
+  margin-bottom: 16px;
 }
 .lgo .precio-card .g1 {
-  font-size: 16px;
-  color: var(--tinta);
-  max-width: 440px;
+  font-size: 16.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 480px;
   margin: 0 auto 8px;
 }
 .lgo .precio-card .g2 {
-  font-size: 13.5px;
-  color: var(--gris);
-  max-width: 440px;
-  margin: 0 auto 24px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.62);
+  max-width: 480px;
+  margin: 0 auto 26px;
+}
+.lgo .precio-card .micro {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* ── FAQ ── */
@@ -1179,21 +1767,25 @@
   margin: 0 auto;
 }
 .lgo .faq h2 {
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(28px, 3.6vw, 42px);
   text-align: center;
   margin-bottom: 30px;
 }
 .lgo .faq details {
-  border: 1px solid var(--linea);
+  border: 2px solid var(--gris-bde);
+  border-radius: 16px;
   background: #fff;
   padding: 16px 20px;
   margin-bottom: 10px;
 }
+.lgo .faq details[open] {
+  border-color: var(--azul-bde);
+  background: var(--azul-50);
+}
 .lgo .faq summary {
-  font-family: "Jost", "Futura", sans-serif;
-  letter-spacing: 0.01em;
-  font-weight: 600;
   font-size: 15.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   cursor: pointer;
   list-style: none;
   display: flex;
@@ -1206,9 +1798,9 @@
 }
 .lgo .faq summary::after {
   content: "+";
-  font-size: 19px;
-  color: var(--plano);
-  font-weight: 600;
+  font-size: 20px;
+  color: var(--azul);
+  font-weight: 800;
 }
 .lgo .faq details[open] summary::after {
   content: "–";
@@ -1216,44 +1808,52 @@
 .lgo .faq p {
   color: var(--gris);
   font-size: 14.5px;
+  font-weight: 500;
   margin-top: 10px;
   max-width: 640px;
 }
 
-/* ── CIERRE: texto gigante centrado sobre papel ── */
+/* ── CIERRE ── */
 .lgo .cierre {
   background: var(--papel);
   text-align: center;
-  padding: 110px 0;
-}
-.lgo .cierre .fig {
-  color: var(--plano);
+  padding: 100px 0;
 }
 .lgo .cierre h2 {
-  font-size: clamp(44px, 7vw, 96px);
+  font-size: clamp(34px, 4.6vw, 56px);
+  max-width: 760px;
+  margin: 0 auto;
 }
+/* el remate del titular también va marcado */
 .lgo .cierre h2 em {
+  display: inline-block;
   font-style: normal;
-  color: var(--plano);
+  background: var(--navy);
+  color: #fff;
+  border: 2.5px solid var(--tinta);
+  box-shadow: var(--sombra);
+  border-radius: 8px;
+  padding: 0 14px;
+  transform: rotate(-0.6deg);
 }
 .lgo .cierre .eco {
-  font-family: "Lora", Georgia, serif;
-  font-style: italic;
   font-size: 17px;
+  font-weight: 500;
   color: var(--gris);
-  margin: 20px auto 34px;
+  margin: 22px auto 30px;
   max-width: 460px;
 }
 .lgo .cierre .micro {
   text-align: center;
 }
 
-/* ── FOOTER: noche, mono ── */
+/* ── FOOTER ── */
 .lgo footer {
-  background: var(--noche);
-  color: rgba(255, 255, 255, 0.5);
-  padding: 24px 0;
-  font-size: 10.5px;
+  border-top: 1.5px solid var(--linea);
+  color: var(--gris);
+  padding: 22px 0;
+  font-size: 11px;
+  font-weight: 600;
 }
 .lgo footer .wrap {
   display: flex;
@@ -1268,7 +1868,7 @@
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(16, 21, 30, 0.6);
+  background: rgba(11, 18, 32, 0.62);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
@@ -1281,10 +1881,11 @@
   width: min(460px, 100%);
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  background: var(--papel);
-  border: 1px solid var(--linea);
+  background: #fff;
+  border: 2.5px solid var(--tinta);
+  border-radius: 20px;
   padding: 30px 28px 26px;
-  box-shadow: 0 44px 90px -30px rgba(16, 21, 30, 0.6);
+  box-shadow: 8px 8px 0 var(--azul);
   outline: none;
 }
 .lgo .cupo-x {
@@ -1293,7 +1894,8 @@
   right: 14px;
   width: 32px;
   height: 32px;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--gris-bde);
+  border-radius: 50%;
   background: #fff;
   color: var(--gris);
   display: grid;
@@ -1302,16 +1904,14 @@
   transition: border-color 0.15s, color 0.15s;
 }
 .lgo .cupo-x:hover {
-  border-color: var(--plano);
-  color: var(--plano);
+  border-color: var(--azul);
+  color: var(--azul);
 }
 .lgo .cupo-panel h3 {
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 0.98;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 .lgo .cupo-panel .micro {
   margin: 8px 0 18px;
@@ -1323,7 +1923,9 @@
   margin-bottom: 16px;
 }
 .lgo .cupo-tarjeta {
-  border: 1px solid var(--linea);
+  font-family: inherit;
+  border: 2px solid var(--gris-bde);
+  border-radius: 12px;
   padding: 12px 13px;
   background: #fff;
   text-align: left;
@@ -1335,17 +1937,16 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s;
 }
 .lgo .cupo-tarjeta svg {
-  color: var(--plano);
+  color: var(--azul);
   flex: none;
   margin-top: 1px;
 }
 .lgo .cupo-tarjeta.sel {
-  border-color: var(--plano);
-  background: #eef3fe;
-  box-shadow: 0 0 0 1px var(--plano);
+  border-color: var(--azul);
+  background: var(--azul-50);
 }
 .lgo .cupo-campo {
   margin-bottom: 14px;
@@ -1360,7 +1961,8 @@
 .lgo .cupo-campo input,
 .lgo .cupo-campo select {
   width: 100%;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--gris-bde);
+  border-radius: 10px;
   padding: 11px 12px;
   font-size: 14px;
   font-family: inherit;
@@ -1370,8 +1972,8 @@
 .lgo .cupo-campo input:focus,
 .lgo .cupo-campo select:focus {
   outline: none;
-  border-color: var(--plano);
-  box-shadow: 0 0 0 3px rgba(37, 87, 214, 0.15);
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
 }
 .lgo .cupo-hp {
   position: absolute;
@@ -1393,19 +1995,21 @@
   margin-top: 10px;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--rojo);
-  background: #f9e5e0;
-  border: 1px solid #f2c6c0;
+  color: var(--rojo-txt);
+  background: var(--rojo-50);
+  border: 1.5px solid #f3c2c2;
+  border-radius: 10px;
   padding: 9px 12px;
 }
 .lgo .cupo-legal {
   margin-top: 10px;
   font-size: 11px;
+  font-weight: 500;
   color: var(--gris);
   line-height: 1.5;
 }
 .lgo .cupo-legal a {
-  color: var(--plano);
+  color: var(--azul);
   text-decoration: underline;
 }
 .lgo .cupo-exito {
@@ -1416,27 +2020,28 @@
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  background: #e7f3ec;
-  color: var(--verde);
+  background: var(--verde-50);
+  color: var(--verde-txt);
   display: grid;
   place-items: center;
   margin: 0 auto 14px;
 }
 .lgo .cupo-exito b {
   display: block;
-  font-family: "Jost", "Futura", sans-serif;
-  text-transform: uppercase;
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
 .lgo .cupo-exito p {
   color: var(--gris);
   font-size: 13.5px;
+  font-weight: 500;
 }
 
 /* ══ micro-demos en loop (chat, pasos del maestro, gasto móvil, semáforo) ══
    La estructura DOM y los enganches JS (clases .on/.fin/.fuera, selectores de
-   GSAP) se conservan; solo cambia el vestido a «De obra». ══════════════════ */
+   GSAP) se conservan; solo cambia el vestido a «Vivo/Aizome». ══════════════ */
 
 /* cursor fantasma común (GSAP controla la opacidad; el desplazamiento lo hace
    esta transición CSS de left/top) */
@@ -1466,8 +2071,9 @@
 .lgo .paso-demo {
   position: relative;
   min-height: 112px;
-  border: 1px solid var(--linea);
-  background: var(--papel);
+  border: 1.5px solid var(--gris-bde);
+  border-radius: 12px;
+  background: var(--gris-50);
   overflow: hidden;
 }
 
@@ -1493,11 +2099,12 @@
   gap: 6px;
   align-self: flex-start;
   background: #fff;
-  border: 1px solid var(--linea);
-  padding: 7px 12px;
+  border: 1.5px solid var(--azul-bde);
+  border-radius: 99px;
+  padding: 6px 12px;
   font-size: 11.5px;
-  font-weight: 700;
-  color: var(--plano);
+  font-weight: 800;
+  color: var(--azul);
 }
 .lgo .dl-btn .ic {
   width: 12px;
@@ -1507,9 +2114,9 @@
   display: none;
 }
 .lgo .dl-btn.ok {
-  color: var(--verde);
-  border-color: #bfe6cb;
-  background: #e7f3ec;
+  color: var(--verde-txt);
+  border-color: #b9e3c8;
+  background: var(--verde-50);
 }
 .lgo .dl-btn.ok .dl-ic-lk {
   display: none;
@@ -1519,17 +2126,21 @@
 }
 .lgo .dl-bur {
   align-self: flex-end;
-  background: #e3ebfa;
-  padding: 7px 11px;
-  font-weight: 600;
+  background: var(--azul-50);
+  border: 1.5px solid var(--azul-bde);
+  border-radius: 10px;
+  padding: 6px 11px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--tinta);
   opacity: 0;
   transform: translateY(8px);
 }
 .lgo .dl-rotulo {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  font-weight: 400;
+  font-size: 9.5px;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gris);
@@ -1539,10 +2150,11 @@
   align-items: center;
   gap: 7px;
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
+  border-radius: 9px;
   padding: 6px 10px;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   opacity: 0;
   transform: translateY(8px);
 }
@@ -1550,7 +2162,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--plano);
+  background: var(--azul);
   flex: none;
 }
 .lgo .demo-link.fin .dl-a {
@@ -1574,8 +2186,9 @@
 .lgo .df-marco {
   position: relative;
   height: 52px;
-  border: 1.5px dashed #c3cbd8;
-  background: var(--papel);
+  border: 1.5px dashed var(--gris-bde);
+  border-radius: 9px;
+  background: #fff;
   overflow: hidden;
 }
 .lgo .df-cam {
@@ -1613,17 +2226,18 @@
   flex: none;
   width: 1.5px;
   height: 12px;
-  background: var(--plano);
+  background: var(--azul);
   margin-left: 2px;
   animation: lgo-caret 1s steps(1) infinite;
 }
 .lgo .df-btn {
   align-self: flex-start;
-  background: var(--plano);
+  background: var(--azul);
   color: #fff;
-  padding: 6px 12px;
+  border-radius: 99px;
+  padding: 5px 12px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
 }
 .lgo .demo-foto.fin .df-foto {
   opacity: 1;
@@ -1643,7 +2257,8 @@
 }
 .lgo .ds-card {
   background: #fff;
-  border: 1px solid var(--linea);
+  border: 1.5px solid var(--linea);
+  border-radius: 10px;
   padding: 8px 10px;
   opacity: 0;
   transform: translateY(-10px);
@@ -1651,6 +2266,7 @@
 .lgo .ds-card b {
   display: block;
   font-size: 11.5px;
+  font-weight: 800;
   margin-bottom: 6px;
 }
 .lgo .ds-chips {
@@ -1662,11 +2278,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #e3ebfa;
-  color: var(--plano);
+  background: var(--azul-50);
+  color: var(--azul);
+  border-radius: 6px;
   padding: 3px 8px;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   opacity: 0;
   transform: scale(0.7);
 }
@@ -1675,7 +2292,6 @@
   height: 11px;
 }
 .lgo .ds-chip.mono {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
   font-size: 10px;
   letter-spacing: 0.02em;
   text-transform: none;
@@ -1686,7 +2302,8 @@
   opacity: 0;
   flex: none;
   overflow: hidden;
-  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  border: 1px solid var(--azul-bde);
   background: repeating-linear-gradient(0deg, transparent, transparent 12px, #dfe9f3 13px),
     repeating-linear-gradient(90deg, transparent, transparent 12px, #dfe9f3 13px), #eef3f9;
 }
@@ -1697,10 +2314,10 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--plano);
-  color: var(--plano);
+  background: var(--azul);
+  color: var(--azul);
   border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(16, 21, 30, 0.3);
+  box-shadow: 0 2px 6px rgba(11, 18, 32, 0.3);
   transform: translate(-50%, -50%);
 }
 .lgo .ds-pin::after {
@@ -1763,33 +2380,48 @@
 }
 
 /* ── responsive ── */
+@media (max-width: 1000px) {
+  .lgo .hd-app {
+    grid-template-columns: 118px 1fr;
+  }
+  .lgo .hd-meta {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
-  .lgo .hero {
-    min-height: 74vh;
+  /* los chips flotantes salen: no hay margen fuera del marco */
+  .lgo .chip-flot {
+    display: none;
+  }
+  .lgo .shot-marco {
+    box-shadow: 5px 5px 0 var(--azul);
+  }
+  /* el marco se alinea con el ancho del contenido de la página (mismo
+     padding que .wrap), nunca a sangre */
+  .lgo .escenario {
+    padding: 0 26px;
+    margin-top: 36px;
   }
   .lgo .placa .wrap {
     grid-template-columns: 1fr;
   }
-  .lgo .placa .celda {
-    border-right: 0;
-    border-bottom: 1px solid var(--linea);
-  }
-  .lgo .placa .celda:last-child {
-    border-bottom: 0;
-  }
   .lgo .indice-grid {
     grid-template-columns: 1fr;
-  }
-  .lgo .indice a:first-child {
-    border-right: 0;
-    border-bottom: 1px solid var(--linea);
   }
   .lgo .sec-grid,
   .lgo .exhibe-grid,
   .lgo .maestro-grid,
   .lgo .contra-grid {
     grid-template-columns: 1fr;
-    gap: 36px;
+    gap: 32px;
+  }
+  .lgo .libro .sec-grid,
+  .lgo .panorama .sec-grid,
+  .lgo .exhibe-grid,
+  .lgo .maestro-grid,
+  .lgo .contra-grid {
+    padding: 30px;
   }
   .lgo .chat,
   .lgo .sem-lista,
@@ -1816,16 +2448,197 @@
   }
 }
 
+@media (max-width: 640px) {
+  /* la demo del hero se simplifica: barra lateral en modo rail (solo iconos),
+     tarjetas apiladas y tipos más compactos. Nunca desborda: .shot-marco
+     recorta y el ancho lo manda el wrap. */
+  .lgo .hd-app {
+    grid-template-columns: 40px 1fr;
+    min-height: 0;
+  }
+  .lgo .hd-side {
+    padding: 10px 5px;
+    gap: 10px;
+  }
+  .lgo .hd-logo {
+    justify-content: center;
+    padding: 0;
+  }
+  .lgo .hd-logo > span {
+    display: none;
+  }
+  .lgo .hd-item {
+    font-size: 0;
+  }
+  .lgo .hd-item {
+    justify-content: center;
+    padding: 7px 0;
+    gap: 0;
+  }
+  .lgo .hd-titulo small,
+  .lgo .hd-buscar {
+    display: none;
+  }
+  .lgo .hd-campana {
+    margin-left: auto;
+  }
+  /* la cabecera de lista cede su sitio a la notificación: se reserva la banda
+     para que el aviso nunca tape una tarjeta */
+  .lgo .hd-cab {
+    display: none;
+  }
+  .lgo .hd-cuerpo {
+    padding: 56px 10px 12px;
+  }
+  .lgo .hd-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .lgo .hd-card {
+    padding: 9px 10px 8px;
+  }
+  .lgo .hd-nombre {
+    font-size: 12.5px;
+  }
+  .lgo .hd-tipo {
+    margin-bottom: 7px;
+  }
+  .lgo .hd-tareas {
+    margin-bottom: 7px;
+  }
+  .lgo .hd-bar {
+    margin-bottom: 7px;
+  }
+  .lgo .hd-pie {
+    min-height: 21px;
+  }
+  .lgo .hd-noti {
+    width: auto;
+    left: 48px;
+    right: 8px;
+    top: 44px;
+  }
+}
+
 @media (max-width: 520px) {
-  /* nav apretado: CTA compacto en una sola línea */
+  .lgo .wrap {
+    padding: 0 20px;
+  }
+  /* nav apretado: logo sin lema, "Ingresar" y CTA compactos — a 360 px el
+     conjunto cabe con holgura y no aparece scroll horizontal */
   .lgo nav .btn {
-    padding: 11px 16px;
-    font-size: 11px;
+    padding: 9px 13px;
+    font-size: 11.5px;
     white-space: nowrap;
+    box-shadow: 2px 2px 0 var(--tinta);
+  }
+  .lgo .nav-in {
+    height: 58px;
+  }
+  .lgo .logo img {
+    width: 27px;
+    height: 27px;
+  }
+  .lgo .logo-txt {
+    font-size: 13.5px;
+  }
+  .lgo .logo-txt small {
+    display: none;
+  }
+  .lgo .nav-der {
+    gap: 11px;
+  }
+  .lgo .nav-der .entrar {
+    font-size: 12.5px;
   }
   /* hero: titular más contenido para no desbordar en iPhone */
+  .lgo .hero {
+    padding: 44px 0 34px;
+  }
   .lgo .hero h1 {
-    font-size: clamp(44px, 13vw, 64px);
+    font-size: clamp(30px, 8.6vw, 44px);
+  }
+  .lgo .marca {
+    padding: 0 10px;
+    border-width: 2px;
+    box-shadow: 3px 3px 0 var(--tinta);
+  }
+  .lgo .hero .sub {
+    font-size: 15.5px;
+  }
+  .lgo .btn {
+    font-size: 14px;
+    padding: 13px 22px;
+  }
+  .lgo .libro .sec-grid,
+  .lgo .panorama .sec-grid,
+  .lgo .exhibe-grid,
+  .lgo .maestro-grid,
+  .lgo .contra-grid {
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+  .lgo .indice a {
+    padding: 22px 20px;
+  }
+  .lgo .escenario {
+    padding: 0 20px;
+  }
+  .lgo .fonito {
+    width: 100%;
+    max-width: 264px;
+  }
+  .lgo .bur-foto .foto-borrosa {
+    width: 100%;
+    max-width: 190px;
+  }
+  .lgo .cierre {
+    padding: 70px 0;
+  }
+  .lgo .cierre h2 em {
+    padding: 0 10px;
+    border-width: 2px;
+    box-shadow: 3px 3px 0 var(--tinta);
+  }
+}
+
+@media (max-width: 400px) {
+  /* iPhone estrecho (360/375): el nav se aprieta un punto más para que logo +
+     "Ingresar" + CTA quepan sin scroll horizontal. */
+  .lgo .wrap,
+  .lgo .escenario {
+    padding: 0 16px;
+  }
+  .lgo .logo {
+    gap: 7px;
+  }
+  .lgo .logo img {
+    width: 25px;
+    height: 25px;
+  }
+  .lgo .logo-txt {
+    font-size: 12.5px;
+  }
+  .lgo .go {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+  .lgo .nav-der {
+    gap: 9px;
+  }
+  .lgo .nav-der .entrar {
+    font-size: 12px;
+  }
+  .lgo nav .btn {
+    padding: 8px 11px;
+    font-size: 10.5px;
+  }
+}
+
+@media (max-width: 340px) {
+  /* pantallas mínimas (320): manda el CTA; "Ingresar" sigue en /login */
+  .lgo .nav-der .entrar {
+    display: none;
   }
 }
 
@@ -1838,6 +2651,9 @@
   }
   .lgo .demo-sis {
     height: 168px;
+  }
+  .lgo .lp-top {
+    flex-wrap: wrap;
   }
 }
 

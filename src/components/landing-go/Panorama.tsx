@@ -34,7 +34,7 @@ export default function Panorama() {
   );
 
   return (
-    <section>
+    <section className="panorama">
       <div className="wrap sec-grid">
         <div className="sem-lista reveal" style={{ order: 0 }} ref={lista}>
           <div className="mono" style={{ color: "var(--gris)", marginBottom: 10 }}>

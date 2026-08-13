@@ -5,7 +5,7 @@ import { Check, Clock, MapPin } from "lucide-react";
  * "FIG. 01 — LA PRUEBA": el mismo avance del chat, ahora con pruebas. La
  * evidencia se muestra como una pieza de exhibición estilo polaroid (marco
  * blanco, ligeramente rotada, con el sello "Aprobado por ti" en la esquina y
- * los chips de GPS y hora en mono). Las filas de datos (tarea, quién reportó y
+ * los chips de GPS y hora sobre la foto). Las filas de datos (tarea, quién reportó y
  * el registro) rematan la ficha.
  */
 export default function LoQueCambia() {

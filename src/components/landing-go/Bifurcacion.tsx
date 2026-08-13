@@ -1,8 +1,8 @@
 /**
- * Índice de planos bajo la placa (bifurcación temprana): dos entradas-ancla
- * numeradas ("PLANO 01"/"PLANO 02" en mono, título Jost, flecha naranja) que
- * mandan al propietario a la escena (#escena) y al contratista a su bloque
- * (#contratista). Son anclas de navegación, no CTAs de lista de espera.
+ * Índice de planos bajo la placa (bifurcación temprana): dos tarjetas-ancla
+ * pastel ("PLANO 01" en azul, "PLANO 02" en ámbar) que mandan al propietario a
+ * la escena (#escena) y al contratista a su bloque (#contratista). Son anclas
+ * de navegación, no CTAs de lista de espera.
  */
 export default function Bifurcacion() {
   return (

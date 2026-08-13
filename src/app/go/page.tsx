@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@/components/landing-go/landing-go.css";
 
+import PromoBarGo from "@/components/landing-go/PromoBarGo";
 import NavBarGo from "@/components/landing-go/NavBarGo";
 import HeroGo from "@/components/landing-go/HeroGo";
 import ConfianzaGo from "@/components/landing-go/ConfianzaGo";
@@ -18,8 +19,10 @@ import FooterGo from "@/components/landing-go/FooterGo";
 import RevealsGo from "@/components/landing-go/RevealsGo";
 import ModalCupo from "@/components/landing-go/ModalCupo";
 
-// Landing B2C oficial "Seiricon Go" (Dirección visual «De obra», editorial-
-// arquitectónica, aprobada por Victor). Vive en la raíz de app (fuera del
+// Landing B2C oficial "Seiricon Go" (Dirección visual «Vivo/Aizome»: papel
+// kinari, tinta sumi, índigo estructural y ámbar al 5 %, con marcadores,
+// botones pill de sombra dura y tarjetas pastel — mockup aprobado en
+// docs/specs/mockups/go-vivo-aizome.html). Vive en la raíz de app (fuera del
 // grupo (public)) porque trae su propio chrome, igual que la home con
 // landing-v2. Reemplazó a /para-ti (que redirige aquí). CTA: lista de espera
 // (ModalCupo → /api/lista-espera-go).
@@ -39,7 +42,7 @@ export const metadata: Metadata = {
 export default function SeiriconGoPage() {
   return (
     <div className="lgo">
-      <div className="marco" aria-hidden="true" />
+      <PromoBarGo />
       <NavBarGo />
       <HeroGo />
       <ConfianzaGo />

@@ -1,10 +1,10 @@
 import CtaCupo from "./CtaCupo";
 
 /**
- * Cierre editorial «De obra»: texto gigante centrado sobre papel — "Tu obra te
- * está esperando." con "esperando." en azul plano, el eco emocional en Lora
- * itálica y el CTA final. Cierre tipográfico: se retiraron la foto de la
- * familia y las partículas del diseño «Cerca».
+ * Cierre: texto gigante centrado sobre papel — "Tu obra te está esperando."
+ * con "esperando." como marcador navy (mismo lenguaje que el titular del
+ * hero), el eco emocional y el CTA final. Cierre tipográfico: se retiraron la
+ * foto de la familia y las partículas del diseño «Cerca».
  */
 export default function CierreGo() {
   return (

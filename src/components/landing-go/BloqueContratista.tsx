@@ -3,11 +3,10 @@ import { Check } from "lucide-react";
 import CtaCupo from "./CtaCupo";
 
 /**
- * "FIG. 03 — SI SON TUS CLIENTES": bloque contratista en banda NOCHE editorial
- * (fondo oscuro, texto blanco). El link de transparencia como argumento de
- * venta, con el mock del link público que ve su cliente presentado como pieza
- * rotada con borde blanco. Su CTA (naranja) abre el ModalCupo con la audiencia
- * contratista preseleccionada.
+ * "FIG. 03 — SI SON TUS CLIENTES": bloque contratista como tarjeta pastel
+ * azul (lenguaje «Vivo/Aizome»), con el mock del link público que ve su
+ * cliente presentado como pieza rotada con borde tinta y sombra dura. Su CTA
+ * pill abre el ModalCupo con la audiencia contratista preseleccionada.
  */
 export default function BloqueContratista() {
   return (
@@ -36,12 +35,10 @@ export default function BloqueContratista() {
               Varias obras de varios clientes, en una sola pantalla.
             </li>
           </ul>
-          <CtaCupo origen="contratista" audiencia="contratista" className="btn btn-naranja">
+          <CtaCupo origen="contratista" audiencia="contratista" className="btn btn-azul">
             Reserva tu cupo de contratista
           </CtaCupo>
-          <div className="micro" style={{ color: "rgba(255,255,255,.5)" }}>
-            Primera obra gratis · Sin tarjeta
-          </div>
+          <div className="micro">Primera obra gratis · Sin tarjeta</div>
         </div>
         <div className="reveal">
           <div className="link-pub">

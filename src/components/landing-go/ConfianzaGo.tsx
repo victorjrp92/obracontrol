@@ -1,8 +1,7 @@
 /**
- * Placa editorial de 3 celdas justo debajo del hero (patrón ARQ): las tres
- * promesas duras, cada una con su título Jost en mayúsculas y su descripción
- * Lora, separadas por divisiones verticales. En móvil apilan (CSS). Estática
- * (Server Component).
+ * Placa de 3 celdas justo debajo del hero: las tres promesas duras, cada una
+ * en su tarjeta pastel gris con el título en Figtree 800. En móvil apilan
+ * (CSS). Estática (Server Component).
  */
 export default function ConfianzaGo() {
   return (
