@@ -41,6 +41,26 @@
 ## 👤 Perfil personal (todos los autenticados)
 - **CU-PF-01** `/dashboard/perfil` 🆕 — Edita tu nombre. Email/rol/constructora son administrativos (no editables).
 
+## 🆘 Seiricon Alerta (público, sin cuenta, sin tenant)
+- **CU-AL-01** `/alerta` 🆕 — Filtro de seguridad de 4 preguntas (AIS simplificado). Cualquier
+  "sí" corta el flujo a una pantalla "Salí ahora" con líneas de emergencia. Disclaimer
+  permanente: no reemplaza a un ingeniero estructural.
+- **CU-AL-02** `/alerta/documentar` 🆕 — Acta de daños: datos del inmueble + fotos por espacio
+  (fecha/hora/GPS quemados en la imagen) + nota opcional. Genera un PDF (`POST
+  /api/alerta/acta-pdf`) y permite enviarlo por correo (`POST /api/alerta/acta-email`). Tope
+  de 10 fotos / 8 espacios por acta. Nada se persiste en base de datos.
+- **CU-AL-03** `/alerta/grietas` 🆕 — Triage de una o varias grietas (hasta 5 por informe):
+  ubicar el elemento (Columna, Viga, "Muro que sostiene la casa", "Muro divisorio", "Techo o
+  losa", Piso, "No estoy seguro") → dos fotos guiadas (acercamiento con moneda de $500 COP +
+  elemento completo) → resultado en semáforo (rojo/amarillo/verde) con qué hacer y qué no
+  hacer → agregar otra grieta o terminar → puente con ingenieros (correo, WhatsApp si está
+  configurado, canal oficial de la ciudad). Genera un PDF (`POST
+  /api/alerta/informe-grietas-pdf`). Funciona con o sin IA: si `ANTHROPIC_API_KEY` y
+  `ALERTA_VISION_ENABLED=true` están configurados, un modelo de visión (Claude, vía REST sin
+  SDK) lee las fotos; si no, o si el usuario prefiere describirla él mismo, un formulario
+  manual arma la observación — en modo manual el resultado nunca llega a verde. Nada se
+  persiste en base de datos. Ver [spec Fase 2](./specs/2026-08-13-seiricon-alerta-fase2.md).
+
 ## Convenciones del producto
 - Mutaciones siempre por `/api/.../route.ts` con validación + log de error real
 - Layouts redirigen por rol; páginas hacen segundo guard
