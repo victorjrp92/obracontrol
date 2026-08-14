@@ -13,11 +13,11 @@ export default function ConfianzaGo() {
         </div>
         <div className="celda">
           <b className="disp">No pagas sin factura</b>
-          La plata entregada sin sustentar se pone en rojo, a tiempo.
+          El dinero entregado sin sustentar se pone en rojo, a tiempo.
         </div>
         <div className="celda">
           <b className="disp">Tu maestro, sin app</b>
-          Abre un link y toma la foto. Si sabe chatear, sabe reportar.
+          Abre un link y toma la foto. Si sabe enviar una foto, sabe reportar.
         </div>
       </div>
     </div>

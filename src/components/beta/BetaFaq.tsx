@@ -19,7 +19,7 @@ const preguntas = [
     a: "No. Funciona en el navegador de tu celular y, si quieres, se puede instalar como app con un toque.",
   },
   {
-    q: "¿Me van a estar llamando o mandando publicidad?",
+    q: "¿Me van a estar llamando o enviando publicidad?",
     a: "No. Solo te escribimos por WhatsApp para activarte. Sin spam.",
   },
   {

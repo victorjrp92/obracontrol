@@ -38,7 +38,7 @@ export default async function ObreroTokenLayout({
                 className="w-16 h-16 mx-auto mb-6"
               />
               <h1 className="text-xl font-bold text-slate-900 mb-2">
-                Enlace no valido
+                Enlace no válido
               </h1>
               <p className="text-base text-slate-500 leading-relaxed">
                 Este enlace ha expirado o fue desactivado. Contacta a tu

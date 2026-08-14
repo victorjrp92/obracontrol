@@ -38,7 +38,7 @@ export default function BetaHero() {
         {/* Subtítulo — aclara qué es Seiricon */}
         <p className="animate-fade-up max-w-xl text-base leading-relaxed text-white/60 sm:text-lg">
           Seiricon es la app para dueños y contratistas que quieren ver el avance
-          real de su obra —con foto, ubicación y hora— y controlar la plata, desde
+          real de su obra —con foto, ubicación y hora— y controlar el dinero, desde
           el celular. Deja de cruzar la ciudad para ver si de verdad avanzó.
         </p>
 

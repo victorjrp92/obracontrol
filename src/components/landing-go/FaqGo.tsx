@@ -29,7 +29,7 @@ export default function FaqGo() {
         <details className="reveal">
           <summary>¿Esto no daña la confianza con mi maestro?</summary>
           <p>
-            Al revés. Hoy la confianza se desgasta a punta de &ldquo;¿cómo va?&rdquo; y
+            Al revés. Hoy la confianza se desgasta a fuerza de &ldquo;¿cómo va?&rdquo; y
             &ldquo;mándame una foto&rdquo;. Con Seiricon Go él demuestra su trabajo sin que se lo
             pidan, y tú apruebas y pagas tranquilo. La evidencia protege a los dos.
           </p>

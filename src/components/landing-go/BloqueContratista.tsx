@@ -16,9 +16,9 @@ export default function BloqueContratista() {
           <span className="fig">FIG. 03 — SI SON TUS CLIENTES</span>
           <h2>El mismo link que tranquiliza a un dueño es tu mejor carta de presentación.</h2>
           <p className="txt">
-            Envíale a cada cliente un link de transparencia: ve el avance en vivo — qué va, qué
-            falta, fotos con ubicación y hora — sin crear cuenta. Menos llamadas de &ldquo;¿cómo
-            va lo mío?&rdquo;, más clientes que te recomiendan.
+            Envíale a cada cliente un link de transparencia: ve el avance en vivo — qué está
+            hecho, qué falta, fotos con ubicación y hora — sin crear cuenta. Menos llamadas de
+            &ldquo;¿cómo va mi obra?&rdquo;, más clientes que te recomiendan.
           </p>
           <ul className="bullets">
             <li>

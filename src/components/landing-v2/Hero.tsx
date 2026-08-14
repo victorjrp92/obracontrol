@@ -44,7 +44,7 @@ export default function Hero() {
           bajo control
         </h1>
         <p className="sub">
-          Así trabaja Seiricon: el avance llega con foto, GPS y hora, tú lo apruebas y la plata
+          Así trabaja Seiricon: el avance llega con foto, GPS y hora, tú lo apruebas y el dinero
           queda al día — todo en una pantalla.
         </p>
         {/* flex con gap: en ≤390px los dos botones no caben en una línea y,
@@ -73,7 +73,7 @@ export default function Hero() {
             <Check className="uso-ic" aria-hidden="true" /> Aprobar avances con foto y GPS
           </span>
           <span className="uso">
-            <CircleDollarSign className="uso-ic" aria-hidden="true" /> Controlar la plata de la
+            <CircleDollarSign className="uso-ic" aria-hidden="true" /> Controlar el dinero de la
             obra
           </span>
         </div>

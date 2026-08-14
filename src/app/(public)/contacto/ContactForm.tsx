@@ -4,11 +4,11 @@ import { useState } from "react";
 import { Send, Loader2 } from "lucide-react";
 
 const ASUNTOS = [
-  "Informacion general",
+  "Información general",
   "Solicitar demo",
-  "Soporte tecnico",
+  "Soporte técnico",
   "Derechos de datos personales",
-  "Facturacion y pagos",
+  "Facturación y pagos",
   "Otro",
 ];
 
@@ -42,7 +42,7 @@ export default function ContactForm() {
         setResultado({ ok: false, msg: data.error ?? "Error al enviar el mensaje." });
       }
     } catch {
-      setResultado({ ok: false, msg: "Error de conexion. Intenta de nuevo." });
+      setResultado({ ok: false, msg: "Error de conexión. Inténtalo de nuevo." });
     } finally {
       setEnviando(false);
     }
@@ -63,7 +63,7 @@ export default function ContactForm() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="contact-email" className="text-sm font-medium text-slate-700">Correo electronico</label>
+          <label htmlFor="contact-email" className="text-sm font-medium text-slate-700">Correo electrónico</label>
           <input
             id="contact-email"
             type="email"
@@ -105,7 +105,7 @@ export default function ContactForm() {
 
       <p className="text-xs text-slate-500 -mt-1">
         Al enviar este formulario aceptas nuestra{" "}
-        <a href="/privacidad" className="text-blue-600 hover:text-blue-700">politica de tratamiento de datos</a>.
+        <a href="/privacidad" className="text-blue-600 hover:text-blue-700">política de tratamiento de datos</a>.
       </p>
 
       {resultado && (

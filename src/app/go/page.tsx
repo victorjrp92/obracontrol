@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Seiricon Go — Nadie cuida tu proyecto como tú",
     description:
-      "Tu obra con pruebas: foto, GPS y hora en cada avance, la plata con factura y el semáforo que avisa a tiempo. Estés donde estés.",
+      "Tu obra con pruebas: foto, GPS y hora en cada avance, el dinero con factura y el semáforo que avisa a tiempo. Estés donde estés.",
     locale: "es_CO",
     type: "website",
   },

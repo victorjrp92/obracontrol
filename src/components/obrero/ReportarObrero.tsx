@@ -249,7 +249,7 @@ export default function ReportarObrero({
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
-          placeholder="Escribe alguna anotacion si es necesario"
+          placeholder="Escribe alguna anotación si es necesario"
           rows={3}
           className="w-full p-4 rounded-xl border border-slate-200 text-base focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
         />

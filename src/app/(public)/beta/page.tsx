@@ -16,11 +16,11 @@ import BetaStickyCta from "@/components/beta/BetaStickyCta";
 export const metadata: Metadata = {
   title: "Beta gratis — Controla tu obra sin ir todos los días",
   description:
-    "Ve el avance de tu obra con foto, ubicación y hora, y controla tu plata, desde el celular. Beta gratis de Seiricon: solo 16 cupos (8 propietarios + 8 contratistas).",
+    "Ve el avance de tu obra con foto, ubicación y hora, y controla tu dinero, desde el celular. Beta gratis de Seiricon: solo 16 cupos (8 propietarios + 8 contratistas).",
   openGraph: {
     title: "Seiricon Beta — Controla tu obra sin ir todos los días",
     description:
-      "Evidencia con foto + GPS + hora y control de tu plata, desde el celular. Beta gratis: solo 16 cupos.",
+      "Evidencia con foto + GPS + hora y control de tu dinero, desde el celular. Beta gratis: solo 16 cupos.",
     type: "website",
   },
 };

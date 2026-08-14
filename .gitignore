@@ -56,3 +56,6 @@ next-env.d.ts
 landing-*.png
 hero-*.png
 *-mobile.png
+
+# artefactos de generación de documentos de ventas (docx/pptx)
+docs/ventas/build/

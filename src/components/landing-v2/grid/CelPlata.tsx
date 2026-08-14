@@ -3,7 +3,7 @@
 import { useLoopDemo } from "./useLoopDemo";
 
 /**
- * Micro-demo de plata sustentada: el número cuenta de $0 a $268M
+ * Micro-demo de dinero sustentado: el número cuenta de $0 a $268M
  * (tabular-nums) y al final aparece "/ $310M sustentado". Loop con pausa.
  * El markup por defecto ya es el estado final (sirve para reduced-motion).
  */
@@ -54,7 +54,7 @@ export default function CelPlata() {
         <b className="pl-num">$268M</b>
         <span className="pl-sub">/ $310M sustentado</span>
       </div>
-      <h4>Plata sustentada</h4>
+      <h4>Dinero sustentado</h4>
       <p>Anticipos, facturas y presupuesto cruzados. Lo que falta por sustentar, en rojo.</p>
     </div>
   );

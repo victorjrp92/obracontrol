@@ -31,7 +31,7 @@ export default function ObjecionMaestro() {
           <h2>¿Y el maestro qué tiene que hacer?</h2>
           <p className="txt">
             Abrir un link y tomar una foto. Eso es todo. Sin instalar nada, sin crear cuenta, sin
-            claves. Si sabe mandar una foto por chat, ya sabe reportar en Seiricon Go.
+            claves. Si sabe enviar una foto por chat, ya sabe reportar en Seiricon Go.
           </p>
           <div className="pasos-link">
             <div className="paso-l">

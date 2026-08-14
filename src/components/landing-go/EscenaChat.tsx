@@ -39,7 +39,7 @@ export default function EscenaChat() {
           <p className="txt">
             No es mala fe. Es que un chat no se hizo para llevar una obra: las fotos se pierden,
             nada tiene fecha confiable, y preguntar mucho suena a desconfianza. Mientras tanto, tu
-            plata sí se está moviendo.
+            dinero sí se está moviendo.
           </p>
         </div>
         <div className="chat reveal" ref={chat}>

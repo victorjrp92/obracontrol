@@ -22,7 +22,7 @@ export default function FiguraDashboard() {
           <div className="puntos">
             <span>Semáforo de plazos en cada proyecto y cada tarea</span>
             <span>Mapa con todas tus obras y su avance</span>
-            <span>Lo que requiere acción, arriba y de primero</span>
+            <span>Lo que requiere acción, arriba y en primer lugar</span>
           </div>
         </div>
         <div className="shot reveal-shot esquinas">

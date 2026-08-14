@@ -19,7 +19,7 @@ export default function HeroGo() {
         </h1>
         <p className="sub">
           Cada avance de tu obra te llega con foto, ubicación y hora — y tú lo apruebas desde tu
-          celular, así estés a diez mil kilómetros.
+          celular, aunque estés a diez mil kilómetros.
         </p>
         <div className="hero-cta">
           <CtaCupo origen="hero" className="btn btn-azul">

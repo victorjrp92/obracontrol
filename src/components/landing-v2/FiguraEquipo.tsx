@@ -44,9 +44,9 @@ export default function FiguraEquipo() {
             FIG. 03 — ROLES Y PERMISOS
           </span>
           <span className="eyebrow">Tu equipo</span>
-          <h2>Cada quien ve exactamente lo que le toca</h2>
+          <h2>Cada quien ve exactamente lo que le corresponde</h2>
           <p className="txt">
-            Tú decides quién entra a qué. Nadie ve de más, nadie queda por fuera de lo suyo — y
+            Tú decides quién entra a qué. Nadie ve de más, nadie queda fuera de lo suyo — y
             cada acción queda registrada con nombre y hora.
           </p>
           <div className="puntos">

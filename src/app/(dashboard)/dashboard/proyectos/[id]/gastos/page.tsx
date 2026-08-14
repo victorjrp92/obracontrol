@@ -121,7 +121,7 @@ export default async function GastosProyectoPage({
 
   return (
     <>
-      <Topbar title={`Gastos · ${proyecto.nombre}`} subtitle="¿En qué se va tu plata?" />
+      <Topbar title={`Gastos · ${proyecto.nombre}`} subtitle="¿En qué se va tu dinero?" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Link
           href={`/dashboard/proyectos/${id}`}

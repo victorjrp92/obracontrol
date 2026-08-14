@@ -161,7 +161,7 @@ export default function ModalCupo() {
                   onClick={() => setAudiencia("propietario")}
                 >
                   <House size={16} strokeWidth={2.2} aria-hidden="true" />
-                  Construyo o remodelo lo mío
+                  Construyo o remodelo mi inmueble
                 </button>
                 <button
                   type="button"
@@ -206,7 +206,7 @@ export default function ModalCupo() {
                 </div>
               ) : (
                 <div className="cupo-campo">
-                  <label htmlFor="lgo-cupo-obras">¿Cuántas obras manejas al tiempo?</label>
+                  <label htmlFor="lgo-cupo-obras">¿Cuántas obras manejas a la vez?</label>
                   <select
                     id="lgo-cupo-obras"
                     value={obras}

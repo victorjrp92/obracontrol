@@ -114,7 +114,7 @@ export default function LiveDemo() {
         return t;
       };
 
-      /** ① Aprobar evidencia: foto + GPS → cursor aprueba → toast → plata al día. */
+      /** ① Aprobar evidencia: foto + GPS → cursor aprueba → toast → dinero al día. */
       const seq1 = () => {
         const t = gsap.timeline();
         t.add(() => {
@@ -168,7 +168,7 @@ export default function LiveDemo() {
         return t;
       };
 
-      /** ② Se registra un gasto: fila nueva, monto tipeándose, la plata se actualiza. */
+      /** ② Se registra un gasto: fila nueva, monto tipeándose, el dinero se actualiza. */
       const prep2 = () => {
         st.classList.remove("ok");
         stTxt.textContent = "Registrando gasto…";
@@ -205,7 +205,7 @@ export default function LiveDemo() {
         );
         t.add(() => {
           st.classList.add("ok");
-          stTxt.textContent = "Plata al día — factura adjunta";
+          stTxt.textContent = "Dinero al día — factura adjunta";
         }, 3.0);
         t.add(() => toast.classList.remove("on"), 4.9);
         t.to({}, { duration: 0.7 });

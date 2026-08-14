@@ -7,7 +7,7 @@ const pasos = [
     icon: Sparkles,
     color: "bg-blue-600",
     titulo: "Armas tu obra en minutos",
-    texto: "Con ayuda de la IA defines tareas, tiempos y presupuesto. Sin planillas eternas.",
+    texto: "Con ayuda de la IA defines tareas, tiempos y presupuesto. Sin formularios interminables.",
   },
   {
     numero: "2",

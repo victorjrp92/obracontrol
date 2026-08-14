@@ -63,7 +63,7 @@ export default async function ObreroTareaPage({
             </p>
           )}
           <p className="text-xs text-red-400 mt-1">
-            Vuelve a tomar fotos y envia de nuevo.
+            Vuelve a tomar fotos y envía de nuevo.
           </p>
         </div>
       )}
@@ -83,10 +83,10 @@ export default async function ObreroTareaPage({
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Clock className="w-14 h-14 text-amber-500 mb-4" />
           <h2 className="text-xl font-bold text-amber-700 mb-2">
-            Esperando aprobacion
+            Esperando aprobación
           </h2>
           <p className="text-base text-slate-500">
-            Tu contratista esta revisando esta tarea.
+            Tu contratista está revisando esta tarea.
           </p>
         </div>
       )}

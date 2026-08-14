@@ -131,7 +131,7 @@ export default function GastosClient({
       : null;
   const sobrepasado = presupuestoTotal != null && gastadoTotal > presupuestoTotal;
 
-  // Vista 2: Plata entregada vs sustentada
+  // Vista 2: Dinero entregado vs sustentado
   // sin sustentar = anticipos − gastos aprobados (la alarma)
   const sinSustentar = sumaAnticipos - sumaAprobados;
 
@@ -192,7 +192,7 @@ export default function GastosClient({
           )}
         </div>
 
-        {/* Vista 2: Plata entregada vs sustentada (LA ALARMA) */}
+        {/* Vista 2: Dinero entregado vs sustentado (LA ALARMA) */}
         <div
           className={`rounded-2xl border p-5 ${
             sinSustentar > 0 ? "border-red-300 bg-red-50" : "border-green-200 bg-green-50/60"
@@ -713,7 +713,7 @@ function Anticipos({
     setError(null);
     const monto = parseMonto(montoStr);
     if (monto <= 0) {
-      setError("Pon cuánto le entregaste.");
+      setError("Indica cuánto le entregaste.");
       return;
     }
     setEnviando(true);
@@ -746,7 +746,7 @@ function Anticipos({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <HandCoins className="w-5 h-5 text-slate-700" />
-          <h2 className="font-bold text-slate-900">Plata que entregaste</h2>
+          <h2 className="font-bold text-slate-900">Dinero que entregaste</h2>
         </div>
         {!abierto && (
           <button

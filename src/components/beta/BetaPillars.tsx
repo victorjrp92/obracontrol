@@ -12,9 +12,9 @@ const pilares = [
   {
     icon: Wallet,
     color: "bg-orange-500",
-    titulo: "Control de tu plata",
+    titulo: "Control de tu dinero",
     texto:
-      "Presupuesto, anticipos con factura y la alarma de «plata entregada vs. sustentada». Sabes en qué se va cada peso.",
+      "Presupuesto, anticipos con factura y la alarma de «dinero entregado vs. sustentado». Sabes en qué se va cada peso.",
   },
   {
     icon: Smartphone,

@@ -375,7 +375,7 @@ PENDIENTE → [contratista/obrero reporta] → REPORTADA → [supervisor revisa]
 
 ## 12. Gastos y anticipos
 
-> El módulo de control de plata del proyecto. Accede desde **Proyecto → Gastos**.
+> El módulo de control del dinero del proyecto. Accede desde **Proyecto → Gastos**.
 > Registran: Administrador General, Administrador de Proyecto y Directivo. Aprueban gastos: Administrador General, Directivo y Admin de Proyecto con permiso de aprobación.
 
 ### Registrar un gasto
@@ -390,7 +390,7 @@ Un gasto pasa por tres estados: **Registrado → Aprobado / Rechazado**. Solo lo
 - **Presupuesto total** = el definido en el proyecto.
 - Muestra el **% usado** y alerta en rojo si se sobrepasa el presupuesto.
 
-### Vista 2 — Plata entregada vs. sustentada (la alarma)
+### Vista 2 — Dinero entregado vs. sustentado (la alarma)
 
 Esta es la vista que evita fugas de dinero:
 
@@ -561,9 +561,9 @@ El Administrador General tiene control total. El Administrador de Proyecto solo 
 
 No. El contratista **reporta** con evidencia, pero la aprobación o el rechazo siempre lo hace un administrador o el directivo.
 
-### ¿Cómo controlo que no se pierda plata en la obra?
+### ¿Cómo controlo que no se pierda dinero en la obra?
 
-Con el módulo de **Gastos y anticipos** (sección 12): la vista "plata entregada vs. sustentada" te muestra en rojo cualquier anticipo entregado que aún no tenga factura que lo justifique.
+Con el módulo de **Gastos y anticipos** (sección 12): la vista "dinero entregado vs. sustentado" te muestra en rojo cualquier anticipo entregado que aún no tenga factura que lo justifique.
 
 ### ¿La evidencia trae ubicación y hora?
 

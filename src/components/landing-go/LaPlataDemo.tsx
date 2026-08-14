@@ -5,7 +5,7 @@ import CursorGo from "./CursorGo";
 import { useLoopGo, moverCursor, tipear } from "./useLoopGo";
 
 /**
- * Visual de "Tu plata": pantalla con proporción móvil (solo la pantalla, sin
+ * Visual de "Tu dinero": pantalla con proporción móvil (solo la pantalla, sin
  * marco de teléfono) registrando un gasto en loop — monto tipeándose, la
  * miniatura del recibo aparece con flash en "Foto de la factura", el cursor
  * fantasma pulsa "Guardar gasto" — y la fila del gasto APARECE en la lista
@@ -127,7 +127,7 @@ export default function LaPlataDemo() {
         </div>
         <div className="g-row g-rojo on">
           <div>
-            <b>Plata entregada al maestro</b>
+            <b>Dinero entregado al maestro</b>
           </div>
           <div className="g-fac">
             <span className="g-monto">$800.000</span>

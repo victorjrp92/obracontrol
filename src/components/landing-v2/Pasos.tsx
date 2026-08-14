@@ -24,7 +24,7 @@ export default function Pasos() {
             <span className="n">PASO 3</span>
             <h4>Tú decides con datos</h4>
             <p>
-              Semáforo de plazos en cinco niveles, plata sustentada y todas tus obras en un mapa. La
+              Semáforo de plazos en cinco niveles, dinero sustentado y todas tus obras en un mapa. La
               visita a obra vuelve a ser una decisión.
             </p>
           </div>

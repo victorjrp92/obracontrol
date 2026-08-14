@@ -36,8 +36,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm leading-relaxed mb-5">
-              Control integral de proyectos de construccion.
-              Visibilidad total, evidencia verificable, decisiones en tiempo real.
+              Control integral de proyectos de construcción.
               Visibilidad total, evidencia verificable, decisiones en tiempo real.
             </p>
             <div className="flex flex-col gap-2 text-sm">
@@ -74,7 +73,7 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <span>© {new Date().getFullYear()} Seiricon. Todos los derechos reservados.</span>
-          <span className="text-slate-600">Hecho en Latinoamerica para la industria de la construccion</span>
+          <span className="text-slate-600">Hecho en Latinoamérica para la industria de la construcción</span>
         </div>
       </div>
     </footer>

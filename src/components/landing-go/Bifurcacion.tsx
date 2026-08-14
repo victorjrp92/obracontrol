@@ -10,14 +10,14 @@ export default function Bifurcacion() {
       <div className="wrap indice-grid">
         <a href="#escena" className="reveal">
           <span className="num">PLANO 01</span>
-          <b className="disp">Construyo o remodelo lo mío</b>
+          <b className="disp">Construyo o remodelo mi inmueble</b>
           <p>La casa que estás pagando tú, vista con tus propios ojos, estés donde estés.</p>
           <span className="flecha">Así funciona →</span>
         </a>
         <a href="#contratista" className="reveal">
           <span className="num">PLANO 02</span>
           <b className="disp">Manejo obras de clientes</b>
-          <p>Eres maestro o remodelador y quieres clientes tranquilos que paguen sin pelear.</p>
+          <p>Eres maestro o remodelador y quieres clientes tranquilos que paguen sin discusiones.</p>
           <span className="flecha">Tu parte está aquí →</span>
         </a>
       </div>

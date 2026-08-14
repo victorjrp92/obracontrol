@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Correo electronico no valido" }, { status: 400 });
+      return NextResponse.json({ error: "Correo electrónico no válido" }, { status: 400 });
     }
 
     await prisma.mensajeContacto.create({

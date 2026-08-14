@@ -2,7 +2,7 @@ import Image from "next/image";
 import VideoLoop from "./VideoLoop";
 
 /**
- * FIG.04 — La plata. Video real (v2, regrabado): se registra un gasto en cámara
+ * FIG.04 — El dinero. Video real (v2, regrabado): se registra un gasto en cámara
  * y luego la lista de gastos. El lenguaje es el mismo del dashboard de gastos
  * de la app ("¿Te están sustentando?", "No pagas sin factura"): la página
  * promete con las palabras con las que la app cumple. f3 (planos sobre la
@@ -14,7 +14,7 @@ export default function SeccionGastos() {
       <div className="wrap sec-grid">
         <div className="sec-copy reveal">
           <span className="mono" style={{ color: "var(--gris)", display: "block", marginBottom: 8 }}>
-            FIG. 04 — LA PLATA
+            FIG. 04 — EL DINERO
           </span>
           <span className="eyebrow">¿Te están sustentando?</span>
           <h2>Cada peso entregado, cruzado con su factura</h2>
@@ -24,7 +24,7 @@ export default function SeccionGastos() {
             hojas de cálculo sueltas.
           </p>
           <div className="puntos">
-            <span>No pagas sin factura: lo no justificado aparece en rojo, de una</span>
+            <span>No pagas sin factura: lo no justificado aparece en rojo, al instante</span>
             <span>Anticipos y facturas ligados a cada proyecto</span>
             <span>Reportes de gasto listos para presentar</span>
           </div>

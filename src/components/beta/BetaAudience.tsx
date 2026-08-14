@@ -7,17 +7,17 @@ const perfiles = [
     etiqueta: "Propietario",
     color: "bg-blue-600",
     texto:
-      "Remodelas o construyes lo tuyo y quieres control del avance, del presupuesto y de los pagos, sin vivir en la obra.",
-    resultado: "Duermes tranquilo: ves con pruebas que tu plata está avanzando.",
+      "Remodelas o construyes tu inmueble y quieres control del avance, del presupuesto y de los pagos, sin vivir en la obra.",
+    resultado: "Duermes tranquilo: ves con pruebas que tu dinero está avanzando.",
   },
   {
     icon: HardHat,
     etiqueta: "Contratista",
     color: "bg-orange-500",
     texto:
-      "Tienes un negocio de un oficio (pintura, carpintería, eléctricos, cocinas…) y mandas tu gente a obras de clientes. Quieres verte pro y controlar a distancia.",
+      "Tienes un negocio de un oficio (pintura, carpintería, eléctricos, cocinas…) y envías a tu gente a obras de clientes. Quieres verte profesional y controlar a distancia.",
     resultado:
-      "Te ves profesional: tu cliente ve el avance en vivo y te paga sin pelear.",
+      "Te ves profesional: tu cliente ve el avance en vivo y te paga sin discusiones.",
   },
 ];
 

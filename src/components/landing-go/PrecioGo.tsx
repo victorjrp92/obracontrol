@@ -16,7 +16,7 @@ export default function PrecioGo() {
             pequeña.
           </p>
           <p className="g2">
-            Cuando necesites llevar más obras al tiempo, pasas a un plan pago. Así de simple.
+            Cuando necesites llevar más obras a la vez, pasas a un plan pago. Así de simple.
           </p>
           <CtaCupo origen="precio">Reserva tu cupo</CtaCupo>
           <div className="micro">Primera obra gratis · Sin tarjeta</div>

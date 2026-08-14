@@ -13,7 +13,7 @@ export default function ContactoPage() {
       <div className="text-center mb-12">
         <h1 className="text-3xl font-extrabold text-slate-900 mb-3">Contacto</h1>
         <p className="text-slate-600 text-sm max-w-lg mx-auto">
-          Tienes preguntas sobre la plataforma, necesitas una demo personalizada o quieres ejercer
+          ¿Tienes preguntas sobre la plataforma, necesitas una demo personalizada o quieres ejercer
           tus derechos como titular de datos? Estamos para ayudarte.
         </p>
       </div>
@@ -23,21 +23,21 @@ export default function ContactoPage() {
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
             <Mail className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-sm font-semibold text-slate-900 mb-1">Correo electronico</div>
+          <div className="text-sm font-semibold text-slate-900 mb-1">Correo electrónico</div>
           <a href="mailto:info@seiricon.com" className="text-sm text-blue-600 hover:text-blue-700">info@seiricon.com</a>
         </div>
         <div className="flex flex-col items-center text-center p-5 rounded-xl bg-white border border-slate-100">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
             <Phone className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-sm font-semibold text-slate-900 mb-1">Telefono</div>
+          <div className="text-sm font-semibold text-slate-900 mb-1">Teléfono</div>
           <a href="tel:+573151760351" className="text-sm text-slate-600">+57 315 176 0351</a>
         </div>
         <div className="flex flex-col items-center text-center p-5 rounded-xl bg-white border border-slate-100">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-3">
             <MapPin className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-sm font-semibold text-slate-900 mb-1">Ubicacion</div>
+          <div className="text-sm font-semibold text-slate-900 mb-1">Ubicación</div>
           <span className="text-sm text-slate-600">Cali, Colombia</span>
         </div>
       </div>
