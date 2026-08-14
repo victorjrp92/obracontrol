@@ -17,7 +17,8 @@
     "db:backfill-numeros": "npx tsx scripts/backfill-numero-registro.ts",
     "db:demo-clean": "npx tsx scripts/demo-clean.ts",
     "db:demo-seed": "npx tsx scripts/seed-demo-content.ts",
-    "db:seed-camara": "npx tsx scripts/seed-demo-camara.ts"
+    "db:seed-camara": "npx tsx scripts/seed-demo-camara.ts",
+    "verify:alerta": "tsx scripts/verificar-reglas-alerta.ts && tsx scripts/verificar-triage-alerta.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

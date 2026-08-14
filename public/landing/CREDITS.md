@@ -24,3 +24,13 @@ Grabaciones propias (Playwright) sobre datos demo "Constructora Horizonte Demo" 
 - go-familia-casa.jpg — Unsplash · Alexander Mass · unsplash.com/photos/7nEpVIMFys0 (familia frente a su casa — hero)
 - go-familia-ladrillo.jpg — Unsplash · rylan krupp · unsplash.com/photos/55rGIXarlD0 (familia frente a casa de ladrillo — cierre)
 - go-obra-atardecer.jpg — Unsplash · Julian Gojani · unsplash.com/photos/4rlIsAuFJAY (tejados al atardecer con grúa — hero «De obra»)
+
+## Línea "Juntos" (/go/juntos) — post-sismo · elegidas por Victor 2026-08-14
+Todas Unsplash, licencia libre para uso comercial. Tono: acompañamiento, sin imágenes de destrucción.
+- juntos-hombros.jpg — Darwin Boaventura · unsplash.com/photos/p8u80Uz1gkM (brazo sobre los hombros, banca — HERO)
+- juntos-manos-taller.jpg — Rémi Walle · unsplash.com/photos/UOwvwZ9Dy6w (manos que se encuentran, taller)
+- juntos-manos-cuidado.jpg — Jem Sahagun · unsplash.com/photos/O33vBPD6hAw (manos sostenidas)
+- juntos-manos-calido.jpg — Fethi Benattalla · unsplash.com/photos/Uzz31_1ATRI (manos que se buscan, cálido)
+- juntos-manos-mesa.jpg — Priscilla Du Preez · unsplash.com/photos/aPa843frIzI (secundaria)
+- juntos-mano-cielo.jpg — Austin Kehmeier · unsplash.com/photos/lyiKExA4zQA (secundaria)
+- juntos-barrio.jpg — Sergio Aguirre · unsplash.com/photos/uzDKu--eFMU (secundaria, contexto)
