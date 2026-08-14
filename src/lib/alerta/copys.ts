@@ -10,8 +10,8 @@
 import type { Elemento, Nivel } from "./tipos";
 
 export const COPY_NIVEL: Record<Nivel, string> = {
-  rojo: "Salí y buscá evaluación urgente.",
-  amarillo: "Documentá y que un ingeniero la revise antes de seguir viviendo normal.",
+  rojo: "Sal y busca evaluación urgente.",
+  amarillo: "Documenta y que un ingeniero la revise antes de seguir viviendo normal.",
   verde: "No vemos señales de alarma en esta foto",
 };
 

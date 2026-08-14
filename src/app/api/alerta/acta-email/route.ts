@@ -5,14 +5,18 @@ import { MAX_BODY_BYTES, mensajeActaMuyPesada, validarActaPayload } from "@/lib/
 import { sendEmail } from "@/lib/email";
 import { baseEmailHtml } from "@/lib/email-templates/base";
 import { escapeHtml } from "@/lib/email-templates/escape";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
 
 // Público, sin auth. Mismo payload que acta-pdf + `email` (+ `honeypot`
-// oculto, ver spec addendum R3: no hay rate limiting en el repo, esta es la
-// mitigación mínima). Envío efímero: NO crea fila en DB, no hay
-// `MensajeContacto` de por medio. Ver spec sección C.4.
+// oculto). Envío efímero: NO crea fila en DB, no hay `MensajeContacto` de
+// por medio. Ver spec sección C.4.
+// NOTA Juntos (spec-go-juntos.md, Seguridad): esta ruta NO se monta en el
+// flujo /go/juntos (conflicto con la promesa de cédula) — el acta de Juntos
+// llega solo por descarga. Se conserva con rate limit por ser pública.
 export const maxDuration = 60;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_POR_MINUTO_POR_IP = 4;
 
 // POST /api/alerta/acta-email — genera el PDF (igual que acta-pdf) y lo envía por Resend como adjunto.
 export async function POST(req: NextRequest) {
@@ -20,6 +24,12 @@ export async function POST(req: NextRequest) {
     const contentLength = req.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
       return NextResponse.json({ error: mensajeActaMuyPesada() }, { status: 413 });
+    }
+
+    // Rate limit en memoria por IP: al pasarse, éxito falso (como el
+    // honeypot) para no darle señal al que abusa.
+    if (!permitirPeticion(`alerta-email:${claveDesdeHeaders(req.headers)}`, MAX_POR_MINUTO_POR_IP)) {
+      return NextResponse.json({ ok: true });
     }
 
     const raw = await req.text();
@@ -74,8 +84,9 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error("POST /api/alerta/acta-email", error);
+  } catch {
+    // Nunca serializar el body ni el error a logs (fotos en base64 + correo).
+    console.error("POST /api/alerta/acta-email: error interno");
     return NextResponse.json({ error: "No pudimos enviar el correo. Intenta de nuevo." }, { status: 500 });
   }
 }

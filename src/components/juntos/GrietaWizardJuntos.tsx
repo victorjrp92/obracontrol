@@ -1,0 +1,294 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { blobToDataUrl } from "@/lib/media/overlay";
+import { MAX_BODY_BYTES, estimarBytesBase64 } from "@/lib/alerta/acta";
+import {
+  evaluarTriageGrieta,
+  type EntradaTriage,
+  type FuenteObservacion,
+  type GrietaEvaluada,
+  type RespuestaPasante,
+} from "@/lib/alerta/triage";
+import { COPY_SIN_IA } from "@/lib/alerta/copys";
+import type { Banderas, Elemento, ObservacionGrieta, Patron } from "@/lib/alerta/tipos";
+import UbicarGrietaJuntos from "./UbicarGrietaJuntos";
+import GrietaCameraCaptureJuntos, { type CapturedPhotoGrieta } from "./GrietaCameraCaptureJuntos";
+import DescribirGrietaManualJuntos from "./DescribirGrietaManualJuntos";
+import ResultadoGrietaJuntos from "./ResultadoGrietaJuntos";
+import ResumenInmuebleJuntos from "./ResumenInmuebleJuntos";
+import PostDescarga from "./PostDescarga";
+
+type Paso = "ubicar" | "fotos" | "manual" | "resultado" | "resumen" | "post";
+
+/** Una grieta ya evaluada + las dos fotos de evidencia que la respaldan. */
+export interface GrietaGuardada {
+  id: string;
+  evaluada: GrietaEvaluada;
+  notaVisual: string | null;
+  fotoCerca: CapturedPhotoGrieta;
+  fotoLejos: CapturedPhotoGrieta;
+}
+
+/** Confianza alta fija para observaciones armadas a mano (spec D4). */
+const CONFIANZA_MANUAL = { elemento: 0.9, patron: 0.9, ancho: 0.9 };
+
+/**
+ * Flujo completo del wizard de grietas de «Juntos» (/go/juntos/revisar) —
+ * adaptado de GrietaWizard de Karen. Su máquina de estados y el single-flight
+ * de la llamada a observar-grieta se conservan (están bien hechos). Cambios
+ * Juntos (spec-go-juntos.md): re-skin Aizome, corrección del bug de
+ * revokeObjectURL (las fotos YA GUARDADAS en `grietas` no se revocan al
+ * limpiar la grieta en construcción), y pantalla post-descarga con las
+ * tarjetas-gancho como paso final. Todo vive en memoria del navegador: nada
+ * se persiste, el PDF se genera bajo demanda.
+ */
+export default function GrietaWizardJuntos() {
+  const [paso, setPaso] = useState<Paso>("ubicar");
+  const [grietas, setGrietas] = useState<GrietaGuardada[]>([]);
+  const [terminado, setTerminado] = useState(false);
+
+  // Grieta en construcción (aún no evaluada).
+  const [declarado, setDeclarado] = useState<Elemento | null>(null);
+  const [fotoCerca, setFotoCerca] = useState<CapturedPhotoGrieta | null>(null);
+  const [fotoLejos, setFotoLejos] = useState<CapturedPhotoGrieta | null>(null);
+  const [pasante, setPasante] = useState<RespuestaPasante>("no_se");
+  const [analizando, setAnalizando] = useState(false);
+  const [avisoSinIA, setAvisoSinIA] = useState(false);
+  const [resultadoActual, setResultadoActual] = useState<{ evaluada: GrietaEvaluada; notaVisual: string | null } | null>(
+    null
+  );
+
+  // Single-flight de la llamada a observar-grieta + guarda contra respuestas
+  // tardías si el usuario elige "prefiero describirla yo" con la petición en vuelo.
+  const solicitudEnVuelo = useRef(false);
+  const idSolicitud = useRef(0);
+
+  // Informe en PDF.
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+  const [errorPdf, setErrorPdf] = useState<string | null>(null);
+
+  const totalBytesEvidencia = grietas.reduce(
+    (n, g) => n + g.fotoCerca.blobEvidencia.size + g.fotoLejos.blobEvidencia.size,
+    0
+  );
+  const presupuestoAgotado = estimarBytesBase64(totalBytesEvidencia) >= MAX_BODY_BYTES;
+
+  /**
+   * Limpia la grieta en construcción DESPUÉS de guardarla en `grietas`.
+   * CORRECCIÓN del spec: aquí NO se revocan los object URLs — las fotos ya
+   * pertenecen a la grieta guardada (el bug de Karen las revocaba y dejaba
+   * previews muertos). Los URLs viven hasta que se cierre la página.
+   */
+  function limpiarTrasGuardar() {
+    setDeclarado(null);
+    setFotoCerca(null);
+    setFotoLejos(null);
+    setPasante("no_se");
+    setAvisoSinIA(false);
+    setResultadoActual(null);
+  }
+
+  function handleSeleccionElemento(elemento: Elemento) {
+    setDeclarado(elemento);
+    setPaso("fotos");
+  }
+
+  async function handleFotosCompletas(resultado: {
+    fotoCerca: CapturedPhotoGrieta;
+    fotoLejos: CapturedPhotoGrieta;
+    pasante: RespuestaPasante;
+  }) {
+    setFotoCerca(resultado.fotoCerca);
+    setFotoLejos(resultado.fotoLejos);
+    setPasante(resultado.pasante);
+    await intentarObservacionIA(resultado.fotoCerca, resultado.fotoLejos);
+  }
+
+  async function intentarObservacionIA(cerca: CapturedPhotoGrieta, lejos: CapturedPhotoGrieta) {
+    if (solicitudEnVuelo.current) return;
+    solicitudEnVuelo.current = true;
+    const miId = ++idSolicitud.current;
+    setAnalizando(true);
+    try {
+      const [fotoCercaDataUrl, fotoLejosDataUrl] = await Promise.all([
+        blobToDataUrl(cerca.blobAnalisis),
+        blobToDataUrl(lejos.blobAnalisis),
+      ]);
+      const res = await fetch("/api/alerta/observar-grieta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fotoCercaDataUrl, fotoLejosDataUrl }),
+      });
+      const data = await res.json().catch(() => null);
+      if (miId !== idSolicitud.current) return; // el usuario ya optó por describirla manualmente
+      if (data?.ok) {
+        resolverGrieta(data.observacion as ObservacionGrieta, "ia", (data.notaVisual as string | null) ?? null);
+      } else {
+        setAvisoSinIA(true);
+        setPaso("manual");
+      }
+    } catch {
+      if (miId !== idSolicitud.current) return;
+      setAvisoSinIA(true);
+      setPaso("manual");
+    } finally {
+      solicitudEnVuelo.current = false;
+      if (miId === idSolicitud.current) setAnalizando(false);
+    }
+  }
+
+  function handleDescribirManualmente() {
+    // Invalida cualquier respuesta en vuelo de la IA: si llega tarde, se ignora.
+    idSolicitud.current++;
+    setAnalizando(false);
+    setAvisoSinIA(false);
+    setPaso("manual");
+  }
+
+  function handleManualCompleto(datos: { patron: Patron; banderas: Banderas }) {
+    if (!declarado) return;
+    const observacion: ObservacionGrieta = {
+      elemento: declarado,
+      patron: datos.patron,
+      ancho_mm: null,
+      banderas: datos.banderas,
+      confianza: CONFIANZA_MANUAL,
+      calidad_foto: "ok",
+    };
+    resolverGrieta(observacion, "manual", null);
+  }
+
+  function resolverGrieta(observacion: ObservacionGrieta, fuente: FuenteObservacion, notaVisual: string | null) {
+    if (!declarado) return;
+    const entrada: EntradaTriage = { declarado, observacion, fuente, pasante };
+    const evaluada = evaluarTriageGrieta(entrada);
+    setResultadoActual({ evaluada, notaVisual });
+    setPaso("resultado");
+  }
+
+  function handleContinuarDesdeResultado() {
+    if (!resultadoActual || !fotoCerca || !fotoLejos) return;
+    setGrietas((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        evaluada: resultadoActual.evaluada,
+        notaVisual: resultadoActual.notaVisual,
+        fotoCerca,
+        fotoLejos,
+      },
+    ]);
+    limpiarTrasGuardar();
+    setPaso("resumen");
+  }
+
+  function handleAgregarOtra() {
+    setPaso("ubicar");
+  }
+
+  function handleTerminar() {
+    setTerminado(true);
+  }
+
+  async function handleDescargarPdf() {
+    if (generandoPdf || grietas.length === 0) return; // single-flight
+    setErrorPdf(null);
+    setGenerandoPdf(true);
+    try {
+      const grietasPayload = await Promise.all(
+        grietas.map(async (g) => ({
+          elementoDeclarado: g.evaluada.entrada.declarado,
+          elementoFinal: g.evaluada.reconciliacion.elemento,
+          hubo_discrepancia: g.evaluada.reconciliacion.hubo_discrepancia,
+          veredicto: g.evaluada.veredicto,
+          notaVisual: g.notaVisual,
+          fotos: [
+            { dataUrl: await blobToDataUrl(g.fotoCerca.blobEvidencia) },
+            { dataUrl: await blobToDataUrl(g.fotoLejos.blobEvidencia) },
+          ],
+        }))
+      );
+      const res = await fetch("/api/alerta/informe-grietas-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grietas: grietasPayload }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "No pudimos generar el informe en PDF.");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `informe-de-grietas-${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setPaso("post"); // paso final: tarjetas-gancho (spec)
+    } catch (err) {
+      setErrorPdf(err instanceof Error ? err.message : "No pudimos generar el informe en PDF.");
+    } finally {
+      setGenerandoPdf(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {paso === "ubicar" && <UbicarGrietaJuntos onSeleccionar={handleSeleccionElemento} />}
+
+      {paso === "fotos" && declarado && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {analizando ? (
+            <div className="panel" style={{ alignItems: "center", textAlign: "center" }}>
+              <Loader2
+                className="ic"
+                style={{ width: 26, height: 26, color: "var(--azul)", animation: "ljt-girar 1s linear infinite" }}
+              />
+              <p style={{ fontSize: 14, fontWeight: 700 }}>Leyendo la foto...</p>
+              <button type="button" onClick={handleDescribirManualmente} className="btn btn-fantasma">
+                Prefiero describirla yo
+              </button>
+            </div>
+          ) : (
+            <GrietaCameraCaptureJuntos elementoDeclarado={declarado} onCompletar={handleFotosCompletas} />
+          )}
+        </div>
+      )}
+
+      {paso === "manual" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {avisoSinIA && <p className="aviso">{COPY_SIN_IA}</p>}
+          <DescribirGrietaManualJuntos onCompletar={handleManualCompleto} />
+        </div>
+      )}
+
+      {paso === "resultado" && resultadoActual && (
+        <ResultadoGrietaJuntos
+          grieta={resultadoActual.evaluada}
+          numero={grietas.length + 1}
+          notaVisual={resultadoActual.notaVisual}
+          onContinuar={handleContinuarDesdeResultado}
+        />
+      )}
+
+      {paso === "resumen" && grietas.length > 0 && (
+        <ResumenInmuebleJuntos
+          grietas={grietas}
+          terminado={terminado}
+          presupuestoAgotado={presupuestoAgotado}
+          generandoPdf={generandoPdf}
+          errorPdf={errorPdf}
+          onAgregarOtra={handleAgregarOtra}
+          onTerminar={handleTerminar}
+          onDescargarPdf={handleDescargarPdf}
+        />
+      )}
+
+      {paso === "post" && <PostDescarga variante="informe" />}
+    </div>
+  );
+}

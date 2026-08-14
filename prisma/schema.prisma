@@ -984,3 +984,23 @@ model ListaEsperaGo {
   @@map("lista_espera_go")
 }
 
+
+// ─── CONTACTO JUNTOS (línea de ayuda post-sismo, /go/juntos) ─────────────────
+// Contactos del gate de datos del acta de documentación de daños. Captura
+// pública sin auth ni tenant, como ListaEsperaGo. REGLA DURA (spec
+// docs/specs/spec-go-juntos.md): la CÉDULA y la DIRECCIÓN del inmueble NUNCA
+// se guardan aquí ni en ninguna otra tabla — viajan solo en el request de
+// generación del PDF, se imprimen en el documento y se descartan.
+
+model ContactoJuntos {
+  id              String   @id @default(cuid())
+  nombre          String
+  whatsapp        String
+  ciudad          String
+  audiencia       String // "propietario" | "administrador" | "contratista"
+  acepta_contacto Boolean  @default(false) // casilla OPCIONAL de contacto para reparación
+  origen          String? // desde qué flujo se capturó (p. ej. "documentar-gate")
+  created_at      DateTime @default(now())
+
+  @@map("contacto_juntos")
+}

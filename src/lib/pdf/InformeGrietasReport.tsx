@@ -1,14 +1,24 @@
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { pdfStyles, pdfColors, formatDate } from "./styles";
 import { evaluarInmueble } from "@/lib/alerta/reglas";
-import { LABEL_ELEMENTO } from "@/lib/alerta/copys";
+import { ADVERTENCIA_VERDE, LABEL_ELEMENTO } from "@/lib/alerta/copys";
+import { AVISO_DOCUMENTO } from "@/lib/juntos/contenido-legal";
 import type { InformeGrietasPayload } from "@/lib/alerta/grietas";
 import type { Nivel } from "@/lib/alerta/tipos";
 
 // Estilos propios del informe de grietas — se combinan con
 // pdfStyles/pdfColors compartidos de styles.ts, que solo se CONSUMEN aquí,
-// no se modifican (mismo criterio que ActaDanosReport.tsx, Fase 1).
+// no se modifican (mismo criterio que ActaJuntosReport.tsx).
 const informeStyles = StyleSheet.create({
+  logo: {
+    width: 34,
+    height: 34,
+    marginRight: 10,
+  },
+  headerIzq: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   disclaimer: {
     padding: 10,
     backgroundColor: "#fffbeb",
@@ -26,6 +36,17 @@ const informeStyles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
     marginTop: 2,
+  },
+  advertenciaVerde: {
+    fontSize: 8,
+    color: "#166534",
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    padding: 6,
+    borderRadius: 4,
+    marginTop: 6,
+    lineHeight: 1.4,
   },
   grietaHeader: {
     flexDirection: "row",
@@ -85,9 +106,20 @@ const informeStyles = StyleSheet.create({
     width: 160,
     height: 120,
     borderRadius: 4,
-    objectFit: "cover",
+    // "contain": la evidencia se ve completa, nunca recortada (spec Juntos).
+    objectFit: "contain",
+    backgroundColor: pdfColors.bgMuted,
     borderWidth: 1,
     borderColor: pdfColors.border,
+  },
+  cierre: {
+    fontSize: 8,
+    color: pdfColors.textMuted,
+    lineHeight: 1.5,
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: pdfColors.border,
   },
   footerDisclaimer: {
     position: "absolute",
@@ -116,45 +148,61 @@ const LABEL_NIVEL: Record<Nivel, string> = {
   verde: "Sin señales de alarma",
 };
 
+/** Prioridad de revisión en lenguaje Juntos — acompaña al nivel, nunca lo reemplaza. */
+const PRIORIDAD_NIVEL: Record<Nivel, string> = {
+  rojo: "Revisión urgente",
+  amarillo: "Revisión pronto",
+  verde: "Revisión cuando puedas",
+};
+
 const COLOR_NIVEL: Record<Nivel, string> = {
   rojo: pdfColors.red,
   amarillo: pdfColors.yellow,
   verde: pdfColors.green,
 };
 
+export interface InformeGrietasReportProps {
+  data: InformeGrietasPayload;
+  /** Folio JT- + hash de verificación (spec Juntos) — los calcula la ruta API. */
+  folio?: string;
+  hashCorto?: string;
+  logoDataUrl?: string | null;
+}
+
 /**
- * Informe de grietas (/alerta/grietas). Cabecera Seiricon Alerta, disclaimer
- * arriba y en el pie de CADA página (`fixed`), nivel del inmueble
- * (evaluarInmueble) y, por grieta: nivel, elemento declarado vs. elemento
- * final (con la discrepancia si la hubo), razón, qué hacer, qué no hacer, y
- * las dos fotos con overlay (evidencia, no las de análisis).
- *
- * Usa `Image` con data-URI igual que ActaDanosReport.tsx (spec Fase 1, R5):
- * puede fallar en blanco si el data-URI está mal formado — probado con un
- * PDF real de al menos 1 foto antes de dar por cerrada esta pieza.
+ * Informe de grietas (/go/juntos/revisar). Cabecera Seiricon Juntos con logo
+ * real, disclaimer arriba y en el pie de CADA página (`fixed`), folio + hash
+ * de verificación, nivel del inmueble (evaluarInmueble) con su prioridad de
+ * revisión y, por grieta: nivel, elemento declarado vs. final, razón, qué
+ * hacer / qué no hacer, ADVERTENCIA_VERDE cuando el nivel es verde, y las dos
+ * fotos de evidencia con overlay en objectFit "contain" (sin recortes).
  */
-export function InformeGrietasReport({ data }: { data: InformeGrietasPayload }) {
+export function InformeGrietasReport({ data, folio, hashCorto, logoDataUrl = null }: InformeGrietasReportProps) {
   const hoy = new Date();
   const veredictoInmueble = evaluarInmueble(data.grietas.map((g) => g.veredicto));
 
   return (
-    <Document title="Informe de grietas — Seiricon Alerta" author="Seiricon" creator="Seiricon">
-      <Page size="A4" style={pdfStyles.page}>
+    <Document title="Informe de grietas — Seiricon Juntos" author="Seiricon" creator="Seiricon">
+      <Page size="A4" style={[pdfStyles.page, { paddingBottom: 64 }]}>
         <View style={pdfStyles.header}>
-          <View>
-            <Text style={pdfStyles.brand}>SEIRICON</Text>
-            <Text style={pdfStyles.tagline}>Seiricon Alerta</Text>
+          <View style={informeStyles.headerIzq}>
+            {logoDataUrl && <Image src={logoDataUrl} style={informeStyles.logo} />}
+            <View>
+              <Text style={pdfStyles.brand}>SEIRICON</Text>
+              <Text style={pdfStyles.tagline}>Juntos — línea de ayuda post-sismo</Text>
+            </View>
           </View>
           <View style={pdfStyles.headerRight}>
             <Text style={pdfStyles.reportTitle}>Informe de grietas</Text>
             <Text style={pdfStyles.reportDate}>Generado el {formatDate(hoy)}</Text>
+            {folio && <Text style={pdfStyles.reportDate}>Folio {folio}</Text>}
           </View>
         </View>
 
         <View style={informeStyles.disclaimer}>
           <Text style={informeStyles.disclaimerText}>
-            Este documento es una lectura automatizada de fotos y respuestas de la persona reportante.
-            NO constituye una evaluación de un ingeniero estructural ni un diagnóstico de habitabilidad.
+            Este documento es una lectura de fotos y respuestas de la persona reportante. NO constituye una
+            evaluación de un ingeniero estructural ni un diagnóstico de habitabilidad.
           </Text>
         </View>
 
@@ -163,9 +211,12 @@ export function InformeGrietasReport({ data }: { data: InformeGrietasPayload }) 
           <View style={[pdfStyles.card, { borderLeftWidth: 4, borderLeftColor: COLOR_NIVEL[veredictoInmueble.nivel] }]}>
             <Text style={pdfStyles.label}>Nivel (el peor de todas las grietas evaluadas)</Text>
             <Text style={[informeStyles.resumenNivel, { color: COLOR_NIVEL[veredictoInmueble.nivel] }]}>
-              {LABEL_NIVEL[veredictoInmueble.nivel]}
+              {LABEL_NIVEL[veredictoInmueble.nivel]} — {PRIORIDAD_NIVEL[veredictoInmueble.nivel]}
             </Text>
             <Text style={[pdfStyles.value, { fontSize: 10, fontFamily: "Helvetica" }]}>{veredictoInmueble.que_hacer}</Text>
+            {veredictoInmueble.nivel === "verde" && (
+              <Text style={informeStyles.advertenciaVerde}>{ADVERTENCIA_VERDE}</Text>
+            )}
           </View>
         </View>
 
@@ -207,6 +258,9 @@ export function InformeGrietasReport({ data }: { data: InformeGrietasPayload }) 
                 ))}
               </View>
             )}
+            {g.veredicto.nivel === "verde" && (
+              <Text style={informeStyles.advertenciaVerde}>{ADVERTENCIA_VERDE}</Text>
+            )}
             {g.notaVisual && <Text style={informeStyles.notaVisual}>Lo que se ve en la foto: {g.notaVisual}</Text>}
 
             <View style={informeStyles.fotoGrid}>
@@ -217,13 +271,18 @@ export function InformeGrietasReport({ data }: { data: InformeGrietasPayload }) 
           </View>
         ))}
 
+        <Text style={informeStyles.cierre}>{AVISO_DOCUMENTO}</Text>
+
         <View style={informeStyles.footerDisclaimer} fixed>
           <Text style={informeStyles.footerDisclaimerText}>
             Este documento es una lectura automatizada y NO constituye una evaluación de un ingeniero
             estructural ni un diagnóstico de habitabilidad.
           </Text>
           <View style={informeStyles.footerRow}>
-            <Text style={pdfStyles.footerText}>Seiricon Alerta · seiricon.com/alerta</Text>
+            <Text style={pdfStyles.footerText}>
+              Seiricon Juntos · seiricon.com/go/juntos
+              {folio && hashCorto ? ` · Verificación: ${folio} · ${hashCorto}` : ""}
+            </Text>
             <Text
               style={pdfStyles.footerText}
               render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}

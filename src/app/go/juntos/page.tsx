@@ -1,0 +1,32 @@
+import NavJuntos from "@/components/juntos/NavJuntos";
+import HeroJuntos from "@/components/juntos/HeroJuntos";
+import CaminosJuntos from "@/components/juntos/CaminosJuntos";
+import AcompanamientoJuntos from "@/components/juntos/AcompanamientoJuntos";
+import SeccionActa from "@/components/juntos/SeccionActa";
+import PorQueGratis from "@/components/juntos/PorQueGratis";
+import FaqJuntos from "@/components/juntos/FaqJuntos";
+import CierreJuntos from "@/components/juntos/CierreJuntos";
+import FooterJuntos from "@/components/juntos/FooterJuntos";
+
+/**
+ * Landing emocional de «Juntos» (/go/juntos) — línea de ayuda post-sismo de
+ * Seiricon Go. Estructura del spec: hero (H1 exacto) → dos caminos → así te
+ * acompañamos → el acta y la prueba → por qué gratis → FAQ → cierre.
+ */
+export default function JuntosPage() {
+  return (
+    <>
+      <NavJuntos />
+      <main>
+        <HeroJuntos />
+        <CaminosJuntos />
+        <AcompanamientoJuntos />
+        <SeccionActa />
+        <PorQueGratis />
+        <FaqJuntos />
+        <CierreJuntos />
+      </main>
+      <FooterJuntos />
+    </>
+  );
+}
