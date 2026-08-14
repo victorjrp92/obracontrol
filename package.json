@@ -18,7 +18,8 @@
     "db:demo-clean": "npx tsx scripts/demo-clean.ts",
     "db:demo-seed": "npx tsx scripts/seed-demo-content.ts",
     "verify:alerta": "npx tsx scripts/verificar-reglas-alerta.ts",
-    "verify:triage": "npx tsx scripts/verificar-triage-alerta.ts"
+    "verify:triage": "npx tsx scripts/verificar-triage-alerta.ts",
+    "calibrar:vision": "npx tsx scripts/calibrar-vision.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

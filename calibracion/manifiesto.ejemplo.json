@@ -1,0 +1,36 @@
+{
+  "_comentario": [
+    "EJEMPLO del manifiesto del MODO REAL (con fotos y con el modelo de visión).",
+    "Copia este archivo como `calibracion/manifiesto.json`, cambia los datos por los tuyos y corre",
+    "`npm run calibrar:vision -- --real`. Las rutas de las fotos son relativas a la carpeta",
+    "`calibracion/`. `ancho_mm_real` es opcional: ponlo SOLO si mediste la grieta con una regla o",
+    "un calibrador — si no lo sabes, bórralo (no inventes un número: el reporte de error de ancho",
+    "solo sirve si los valores son medidos de verdad).",
+    "Ver calibracion/README.md."
+  ],
+  "casos": [
+    {
+      "id": "ejemplo-01-columna-sala",
+      "foto_cerca": "fotos/ejemplo-01-cerca.jpg",
+      "foto_lejos": "fotos/ejemplo-01-lejos.jpg",
+      "declarado": "columna",
+      "pasante": "no_se",
+      "esperado": {
+        "elemento": "columna",
+        "patron": "diagonal",
+        "ancho_mm_real": 2.5
+      }
+    },
+    {
+      "id": "ejemplo-02-muro-divisorio-cocina",
+      "foto_cerca": "fotos/ejemplo-02-cerca.jpg",
+      "foto_lejos": "fotos/ejemplo-02-lejos.jpg",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado"
+      }
+    }
+  ]
+}

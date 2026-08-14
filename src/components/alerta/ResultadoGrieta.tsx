@@ -1,5 +1,11 @@
 import { ArrowRight } from "lucide-react";
-import { ADVERTENCIA_VERDE, COPY_DISCREPANCIA, LABEL_ELEMENTO } from "@/lib/alerta/copys";
+import {
+  ADVERTENCIA_VERDE,
+  COPY_DISCREPANCIA,
+  COPY_DISCREPANCIA_PATRON,
+  LABEL_ELEMENTO,
+  LABEL_PATRON,
+} from "@/lib/alerta/copys";
 import type { GrietaEvaluada } from "@/lib/alerta/triage";
 import SemaforoNivel from "./SemaforoNivel";
 
@@ -14,12 +20,13 @@ interface ResultadoGrietaProps {
 /**
  * Paso 3 del triage: semáforo + razón + qué hacer/qué no hacer (copys de
  * reglas.ts, NUNCA reescritos) + nota visual etiquetada + banner de
- * discrepancia si aplica + ADVERTENCIA_VERDE obligatoria en verde + CTA a
- * evaluación profesional.
+ * discrepancia si aplica (de elemento y/o de patrón, R3) + ADVERTENCIA_VERDE
+ * obligatoria en verde + CTA a evaluación profesional.
  */
 export default function ResultadoGrieta({ grieta, numero, notaVisual, onContinuar }: ResultadoGrietaProps) {
-  const { veredicto, reconciliacion, entrada } = grieta;
+  const { veredicto, reconciliacion, reconciliacion_patron, entrada } = grieta;
   const esVerde = veredicto.nivel === "verde";
+  const hayDiscrepancia = reconciliacion.hubo_discrepancia || reconciliacion_patron.hubo_discrepancia;
 
   return (
     <div className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -41,13 +48,26 @@ export default function ResultadoGrieta({ grieta, numero, notaVisual, onContinua
         )}
       </div>
 
-      {reconciliacion.hubo_discrepancia && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="font-semibold">
-            Marcaste &ldquo;{LABEL_ELEMENTO[entrada.declarado]}&rdquo;, la foto parece mostrar &ldquo;
-            {LABEL_ELEMENTO[reconciliacion.elemento]}&rdquo;.
-          </p>
-          <p className="mt-1">{COPY_DISCREPANCIA}</p>
+      {hayDiscrepancia && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {reconciliacion.hubo_discrepancia && (
+            <div>
+              <p className="font-semibold">
+                Marcaste &ldquo;{LABEL_ELEMENTO[entrada.declarado]}&rdquo;, la foto parece mostrar &ldquo;
+                {LABEL_ELEMENTO[reconciliacion.elemento]}&rdquo;.
+              </p>
+              <p className="mt-1">{COPY_DISCREPANCIA}</p>
+            </div>
+          )}
+          {reconciliacion_patron.hubo_discrepancia && entrada.patron_declarado && (
+            <div>
+              <p className="font-semibold">
+                Nos dijiste &ldquo;{LABEL_PATRON[entrada.patron_declarado]}&rdquo;, la foto parece mostrar &ldquo;
+                {LABEL_PATRON[reconciliacion_patron.patron]}&rdquo;.
+              </p>
+              <p className="mt-1">{COPY_DISCREPANCIA_PATRON}</p>
+            </div>
+          )}
         </div>
       )}
 

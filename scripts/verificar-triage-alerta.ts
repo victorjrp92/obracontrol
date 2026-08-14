@@ -12,19 +12,24 @@
  */
 import { evaluarGrieta } from "@/lib/alerta/reglas";
 import { ADVERTENCIA_VERDE, COPY_DISCREPANCIA, COPY_SIN_IA, LABEL_ELEMENTO, TITULO_NIVEL, TONO_NIVEL } from "@/lib/alerta/copys";
+import { COPY_DISCREPANCIA_PATRON, LABEL_PATRON, ORDEN_PATRON } from "@/lib/alerta/copys";
 import {
+  CONFIANZA_MINIMA_VERDE,
   construirObservacionEfectiva,
   evaluarTriageGrieta,
   reconciliarElemento,
+  reconciliarPatron,
   type EntradaTriage,
   type FuenteObservacion,
   type RespuestaPasante,
 } from "@/lib/alerta/triage";
 import {
+  fusionarLecturas,
   normalizarObservacion,
   sanitizarNotaVisual,
+  sinConsenso,
 } from "@/lib/alerta/observar-grieta";
-import type { Banderas, Elemento, Nivel, ObservacionGrieta, Patron } from "@/lib/alerta/tipos";
+import type { Banderas, CalidadFoto, Elemento, Nivel, ObservacionGrieta, Patron } from "@/lib/alerta/tipos";
 
 let total = 0;
 let fallos = 0;
@@ -301,6 +306,9 @@ const COPYS_NUEVOS: Record<string, unknown> = {
   COPY_DISCREPANCIA,
   COPY_SIN_IA,
   LABEL_ELEMENTO,
+  // Refinamiento 2026-08-13 (R3):
+  COPY_DISCREPANCIA_PATRON,
+  LABEL_PATRON,
 };
 
 function todosLosStrings(valor: unknown): string[] {
@@ -403,6 +411,435 @@ verificar(
     "grieta diagonal de unos 2mm en la esquina superior"
 );
 verificar("nota vacía o no-string → null", sanitizarNotaVisual("") === null && sanitizarNotaVisual(undefined) === null);
+
+// ══════════════════════════════════════════════════════════════════════════
+// Refinamiento de confiabilidad del triage (2026-08-13) — R1 a R4.
+// Ver docs/specs/2026-08-13-alerta-refinamiento-vision.md.
+// ══════════════════════════════════════════════════════════════════════════
+
+// ─── 9) R1 — fusionarLecturas (doble lectura / consenso) ───────────────────
+console.log("\n9) R1 — fusionarLecturas: fusión conservadora de dos lecturas independientes");
+
+const LECTURA_A = obs({ elemento: "muro_divisorio", patron: "craquelado" });
+
+const fusionElementoDistinto = fusionarLecturas(LECTURA_A, obs({ elemento: "columna", patron: "craquelado" }));
+verificar(
+  "elemento distinto entre lecturas → se conserva el de la primera y confianza.elemento = 0",
+  fusionElementoDistinto.elemento === "muro_divisorio" && fusionElementoDistinto.confianza.elemento === 0
+);
+verificar(
+  "esa fusión NO puede resolver en verde (confianza.elemento 0 activa la regla 7)",
+  evaluarGrieta(fusionElementoDistinto).nivel !== "verde"
+);
+
+const fusionPatronDistinto = fusionarLecturas(LECTURA_A, obs({ elemento: "muro_divisorio", patron: "diagonal" }));
+verificar(
+  "patrón distinto entre lecturas → se conserva el de la primera y confianza.patron = 0",
+  fusionPatronDistinto.patron === "craquelado" && fusionPatronDistinto.confianza.patron === 0
+);
+
+const fusionCoincidente = fusionarLecturas(
+  obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { elemento: 0.9, patron: 0.7 } }),
+  obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { elemento: 0.8, patron: 0.95 } })
+);
+verificar(
+  "lecturas coincidentes → confianza de elemento/patrón = la MENOR de las dos",
+  fusionCoincidente.confianza.elemento === 0.8 && fusionCoincidente.confianza.patron === 0.7
+);
+
+const fusionBanderas = fusionarLecturas(
+  obs({ elemento: "columna", patron: "vertical", banderas: { acero_expuesto: true } }),
+  obs({ elemento: "columna", patron: "vertical", banderas: { desplazamiento_caras: true } })
+);
+verificar(
+  "banderas → unión lógica (OR) campo por campo: lo que vio cualquiera de las dos, cuenta",
+  fusionBanderas.banderas.acero_expuesto &&
+    fusionBanderas.banderas.desplazamiento_caras &&
+    !fusionBanderas.banderas.concreto_triturado
+);
+verificar("esa fusión con acero expuesto en columna → rojo (regla 1)", evaluarGrieta(fusionBanderas).nivel === "rojo");
+
+const fusionAncho = fusionarLecturas(
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 2 }),
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 5 })
+);
+verificar("ancho_mm → gana el MÁXIMO de ambas lecturas", fusionAncho.ancho_mm === 5);
+verificar("ese máximo mantiene vivo el rojo de la regla 4 (muro de carga, ancho > 3mm)", evaluarGrieta(fusionAncho).nivel === "rojo");
+
+const fusionAnchoNull = fusionarLecturas(
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: null }),
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 4 })
+);
+verificar("ancho_mm con una lectura en null → gana la no-null", fusionAnchoNull.ancho_mm === 4);
+
+const fusionCalidad = fusionarLecturas(
+  obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: "ok" }),
+  obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: "movida" })
+);
+verificar("calidad_foto → gana la PEOR de las dos ('ok' es la mejor)", fusionCalidad.calidad_foto === "movida");
+
+const CALIDADES_MALAS: CalidadFoto[] = ["oscura", "movida", "muy_lejos", "sin_referencia_escala"];
+let fallosCalidadPeor = 0;
+for (const mala of CALIDADES_MALAS) {
+  const a = fusionarLecturas(
+    obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: "ok" }),
+    obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: mala })
+  );
+  const b = fusionarLecturas(
+    obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: mala }),
+    obs({ elemento: "muro_divisorio", patron: "craquelado", calidad_foto: "ok" })
+  );
+  if (a.calidad_foto !== mala || b.calidad_foto !== mala) fallosCalidadPeor++;
+}
+verificar(`'ok' nunca gana contra una calidad mala, en cualquier orden (${CALIDADES_MALAS.length} calidades × 2)`, fallosCalidadPeor === 0);
+
+const fusionConfianzaAncho = fusionarLecturas(
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 2, confianza: { ancho: 0.9 } }),
+  obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 2, confianza: { ancho: 0.2 } })
+);
+verificar("confianza.ancho → gana la MÍNIMA de ambas", fusionConfianzaAncho.confianza.ancho === 0.2);
+
+const fusionRango = fusionarLecturas(
+  { ...obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 3 }), ancho_rango: { min: 1, max: 3 } },
+  { ...obs({ elemento: "muro_carga", patron: "vertical", ancho_mm: 6 }), ancho_rango: { min: 4, max: 6 } }
+);
+verificar(
+  "ancho_rango → unión de los dos rangos (min de los mínimos, max de los máximos), y ancho_mm = ese máximo",
+  fusionRango.ancho_rango?.min === 1 && fusionRango.ancho_rango?.max === 6 && fusionRango.ancho_mm === 6
+);
+
+const unaSolaLectura = sinConsenso(obs({ elemento: "muro_divisorio", patron: "craquelado" }));
+verificar(
+  "sinConsenso (solo respondió una de las dos llamadas) → TODAS las confianzas a 0",
+  unaSolaLectura.confianza.elemento === 0 && unaSolaLectura.confianza.patron === 0 && unaSolaLectura.confianza.ancho === 0
+);
+verificar("una sola lectura nunca resuelve en verde", evaluarGrieta(unaSolaLectura).nivel !== "verde");
+
+// La fusión nunca puede ablandar: barrido de pares de lecturas.
+let casosFusion = 0;
+let fallosFusion = 0;
+for (const elementoA of ELEMENTOS) {
+  for (const elementoB of ELEMENTOS) {
+    for (const patron of PATRONES) {
+      casosFusion++;
+      const a = obs({ elemento: elementoA, patron });
+      const b = obs({ elemento: elementoB, patron });
+      const fusionada = fusionarLecturas(a, b);
+      const nivelFusion = RANGO_NIVEL[evaluarGrieta(fusionada).nivel];
+      if (nivelFusion < RANGO_NIVEL[evaluarGrieta(a).nivel]) fallosFusion++;
+      // Si las dos lecturas discrepan en el elemento, la fusionada nunca puede dar verde.
+      if (elementoA !== elementoB && evaluarGrieta(fusionada).nivel === "verde") fallosFusion++;
+    }
+  }
+}
+verificar(
+  `la fusión nunca es más suave que la primera lectura, ni da verde con elementos discrepantes (${casosFusion} pares)`,
+  fallosFusion === 0
+);
+
+// ─── 10) R2 — ancho como rango, extremo conservador ────────────────────────
+console.log("\n10) R2 — normalizarObservacion con ancho_mm_min/ancho_mm_max: se usa el extremo conservador");
+
+const BASE_RANGO = {
+  elemento: "muro_carga",
+  patron: "vertical",
+  banderas: { ...BANDERAS_SIN_ALARMA },
+  confianza: { elemento: 0.9, patron: 0.9, ancho: 0.9 },
+  calidad_foto: "ok",
+};
+
+const rangoNormal = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: 2, ancho_mm_max: 4 });
+verificar(
+  "rango 2–4 mm → ancho_mm = 4 (el máximo, extremo conservador) y ancho_rango conserva los dos extremos",
+  rangoNormal !== null && rangoNormal.ancho_mm === 4 && rangoNormal.ancho_rango?.min === 2 && rangoNormal.ancho_rango?.max === 4
+);
+verificar(
+  "ese rango en muro de carga da rojo por la regla 4 (usar el mínimo lo habría ablandado a amarillo)",
+  rangoNormal !== null && evaluarGrieta(rangoNormal).nivel === "rojo"
+);
+
+const rangoInvertido = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: 4, ancho_mm_max: 2 });
+verificar(
+  "min > max → se intercambian, NO se rechaza la observación",
+  rangoInvertido !== null && rangoInvertido.ancho_mm === 4 && rangoInvertido.ancho_rango?.min === 2 && rangoInvertido.ancho_rango?.max === 4
+);
+
+const soloMin = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: 5, ancho_mm_max: null });
+verificar("solo vino el mínimo → ese es el ancho_mm", soloMin !== null && soloMin.ancho_mm === 5);
+
+const soloMax = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: null, ancho_mm_max: 5 });
+verificar("solo vino el máximo → ese es el ancho_mm", soloMax !== null && soloMax.ancho_mm === 5);
+
+const rangoNulo = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: null, ancho_mm_max: null });
+verificar(
+  "rango completamente null → ancho_mm null y sin ancho_rango (campo opcional, no se inventa)",
+  rangoNulo !== null && rangoNulo.ancho_mm === null && rangoNulo.ancho_rango === undefined
+);
+
+const rangoNegativo = normalizarObservacion({ ...BASE_RANGO, ancho_mm_min: -2, ancho_mm_max: 6 });
+verificar("extremo negativo → se descarta ese extremo, no la observación", rangoNegativo !== null && rangoNegativo.ancho_mm === 6);
+
+const rangoSinEscala = normalizarObservacion({
+  ...BASE_RANGO,
+  ancho_mm_min: 3,
+  ancho_mm_max: 5,
+  calidad_foto: "sin_referencia_escala",
+});
+verificar(
+  "sin_referencia_escala con rango → confianza.ancho = 0 pero ancho_mm se CONSERVA (sigue dando rojo en muro de carga)",
+  rangoSinEscala !== null &&
+    rangoSinEscala.confianza.ancho === 0 &&
+    rangoSinEscala.ancho_mm === 5 &&
+    evaluarGrieta(rangoSinEscala).nivel === "rojo"
+);
+
+const rangoPlanoCompat = normalizarObservacion({ ...BASE_RANGO, ancho_mm: 5 });
+verificar(
+  "compatibilidad: si el modelo responde con el `ancho_mm` plano del schema viejo, se lee igual",
+  rangoPlanoCompat !== null && rangoPlanoCompat.ancho_mm === 5
+);
+
+// ─── 11) R3 — reconciliación del patrón ────────────────────────────────────
+console.log("\n11) R3 — el patrón que confirma la persona se contrasta con el leído en la foto");
+
+verificar(
+  "reconciliarPatron sin patrón declarado → sin discrepancia, se muestra el observado",
+  reconciliarPatron("craquelado").hubo_discrepancia === false && reconciliarPatron("craquelado").patron === "craquelado"
+);
+verificar(
+  "reconciliarPatron con el mismo patrón → sin discrepancia",
+  reconciliarPatron("craquelado", "craquelado").hubo_discrepancia === false
+);
+verificar(
+  "reconciliarPatron con patrón distinto → discrepancia, pero el patrón MOSTRADO sigue siendo el observado",
+  reconciliarPatron("craquelado", "diagonal").hubo_discrepancia === true &&
+    reconciliarPatron("craquelado", "diagonal").patron === "craquelado"
+);
+
+const casoPatronDeclarado = evaluarTriageGrieta({
+  declarado: "columna",
+  observacion: obs({ elemento: "columna", patron: "diagonal" }),
+  fuente: "ia",
+  pasante: "no",
+  patron_declarado: "craquelado",
+});
+verificar(
+  "declarado craquelado + observado diagonal en columna → rojo (gana el peor de los dos patrones)",
+  casoPatronDeclarado.veredicto.nivel === "rojo"
+);
+verificar("esa discrepancia de patrón zera confianza.patron", casoPatronDeclarado.observacionEfectiva.confianza.patron === 0);
+verificar("y queda marcada en reconciliacion_patron", casoPatronDeclarado.reconciliacion_patron.hubo_discrepancia === true);
+
+const casoPatronInverso = evaluarTriageGrieta({
+  declarado: "columna",
+  observacion: obs({ elemento: "columna", patron: "craquelado" }),
+  fuente: "ia",
+  pasante: "no",
+  patron_declarado: "diagonal",
+});
+verificar(
+  "observado craquelado + declarado diagonal en columna → rojo (el patrón descartado también se evalúa)",
+  casoPatronInverso.veredicto.nivel === "rojo"
+);
+
+verificar(
+  "sin patrón declarado, reconciliacion_patron queda sin discrepancia (comportamiento idéntico a Fase 2)",
+  evaluarTriageGrieta(CANONICO).reconciliacion_patron.hubo_discrepancia === false
+);
+verificar(
+  "discrepancia de patrón rompe el verde",
+  nivelTriage({ ...CANONICO, patron_declarado: "diagonal" }) !== "verde"
+);
+verificar(
+  "confirmar el mismo patrón que leyó la IA NO rompe el verde",
+  nivelTriage({ ...CANONICO, patron_declarado: "craquelado" }) === "verde"
+);
+
+verificar(
+  "construirObservacionEfectiva zera confianza.patron si hubo discrepancia de patrón",
+  construirObservacionEfectiva(obs({ elemento: "muro_divisorio", patron: "craquelado" }), { elemento: "muro_divisorio", hubo_discrepancia: false }, { patron: "craquelado", hubo_discrepancia: true }).confianza.patron === 0
+);
+
+// ─── 12) R4 — umbral asimétrico del verde ──────────────────────────────────
+console.log("\n12) R4 — CONFIANZA_MINIMA_VERDE: el verde exige más confianza que el resto");
+
+verificar(`CONFIANZA_MINIMA_VERDE = ${CONFIANZA_MINIMA_VERDE}, más alta que CONFIANZA_MINIMA de reglas.ts`, CONFIANZA_MINIMA_VERDE === 0.85);
+
+verificar(
+  "verde con confianza.elemento 0.84 → amarillo",
+  nivelTriage({
+    ...CANONICO,
+    observacion: obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { elemento: 0.84 } }),
+  }) === "amarillo"
+);
+verificar(
+  "verde con confianza.patron 0.84 → amarillo",
+  nivelTriage({
+    ...CANONICO,
+    observacion: obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { patron: 0.84 } }),
+  }) === "amarillo"
+);
+verificar(
+  "confianza exactamente 0.85 en elemento y patrón → sigue verde (si todo lo demás lo permite)",
+  nivelTriage({
+    ...CANONICO,
+    observacion: obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { elemento: 0.85, patron: 0.85 } }),
+  }) === "verde"
+);
+verificar(
+  "confianza.ancho baja NO tumba el verde por sí sola cuando no hay ancho medible (R4 solo mira elemento y patrón)",
+  nivelTriage({
+    ...CANONICO,
+    observacion: obs({ elemento: "muro_divisorio", patron: "craquelado", confianza: { ancho: 0.1 } }),
+  }) === "verde"
+);
+verificar(
+  "R4 nunca ablanda: un rojo con confianza baja sigue rojo",
+  nivelTriage({
+    declarado: "columna",
+    observacion: obs({ elemento: "columna", patron: "diagonal", confianza: { elemento: 0.1, patron: 0.1 } }),
+    fuente: "ia",
+    pasante: "no",
+  }) === "rojo"
+);
+
+// ─── 13) Invariante de monotonía EXTENDIDO (elemento Y patrón) ─────────────
+console.log("\n13) Invariante extendido — el nivel final nunca es más suave que leer la observación bajo CUALQUIER candidato");
+
+const CONTEXTOS_INVARIANTE: { ancho_mm: number | null; banderas: Partial<Banderas> }[] = [
+  { ancho_mm: null, banderas: {} },
+  { ancho_mm: 5, banderas: { desplazamiento_caras: true } },
+];
+
+let casosInvarianteExtendido = 0;
+let fallosInvarianteExtendido = 0;
+for (const declarado of ELEMENTOS) {
+  for (const observado of ELEMENTOS) {
+    for (const patronObservado of PATRONES) {
+      for (const patronDeclarado of PATRONES) {
+        for (const ctx of CONTEXTOS_INVARIANTE) {
+          casosInvarianteExtendido++;
+          const observacion = obs({
+            elemento: observado,
+            patron: patronObservado,
+            ancho_mm: ctx.ancho_mm,
+            banderas: ctx.banderas,
+          });
+          const e: EntradaTriage = {
+            declarado,
+            observacion,
+            fuente: "ia",
+            pasante: "no",
+            patron_declarado: patronDeclarado,
+          };
+          const nivelFinal = RANGO_NIVEL[nivelTriage(e)];
+          // Todos los candidatos: elemento declarado × observado, patrón observado × declarado.
+          for (const elementoCandidato of [declarado, observado]) {
+            for (const patronCandidato of [patronObservado, patronDeclarado]) {
+              const nivelCandidato =
+                RANGO_NIVEL[evaluarGrieta({ ...observacion, elemento: elementoCandidato, patron: patronCandidato }).nivel];
+              if (nivelFinal < nivelCandidato) fallosInvarianteExtendido++;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+verificar(
+  `nivel final >= nivel de cualquier candidato (elemento Y patrón) en ${casosInvarianteExtendido} combinaciones (0 violaciones)`,
+  fallosInvarianteExtendido === 0
+);
+
+// ─── 14) El camino a verde sigue siendo uno solo, ahora con más candados ───
+console.log("\n14) Verde: barrido completo de las condiciones que lo permiten");
+
+const CONFIANZAS_BARRIDO = [0, 0.59, 0.6, 0.84, 0.85, 0.95];
+const CALIDADES_BARRIDO: CalidadFoto[] = ["ok", "oscura", "movida", "muy_lejos", "sin_referencia_escala"];
+const BANDERAS_BARRIDO: Partial<Banderas>[] = [
+  {},
+  { acero_expuesto: true },
+  { concreto_triturado: true },
+  { desplazamiento_caras: true },
+  { elemento_inclinado: true },
+  { separacion_muro_estructura: true },
+];
+
+let casosVerde = 0;
+let fallosVerde = 0;
+for (const declarado of ELEMENTOS) {
+  for (const observado of ELEMENTOS) {
+    for (const patronObservado of PATRONES) {
+      for (const patronDeclarado of [undefined, ...PATRONES]) {
+        for (const fuente of FUENTES) {
+          for (const pasante of PASANTES) {
+            casosVerde++;
+            const observacion = obs({ elemento: observado, patron: patronObservado });
+            const e: EntradaTriage = { declarado, observacion, fuente, pasante, patron_declarado: patronDeclarado };
+            if (nivelTriage(e) !== "verde") continue;
+            const legitimo =
+              fuente === "ia" &&
+              declarado === observado &&
+              observado === "muro_divisorio" &&
+              patronObservado === "craquelado" &&
+              (patronDeclarado === undefined || patronDeclarado === "craquelado") &&
+              pasante !== "si";
+            if (!legitimo) fallosVerde++;
+          }
+        }
+      }
+    }
+  }
+}
+verificar(
+  `todo verde del barrido (${casosVerde} combinaciones) es fuente ia + sin discrepancia de elemento NI de patrón + muro_divisorio/craquelado + pasante distinto de 'si'`,
+  fallosVerde === 0
+);
+
+let casosVerdeObs = 0;
+let fallosVerdeObs = 0;
+for (const confElemento of CONFIANZAS_BARRIDO) {
+  for (const confPatron of CONFIANZAS_BARRIDO) {
+    for (const calidad of CALIDADES_BARRIDO) {
+      for (const banderas of BANDERAS_BARRIDO) {
+        casosVerdeObs++;
+        const e: EntradaTriage = {
+          declarado: "muro_divisorio",
+          observacion: obs({
+            elemento: "muro_divisorio",
+            patron: "craquelado",
+            banderas,
+            confianza: { elemento: confElemento, patron: confPatron },
+            calidad_foto: calidad,
+          }),
+          fuente: "ia",
+          pasante: "no",
+          patron_declarado: "craquelado",
+        };
+        if (nivelTriage(e) !== "verde") continue;
+        const legitimo =
+          calidad === "ok" &&
+          Object.keys(banderas).length === 0 &&
+          confElemento >= CONFIANZA_MINIMA_VERDE &&
+          confPatron >= CONFIANZA_MINIMA_VERDE;
+        if (!legitimo) fallosVerdeObs++;
+      }
+    }
+  }
+}
+verificar(
+  `todo verde del barrido de observación (${casosVerdeObs} combinaciones) exige calidad ok, cero banderas y confianza >= ${CONFIANZA_MINIMA_VERDE}`,
+  fallosVerdeObs === 0
+);
+
+verificar(
+  "ORDEN_PATRON cubre exactamente los 8 patrones del contrato, sin repetidos",
+  ORDEN_PATRON.length === PATRONES.length && PATRONES.every((p) => ORDEN_PATRON.includes(p)) && new Set(ORDEN_PATRON).size === PATRONES.length
+);
+verificar(
+  "LABEL_PATRON tiene una etiqueta llana y no vacía por patrón",
+  PATRONES.every((p) => typeof LABEL_PATRON[p] === "string" && LABEL_PATRON[p].trim().length > 0)
+);
 
 // ─── Resumen ────────────────────────────────────────────────────────────────
 console.log(`\n${total - fallos}/${total} verificaciones OK`);

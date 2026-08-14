@@ -16,11 +16,12 @@ import type { Banderas, Elemento, ObservacionGrieta, Patron } from "@/lib/alerta
 import UbicarGrieta from "./UbicarGrieta";
 import GrietaCameraCapture, { type CapturedPhotoGrieta } from "./GrietaCameraCapture";
 import DescribirGrietaManual from "./DescribirGrietaManual";
+import ConfirmarPatron from "./ConfirmarPatron";
 import ResultadoGrieta from "./ResultadoGrieta";
 import ResumenInmueble from "./ResumenInmueble";
 import PuenteIngenieros from "./PuenteIngenieros";
 
-type Paso = "ubicar" | "fotos" | "manual" | "resultado" | "resumen";
+type Paso = "ubicar" | "fotos" | "manual" | "confirmar" | "resultado" | "resumen";
 
 /** Una grieta ya evaluada + las dos fotos de evidencia que la respaldan. */
 export interface GrietaGuardada {
@@ -52,6 +53,8 @@ export default function GrietaWizard() {
   const [pasante, setPasante] = useState<RespuestaPasante>("no_se");
   const [analizando, setAnalizando] = useState(false);
   const [avisoSinIA, setAvisoSinIA] = useState(false);
+  /** Lectura de la IA a la espera de que la persona confirme o corrija el patrón (R3). */
+  const [lecturaIA, setLecturaIA] = useState<{ observacion: ObservacionGrieta; notaVisual: string | null } | null>(null);
   const [resultadoActual, setResultadoActual] = useState<{ evaluada: GrietaEvaluada; notaVisual: string | null } | null>(
     null
   );
@@ -80,6 +83,7 @@ export default function GrietaWizard() {
     setFotoLejos(null);
     setPasante("no_se");
     setAvisoSinIA(false);
+    setLecturaIA(null);
     setResultadoActual(null);
   }
 
@@ -117,7 +121,13 @@ export default function GrietaWizard() {
       const data = await res.json().catch(() => null);
       if (miId !== idSolicitud.current) return; // el usuario ya optó por describirla manualmente
       if (data?.ok) {
-        resolverGrieta(data.observacion as ObservacionGrieta, "ia", (data.notaVisual as string | null) ?? null);
+        // R3 — la lectura NO va directo al veredicto: primero la persona
+        // confirma o corrige el patrón (paso "confirmar").
+        setLecturaIA({
+          observacion: data.observacion as ObservacionGrieta,
+          notaVisual: (data.notaVisual as string | null) ?? null,
+        });
+        setPaso("confirmar");
       } else {
         setAvisoSinIA(true);
         setPaso("manual");
@@ -138,7 +148,14 @@ export default function GrietaWizard() {
     idSolicitud.current++;
     setAnalizando(false);
     setAvisoSinIA(false);
+    setLecturaIA(null);
     setPaso("manual");
+  }
+
+  /** R3 — la persona confirmó (o corrigió) el patrón leído por la IA. */
+  function handlePatronConfirmado(patron: Patron) {
+    if (!lecturaIA) return;
+    resolverGrieta(lecturaIA.observacion, "ia", lecturaIA.notaVisual, patron);
   }
 
   function handleManualCompleto(datos: { patron: Patron; banderas: Banderas }) {
@@ -154,9 +171,18 @@ export default function GrietaWizard() {
     resolverGrieta(observacion, "manual", null);
   }
 
-  function resolverGrieta(observacion: ObservacionGrieta, fuente: FuenteObservacion, notaVisual: string | null) {
+  /**
+   * `patronDeclarado` (R3) solo viaja en el camino de la IA: en modo manual
+   * el patrón ya lo puso la persona, así que no hay nada que contrastar.
+   */
+  function resolverGrieta(
+    observacion: ObservacionGrieta,
+    fuente: FuenteObservacion,
+    notaVisual: string | null,
+    patronDeclarado?: Patron
+  ) {
     if (!declarado) return;
-    const entrada: EntradaTriage = { declarado, observacion, fuente, pasante };
+    const entrada: EntradaTriage = { declarado, observacion, fuente, pasante, patron_declarado: patronDeclarado };
     const evaluada = evaluarTriageGrieta(entrada);
     setResultadoActual({ evaluada, notaVisual });
     setPaso("resultado");
@@ -254,6 +280,15 @@ export default function GrietaWizard() {
           {avisoSinIA && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{COPY_SIN_IA}</p>}
           <DescribirGrietaManual onCompletar={handleManualCompleto} />
         </div>
+      )}
+
+      {paso === "confirmar" && lecturaIA && (
+        <ConfirmarPatron
+          elementoLeido={lecturaIA.observacion.elemento}
+          patronLeido={lecturaIA.observacion.patron}
+          notaVisual={lecturaIA.notaVisual}
+          onConfirmar={handlePatronConfirmado}
+        />
       )}
 
       {paso === "resultado" && resultadoActual && (

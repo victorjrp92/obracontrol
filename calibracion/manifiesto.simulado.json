@@ -1,0 +1,389 @@
+{
+  "_comentario": [
+    "Set semilla del modo SIMULADO de `npm run calibrar:vision`. Cada caso trae la observación",
+    "del modelo ESCRITA A MANO (no hay fotos ni llamadas a la red): sirve para probar el arnés y",
+    "el pipeline de triage completo sin ANTHROPIC_API_KEY. Los campos de `observacion` son los",
+    "mismos que devuelve la tool `reportar_observacion` del modelo, y pasan por",
+    "`normalizarObservacion()` igual que en producción.",
+    "NINGUNO de estos números viene de una medición real: son casos sintéticos para ejercitar las",
+    "reglas. Las mediciones reales van en calibracion/manifiesto.json (modo real, con fotos).",
+    "Ver calibracion/README.md."
+  ],
+  "casos": [
+    {
+      "id": "diagonal-en-columna",
+      "comentario": "Falla de cortante de manual: regla 2 → rojo.",
+      "declarado": "columna",
+      "pasante": "no_se",
+      "esperado": { "elemento": "columna", "patron": "diagonal", "ancho_mm_real": 2 },
+      "observacion": {
+        "elemento": "columna",
+        "patron": "diagonal",
+        "ancho_mm_min": 1.5,
+        "ancho_mm_max": 2.5,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.92, "patron": 0.9, "ancho": 0.7 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "escalonada-muro-carga-sin-desplazamiento",
+      "comentario": "Muro de carga, escalonada, sin indicio de pasante ni ancho > 3mm → regla 5, amarillo.",
+      "declarado": "muro_carga",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_carga", "patron": "escalonada", "ancho_mm_real": 2 },
+      "observacion": {
+        "elemento": "muro_carga",
+        "patron": "escalonada",
+        "ancho_mm_min": 1.5,
+        "ancho_mm_max": 2.5,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.88, "patron": 0.9, "ancho": 0.75 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "escalonada-muro-carga-con-desplazamiento",
+      "comentario": "Mismo caso anterior + desplazamiento de caras (proxy de pasante) → regla 4, rojo.",
+      "declarado": "muro_carga",
+      "pasante": "si",
+      "esperado": { "elemento": "muro_carga", "patron": "escalonada", "ancho_mm_real": 3 },
+      "observacion": {
+        "elemento": "muro_carga",
+        "patron": "escalonada",
+        "ancho_mm_min": 2.5,
+        "ancho_mm_max": 3.5,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": true,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.86, "patron": 0.88, "ancho": 0.6 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "craquelado-muro-divisorio-limpio",
+      "comentario": "El ÚNICO camino a verde (regla 8). Si este caso deja de dar verde, se rompió el flujo feliz.",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.93, "patron": 0.95, "ancho": 0.4 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "no-determinado-en-fachada",
+      "comentario": "El modelo no logra decir qué elemento es → regla 7, amarillo. Alimenta el % de no_determinado.",
+      "declarado": "no_determinado",
+      "pasante": "no_se",
+      "esperado": { "elemento": "fachada", "patron": "vertical", "ancho_mm_real": 1 },
+      "observacion": {
+        "elemento": "no_determinado",
+        "patron": "vertical",
+        "ancho_mm_min": 0.5,
+        "ancho_mm_max": 1.5,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.35, "patron": 0.7, "ancho": 0.5 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "confianza-baja-en-muro-divisorio",
+      "comentario": "Craquelado limpio pero el modelo no está seguro del elemento (0.45 < 0.6) → regla 7, amarillo.",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.45, "patron": 0.8, "ancho": 0.3 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "foto-oscura-muro-divisorio",
+      "comentario": "Calidad de foto mala → regla 7, amarillo, aunque todo lo demás apuntaba a verde.",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.9, "patron": 0.88, "ancho": 0.2 },
+        "calidad_foto": "oscura"
+      }
+    },
+    {
+      "id": "foto-movida-en-columna",
+      "comentario": "Foto movida en elemento estructural → amarillo (regla 5), con calidad_foto distinta de ok.",
+      "declarado": "columna",
+      "pasante": "no_se",
+      "esperado": { "elemento": "columna", "patron": "vertical", "ancho_mm_real": 1.5 },
+      "observacion": {
+        "elemento": "columna",
+        "patron": "vertical",
+        "ancho_mm_min": 1,
+        "ancho_mm_max": 2,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.7, "patron": 0.6, "ancho": 0.3 },
+        "calidad_foto": "movida"
+      }
+    },
+    {
+      "id": "trampa-verde-elemento-mal-leido",
+      "comentario": "TRAMPA: la lectura sola daría verde, pero la persona marcó columna → discrepancia de elemento, amarillo.",
+      "declarado": "columna",
+      "pasante": "no",
+      "esperado": { "elemento": "columna", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.95, "patron": 0.95, "ancho": 0.9 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "trampa-verde-patron-corregido",
+      "comentario": "TRAMPA: la IA leyó craquelado, la persona corrigió a diagonal (R3) → discrepancia de patrón, amarillo.",
+      "declarado": "muro_divisorio",
+      "patron_declarado": "diagonal",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "diagonal", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.94, "patron": 0.91, "ancho": 0.8 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "trampa-verde-confianza-al-borde",
+      "comentario": "TRAMPA: todo perfecto salvo la confianza del elemento (0.84 < 0.85) → R4, amarillo.",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.84, "patron": 0.9, "ancho": 0.5 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "acero-expuesto-en-viga",
+      "comentario": "Bandera de falla crítica en elemento estructural → regla 1, rojo.",
+      "declarado": "viga",
+      "pasante": "no_se",
+      "esperado": { "elemento": "viga", "patron": "horizontal", "ancho_mm_real": 6 },
+      "observacion": {
+        "elemento": "viga",
+        "patron": "horizontal",
+        "ancho_mm_min": 5,
+        "ancho_mm_max": 7,
+        "banderas": {
+          "acero_expuesto": true,
+          "concreto_triturado": true,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.9, "patron": 0.85, "ancho": 0.65 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "sin-referencia-escala-muro-carga",
+      "comentario": "Sin moneda visible: confianza.ancho baja a 0 pero el ancho se conserva → regla 4 sigue viva, rojo.",
+      "declarado": "muro_carga",
+      "pasante": "no_se",
+      "esperado": { "elemento": "muro_carga", "patron": "vertical", "ancho_mm_real": 4 },
+      "observacion": {
+        "elemento": "muro_carga",
+        "patron": "vertical",
+        "ancho_mm_min": 3.5,
+        "ancho_mm_max": 5,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.8, "patron": 0.75, "ancho": 0.5 },
+        "calidad_foto": "sin_referencia_escala"
+      }
+    },
+    {
+      "id": "pasante-en-muro-divisorio",
+      "comentario": "Grieta escalonada con ancho medible en muro divisorio + pasante='si' → regla 6, amarillo.",
+      "declarado": "muro_divisorio",
+      "pasante": "si",
+      "esperado": { "elemento": "muro_divisorio", "patron": "escalonada", "ancho_mm_real": 1.5 },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "escalonada",
+        "ancho_mm_min": 1,
+        "ancho_mm_max": 2,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.9, "patron": 0.9, "ancho": 0.7 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "craquelado-en-losa-de-techo",
+      "comentario": "Craquelado, pero NO en muro divisorio: la regla 8 no aplica → regla 9, amarillo por defecto.",
+      "declarado": "losa_techo",
+      "pasante": "no_se",
+      "esperado": { "elemento": "losa_techo", "patron": "craquelado", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "losa_techo",
+        "patron": "craquelado",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.88, "patron": 0.9, "ancho": 0.3 },
+        "calidad_foto": "ok"
+      }
+    },
+    {
+      "id": "foto-muy-lejos-muro-divisorio",
+      "comentario": "Foto tomada demasiado lejos → regla 7, amarillo. Cubre la calidad 'muy_lejos'.",
+      "declarado": "muro_divisorio",
+      "pasante": "no",
+      "esperado": { "elemento": "muro_divisorio", "patron": "diagonal", "ancho_mm_real": null },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "diagonal",
+        "ancho_mm_min": null,
+        "ancho_mm_max": null,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": false
+        },
+        "confianza": { "elemento": 0.6, "patron": 0.55, "ancho": 0.1 },
+        "calidad_foto": "muy_lejos"
+      }
+    },
+    {
+      "id": "muro-separado-de-la-estructura",
+      "comentario": "Separación muro/estructura en cualquier elemento → regla 3, rojo.",
+      "declarado": "muro_divisorio",
+      "pasante": "no_se",
+      "esperado": { "elemento": "muro_divisorio", "patron": "junta_entre_elementos", "ancho_mm_real": 8 },
+      "observacion": {
+        "elemento": "muro_divisorio",
+        "patron": "junta_entre_elementos",
+        "ancho_mm_min": 6,
+        "ancho_mm_max": 9,
+        "banderas": {
+          "acero_expuesto": false,
+          "concreto_triturado": false,
+          "desplazamiento_caras": false,
+          "elemento_inclinado": false,
+          "separacion_muro_estructura": true
+        },
+        "confianza": { "elemento": 0.87, "patron": 0.82, "ancho": 0.55 },
+        "calidad_foto": "ok"
+      }
+    }
+  ]
+}

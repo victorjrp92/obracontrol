@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { LABEL_PATRON, ORDEN_PATRON } from "@/lib/alerta/copys";
 import type { Banderas, Patron } from "@/lib/alerta/tipos";
 
 /**
@@ -15,23 +16,12 @@ import type { Banderas, Patron } from "@/lib/alerta/tipos";
  * NO pregunta por el elemento: eso ya se preguntó en el Paso 1
  * (UbicarGrieta.tsx) y GrietaWizard.tsx lo reusa tal cual como `elemento`
  * de la ObservacionGrieta manual (fuente: "manual", ver triage.ts T4).
+ *
+ * Las etiquetas del menú de patrones ya NO viven acá: se movieron tal cual a
+ * `LABEL_PATRON`/`ORDEN_PATRON` en `src/lib/alerta/copys.ts` para que el
+ * paso de confirmación de patrón (R3, `ConfirmarPatron.tsx`) use exactamente
+ * las mismas palabras. Ver docs/specs/2026-08-13-alerta-refinamiento-vision.md.
  */
-
-interface OpcionPatron {
-  patron: Patron;
-  label: string;
-}
-
-const OPCIONES_PATRON: OpcionPatron[] = [
-  { patron: "vertical", label: "En línea recta, de arriba hacia abajo" },
-  { patron: "horizontal", label: "En línea recta, de lado a lado" },
-  { patron: "diagonal", label: "Inclinada (en diagonal)" },
-  { patron: "diagonal_x", label: "En forma de X" },
-  { patron: "escalonada", label: "En escalones (sigue los bloques o ladrillos)" },
-  { patron: "craquelado", label: "Como telaraña, muchas líneas finas" },
-  { patron: "esquina_vano", label: "Sale de la esquina de una puerta o ventana" },
-  { patron: "junta_entre_elementos", label: "Donde se juntan dos materiales distintos (ej. columna y muro)" },
-];
 
 interface PreguntaBandera {
   clave: keyof Banderas;
@@ -72,17 +62,17 @@ export default function DescribirGrietaManual({ onCompletar }: DescribirGrietaMa
       <div>
         <p className="mb-2 text-sm font-semibold text-slate-800">¿Cómo se ve la grieta?</p>
         <div className="flex flex-col gap-2">
-          {OPCIONES_PATRON.map((op) => (
+          {ORDEN_PATRON.map((op) => (
             <button
-              key={op.patron}
+              key={op}
               type="button"
-              onClick={() => setPatron(op.patron)}
-              aria-pressed={patron === op.patron}
+              onClick={() => setPatron(op)}
+              aria-pressed={patron === op}
               className={`rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-colors ${
-                patron === op.patron ? "border-blue-500 bg-blue-50 text-blue-900" : "border-slate-200 text-slate-700 hover:border-slate-300"
+                patron === op ? "border-blue-500 bg-blue-50 text-blue-900" : "border-slate-200 text-slate-700 hover:border-slate-300"
               }`}
             >
-              {op.label}
+              {LABEL_PATRON[op]}
             </button>
           ))}
         </div>

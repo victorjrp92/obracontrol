@@ -51,6 +51,11 @@ next-env.d.ts
 
 /src/generated/prisma
 
+# fotos y manifiesto real de calibración de Seiricon Alerta (datos de casas reales:
+# nunca se suben al repo). El set simulado y el ejemplo sí están versionados.
+/calibracion/fotos/
+/calibracion/manifiesto.json
+
 # playwright screenshots and cache
 .playwright-cli/
 landing-*.png

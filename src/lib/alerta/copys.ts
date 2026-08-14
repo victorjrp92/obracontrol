@@ -7,7 +7,7 @@
  *
  * Ver docs/specs/2026-08-13-seiricon-alerta-fase1.md, sección A.4.
  */
-import type { Elemento, Nivel } from "./tipos";
+import type { Elemento, Nivel, Patron } from "./tipos";
 
 export const COPY_NIVEL: Record<Nivel, string> = {
   rojo: "Salí y buscá evaluación urgente.",
@@ -58,6 +58,41 @@ export const COPY_DISCREPANCIA =
 export const COPY_SIN_IA =
   "En este momento no pudimos leer la foto automáticamente. Completa esta grieta con lo que tú observas " +
   "— con tu descripción, el resultado no puede llegar a verde.";
+
+/**
+ * Nombres en lenguaje llano de cada `Patron`. Son EXACTAMENTE las etiquetas
+ * que ya usaba el menú del modo manual (`DescribirGrietaManual.tsx`), movidas
+ * acá sin cambiar una coma para que el paso de confirmación de patrón (R3,
+ * `ConfirmarPatron.tsx`) las reuse en vez de inventar un segundo vocabulario
+ * para la misma pregunta.
+ */
+export const LABEL_PATRON: Record<Patron, string> = {
+  vertical: "En línea recta, de arriba hacia abajo",
+  horizontal: "En línea recta, de lado a lado",
+  diagonal: "Inclinada (en diagonal)",
+  diagonal_x: "En forma de X",
+  escalonada: "En escalones (sigue los bloques o ladrillos)",
+  craquelado: "Como telaraña, muchas líneas finas",
+  esquina_vano: "Sale de la esquina de una puerta o ventana",
+  junta_entre_elementos: "Donde se juntan dos materiales distintos (ej. columna y muro)",
+};
+
+/** Orden en el que se listan los patrones en pantalla (el mismo del menú original del modo manual). */
+export const ORDEN_PATRON: Patron[] = [
+  "vertical",
+  "horizontal",
+  "diagonal",
+  "diagonal_x",
+  "escalonada",
+  "craquelado",
+  "esquina_vano",
+  "junta_entre_elementos",
+];
+
+/** Banner cuando el patrón que confirmó la persona no coincide con el leído en la foto (R3). */
+export const COPY_DISCREPANCIA_PATRON =
+  "Nos dijiste que la grieta se ve distinta a como la leímos en la foto. Evaluamos las dos formas y nos " +
+  "quedamos con el resultado más conservador.";
 
 /** Nombres en lenguaje llano de cada `Elemento` — usado por ResultadoGrieta.tsx, ResumenInmueble.tsx e InformeGrietasReport.tsx. */
 export const LABEL_ELEMENTO: Record<Elemento, string> = {

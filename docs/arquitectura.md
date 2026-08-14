@@ -182,6 +182,51 @@ ingenieros). Ver [spec Fase 2](./specs/2026-08-13-seiricon-alerta-fase2.md).
   /api/alerta/informe-grietas-pdf` (calcado de `acta-pdf/route.ts`, `MAX_GRIETAS = 5` = 10
   fotos, mismo presupuesto que el acta).
 
+### 9.2 Refinamiento de confiabilidad + arnés de calibración
+
+Cuatro cambios sobre el puente visión↔reglas de §9.1, todos **aditivos y solo capaces de subir
+el semáforo**. `reglas.ts` y `scripts/verificar-reglas-alerta.ts` siguen con diff vacío (43/43).
+Ver [spec](./specs/2026-08-13-alerta-refinamiento-vision.md).
+
+- **Doble lectura (consenso)**: `observarGrietaConsenso()` hace DOS llamadas independientes en
+  paralelo con `temperature: 0.5` (no 0: sin varianza de muestreo la discrepancia no
+  significaría nada) y las fusiona conservadoramente con `fusionarLecturas()` — función pura,
+  verificable sin red: elemento/patrón distintos entre lecturas ⇒ esa confianza a 0 (regla 7 →
+  amarillo), banderas con OR, ancho al máximo, calidad la peor, `confianza.ancho` la mínima.
+  Si solo responde una llamada, se usa con TODAS las confianzas en 0. Interruptor
+  `ALERTA_VISION_CONSENSO="false"` para volver a una sola lectura; **el consenso duplica el
+  costo en tokens por grieta**. Se confía en la varianza medida entre muestras, no en la
+  confianza que el modelo se autorreporta.
+- **Ancho como rango**: el schema de la tool pide `ancho_mm_min`/`ancho_mm_max`, y
+  `normalizarObservacion` usa el **máximo** como `ancho_mm` (el extremo que alimenta la regla 4
+  de muro de carga; el mínimo ablandaría un rojo). `min > max` se corrige intercambiándolos.
+  `ObservacionGrieta.ancho_rango?` es un campo **opcional** e informativo que `reglas.ts` nunca
+  lee.
+- **Confirmación humana del patrón** (`ConfirmarPatron.tsx`, paso entre la lectura y el
+  veredicto): el elemento tenía dos fuentes y se reconciliaban, el patrón tenía una sola — y es
+  lo único que abre la puerta al verde. Ahora `EntradaTriage.patron_declarado?` se contrasta con
+  el leído. **No hay tabla de severidad de patrones** (la gravedad de un patrón depende del
+  elemento): se generalizó `aplicarCandidatoDescartado()` para evaluar la observación bajo todos
+  los candidatos (elemento declarado × observado, patrón observado × declarado) y quedarse con
+  el peor. Las etiquetas llanas de patrón viven ahora en `LABEL_PATRON`/`ORDEN_PATRON`
+  (`src/lib/alerta/copys.ts`), compartidas entre el modo manual y la confirmación.
+- **Umbral asimétrico del verde**: `CONFIANZA_MINIMA_VERDE = 0.85` en `triage.ts`, más alta que
+  `CONFIANZA_MINIMA = 0.6` de `reglas.ts` — el verde es el único veredicto que puede hacer daño
+  por omisión. Verde con `confianza.elemento` o `confianza.patron` por debajo → amarillo.
+- **Arnés de calibración** (`npm run calibrar:vision`, `scripts/calibrar-vision.ts`): modo
+  **simulado** (por defecto sin key — observaciones escritas a mano en
+  `calibracion/manifiesto.simulado.json`, 17 casos semilla incluidos tres trampa) y modo
+  **real** (con key + fotos en `calibracion/`, vía `observarGrietaConsenso`). Reporta matrices
+  de confusión de elemento y patrón, error de ancho contra medición real, % de
+  `no_determinado`, distribución de `calidad_foto` y de niveles, y **falsos verdes uno por
+  uno**: sale con código ≠ 0 si hay uno solo. `calibracion/fotos/` y
+  `calibracion/manifiesto.json` están en `.gitignore` (fotos de casas reales).
+- **Invariante ampliado**, verificado en `npm run verify:triage` (84 asserts): el nivel final
+  nunca es más suave que leer la observación bajo cualquiera de los elementos **ni de los
+  patrones** candidatos, y el único camino a verde sigue siendo fuente `ia` + sin discrepancia
+  de elemento ni de patrón + `muro_divisorio`/`craquelado` + sin banderas + `calidad_foto: "ok"`
+  + confianza ≥ 0.85 + `pasante !== "si"`.
+
 ## 10. Seiricon Go — campaña de reparaciones post-sismo (`/repara`)
 
 `/repara` es el landing de campaña de **Seiricon Go**: seis meses gratis del producto

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_BODY_OBSERVACION_BYTES, mensajeObservacionMuyPesada, validarObservarGrietaPayload } from "@/lib/alerta/grietas";
-import { observarGrieta } from "@/lib/alerta/observar-grieta";
+import { observarGrietaConsenso } from "@/lib/alerta/observar-grieta";
 
 // Público, sin auth (Seiricon Alerta no tiene tenant). Sin persistencia.
 // Siempre responde 200 con `{ok:true,...}` o `{ok:false, motivo}` — nunca
@@ -51,7 +51,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, motivo: "error" as const });
     }
 
-    const resultado = await observarGrieta(validacion.payload);
+    // Doble lectura con fusión conservadora (R1). Cae solo a una lectura si
+    // ALERTA_VISION_CONSENSO === "false". Ver
+    // docs/specs/2026-08-13-alerta-refinamiento-vision.md.
+    const resultado = await observarGrietaConsenso(validacion.payload);
     return NextResponse.json(resultado);
   } catch (error) {
     console.error("POST /api/alerta/observar-grieta", error);
