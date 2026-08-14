@@ -181,3 +181,56 @@ ingenieros). Ver [spec Fase 2](./specs/2026-08-13-seiricon-alerta-fase2.md).
   `MAX_BODY_OBSERVACION_BYTES` en `src/lib/alerta/grietas.ts`) y `POST
   /api/alerta/informe-grietas-pdf` (calcado de `acta-pdf/route.ts`, `MAX_GRIETAS = 5` = 10
   fotos, mismo presupuesto que el acta).
+
+## 10. Seiricon Go — campaña de reparaciones post-sismo (`/repara`)
+
+`/repara` es el landing de campaña de **Seiricon Go**: seis meses gratis del producto
+completo para las reparaciones del sismo en Cali, Pereira y Manizales. Es UI pública
+(grupo `(public)`, reusa Navbar/Footer), sin cuenta y **sin tenant** — igual que
+`/alerta`. Ver [spec](./specs/2026-08-13-seiricon-go-repara.md).
+
+- **Ruta canónica `/repara`, alias `/go` con 308.** El canal real es dictado por voz
+  (WhatsApp, radio): `/repara` es español, una palabra, sin tildes ni guiones, y rima con
+  `/alerta`; "Seiricon Go" es el **nombre de marca** (badge del hero y copy), no la URL.
+  El alias vive en `src/app/go/page.tsx` (server component que llama
+  `permanentRedirect("/repara")` de `next/navigation` → 308) y está **fuera** del grupo
+  `(public)` para no montar Navbar/Footer antes de redirigir. NO se usa `redirects()` de
+  `next.config.ts`: ese archivo está envuelto por el wrapper de Serwist y toca headers
+  globales.
+- **Cero base de datos, cero schema, cero migraciones.** No hay pasarela de pagos ni motor
+  de suscripciones en el repo; `Constructora.plan_suscripcion` es una etiqueta cuyo único
+  consumidor funcional es `limiteObrasActivas()` (`src/lib/plan.ts`), y
+  `src/lib/onboarding.ts` ya provisiona toda cuenta personal como `PERSONAL` (gratis hoy).
+  Un `PlanTipo.GO` con vencimiento sería inventar un motor de suscripciones completo. La
+  captación es por formulario (Tally) y **el alta la hace el super-admin a mano**.
+  Verificable:
+  `grep -rn "@/lib/prisma\|@prisma/client\|@/lib/supabase" src/components/repara "src/app/(public)/repara" src/app/go` sin resultados.
+- **Placeholders con guarda de render** (`src/components/repara/config.ts`): mientras
+  `TALLY_REPARA_URL`, `FECHA_LIMITE_CUPO` o `CUPOS_GO` sigan sin confirmar, la UI **no
+  renderiza** el bloque que los usa. Ninguna cadena `TODO(` llega al usuario. Mejora
+  deliberada sobre `/beta`: el fallback del formulario es **para el usuario** (correo real
+  `CONTACTO_EMAIL`, y WhatsApp si ya está confirmado); la pista para el desarrollador solo
+  se renderiza con `process.env.NODE_ENV !== "production"`.
+- **Elegibilidad: se comunica, no se verifica.** No hay forma decente de comprobar que una
+  reparación es del sismo. Se nombran las tres ciudades, se dice explícitamente que no se
+  piden papeles, y la sección de oferta deja una salida honesta a quien no califica (la
+  herramienta sirve igual; lo reservado para las zonas afectadas son los meses).
+- **Puente con `/alerta`, una sola línea y siempre al final.**
+  `src/components/alerta/PuenteRepara.tsx` es el único punto desde el que `/alerta` enlaza
+  a `/repara`, y se monta en exactamente dos sitios, ambos con el flujo ya terminado:
+  `PuenteIngenieros.tsx` (paso 6 del triage, reemplaza el enlace previo a `/para-ti`) y el
+  paso "resumen" de `ActaWizard.tsx`. Está **prohibido** enlazarlo desde `AlertaHero`,
+  `FiltroSeguridad` (y sobre todo desde la pantalla roja "Salí ahora"), `AlertaDisclaimer`,
+  `LineasEmergencia`, `UbicarGrieta`, `GrietaCameraCapture` y `ResultadoGrieta` —
+  verificable con `grep -rn "/repara" src/components/alerta`. En sentido inverso `/repara`
+  devuelve tráfico gratis a `/alerta` dos veces (franja bajo el hero y sección completa
+  antes del cierre).
+- **Sin dependencias nuevas.** `src/components/repara/*` importa `@/components/beta/Reveal`
+  en vez de crear una tercera copia del mismo helper de scroll-reveal. Acoplamiento
+  deliberado y documentado en cada archivo: extraer un `ui/Reveal.tsx` común obligaría a
+  tocar dos landings ya publicados.
+- **Hero oscuro obligatorio** (`bg-slate-900 pt-28 pb-20 sm:pt-32 sm:pb-28`, igual que
+  `BetaHero`/`AlertaHero`): el `Navbar` público es `fixed`, arranca transparente con texto
+  blanco y solo pasa a tema claro tras `0.85 * innerHeight` de scroll.
+- **No se enlaza** desde `Navbar.tsx`/`Footer.tsx` ni desde `Pricing.tsx` (una campaña con
+  vencimiento no vive en la tabla de precios permanente) y **no pasa por `src/proxy.ts`**.

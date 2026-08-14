@@ -61,6 +61,20 @@
   manual arma la observación — en modo manual el resultado nunca llega a verde. Nada se
   persiste en base de datos. Ver [spec Fase 2](./specs/2026-08-13-seiricon-alerta-fase2.md).
 
+## 🛠️ Seiricon Go (público, campaña de reparaciones post-sismo)
+- **CU-GO-01** `/repara` 🆕 — Landing de campaña: Seiricon Go gratis 6 meses para las
+  reparaciones del sismo en Cali, Pereira y Manizales. La persona lee el problema (el
+  reparador que cobra el anticipo y desaparece), las tres pruebas que ya da el producto
+  (foto con fecha/hora/GPS, gastos sustentados con factura, link de transparencia sin
+  cuenta), elige su puerta (voy a mandar a arreglar / yo soy el que repara) y pide el cupo
+  en el formulario `#cupo`. **No hay alta automática**: la captación es por formulario y el
+  super-admin activa la cuenta a mano — cero tablas, cero `PlanTipo` nuevo, cero pasarela.
+  La elegibilidad se comunica pero **no se verifica** (no se piden papeles) y quien no
+  califica tiene salida explícita. Si el formulario aún no está configurado, la sección
+  `#cupo` muestra el correo real de contacto. `/go` es alias 308 de esta ruta. Enlaza dos
+  veces a `/alerta` (gratis, sin cuenta). Ver
+  [spec](./specs/2026-08-13-seiricon-go-repara.md).
+
 ## Convenciones del producto
 - Mutaciones siempre por `/api/.../route.ts` con validación + log de error real
 - Layouts redirigen por rol; páginas hacen segundo guard

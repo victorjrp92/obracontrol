@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { ExternalLink, Mail, MessageCircle } from "lucide-react";
 import { CANAL_OFICIAL_PLACEHOLDER, CANALES_OFICIALES, CONTACTO_EMAIL, CONTACTO_WHATSAPP, CONTACTO_WHATSAPP_PLACEHOLDER } from "./config";
+import PuenteRepara from "./PuenteRepara";
 
 /**
  * Paso 6 del triage: puente con ingenieros. Contacto por correo (real,
@@ -9,6 +9,9 @@ import { CANAL_OFICIAL_PLACEHOLDER, CANALES_OFICIALES, CONTACTO_EMAIL, CONTACTO_
  * src/components/beta/config.ts), canal oficial del municipio con
  * placeholders, y UNA sola línea de remarketing al final, después de la
  * ayuda real. Sin banner, sin modal, sin interrumpir (spec sección 3).
+ *
+ * Esa línea es `<PuenteRepara />` (la campaña /repara de Seiricon Go); antes
+ * apuntaba a /para-ti. Sigue siendo UNA sola y va al cierre del flujo.
  */
 export default function PuenteIngenieros() {
   const whatsappListo = CONTACTO_WHATSAPP !== CONTACTO_WHATSAPP_PLACEHOLDER;
@@ -60,13 +63,7 @@ export default function PuenteIngenieros() {
         </div>
       )}
 
-      <p className="border-t border-slate-100 pt-3 text-xs text-slate-400">
-        Seiricon también ayuda a constructoras y contratistas a llevar el control de una obra —{" "}
-        <Link href="/para-ti" className="font-medium text-blue-600 hover:text-blue-700">
-          conócenos
-        </Link>
-        .
-      </p>
+      <PuenteRepara />
     </div>
   );
 }
