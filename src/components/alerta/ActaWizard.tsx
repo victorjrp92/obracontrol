@@ -23,7 +23,6 @@ import {
   type TipoInmueble,
 } from "@/lib/alerta/acta";
 import ActaCameraCapture, { type CapturedPhotoActa } from "./ActaCameraCapture";
-import PuenteRepara from "./PuenteRepara";
 
 type Paso = "datos" | "espacios" | "resumen";
 
@@ -481,7 +480,7 @@ export default function ActaWizard() {
 
           {/* Flujo terminado (el acta ya está lista): única línea de puente a
               /repara. Nunca antes de este punto — ver PuenteRepara.tsx. */}
-          <PuenteRepara />
+          {/* Puente al flujo de reparación: lo monta el build de Juntos (spec-go-juntos.md) */}
         </div>
       )}
     </div>

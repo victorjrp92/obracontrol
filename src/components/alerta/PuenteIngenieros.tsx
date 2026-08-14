@@ -1,6 +1,5 @@
 import { ExternalLink, Mail, MessageCircle } from "lucide-react";
 import { CANAL_OFICIAL_PLACEHOLDER, CANALES_OFICIALES, CONTACTO_EMAIL, CONTACTO_WHATSAPP, CONTACTO_WHATSAPP_PLACEHOLDER } from "./config";
-import PuenteRepara from "./PuenteRepara";
 
 /**
  * Paso 6 del triage: puente con ingenieros. Contacto por correo (real,
@@ -63,7 +62,7 @@ export default function PuenteIngenieros() {
         </div>
       )}
 
-      <PuenteRepara />
+      {/* Puente al flujo de reparación: lo monta el build de Juntos (spec-go-juntos.md) */}
     </div>
   );
 }

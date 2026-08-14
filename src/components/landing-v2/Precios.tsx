@@ -30,8 +30,10 @@ export default function Precios() {
             <span className="rec">RECOMENDADO</span>
             <h4>Pro</h4>
             <div className="pr">
-              $1.800.000
+              <span className="pr-antes">$1.800.000</span>
+              $1.500.000
               <small>COP/mes · hasta 5 obras</small>
+              <span className="pr-fundador">Precio fundador · ahorra $300.000</span>
             </div>
             <ul>
               <li>Usuarios ilimitados</li>
