@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Building, Building2, Home, Plus, Store, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, MAX_ESPACIOS, MAX_FOTOS, estimarBytesBase64, type TipoInmueble } from "@/lib/alerta/acta";
@@ -51,6 +51,10 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
   const [errorActa, setErrorActa] = useState<string | null>(null);
   const [datosGate, setDatosGate] = useState<DatosGate | null>(null);
   const [folioActa, setFolioActa] = useState<string | null>(null);
+  // El contacto se envía UNA sola vez por sesión del wizard: si el PDF falla
+  // (429/500/red) y la persona reintenta el gate, no se duplica la fila en
+  // contacto_juntos (el contacto y el PDF son independientes a propósito).
+  const contactoEnviado = useRef(false);
 
   // Derecho de petición (post-descarga).
   const [generandoDp, setGenerandoDp] = useState(false);
@@ -137,20 +141,24 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
     try {
       // 1) Contacto: SOLO nombre/whatsapp/ciudad/audiencia/acepta_contacto
       // (jamás cédula ni dirección — regla dura del spec). Best-effort: si
-      // falla, el acta se descarga igual.
-      fetch("/api/juntos/contacto", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nombre: datos.nombre,
-          whatsapp: datos.whatsapp,
-          ciudad: datos.ciudad,
-          audiencia: datos.audiencia,
-          acepta_contacto: datos.aceptaContacto,
-          origen: modoAfuera ? "documentar-afuera" : "documentar-gate",
-          sitio_web: datos.sitioWeb,
-        }),
-      }).catch(() => {});
+      // falla, el acta se descarga igual — y solo se envía una vez aunque el
+      // PDF falle y la persona reintente.
+      if (!contactoEnviado.current) {
+        contactoEnviado.current = true;
+        fetch("/api/juntos/contacto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: datos.nombre,
+            whatsapp: datos.whatsapp,
+            ciudad: datos.ciudad,
+            audiencia: datos.audiencia,
+            acepta_contacto: datos.aceptaContacto,
+            origen: modoAfuera ? "documentar-afuera" : "documentar-gate",
+            sitio_web: datos.sitioWeb,
+          }),
+        }).catch(() => {});
+      }
 
       // 2) El acta: cédula y dirección viajan SOLO aquí, se imprimen y se descartan.
       const payload = await construirPayload(datos);
@@ -209,11 +217,13 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
         const data = await res.json().catch(() => null);
         throw new Error(data?.error ?? "No pudimos generar el documento.");
       }
+      // Mismo folio DP- que imprime el PDF en su pie (contrato con la ruta).
+      const folioDp = res.headers.get("X-Juntos-Folio");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `derecho-de-peticion-${new Date().toISOString().split("T")[0]}.pdf`;
+      a.download = `derecho-de-peticion-${folioDp ?? new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

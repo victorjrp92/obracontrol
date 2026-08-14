@@ -13,6 +13,7 @@
 import {
   MAX_BODY_BYTES,
   MAX_ESPACIOS,
+  MAX_FOTO_BASE64_CHARS,
   MAX_FOTOS,
   type EspacioActa,
   type FotoActa,
@@ -147,7 +148,14 @@ export function validarActaJuntosPayload(body: unknown): ValidacionActaJuntos {
     const fotos: FotoActa[] = [];
     for (const rawFoto of e.fotos) {
       const dataUrl = (rawFoto as Record<string, unknown> | null)?.dataUrl;
-      if (typeof dataUrl !== "string" || !DATA_URL_IMAGEN.test(dataUrl)) {
+      if (typeof dataUrl !== "string") {
+        return { ok: false, error: `Una de las fotos del espacio "${nombre}" no tiene un formato válido.` };
+      }
+      // Tope POR IMAGEN además del agregado (spec-go-juntos.md, Seguridad).
+      if (dataUrl.length > MAX_FOTO_BASE64_CHARS) {
+        return { ok: false, error: `Una de las fotos del espacio "${nombre}" es demasiado pesada. Repítela e intenta de nuevo.` };
+      }
+      if (!DATA_URL_IMAGEN.test(dataUrl)) {
         return { ok: false, error: `Una de las fotos del espacio "${nombre}" no tiene un formato válido.` };
       }
       fotos.push({ dataUrl });

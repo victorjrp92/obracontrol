@@ -65,7 +65,9 @@ export default function PostDescarga({ variante, ciudad = null, derechoPeticion 
         </span>
         <b>{variante === "acta" ? "Tu acta quedó descargada." : "Tu informe quedó descargado."}</b>
         <p>
-          Guárdala donde no se pierda y compártela solo con quien la necesite.
+          {variante === "acta"
+            ? "Guárdala donde no se pierda y compártela solo con quien la necesite."
+            : "Guárdalo donde no se pierda y compártelo solo con quien lo necesite."}
           <br />
           Ahora, esto es lo que casi nadie te cuenta — y tienes que saberlo:
         </p>

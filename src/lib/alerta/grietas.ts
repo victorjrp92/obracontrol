@@ -10,7 +10,7 @@
  *
  * Ver docs/specs/2026-08-13-seiricon-alerta-fase2.md, sección 3.
  */
-import { MAX_BODY_BYTES } from "./acta";
+import { MAX_BODY_BYTES, MAX_FOTO_BASE64_CHARS } from "./acta";
 import type { Elemento, Nivel, Veredicto } from "./tipos";
 
 // ─── Límites de payload ─────────────────────────────────────────────────────
@@ -176,7 +176,14 @@ export function validarInformeGrietasPayload(body: unknown): ValidacionInformeGr
     const fotos: FotoGrieta[] = [];
     for (const rawFoto of g.fotos) {
       const dataUrl = (rawFoto as Record<string, unknown> | null)?.dataUrl;
-      if (typeof dataUrl !== "string" || !DATA_URL_IMAGEN.test(dataUrl)) {
+      if (typeof dataUrl !== "string") {
+        return { ok: false, error: "Una de las fotos de una grieta no tiene un formato válido." };
+      }
+      // Tope POR IMAGEN además del agregado (spec-go-juntos.md, Seguridad).
+      if (dataUrl.length > MAX_FOTO_BASE64_CHARS) {
+        return { ok: false, error: "Una de las fotos de una grieta es demasiado pesada. Repítela e intenta de nuevo." };
+      }
+      if (!DATA_URL_IMAGEN.test(dataUrl)) {
         return { ok: false, error: "Una de las fotos de una grieta no tiene un formato válido." };
       }
       fotos.push({ dataUrl });

@@ -219,11 +219,13 @@ export default function GrietaWizardJuntos() {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error ?? "No pudimos generar el informe en PDF.");
       }
+      // Mismo folio que imprime el PDF en su pie (contrato con la ruta).
+      const folio = res.headers.get("X-Juntos-Folio");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `informe-de-grietas-${new Date().toISOString().split("T")[0]}.pdf`;
+      a.download = `informe-de-grietas-${folio ?? new Date().toISOString().split("T")[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

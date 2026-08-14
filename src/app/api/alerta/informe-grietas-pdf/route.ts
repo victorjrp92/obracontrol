@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${filename}"`,
+        // El cliente nombra el archivo con el mismo folio impreso en el PDF.
+        "X-Juntos-Folio": folio,
       },
     });
   } catch {

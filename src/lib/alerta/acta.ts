@@ -41,6 +41,13 @@ export const MAX_FOTOS = 10;
 export const MAX_ESPACIOS = 8;
 /** Margen bajo los ~4.5MB que impone Vercel al body de una función serverless. */
 export const MAX_BODY_BYTES = 3.5 * 1024 * 1024;
+/**
+ * Tope POR IMAGEN además del agregado (spec-go-juntos.md, Seguridad): el
+ * cliente comprime a 1200px/JPEG 0.65 (≤ ~550KB en base64), así que 1.5M de
+ * caracteres base64 (~1.1MB binarios) da margen de sobra a una foto legítima
+ * y corta una imagen única sobredimensionada antes de llegar al render.
+ */
+export const MAX_FOTO_BASE64_CHARS = 1.5 * 1024 * 1024;
 
 /** Estimado del tamaño que ocupa un blob binario codificado en base64 (~33% más grande). */
 export function estimarBytesBase64(bytesBinarios: number): number {
@@ -116,7 +123,13 @@ export function validarActaPayload(body: unknown): ValidacionActaPayload {
     const fotos: FotoActa[] = [];
     for (const rawFoto of e.fotos) {
       const dataUrl = (rawFoto as Record<string, unknown> | null)?.dataUrl;
-      if (typeof dataUrl !== "string" || !DATA_URL_IMAGEN.test(dataUrl)) {
+      if (typeof dataUrl !== "string") {
+        return { ok: false, error: `Una de las fotos del espacio "${nombre}" no tiene un formato válido.` };
+      }
+      if (dataUrl.length > MAX_FOTO_BASE64_CHARS) {
+        return { ok: false, error: `Una de las fotos del espacio "${nombre}" es demasiado pesada. Repítela e intenta de nuevo.` };
+      }
+      if (!DATA_URL_IMAGEN.test(dataUrl)) {
         return { ok: false, error: `Una de las fotos del espacio "${nombre}" no tiene un formato válido.` };
       }
       fotos.push({ dataUrl });
