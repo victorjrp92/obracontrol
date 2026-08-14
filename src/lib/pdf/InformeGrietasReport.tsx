@@ -3,6 +3,7 @@ import { pdfStyles, pdfColors, formatDate } from "./styles";
 import { evaluarInmueble } from "@/lib/alerta/reglas";
 import { ADVERTENCIA_VERDE, LABEL_ELEMENTO } from "@/lib/alerta/copys";
 import { AVISO_DOCUMENTO } from "@/lib/juntos/contenido-legal";
+import type { IdentidadActa } from "@/lib/juntos/acta-juntos";
 import type { InformeGrietasPayload } from "@/lib/alerta/grietas";
 import type { Nivel } from "@/lib/alerta/tipos";
 
@@ -162,7 +163,12 @@ const COLOR_NIVEL: Record<Nivel, string> = {
 };
 
 export interface InformeGrietasReportProps {
-  data: InformeGrietasPayload;
+  /**
+   * El informe de Juntos (informe-juntos.ts, tras el gate de datos) trae
+   * `identidad`; el de Fase 2 (/api/alerta/informe-grietas-pdf) no la pide.
+   * Por eso es opcional: presente → se imprime el bloque «Quién declara».
+   */
+  data: InformeGrietasPayload & { identidad?: IdentidadActa };
   /** Folio JT- + hash de verificación (spec Juntos) — los calcula la ruta API. */
   folio?: string;
   hashCorto?: string;
@@ -172,13 +178,18 @@ export interface InformeGrietasReportProps {
 /**
  * Informe de grietas (/go/juntos/revisar). Cabecera Seiricon Juntos con logo
  * real, disclaimer arriba y en el pie de CADA página (`fixed`), folio + hash
- * de verificación, nivel del inmueble (evaluarInmueble) con su prioridad de
- * revisión y, por grieta: nivel, elemento declarado vs. final, razón, qué
- * hacer / qué no hacer, ADVERTENCIA_VERDE cuando el nivel es verde, y las dos
- * fotos de evidencia con overlay en objectFit "contain" (sin recortes).
+ * de verificación, bloque de identidad del declarante (mismo del acta, cuando
+ * el informe viene del gate de datos), nivel del inmueble (evaluarInmueble)
+ * con su prioridad de revisión y, por grieta: nivel, elemento declarado vs.
+ * final, razón, qué hacer / qué no hacer, ADVERTENCIA_VERDE cuando el nivel es
+ * verde, y las dos fotos de evidencia con overlay en objectFit "contain".
+ *
+ * La identidad (nombre, cédula, WhatsApp, dirección, ciudad) SOLO existe en el
+ * request y en este PDF: nunca se persiste (regla dura del spec).
  */
 export function InformeGrietasReport({ data, folio, hashCorto, logoDataUrl = null }: InformeGrietasReportProps) {
   const hoy = new Date();
+  const identidad = data.identidad;
   const veredictoInmueble = evaluarInmueble(data.grietas.map((g) => g.veredicto));
 
   return (
@@ -205,6 +216,38 @@ export function InformeGrietasReport({ data, folio, hashCorto, logoDataUrl = nul
             evaluación de un ingeniero estructural ni un diagnóstico de habitabilidad.
           </Text>
         </View>
+
+        {/* Bloque de identidad — mismo patrón y estilos que ActaJuntosReport.
+            Solo aparece cuando el informe pasó por el gate de datos. */}
+        {identidad && (
+          <View style={pdfStyles.section}>
+            <Text style={pdfStyles.sectionTitle}>Quién declara</Text>
+            <View style={pdfStyles.row}>
+              <View style={[pdfStyles.card, { flex: 2 }]}>
+                <Text style={pdfStyles.label}>Nombre</Text>
+                <Text style={[pdfStyles.value, { fontSize: 11 }]}>{identidad.nombre}</Text>
+              </View>
+              <View style={[pdfStyles.card, pdfStyles.col]}>
+                <Text style={pdfStyles.label}>Cédula</Text>
+                <Text style={[pdfStyles.value, { fontSize: 11 }]}>{identidad.cedula}</Text>
+              </View>
+              <View style={[pdfStyles.card, pdfStyles.col]}>
+                <Text style={pdfStyles.label}>WhatsApp</Text>
+                <Text style={[pdfStyles.value, { fontSize: 11 }]}>{identidad.whatsapp}</Text>
+              </View>
+            </View>
+            <View style={pdfStyles.row}>
+              <View style={[pdfStyles.card, { flex: 2 }]}>
+                <Text style={pdfStyles.label}>Dirección del inmueble (ubicación del daño)</Text>
+                <Text style={[pdfStyles.value, { fontSize: 11 }]}>{identidad.direccion}</Text>
+              </View>
+              <View style={[pdfStyles.card, pdfStyles.col]}>
+                <Text style={pdfStyles.label}>Ciudad</Text>
+                <Text style={[pdfStyles.value, { fontSize: 11 }]}>{identidad.ciudad}</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.sectionTitle}>Resultado general del inmueble</Text>

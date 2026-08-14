@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, estimarBytesBase64 } from "@/lib/alerta/acta";
+import type { InformeJuntosPayload } from "@/lib/juntos/informe-juntos";
 import {
   evaluarTriageGrieta,
   type EntradaTriage,
@@ -18,9 +19,10 @@ import GrietaCameraCaptureJuntos, { type CapturedPhotoGrieta } from "./GrietaCam
 import DescribirGrietaManualJuntos from "./DescribirGrietaManualJuntos";
 import ResultadoGrietaJuntos from "./ResultadoGrietaJuntos";
 import ResumenInmuebleJuntos from "./ResumenInmuebleJuntos";
+import GateDatos, { type DatosGate } from "./GateDatos";
 import PostDescarga from "./PostDescarga";
 
-type Paso = "ubicar" | "fotos" | "manual" | "resultado" | "resumen" | "post";
+type Paso = "ubicar" | "fotos" | "manual" | "resultado" | "resumen" | "gate" | "post";
 
 /** Una grieta ya evaluada + las dos fotos de evidencia que la respaldan. */
 export interface GrietaGuardada {
@@ -43,6 +45,12 @@ const CONFIANZA_MANUAL = { elemento: 0.9, patron: 0.9, ancho: 0.9 };
  * limpiar la grieta en construcción), y pantalla post-descarga con las
  * tarjetas-gancho como paso final. Todo vive en memoria del navegador: nada
  * se persiste, el PDF se genera bajo demanda.
+ *
+ * El resultado del triage (prioridad + qué hacer / qué no hacer) es GRATIS y
+ * visible sin pedir nada: pasos `resultado` y `resumen`. El gate de datos SOLO
+ * se interpone antes de GENERAR EL PDF (paso `gate`), igual que en el acta —
+ * todo PDF que se descargue exige el gate. La cédula y la dirección viajan
+ * solo en el request del PDF: no se persisten ni se loguean.
  */
 export default function GrietaWizardJuntos() {
   const [paso, setPaso] = useState<Paso>("ubicar");
@@ -65,9 +73,14 @@ export default function GrietaWizardJuntos() {
   const solicitudEnVuelo = useRef(false);
   const idSolicitud = useRef(0);
 
-  // Informe en PDF.
+  // Gate de datos → informe en PDF.
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [errorPdf, setErrorPdf] = useState<string | null>(null);
+  const [ciudadGate, setCiudadGate] = useState<string | null>(null);
+  // El contacto se envía UNA sola vez por sesión del wizard: si el PDF falla
+  // (429/500/red) y la persona reintenta el gate, no se duplica la fila en
+  // contacto_juntos (el contacto y el PDF son independientes a propósito).
+  const contactoEnviado = useRef(false);
 
   const totalBytesEvidencia = grietas.reduce(
     (n, g) => n + g.fotoCerca.blobEvidencia.size + g.fotoLejos.blobEvidencia.size,
@@ -192,28 +205,65 @@ export default function GrietaWizardJuntos() {
     setTerminado(true);
   }
 
-  async function handleDescargarPdf() {
+  async function construirPayload(datos: DatosGate): Promise<InformeJuntosPayload> {
+    const grietasPayload = await Promise.all(
+      grietas.map(async (g) => ({
+        elementoDeclarado: g.evaluada.entrada.declarado,
+        elementoFinal: g.evaluada.reconciliacion.elemento,
+        hubo_discrepancia: g.evaluada.reconciliacion.hubo_discrepancia,
+        veredicto: g.evaluada.veredicto,
+        notaVisual: g.notaVisual,
+        fotos: [
+          { dataUrl: await blobToDataUrl(g.fotoCerca.blobEvidencia) },
+          { dataUrl: await blobToDataUrl(g.fotoLejos.blobEvidencia) },
+        ],
+      }))
+    );
+    return {
+      identidad: {
+        nombre: datos.nombre,
+        cedula: datos.cedula,
+        whatsapp: datos.whatsapp,
+        direccion: datos.direccion,
+        ciudad: datos.ciudad,
+      },
+      grietas: grietasPayload,
+    };
+  }
+
+  /** Gate de datos → PDF. Es el ÚNICO camino a la descarga del informe. */
+  async function handleGate(datos: DatosGate) {
     if (generandoPdf || grietas.length === 0) return; // single-flight
     setErrorPdf(null);
     setGenerandoPdf(true);
     try {
-      const grietasPayload = await Promise.all(
-        grietas.map(async (g) => ({
-          elementoDeclarado: g.evaluada.entrada.declarado,
-          elementoFinal: g.evaluada.reconciliacion.elemento,
-          hubo_discrepancia: g.evaluada.reconciliacion.hubo_discrepancia,
-          veredicto: g.evaluada.veredicto,
-          notaVisual: g.notaVisual,
-          fotos: [
-            { dataUrl: await blobToDataUrl(g.fotoCerca.blobEvidencia) },
-            { dataUrl: await blobToDataUrl(g.fotoLejos.blobEvidencia) },
-          ],
-        }))
-      );
-      const res = await fetch("/api/alerta/informe-grietas-pdf", {
+      // 1) Contacto: SOLO nombre/whatsapp/ciudad/audiencia/acepta_contacto
+      // (jamás cédula ni dirección — regla dura del spec). Best-effort: si
+      // falla, el informe se descarga igual — y solo se envía una vez aunque
+      // el PDF falle y la persona reintente.
+      if (!contactoEnviado.current) {
+        contactoEnviado.current = true;
+        fetch("/api/juntos/contacto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: datos.nombre,
+            whatsapp: datos.whatsapp,
+            ciudad: datos.ciudad,
+            audiencia: datos.audiencia,
+            acepta_contacto: datos.aceptaContacto,
+            origen: "revisar-gate",
+            sitio_web: datos.sitioWeb,
+          }),
+        }).catch(() => {});
+      }
+
+      // 2) El informe: cédula y dirección viajan SOLO aquí, se imprimen y se descartan.
+      const payload = await construirPayload(datos);
+      const res = await fetch("/api/juntos/informe-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grietas: grietasPayload }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -230,6 +280,8 @@ export default function GrietaWizardJuntos() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+
+      setCiudadGate(datos.ciudad);
       setPaso("post"); // paso final: tarjetas-gancho (spec)
     } catch (err) {
       setErrorPdf(err instanceof Error ? err.message : "No pudimos generar el informe en PDF.");
@@ -282,15 +334,22 @@ export default function GrietaWizardJuntos() {
           grietas={grietas}
           terminado={terminado}
           presupuestoAgotado={presupuestoAgotado}
-          generandoPdf={generandoPdf}
-          errorPdf={errorPdf}
           onAgregarOtra={handleAgregarOtra}
           onTerminar={handleTerminar}
-          onDescargarPdf={handleDescargarPdf}
+          onDescargarPdf={() => setPaso("gate")}
         />
       )}
 
-      {paso === "post" && <PostDescarga variante="informe" />}
+      {paso === "gate" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <GateDatos variante="informe" enviando={generandoPdf} error={errorPdf} onEnviar={handleGate} />
+          <button type="button" onClick={() => setPaso("resumen")} className="btn btn-fantasma" style={{ alignSelf: "flex-start" }}>
+            <ArrowLeft className="ic" aria-hidden="true" /> Volver al resumen
+          </button>
+        </div>
+      )}
+
+      {paso === "post" && <PostDescarga variante="informe" ciudad={ciudadGate} />}
     </div>
   );
 }

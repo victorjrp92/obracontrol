@@ -22,7 +22,28 @@ interface GateDatosProps {
   enviando: boolean;
   error: string | null;
   onEnviar: (datos: DatosGate) => void;
+  /** Qué documento se está por generar: cambia títulos y textos, no la lógica. */
+  variante?: "acta" | "informe";
 }
+
+const TEXTOS = {
+  acta: {
+    titulo: "Ponle tu nombre al acta",
+    documento: "el acta",
+    boton: "Descargar mi acta",
+    generando: "Generando tu acta...",
+    pistaWhatsapp: "Te enviamos el acta también por ahí, por si pierdes el archivo.",
+    obligatoria: "Obligatoria para generar el acta.",
+  },
+  informe: {
+    titulo: "Ponle tu nombre al informe",
+    documento: "el informe",
+    boton: "Descargar mi informe",
+    generando: "Generando tu informe...",
+    pistaWhatsapp: "Te enviamos el informe también por ahí, por si pierdes el archivo.",
+    obligatoria: "Obligatoria para generar el informe.",
+  },
+} as const;
 
 const OPCIONES_ROL: { valor: AudienciaJuntos; label: string }[] = [
   { valor: "propietario", label: "Mi casa" },
@@ -38,7 +59,8 @@ const OPCIONES_ROL: { valor: AudienciaJuntos; label: string }[] = [
  * honeypot, y el botón «Descargar mi acta» con «Gratis. Sin crear cuenta.».
  * La cédula y la dirección SOLO viajan al request del PDF: no se persisten.
  */
-export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps) {
+export default function GateDatos({ enviando, error, onEnviar, variante = "acta" }: GateDatosProps) {
+  const txt = TEXTOS[variante];
   const [nombre, setNombre] = useState("");
   const [cedula, setCedula] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
@@ -50,7 +72,7 @@ export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps)
   const [sitioWeb, setSitioWeb] = useState(""); // honeypot
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (enviando) return;
 
@@ -78,7 +100,7 @@ export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps)
   return (
     <form className="panel" onSubmit={handleSubmit} noValidate>
       <div>
-        <h2>Ponle tu nombre al acta</h2>
+        <h2>{txt.titulo}</h2>
         <p className="desc">Estos datos van impresos en el documento — por eso los pedimos.</p>
       </div>
 
@@ -113,7 +135,7 @@ export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps)
 
       <div className="campo">
         <label htmlFor="jt-whatsapp">WhatsApp</label>
-        <p className="pista">Te enviamos el acta también por ahí, por si pierdes el archivo.</p>
+        <p className="pista">{txt.pistaWhatsapp}</p>
         <input
           id="jt-whatsapp"
           type="tel"
@@ -189,7 +211,7 @@ export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps)
           </a>
           ) para generar este documento y enviármelo por los canales que yo pida. Entiendo que este
           documento no es una evaluación estructural ni un dictamen técnico.
-          <small>Obligatoria para generar el acta.</small>
+          <small>{txt.obligatoria}</small>
         </span>
       </label>
 
@@ -210,7 +232,7 @@ export default function GateDatos({ enviando, error, onEnviar }: GateDatosProps)
           ) : (
             <Download className="ic" aria-hidden="true" />
           )}
-          {enviando ? "Generando tu acta..." : "Descargar mi acta"}
+          {enviando ? txt.generando : txt.boton}
         </button>
         <p className="micro" style={{ textAlign: "center", marginTop: 0 }}>Gratis. Sin crear cuenta.</p>
       </div>

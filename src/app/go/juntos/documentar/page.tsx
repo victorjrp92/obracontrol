@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NavJuntos from "@/components/juntos/NavJuntos";
 import FlujoDocumentar from "@/components/juntos/FlujoDocumentar";
+import FooterJuntos from "@/components/juntos/FooterJuntos";
 
 export const metadata: Metadata = {
   title: { absolute: "Documentar los daños — Juntos, de Seiricon" },
@@ -32,6 +33,7 @@ export default async function DocumentarPage({
         </div>
         <FlujoDocumentar modoAfueraInicial={desde === "afuera"} />
       </main>
+      <FooterJuntos />
     </>
   );
 }

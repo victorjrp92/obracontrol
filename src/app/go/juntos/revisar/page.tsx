@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NavJuntos from "@/components/juntos/NavJuntos";
 import FlujoRevisar from "@/components/juntos/FlujoRevisar";
+import FooterJuntos from "@/components/juntos/FooterJuntos";
 
 export const metadata: Metadata = {
   title: { absolute: "Revisar una grieta — Juntos, de Seiricon" },
@@ -20,6 +21,7 @@ export default function RevisarPage() {
         </div>
         <FlujoRevisar />
       </main>
+      <FooterJuntos />
     </>
   );
 }

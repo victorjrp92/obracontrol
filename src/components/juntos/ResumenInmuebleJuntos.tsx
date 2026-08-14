@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Download, Loader2, Plus } from "lucide-react";
+import { ArrowRight, Download, Plus } from "lucide-react";
 import { evaluarInmueble } from "@/lib/alerta/reglas";
 import { MAX_GRIETAS } from "@/lib/alerta/grietas";
 import { ADVERTENCIA_VERDE, LABEL_ELEMENTO } from "@/lib/alerta/copys";
@@ -13,10 +13,9 @@ interface ResumenInmuebleJuntosProps {
   grietas: GrietaGuardada[];
   terminado: boolean;
   presupuestoAgotado: boolean;
-  generandoPdf: boolean;
-  errorPdf: string | null;
   onAgregarOtra: () => void;
   onTerminar: () => void;
+  /** Lleva al gate de datos — la generación del PDF y sus errores viven allí. */
   onDescargarPdf: () => void;
 }
 
@@ -25,13 +24,15 @@ interface ResumenInmuebleJuntosProps {
  * promedio), lista de grietas evaluadas, agregar otra (tope MAX_GRIETAS),
  * descarga del informe y AVISO_DOCUMENTO compartido (corrección 5 del spec).
  * Solo se monta con `grietas.length > 0` (lo garantiza GrietaWizardJuntos).
+ *
+ * Esta pantalla es GRATIS y sin gate: el resultado del triage (prioridad y qué
+ * hacer) se ve completo sin pedir un solo dato. El botón de descarga abre el
+ * gate; el PDF se genera después, ya en GrietaWizardJuntos.
  */
 export default function ResumenInmuebleJuntos({
   grietas,
   terminado,
   presupuestoAgotado,
-  generandoPdf,
-  errorPdf,
   onAgregarOtra,
   onTerminar,
   onDescargarPdf,
@@ -91,16 +92,10 @@ export default function ResumenInmuebleJuntos({
 
         <AvisoDocumento />
 
-        {errorPdf && <p className="error-inline">{errorPdf}</p>}
-
         <div className="cta-abajo">
-          <button type="button" onClick={onDescargarPdf} disabled={generandoPdf} className="btn btn-azul">
-            {generandoPdf ? (
-              <Loader2 className="ic" style={{ animation: "ljt-girar 1s linear infinite" }} />
-            ) : (
-              <Download className="ic" aria-hidden="true" />
-            )}
-            {generandoPdf ? "Generando informe..." : "Descargar informe en PDF"}
+          <button type="button" onClick={onDescargarPdf} className="btn btn-azul">
+            <Download className="ic" aria-hidden="true" />
+            Descargar informe en PDF
           </button>
           <p className="micro" style={{ textAlign: "center", marginTop: 0 }}>Gratis. Sin crear cuenta.</p>
         </div>
