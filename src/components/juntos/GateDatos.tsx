@@ -4,7 +4,19 @@ import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { normalizarCedula, normalizarWhatsapp } from "@/lib/juntos/acta-juntos";
 
-export type AudienciaJuntos = "propietario" | "administrador" | "contratista";
+/**
+ * Rol de quien declara. Se separan «vivo ahí» de «lo tengo arrendado» (el que
+ * arrienda suele estar lejos — el perfil de la diáspora) y el administrador de
+ * copropiedad de la inmobiliaria: son negocios distintos. El administrador de
+ * conjunto es el lead más valioso (Ley 675: las zonas comunes tienen seguro
+ * obligatorio, y un edificio son muchas actas).
+ */
+export type AudienciaJuntos =
+  | "propietario_habita"
+  | "propietario_arrienda"
+  | "administrador_ph"
+  | "inmobiliaria"
+  | "contratista";
 
 export interface DatosGate {
   nombre: string;
@@ -46,8 +58,10 @@ const TEXTOS = {
 } as const;
 
 const OPCIONES_ROL: { valor: AudienciaJuntos; label: string }[] = [
-  { valor: "propietario", label: "Mi casa" },
-  { valor: "administrador", label: "Un conjunto que administro" },
+  { valor: "propietario_habita", label: "Mi casa o apartamento — vivo ahí" },
+  { valor: "propietario_arrienda", label: "Mi casa o apartamento — lo tengo arrendado" },
+  { valor: "administrador_ph", label: "El conjunto o edificio del que soy administrador" },
+  { valor: "inmobiliaria", label: "Inmuebles de otros dueños (soy inmobiliaria)" },
   { valor: "contratista", label: "La obra de un cliente" },
 ];
 

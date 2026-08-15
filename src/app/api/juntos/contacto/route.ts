@@ -16,7 +16,13 @@ import { normalizarWhatsapp } from "@/lib/juntos/acta-juntos";
  * y origen. Ningún log serializa el body.
  */
 
-const AUDIENCIAS = ["propietario", "administrador", "contratista"];
+const AUDIENCIAS = [
+  "propietario_habita",
+  "propietario_arrienda",
+  "administrador_ph",
+  "inmobiliaria",
+  "contratista",
+];
 const MAX_BODY = 2048;
 const MAX_POR_MINUTO_POR_IP = 5;
 const WHATSAPP_RE = /^\+?\d{7,15}$/;
