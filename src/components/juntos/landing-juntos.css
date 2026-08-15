@@ -956,6 +956,100 @@
   margin-top: 4px;
 }
 
+/* CTA grande del hero: la landing existe para que la persona empiece su
+   revisión — el botón no puede competir de igual a igual con el resto. */
+.ljt .btn-grande {
+  font-size: 17px;
+  padding: 18px 34px;
+  min-height: 58px;
+  box-shadow: 5px 5px 0 var(--tinta);
+}
+.ljt .btn-grande:active {
+  box-shadow: 1px 1px 0 var(--tinta);
+}
+
+/* Barra de acción pegajosa: la acción viaja con el scroll (se oculta sobre
+   el hero y el cierre, que ya tienen su propio CTA). */
+.ljt .jt-cta-pegajoso {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(251, 250, 247, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 2px solid var(--tinta);
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  transform: translateY(120%);
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.28s ease, opacity 0.28s ease, visibility 0.28s;
+}
+.ljt .jt-cta-pegajoso.on {
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+}
+.ljt .jt-cta-pegajoso-in {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.ljt .jt-cta-texto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+.ljt .jt-cta-texto b {
+  font-size: 14.5px;
+}
+.ljt .jt-cta-texto small {
+  font-size: 11.5px;
+  color: var(--gris);
+}
+.ljt .jt-cta-pegajoso .btn {
+  flex: none;
+}
+@media (max-width: 420px) {
+  .ljt .jt-cta-texto small {
+    display: none;
+  }
+  .ljt .jt-cta-pegajoso .btn {
+    padding: 14px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ljt .jt-cta-pegajoso {
+    transition: none;
+  }
+}
+
+/* Casilla opcional: mismo mecanismo legal (explícita, sin premarcar) pero
+   con menos peso visual que la obligatoria — es una invitación, no un
+   requisito. Nunca se oculta ni se premarca: eso invalidaría el
+   consentimiento y, además, no es lo que somos. */
+.ljt .check-suave {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--linea);
+}
+.ljt .check-suave span {
+  font-size: 13px;
+  color: var(--gris);
+}
+.ljt .check-suave span small {
+  font-size: 11.5px;
+}
+.ljt .check-suave.marcada {
+  background: var(--azul-50);
+  border-style: solid;
+}
+
 /* Campos de formulario (gate de datos) */
 .ljt .campo {
   display: flex;

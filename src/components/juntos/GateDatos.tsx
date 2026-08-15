@@ -229,11 +229,14 @@ export default function GateDatos({ enviando, error, onEnviar, variante = "acta"
         </span>
       </label>
 
-      <label className={`check ${aceptaContacto ? "marcada" : ""}`}>
+      {/* Consentimiento comercial: explícito y sin premarcar (Ley 1581 exige
+          finalidad específica), pero visualmente ligero — es un ofrecimiento,
+          no un requisito, y no debe pesar lo mismo que la casilla obligatoria. */}
+      <label className={`check check-suave ${aceptaContacto ? "marcada" : ""}`}>
         <input type="checkbox" checked={aceptaContacto} onChange={(e) => setAceptaContacto(e.target.checked)} />
         <span>
-          Quiero que me escriban cuando vaya a reparar, para que me den una mano con eso.
-          <small>Opcional — no condiciona la descarga.</small>
+          Si quieres, te escribimos más adelante para darte una mano con la reparación.
+          <small>Opcional. Puedes descargar tu documento sin marcar esto.</small>
         </span>
       </label>
 

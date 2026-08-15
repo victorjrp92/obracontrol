@@ -7,6 +7,7 @@ import PorQueGratis from "@/components/juntos/PorQueGratis";
 import FaqJuntos from "@/components/juntos/FaqJuntos";
 import CierreJuntos from "@/components/juntos/CierreJuntos";
 import FooterJuntos from "@/components/juntos/FooterJuntos";
+import CtaPegajoso from "@/components/juntos/CtaPegajoso";
 
 /**
  * Landing emocional de «Juntos» (/go/juntos) — línea de ayuda post-sismo de
@@ -27,6 +28,7 @@ export default function JuntosPage() {
         <CierreJuntos />
       </main>
       <FooterJuntos />
+      <CtaPegajoso />
     </>
   );
 }

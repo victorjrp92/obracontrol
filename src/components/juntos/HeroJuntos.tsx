@@ -30,7 +30,7 @@ export default function HeroJuntos() {
             ubicación y fecha — lista para tu aseguradora. Gratis, sin crear cuenta.
           </p>
           <div className="jt-hero-cta">
-            <Link href="/go/juntos/revisar" className="btn btn-azul">
+            <Link href="/go/juntos/revisar" className="btn btn-azul btn-grande">
               Empezar la revisión <ArrowRight className="ic" aria-hidden="true" />
             </Link>
           </div>
