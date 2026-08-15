@@ -46,37 +46,41 @@ export function claveDesdeHeaders(headers: Headers): string {
   return headers.get("x-real-ip") ?? "sin-ip";
 }
 
-// ─── Fuerza bruta contra tokens públicos ────────────────────────────────────
+// ─── Freno de carga de las rutas de token público ───────────────────────────
 //
-// Las rutas `/o/[token]` (obrero) y `/c/[token]` (cliente) usan el token como
-// credencial completa: quien acierte uno, entra. La defensa es contar SOLO los
-// intentos FALLIDOS. Así un obrero real —que siempre acierta— nunca se topa
-// con el límite por más que recargue, mientras que quien va probando tokens
-// agota su presupuesto en segundos.
+// `/o/[token]` (obrero) y `/c/[token]` (cliente) usan el token como credencial
+// completa. La primera versión de esto contaba tokens FALLIDOS por IP y
+// bloqueaba a los 10. Era un error, por dos razones:
+//
+//  1. Adivinar ya es imposible. Desde que los tokens se generan con
+//     `generarTokenAcceso()` son 192 bits de aleatoriedad real; no hay fuerza
+//     bruta que sirva, con o sin freno. La defensa contra adivinación es la
+//     entropía, no el contador.
+//  2. El contador SÍ negaba tokens VÁLIDOS. Como el bloqueo se evaluaba antes
+//     de consultar, una vez que una IP gastaba su presupuesto quedaba fuera
+//     durante diez minutos aunque su enlace fuera correcto. Y detrás de una IP
+//     hay muchísima gente: los operadores móviles colombianos comparten IPv4
+//     pública entre miles de suscriptores por CGNAT. Un cliente recargando un
+//     enlace caducado cuatro o cinco veces podía dejar sin acceso a una obra
+//     entera, sin ningún mensaje que permitiera diagnosticarlo.
+//
+// Lo que queda protege lo único que seguía en riesgo: que un escáner martillee
+// la base de datos. Es un tope de PETICIONES, no de fallos, y es deliberadamente
+// generoso — detrás de una IP de CGNAT puede haber una obra completa
+// trabajando. Un humano no se acerca; un script se estrella enseguida.
+//
+// Un token válido SIEMPRE funciona mientras la IP esté por debajo del tope.
 
-/** Fallos tolerados por IP antes de cerrar la puerta. Amplio para un humano que
- *  pegó mal el enlace; asfixiante para un script. */
-const MAX_FALLOS_TOKEN = 10;
-/** Ventana de los fallos: 10 minutos. */
-const VENTANA_FALLOS_MS = 10 * 60_000;
+/** Peticiones por minuto y por IP contra las rutas de token público. */
+const MAX_PETICIONES_TOKEN_POR_MINUTO = 120;
 
-const fallosToken = new Map<string, number[]>();
-
-/** ¿Esta IP ya gastó su presupuesto de tokens fallidos? */
-export function bloqueadoPorFallosDeToken(clave: string): boolean {
-  const desde = Date.now() - VENTANA_FALLOS_MS;
-  const marcas = (fallosToken.get(clave) ?? []).filter((t) => t > desde);
-  fallosToken.set(clave, marcas);
-  return marcas.length >= MAX_FALLOS_TOKEN;
-}
-
-/** Anota un token inválido para esta IP. Llamar SOLO cuando el token no existe. */
-export function registrarFalloDeToken(clave: string): void {
-  if (fallosToken.size > MAX_CLAVES) fallosToken.clear();
-  const desde = Date.now() - VENTANA_FALLOS_MS;
-  const marcas = (fallosToken.get(clave) ?? []).filter((t) => t > desde);
-  marcas.push(Date.now());
-  fallosToken.set(clave, marcas);
+/**
+ * ¿Se admite esta petición contra una ruta de token? Generoso a propósito:
+ * ver la nota de arriba. Devuelve `true` si no hay IP (fuera de una petición).
+ */
+export function permitirPeticionDeToken(clave: string | null): boolean {
+  if (!clave) return true;
+  return permitirPeticion(`token:${clave}`, MAX_PETICIONES_TOKEN_POR_MINUTO);
 }
 
 /**
@@ -91,7 +95,14 @@ export async function claveDeSolicitud(): Promise<string | null> {
   try {
     const { headers } = await import("next/headers");
     return claveDesdeHeaders(await headers());
-  } catch {
+  } catch (err) {
+    // Fuera de una petición (un script de seed) esto es normal y `null` es la
+    // respuesta correcta. Pero si `headers()` falla por CUALQUIER otra razón,
+    // el freno se apaga sin dejar rastro — y un control silenciosamente
+    // desactivado es peor que no tenerlo. Por eso deja constancia.
+    if (process.env.NODE_ENV === "production") {
+      console.warn("claveDeSolicitud: sin contexto de petición, el freno de token queda inactivo", err);
+    }
     return null;
   }
 }

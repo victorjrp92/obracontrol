@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { validateObreroToken } from "@/lib/data-obrero";
 import ObreroLayout from "@/components/obrero/ObreroLayout";
 
 export default async function ObreroTokenLayout({
@@ -10,23 +10,14 @@ export default async function ObreroTokenLayout({
 }) {
   const { token } = await params;
 
-  // Lookup obrero by token
-  const obrero = await prisma.obrero.findUnique({
-    where: { token },
-    include: {
-      contratista: { select: { nombre: true } },
-    },
-  });
+  // Validación centralizada (existe, activo, dentro de fechas) + freno de carga.
+  // Antes esto consultaba `prisma.obrero` directamente y se saltaba ambas cosas:
+  // la puerta de entrada del obrero era la única ruta de token sin protección,
+  // y su criterio de validez podía divergir del de la ruta de detalle — que es
+  // justo lo que producía la pantalla en blanco cuando no coincidían.
+  const obrero = await validateObreroToken(token);
 
-  // Validate: exists, active, within date range
-  const now = new Date();
-  const isValid =
-    obrero &&
-    obrero.activo &&
-    now >= obrero.fecha_inicio &&
-    now <= obrero.fecha_expiracion;
-
-  if (!isValid) {
+  if (!obrero) {
     return (
       <html lang="es" className="h-full">
         <body className="min-h-full flex flex-col antialiased">

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { getObreroTareas, type ObreroTarea } from "@/lib/data-obrero";
+import { getObreroTareas, validateObreroToken, type ObreroTarea } from "@/lib/data-obrero";
 import TareaCard from "@/components/obrero/TareaCard";
 import { ClipboardList, ChevronRight, Building2, Layers, DoorOpen, Home, FolderOpen } from "lucide-react";
 
@@ -66,10 +65,10 @@ export default async function ObreroTaskListPage({
   const { token } = await params;
   const sp = await searchParams;
 
-  const obrero = await prisma.obrero.findUnique({
-    where: { token },
-    select: { contratista_id: true, constructora_id: true },
-  });
+  // Igual que el layout: por el validador, nunca por `prisma.obrero` directo.
+  // Consultarlo crudo aquí se saltaba el freno y, peor, aceptaba obreros
+  // inactivos o fuera de su rango de fechas que el layout ya había rechazado.
+  const obrero = await validateObreroToken(token);
   if (!obrero) return null;
 
   const todas = await getObreroTareas(obrero.contratista_id, obrero.constructora_id);

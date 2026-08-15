@@ -2,9 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { calcularDiasHabiles, calcularSemaforo } from "@/lib/scoring";
 import { extractMotivo } from "@/lib/aprobaciones";
 import {
-  bloqueadoPorFallosDeToken,
   claveDeSolicitud,
-  registrarFalloDeToken,
+  permitirPeticionDeToken,
 } from "@/lib/rate-limit";
 import { tokenTieneFormaValida } from "@/lib/tokens";
 
@@ -225,20 +224,18 @@ export async function getObreroTareaDetalle(
  * Checks: exists, activo, date range.
  */
 export async function validateObreroToken(token: string) {
-  // Freno de fuerza bruta. Va DENTRO del validador —no en cada ruta— para que
-  // quede cubierta también la página /o/[token] y para que una ruta nueva lo
-  // herede sin tener que acordarse. Solo cuentan los tokens que NO existen: un
-  // obrero real acierta siempre y nunca ve este límite.
-  const ip = await claveDeSolicitud();
-  const claveFallos = ip ? `obrero:${ip}` : null;
-
-  if (claveFallos && bloqueadoPorFallosDeToken(claveFallos)) return null;
-
   // Descarta basura evidente sin gastar una consulta a la base de datos.
-  if (!tokenTieneFormaValida(token)) {
-    if (claveFallos) registrarFalloDeToken(claveFallos);
-    return null;
-  }
+  if (!tokenTieneFormaValida(token)) return null;
+
+  // Freno de CARGA, no de adivinación (ver la nota larga en src/lib/rate-limit.ts):
+  // con 192 bits de entropía el token no se adivina, así que esto solo evita que
+  // un escáner martillee la base. El tope es alto a propósito para no castigar a
+  // una obra entera detrás de una misma IP de CGNAT.
+  //
+  // Va DENTRO del validador para que toda ruta que lo use lo herede. OJO: las
+  // rutas que consultan `prisma.obrero` directamente NO quedan cubiertas —
+  // usa siempre esta función.
+  if (!permitirPeticionDeToken(await claveDeSolicitud())) return null;
 
   const obrero = await prisma.obrero.findUnique({
     where: { token },
@@ -247,10 +244,7 @@ export async function validateObreroToken(token: string) {
     },
   });
 
-  if (!obrero) {
-    if (claveFallos) registrarFalloDeToken(claveFallos);
-    return null;
-  }
+  if (!obrero) return null;
   if (!obrero.activo) return null;
 
   const now = new Date();

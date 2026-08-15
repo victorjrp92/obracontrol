@@ -11,8 +11,14 @@ lo de aquí, actualízalo en el mismo commit.
 ## 1. Verificación
 
 `scripts/pentest.ts` corre las comprobaciones de esta página contra un
-despliegue **propio**. Todas son de lectura: pide páginas, lee cabeceras y manda
-peticiones inválidas a propósito. No crea, modifica ni borra datos.
+despliegue **propio**. Pide páginas, lee cabeceras y manda peticiones inválidas
+a propósito. **No crea, modifica ni borra datos.**
+
+Lo que sí consume es presupuesto de los limitadores en memoria: SEC-08 provoca
+429 a propósito y SEC-02 manda 24 peticiones con token inventado. Contra
+producción, la IP desde la que lo ejecutes —y la de toda tu oficina, si comparten
+salida— puede quedar con el cupo de esas rutas gastado durante un minuto. Se
+recupera solo; aun así, mejor no correrlo en hora pico.
 
 **El servidor tiene que estar levantado.** En otra terminal:
 
@@ -59,7 +65,7 @@ obligatorios. Para medir EXP-02 hay que apuntar a producción o a un preview.
 
 | Control | Dónde vive | Qué protege |
 |---|---|---|
-| RLS en todas las tablas | `prisma/migrations/20260815140000_rls_todas_las_tablas` | Que la llave pública de Supabase no lea la base por PostgREST |
+| RLS en todas las tablas ⚠️ **escrito, SIN aplicar** | `prisma/migrations/20260815140000_rls_todas_las_tablas` | Que la llave pública de Supabase no lea la base por PostgREST |
 | Tokens de acceso aleatorios | `src/lib/tokens.ts` | `/o/[token]` y `/c/[token]` — 192 bits, no adivinables |
 | Freno de fuerza bruta | `src/lib/rate-limit.ts` | 10 tokens fallidos por IP cada 10 min |
 | Lista blanca de redirección | `src/app/api/auth/callback/route.ts` | Phishing por redirección abierta |
@@ -68,6 +74,14 @@ obligatorios. Para medir EXP-02 hay que apuntar a producción o a un preview.
 | URLs firmadas | `src/lib/storage.ts` | Las fotos de evidencia no son públicas |
 | Aislamiento por tenant | `src/lib/tenant.ts` | Que una constructora no vea a otra |
 | Dependencias vigiladas | `.github/dependabot.yml`, `.github/workflows/seguridad.yml` | CVE conocidos |
+
+> ⚠️ **La migración de RLS todavía NO está aplicada en ninguna base.** Ningún
+> comando del repo la aplicaba: `db:push` ignora `prisma/migrations/` por
+> completo y el `build` solo corre `prisma generate`. Se añadió
+> `npm run db:migrate-deploy` (`prisma migrate deploy`) para poder hacerlo.
+> Pruébala primero contra una rama de base de datos y comprueba las
+> notificaciones en vivo. Mientras no se aplique, SEC-01 sigue abierto — el
+> riesgo real no es que rompa algo, es quedarse creyendo que ya está puesto.
 
 ### Reglas que no se negocian
 

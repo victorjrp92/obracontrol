@@ -38,23 +38,37 @@ const enDesarrollo = process.env.NODE_ENV !== "production";
  */
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${enDesarrollo ? " 'unsafe-eval'" : ""} https://www.clarity.ms https://va.vercel-scripts.com`,
+  // Clarity se inyecta desde subdominios (no solo www), y vercel.live es la
+  // barra de comentarios de los despliegues preview.
+  `script-src 'self' 'unsafe-inline'${enDesarrollo ? " 'unsafe-eval'" : ""} https://*.clarity.ms https://va.vercel-scripts.com https://vercel.live`,
   // globals.css hace @import de fonts.googleapis.com — sin esto, toda la
   // tipografía del producto cae a la fuente del sistema.
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "img-src 'self' blob: data: https://*.supabase.co https://api.mapbox.com",
+  "img-src 'self' blob: data: https://*.supabase.co https://api.mapbox.com https://*.tiles.mapbox.com",
   "media-src 'self' blob: https://*.supabase.co",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.clarity.ms https://va.vercel-scripts.com",
+  // *.tiles.mapbox.com: los TileJSON que devuelve api.mapbox.com pueden apuntar
+  // ahí, y el fallo sería un mapa en gris sin error de servidor. c.bing.com es
+  // el destino de telemetría de Clarity.
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.clarity.ms https://c.bing.com https://va.vercel-scripts.com https://vercel.live",
   "worker-src 'self' blob:",
+  "child-src 'self' blob:",
   "manifest-src 'self'",
   // Formulario de Tally embebido en /beta. Sin esto el iframe queda en blanco.
-  "frame-src 'self' https://tally.so",
+  "frame-src 'self' https://tally.so https://vercel.live",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // `<form action={loginConGoogle}>` es una Server Action que redirige a
+  // Supabase Auth. Con JS hidratado el envío es mismo origen, pero sin hidratar
+  // el navegador hace un POST nativo y Chrome aplica form-action al 3xx que le
+  // sigue: sin este origen, «entrar con Google» no haría nada y sería
+  // irreproducible para quien lo reporte.
+  "form-action 'self' https://*.supabase.co",
   "object-src 'none'",
-  "upgrade-insecure-requests",
+  // Solo en producción: en desarrollo se prueba el flujo del obrero desde un
+  // celular contra la IP de la LAN (http://192.168.x.x), que no es un origen
+  // «potentially trustworthy» — la directiva sí aplicaría y no cargaría nada.
+  ...(enDesarrollo ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
 const nextConfig: NextConfig = {

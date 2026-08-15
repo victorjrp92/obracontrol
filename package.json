@@ -20,7 +20,8 @@
     "db:seed-camara": "npx tsx scripts/seed-demo-camara.ts",
     "verify:alerta": "npx tsx scripts/verificar-reglas-alerta.ts && npx tsx scripts/verificar-triage-alerta.ts",
     "seguridad:probar": "npx tsx scripts/pentest.ts",
-    "seguridad:rotar-tokens": "npx tsx scripts/rotar-tokens-obrero.ts"
+    "seguridad:rotar-tokens": "npx tsx scripts/rotar-tokens-obrero.ts",
+    "db:migrate-deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
