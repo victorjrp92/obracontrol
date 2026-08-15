@@ -165,8 +165,9 @@ const COLOR_NIVEL: Record<Nivel, string> = {
 export interface InformeGrietasReportProps {
   /**
    * El informe de Juntos (informe-juntos.ts, tras el gate de datos) trae
-   * `identidad`; el de Fase 2 (/api/alerta/informe-grietas-pdf) no la pide.
-   * Por eso es opcional: presente → se imprime el bloque «Quién declara».
+   * `identidad`. Sigue siendo opcional por herencia: el informe de Fase 2
+   * (/api/alerta/informe-grietas-pdf) no la pedía, y esa ruta ya se borró por
+   * huérfana. Hoy siempre llega — presente → se imprime «Quién declara».
    */
   data: InformeGrietasPayload & { identidad?: IdentidadActa };
   /** Folio JT- + hash de verificación (spec Juntos) — los calcula la ruta API. */

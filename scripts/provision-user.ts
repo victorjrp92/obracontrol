@@ -20,7 +20,7 @@ async function main() {
 
   if (!email || !nombre || !empresa) {
     console.error(
-      "Usage: npx tsx src/scripts/provision-user.ts <email> <nombre> <empresa>"
+      "Usage: npx tsx scripts/provision-user.ts <email> <nombre> <empresa>"
     );
     process.exit(1);
   }

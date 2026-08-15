@@ -8,7 +8,7 @@ import {
   TARJETA_CONJUNTOS,
   TARJETAS_SEGURO,
 } from "@/lib/juntos/contenido-legal";
-import { CONTACTO_EMAIL } from "@/components/alerta/config";
+import { CONTACTO_EMAIL } from "@/components/juntos/config";
 import TarjetaGancho from "./TarjetaGancho";
 import PuntosAtencion from "./PuntosAtencion";
 import AvisoDocumento from "./AvisoDocumento";

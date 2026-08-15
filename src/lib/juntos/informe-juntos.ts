@@ -5,9 +5,12 @@
  * datos — mismo patrón que acta-juntos.ts sobre acta.ts.
  *
  * Por qué un contrato aparte y no `identidad` dentro de InformeGrietasPayload:
- * la ruta /api/alerta/informe-grietas-pdf sigue viva y la consume
- * src/components/alerta/GrietaWizard.tsx SIN identidad. Exigirla allí rompería
- * ese flujo; aquí es obligatoria, como manda el spec para todo PDF de Juntos.
+ * nació para no romper la ruta /api/alerta/informe-grietas-pdf, que consumía
+ * el mismo payload SIN identidad. Esa ruta y su wizard ya no existen (se
+ * borraron por huérfanos), así que hoy este es el único contrato en uso y la
+ * identidad es obligatoria, como manda el spec para todo PDF de Juntos.
+ * La separación se conserva porque `InformeGrietasPayload` (grietas.ts) sigue
+ * siendo el contrato del triage, que no tiene por qué saber de identidad.
  *
  * REGLA DURA (spec-go-juntos.md): `cedula` y `direccion` viajan SOLO en este
  * request, se imprimen en el PDF y se DESCARTAN. No se persisten en ninguna

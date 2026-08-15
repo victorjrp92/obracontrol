@@ -18,7 +18,7 @@ import type { Elemento, Nivel, Veredicto } from "./tipos";
 export const MAX_GRIETAS = 5;
 /** Tope del payload de POST /api/alerta/observar-grieta (dos fotos SIN overlay, D5). */
 export const MAX_BODY_OBSERVACION_BYTES = 1.5 * 1024 * 1024;
-/** Tope del payload de POST /api/alerta/informe-grietas-pdf — reusa el mismo presupuesto que el Acta. */
+/** Tope del payload del informe en PDF (hoy POST /api/juntos/informe-pdf) — reusa el mismo presupuesto que el Acta. */
 export { MAX_BODY_BYTES };
 
 const DATA_URL_IMAGEN = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
@@ -77,7 +77,7 @@ export function mensajeObservacionMuyPesada(): string {
   return `Las fotos son muy pesadas (máximo ${mb}MB). Vuelve a intentarlo con fotos más livianas.`;
 }
 
-// ─── POST /api/alerta/informe-grietas-pdf ──────────────────────────────────
+// ─── Contrato del informe en PDF (lo consume POST /api/juntos/informe-pdf) ──
 
 export interface FotoGrieta {
   /** Data-URI base64 (image/jpeg) — foto de EVIDENCIA (blobEvidencia, CON overlay, D5). */
@@ -202,7 +202,7 @@ export function validarInformeGrietasPayload(body: unknown): ValidacionInformeGr
   return { ok: true, payload: { grietas } };
 }
 
-/** Mensaje 413 de POST /api/alerta/informe-grietas-pdf. */
+/** Mensaje 413 del informe en PDF (POST /api/juntos/informe-pdf). */
 export function mensajeInformeMuyPesado(): string {
   const mb = (MAX_BODY_BYTES / (1024 * 1024)).toFixed(1);
   return `El informe es muy pesado (máximo ${mb}MB). Elimina alguna grieta e intenta de nuevo.`;

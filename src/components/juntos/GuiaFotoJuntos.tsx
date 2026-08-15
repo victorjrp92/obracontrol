@@ -1,5 +1,5 @@
 import { Coins, Footprints } from "lucide-react";
-import { MONEDA_REFERENCIA } from "@/components/alerta/config";
+import { MONEDA_REFERENCIA } from "@/components/juntos/config";
 import MonedaDemo from "./MonedaDemo";
 
 interface ContenidoGuia {

@@ -120,7 +120,7 @@ export async function quemarOverlay(
   });
 }
 
-/** Convierte un Blob a data-URI base64, para mandarlo en el payload JSON de las rutas /api/alerta/*. */
+/** Convierte un Blob a data-URI base64, para mandarlo en el payload JSON de las rutas de Juntos y de /api/alerta/observar-grieta. */
 export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

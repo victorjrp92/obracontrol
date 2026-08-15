@@ -59,7 +59,7 @@ export const COPY_SIN_IA =
   "En este momento no pudimos leer la foto automáticamente. Completa esta grieta con lo que tú observas " +
   "— con tu descripción, el resultado no puede llegar a verde.";
 
-/** Nombres en lenguaje llano de cada `Elemento` — usado por ResultadoGrieta.tsx, ResumenInmueble.tsx e InformeGrietasReport.tsx. */
+/** Nombres en lenguaje llano de cada `Elemento` — usado por ResultadoGrietaJuntos.tsx, ResumenInmuebleJuntos.tsx e InformeGrietasReport.tsx. */
 export const LABEL_ELEMENTO: Record<Elemento, string> = {
   columna: "Columna",
   viga: "Viga",

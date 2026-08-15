@@ -15,10 +15,10 @@ import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
  * «Juntos», CON el bloque de identidad del gate de datos. Público, sin auth,
  * SIN PERSISTENCIA de ningún tipo. Mismas garantías que /api/juntos/acta-pdf.
  *
- * Es una ruta aparte de /api/alerta/informe-grietas-pdf a propósito: aquella
- * sigue sirviendo al flujo de Fase 2 (src/components/alerta/GrietaWizard.tsx),
- * que no pide identidad. Todo PDF del flujo Juntos pasa por el gate, y por eso
- * aquí la identidad es obligatoria.
+ * Nació como ruta aparte de /api/alerta/informe-grietas-pdf, que servía al
+ * flujo de Fase 2 sin pedir identidad. Aquella ruta ya no existe: se borró por
+ * huérfana junto con su wizard. Esta es hoy la única que genera el informe, y
+ * la identidad es obligatoria porque todo PDF del flujo Juntos pasa por el gate.
  *
  * REGLA DURA (spec-go-juntos.md): la cédula y la dirección del inmueble
  * ENTRAN en este request, se IMPRIMEN en el PDF y se DESCARTAN al responder.
