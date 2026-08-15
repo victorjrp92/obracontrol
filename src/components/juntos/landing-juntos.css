@@ -912,6 +912,50 @@
   }
 }
 
+/* Segundo documento (derecho de petición): va ARRIBA de las tarjetas y con
+   acento ámbar para diferenciarse de ellas — es una ACCIÓN, no información.
+   Victor: tiene que ser evidente que también puede pedir esto para acceder
+   a los subsidios. */
+.ljt .doc-segundo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--ambar-50);
+  border: 2px solid var(--tinta);
+  border-radius: 14px;
+  padding: 20px 18px;
+  box-shadow: 4px 4px 0 var(--ambar);
+}
+.ljt .doc-etiqueta {
+  align-self: flex-start;
+  background: var(--ambar);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1.5px solid var(--tinta);
+}
+.ljt .doc-segundo h2 {
+  font-size: 19px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.ljt .doc-segundo p {
+  font-size: 14.5px;
+  color: var(--tinta);
+  margin: 0;
+}
+.ljt .doc-segundo .doc-listo {
+  font-size: 13.5px;
+  color: var(--gris);
+}
+.ljt .doc-segundo .btn {
+  margin-top: 4px;
+}
+
 /* Campos de formulario (gate de datos) */
 .ljt .campo {
   display: flex;

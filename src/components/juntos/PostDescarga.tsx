@@ -73,6 +73,23 @@ export default function PostDescarga({ variante, ciudad = null, derechoPeticion 
         </p>
       </div>
 
+      {botonDerecho && (
+        <div className="doc-segundo">
+          <span className="doc-etiqueta">Segundo documento · gratis</span>
+          <h2>¿Vas a pedir ayuda del Estado? Te falta este papel.</h2>
+          <p>
+            El <b>derecho de petición</b> es lo que obliga a la alcaldía a responderte, y tienen{" "}
+            <b>15 días hábiles</b> para hacerlo. Es el paso que abre la puerta al censo de damnificados
+            y a los subsidios.
+          </p>
+          <p className="doc-listo">
+            Ya lo tenemos listo con los datos que acabas de darnos y con los daños que declaraste.
+            Descárgalo, fírmalo y radícalo junto con tu acta.
+          </p>
+          {botonDerecho}
+        </div>
+      )}
+
       <div className="ganchos">
         {TARJETAS_SEGURO.map((t) => (
           <TarjetaGancho key={t.id} tarjeta={t} />
@@ -85,7 +102,11 @@ export default function PostDescarga({ variante, ciudad = null, derechoPeticion 
           extra={
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <PuntosAtencion ciudad={ciudad} />
-              {botonDerecho ?? (
+              {botonDerecho ? (
+                <p className="desc" style={{ margin: 0 }}>
+                  Tu derecho de petición ya está listo — lo descargas en el bloque naranja de arriba.
+                </p>
+              ) : (
                 <Link href="/go/juntos/documentar" className="btn btn-chico">
                   <Download className="ic" aria-hidden="true" /> Documenta los daños para generar tu derecho de petición
                 </Link>
@@ -96,18 +117,6 @@ export default function PostDescarga({ variante, ciudad = null, derechoPeticion 
 
         <TarjetaGancho tarjeta={TARJETA_ANTIESTAFA} />
       </div>
-
-      {botonDerecho && (
-        <div className="panel" style={{ gap: 10 }}>
-          <h2 style={{ fontSize: 17 }}>Tu derecho de petición, listo para radicar</h2>
-          <p className="desc" style={{ marginTop: 0 }}>
-            Prellenado con tus datos y tus daños declarados, dirigido a la alcaldía de tu ciudad. La
-            autoridad tiene 15 días hábiles para responderte. Imprímelo, fírmalo y radícalo con una copia
-            de tu acta.
-          </p>
-          {botonDerecho}
-        </div>
-      )}
 
       <AvisoDocumento />
 
