@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import withSerwistInit from "@serwist/next";
 
 const enDesarrollo = process.env.NODE_ENV !== "production";
 
@@ -108,16 +109,32 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Serwist PWA wrapper — solo en production build (incompatible con Turbopack en dev)
-if (process.env.NODE_ENV === "production") {
-  const withSerwistInit = require("@serwist/next").default;
-  const withSerwist = withSerwistInit({
-    swSrc: "src/app/sw.ts",
-    swDest: "public/sw.js",
-    cacheOnNavigation: true,
-    reloadOnOnline: true,
-  });
-  module.exports = withSerwist(nextConfig);
-} else {
-  module.exports = nextConfig;
-}
+/**
+ * Serwist (PWA) solo en el build de producción.
+ *
+ * El import va arriba, con los demás, y la condición envuelve la LLAMADA — no
+ * el import. Antes esto era un `require()` dentro de un `if`, lo que además
+ * obligaba a cerrar el archivo con `module.exports`: CommonJS y ESM mezclados
+ * en un archivo que ya empezaba con `import`. Importar el módulo no tiene
+ * efectos secundarios; invocarlo sí (avisa por consola), y por eso la llamada
+ * queda dentro de la condición y dev sigue silencioso.
+ *
+ * ⚠️ HOY EL SERVICE WORKER NO SE GENERA. Next 16 compila con Turbopack por
+ * defecto —también en `build`— y `@serwist/next` no lo soporta: avisa por
+ * consola y no emite `public/sw.js`. Comprobado con este archivo y con el
+ * anterior: no es una regresión de este cambio, viene de la migración a Next 16.
+ *
+ * Consecuencia real: no hay modo offline para los obreros en campo ni la app es
+ * instalable, aunque `docs/manual-de-usuario.md` (sección 17) lo documente y
+ * exista `src/lib/offline-queue.ts`. Para arreglarlo hay que migrar a
+ * `@serwist/turbopack` (experimental) o al modo configurador de Serwist, que sí
+ * soporta Turbopack. Ver https://github.com/serwist/serwist/issues/54.
+ */
+export default enDesarrollo
+  ? nextConfig
+  : withSerwistInit({
+      swSrc: "src/app/sw.ts",
+      swDest: "public/sw.js",
+      cacheOnNavigation: true,
+      reloadOnOnline: true,
+    })(nextConfig);

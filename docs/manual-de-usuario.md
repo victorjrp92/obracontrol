@@ -481,6 +481,15 @@ Seiricon notifica los eventos importantes **en tiempo real**.
 
 ## 17. Instalar la app (PWA)
 
+> ⚠️ **Averiado desde la migración a Next 16 (detectado el 15-ago-2026).** El
+> *service worker* dejó de generarse en el build: Next 16 compila con Turbopack
+> y `@serwist/next` todavía no lo soporta — avisa por consola y no emite
+> `public/sw.js`. Sin service worker **no hay modo offline y la app no es
+> instalable**, aunque el banner y las métricas sigan a la vista. Todo lo que
+> describe esta sección está pendiente de que se migre a `@serwist/turbopack` o
+> al modo configurador de Serwist. Los obreros con mala señal hoy necesitan
+> conexión para reportar.
+
 Seiricon es una **app instalable** (PWA): funciona en el navegador y puedes instalarla en el celular o el computador como una app nativa.
 
 - Aparece un **banner discreto** para instalarla. En **Android/Chrome/Edge** usa el instalador del navegador; en **iPhone (Safari)** muestra las instrucciones (Compartir → Agregar a pantalla de inicio).

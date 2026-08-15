@@ -220,29 +220,54 @@ function NivelCards({
   );
 }
 
+/**
+ * Un grupo de tareas bajo su título. Vive FUERA de `Tareas` a propósito.
+ *
+ * Antes se definía dentro del cuerpo de `Tareas`, capturando `token` por
+ * clausura. Eso crea una función nueva en cada render, y React compara los
+ * componentes por identidad: al ser un tipo distinto cada vez, desmonta el
+ * subárbol entero y lo vuelve a montar en vez de actualizarlo. Se pierde el
+ * estado de los hijos, se rehacen los efectos y el scroll salta — justo en la
+ * pantalla que un obrero usa a una mano en la obra.
+ *
+ * `token` pasa como prop, que es lo que la clausura estaba ocultando.
+ */
+function SeccionTareas({
+  titulo,
+  items,
+  token,
+}: {
+  titulo: string;
+  items: ObreroTarea[];
+  token: string;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="text-base font-bold text-slate-800 mb-3">
+        {titulo} ({items.length})
+      </h2>
+      <div className="flex flex-col gap-3">
+        {items.map((t) => (
+          <TareaCard key={t.id} token={token} {...t} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // Hoja: las tareas del espacio elegido, separadas por estado.
 function Tareas({ token, tareas }: { token: string; tareas: ObreroTarea[] }) {
   const porHacer = tareas.filter((t) => t.estado === "PENDIENTE" || t.estado === "NO_APROBADA");
   const enRevision = tareas.filter((t) => t.estado === "REPORTADA");
   const completadas = tareas.filter((t) => t.estado === "APROBADA");
 
-  const Seccion = ({ titulo, items }: { titulo: string; items: ObreroTarea[] }) =>
-    items.length === 0 ? null : (
-      <section>
-        <h2 className="text-base font-bold text-slate-800 mb-3">{titulo} ({items.length})</h2>
-        <div className="flex flex-col gap-3">
-          {items.map((t) => (
-            <TareaCard key={t.id} token={token} {...t} />
-          ))}
-        </div>
-      </section>
-    );
-
   return (
     <div className="flex flex-col gap-6">
-      <Seccion titulo="Por hacer" items={porHacer} />
-      <Seccion titulo="En revisión" items={enRevision} />
-      <Seccion titulo="Completadas" items={completadas} />
+      <SeccionTareas titulo="Por hacer" items={porHacer} token={token} />
+      <SeccionTareas titulo="En revisión" items={enRevision} token={token} />
+      <SeccionTareas titulo="Completadas" items={completadas} token={token} />
     </div>
   );
 }
