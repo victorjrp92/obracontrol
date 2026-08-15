@@ -8,7 +8,7 @@ import {
   mensajeActaJuntosMuyPesada,
   validarActaJuntosPayload,
 } from "@/lib/juntos/acta-juntos";
-import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 
 /**
  * POST /api/juntos/acta-pdf — genera y devuelve el Acta de documentación de

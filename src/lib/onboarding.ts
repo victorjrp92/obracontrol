@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
+import { generarTokenAcceso } from "@/lib/tokens";
 import type { TipoCuenta } from "@/generated/prisma";
 
 /**
@@ -121,6 +122,7 @@ export async function provisionarUsuario(
   // ── Obrero demo ───────────────────────────────────────────────────────────
   await prisma.obrero.create({
     data: {
+      token: generarTokenAcceso(),
       nombre: "Diego Muñoz",
       contratista_id: c1.id,
       constructora_id: constructora.id,

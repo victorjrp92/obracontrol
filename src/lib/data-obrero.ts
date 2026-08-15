@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { calcularDiasHabiles, calcularSemaforo } from "@/lib/scoring";
 import { extractMotivo } from "@/lib/aprobaciones";
+import {
+  bloqueadoPorFallosDeToken,
+  claveDeSolicitud,
+  registrarFalloDeToken,
+} from "@/lib/rate-limit";
+import { tokenTieneFormaValida } from "@/lib/tokens";
 
 export interface ObreroTarea {
   id: string;
@@ -219,6 +225,21 @@ export async function getObreroTareaDetalle(
  * Checks: exists, activo, date range.
  */
 export async function validateObreroToken(token: string) {
+  // Freno de fuerza bruta. Va DENTRO del validador —no en cada ruta— para que
+  // quede cubierta también la página /o/[token] y para que una ruta nueva lo
+  // herede sin tener que acordarse. Solo cuentan los tokens que NO existen: un
+  // obrero real acierta siempre y nunca ve este límite.
+  const ip = await claveDeSolicitud();
+  const claveFallos = ip ? `obrero:${ip}` : null;
+
+  if (claveFallos && bloqueadoPorFallosDeToken(claveFallos)) return null;
+
+  // Descarta basura evidente sin gastar una consulta a la base de datos.
+  if (!tokenTieneFormaValida(token)) {
+    if (claveFallos) registrarFalloDeToken(claveFallos);
+    return null;
+  }
+
   const obrero = await prisma.obrero.findUnique({
     where: { token },
     include: {
@@ -226,7 +247,10 @@ export async function validateObreroToken(token: string) {
     },
   });
 
-  if (!obrero) return null;
+  if (!obrero) {
+    if (claveFallos) registrarFalloDeToken(claveFallos);
+    return null;
+  }
   if (!obrero.activo) return null;
 
   const now = new Date();

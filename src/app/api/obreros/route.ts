@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { validateObreroBasico } from "@/lib/obrero";
 import { puedeGestionarEquipoDirecto } from "@/lib/plan";
+import { generarTokenAcceso } from "@/lib/tokens";
 import type { EspecialidadObrero } from "@/generated/prisma";
 
 // GET /api/obreros — list obreros for this contratista
@@ -165,6 +166,8 @@ export async function POST(req: NextRequest) {
 
     const obrero = await prisma.obrero.create({
       data: {
+        // Credencial de acceso a /o/[token]: aleatoria de verdad, nunca un cuid.
+        token: generarTokenAcceso(),
         nombre: trimmedNombre,
         contratista_id: usuario.id,
         constructora_id: usuario.constructora_id,

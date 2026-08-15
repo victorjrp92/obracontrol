@@ -8,7 +8,7 @@ import {
   mensajeInformeMuyPesado,
   validarInformeJuntosPayload,
 } from "@/lib/juntos/informe-juntos";
-import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 
 /**
  * POST /api/juntos/informe-pdf — genera y devuelve el Informe de grietas de

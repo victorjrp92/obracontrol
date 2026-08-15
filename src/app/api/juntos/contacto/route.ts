@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 import { normalizarWhatsapp } from "@/lib/juntos/acta-juntos";
 
 /**

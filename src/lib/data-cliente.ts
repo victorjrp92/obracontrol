@@ -1,7 +1,12 @@
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { calcularProgreso } from "@/lib/scoring";
 import { getSignedEvidenciaUrl } from "@/lib/storage";
+import {
+  bloqueadoPorFallosDeToken,
+  claveDeSolicitud,
+  registrarFalloDeToken,
+} from "@/lib/rate-limit";
+import { generarTokenAcceso, tokenTieneFormaValida } from "@/lib/tokens";
 
 /**
  * Convierte un `url_storage` (path de bucket privado o URL legacy) en una signed
@@ -24,7 +29,7 @@ async function firmarFoto(stored: string): Promise<string> {
 
 /** Genera un token aleatorio urlsafe (no cuid → no filtra orden de creación). */
 export function generarClienteToken(): string {
-  return randomBytes(24).toString("base64url");
+  return generarTokenAcceso();
 }
 
 /**
@@ -34,11 +39,27 @@ export function generarClienteToken(): string {
 export async function validarClienteToken(
   token: string,
 ): Promise<{ proyectoId: string } | null> {
+  // Mismo freno de fuerza bruta que en `validateObreroToken`: dentro del
+  // validador para cubrir a la vez la ruta de API y la página /c/[token].
+  const ip = await claveDeSolicitud();
+  const claveFallos = ip ? `cliente:${ip}` : null;
+
+  if (claveFallos && bloqueadoPorFallosDeToken(claveFallos)) return null;
+
+  if (!tokenTieneFormaValida(token)) {
+    if (claveFallos) registrarFalloDeToken(claveFallos);
+    return null;
+  }
+
   const registro = await prisma.clienteAccesoToken.findUnique({
     where: { token },
     select: { activo: true, proyecto_id: true },
   });
-  if (!registro || !registro.activo) return null;
+  if (!registro) {
+    if (claveFallos) registrarFalloDeToken(claveFallos);
+    return null;
+  }
+  if (!registro.activo) return null;
   return { proyectoId: registro.proyecto_id };
 }
 

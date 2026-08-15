@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MAX_BODY_OBSERVACION_BYTES, mensajeObservacionMuyPesada, validarObservarGrietaPayload } from "@/lib/alerta/grietas";
 import { observarGrieta } from "@/lib/alerta/observar-grieta";
-import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 
 // Público, sin auth (el flujo Juntos no tiene tenant). Sin persistencia.
 // Siempre responde 200 con `{ok:true,...}` o `{ok:false, motivo}` — nunca

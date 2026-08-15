@@ -8,7 +8,7 @@ import {
   mensajePeticionMuyPesada,
   validarDerechoPeticionPayload,
 } from "@/lib/juntos/derecho-peticion";
-import { claveDesdeHeaders, permitirPeticion } from "@/lib/juntos/rate-limit";
+import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 
 /**
  * POST /api/juntos/derecho-peticion-pdf — genera y devuelve el derecho de

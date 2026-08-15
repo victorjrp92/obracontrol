@@ -625,7 +625,13 @@ model Rol {
 model Obrero {
   id               String       @id @default(cuid())
   nombre           String
-  token            String       @unique @default(cuid())
+  // SIN @default(cuid()): este token es la credencial completa de /o/[token].
+  // Un cuid lleva timestamp + contador secuencial + huella del proceso, así que
+  // es adivinable a partir de otro token. Se genera SIEMPRE en código con
+  // `generarTokenAcceso()` (src/lib/tokens.ts) — quitar el default es a
+  // propósito, para que un `create` que lo olvide falle de inmediato en vez de
+  // producir en silencio un token débil.
+  token            String       @unique
   contratista_id   String
   constructora_id  String
   fecha_inicio     DateTime
