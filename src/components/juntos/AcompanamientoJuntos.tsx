@@ -49,7 +49,7 @@ export default function AcompanamientoJuntos() {
                   <b>Te entregamos el documento</b>
                   <small>
                     Un acta de documentación de daños con fotos fechadas, ubicación y tu declaración —
-                    lista para tu aseguradora y para pedir ayuda.
+                    lista para tu aseguradora y para solicitar ayudas del Estado.
                   </small>
                 </div>
               </div>

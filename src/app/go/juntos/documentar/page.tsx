@@ -6,7 +6,7 @@ import FooterJuntos from "@/components/juntos/FooterJuntos";
 export const metadata: Metadata = {
   title: { absolute: "Documentar los daños — Juntos, de Seiricon" },
   description:
-    "Acta de documentación de daños con fotos fechadas y ubicadas, espacio por espacio — para tu aseguradora y para pedir ayuda. Gratis, sin crear cuenta.",
+    "Acta de documentación de daños con fotos fechadas y ubicadas, espacio por espacio — para tu aseguradora y para solicitar ayudas del Estado. Gratis, sin crear cuenta.",
 };
 
 /**

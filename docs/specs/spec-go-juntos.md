@@ -22,7 +22,7 @@ Sistema **«Vivo/Aizome»** de /go (Figtree, papel #FBFAF7, tinta #0B1220, índi
 
 ## Flujo obligatorio
 **Filtro de seguridad SIEMPRE primero** (4 preguntas, CERO datos personales, sin consentimiento —no se recoge nada—):
-- Cualquier "sí" → pantalla roja: «Sal ahora» + **123 grande** + líneas por ciudad (de `telefonos.ts`) + más abajo: «Cuando ya estés afuera y a salvo, documenta lo que pasó — lo vas a necesitar para el seguro y para pedir ayuda» con botón «Enviarme el enlace por WhatsApp» (wa.me con texto prellenado; sin guardar nada) y opción de documentar **desde afuera** (fachada/exterior). Línea explícita: «No vuelvas a entrar por una foto. Ningún documento vale eso.»
+- Cualquier "sí" → pantalla roja: «Sal ahora» + **123 grande** + líneas por ciudad (de `telefonos.ts`) + más abajo: «Cuando ya estés afuera y a salvo, documenta lo que pasó — lo vas a necesitar para el seguro y para solicitar ayudas del Estado» con botón «Enviarme el enlace por WhatsApp» (wa.me con texto prellenado; sin guardar nada) y opción de documentar **desde afuera** (fachada/exterior). Línea explícita: «No vuelvas a entrar por una foto. Ningún documento vale eso.»
 - Las 4 respuestas NO llevan default: estado `respondidas` aparte (patrón FiltroSeguridad de Karen, que está bien hecho).
 
 **Wizard de grietas:**

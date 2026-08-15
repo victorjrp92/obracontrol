@@ -1050,6 +1050,50 @@
   border-style: solid;
 }
 
+/* Ilustración de cada camino: cuenta de un vistazo qué va a hacer la
+   persona (enfocar una grieta / recibir el acta). */
+.ljt .jt-ilu-camino {
+  width: 100%;
+  max-width: 190px;
+  height: auto;
+  display: block;
+  margin: 4px 0 2px;
+}
+
+/* Empujón de la flecha: movimiento periférico, no llamada de atención.
+   Amplitud mínima (3px), lento, y con pausa larga entre repeticiones — el
+   ciclo dura 5s pero el movimiento ocupa apenas el primer 18%. Al pasar el
+   cursor, la flecha se adelanta con decisión. */
+.ljt .flecha-punta {
+  display: inline-block;
+  font-style: normal;
+  will-change: transform;
+  animation: ljt-empujon 5s ease-in-out infinite;
+}
+@keyframes ljt-empujon {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  7% {
+    transform: translateX(3px);
+  }
+  18% {
+    transform: translateX(0);
+  }
+}
+.ljt .jt-camino:hover .flecha-punta,
+.ljt .jt-camino:focus-visible .flecha-punta {
+  animation: none;
+  transform: translateX(5px);
+  transition: transform 0.18s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ljt .flecha-punta {
+    animation: none;
+  }
+}
+
 /* Campos de formulario (gate de datos) */
 .ljt .campo {
   display: flex;

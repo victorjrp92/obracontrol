@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Juntos, de Seiricon — No estás solo frente a estas grietas",
     description:
-      "Revisa tu casa acompañado y documenta los daños con fotos fechadas y ubicadas — lista para tu aseguradora y para pedir ayuda. Gratis, sin crear cuenta.",
+      "Revisa tu casa acompañado y documenta los daños con fotos fechadas y ubicadas — lista para tu aseguradora y para solicitar ayudas del Estado. Gratis, sin crear cuenta.",
     locale: "es_CO",
     type: "website",
   },

@@ -54,7 +54,7 @@ export default function PantallaRoja({ onDocumentarAfuera }: PantallaRojaProps) 
       <div className="rojo-despues">
         <p>
           Cuando ya estés afuera y a salvo, documenta lo que pasó — lo vas a necesitar para el seguro y
-          para pedir ayuda.
+          para solicitar ayudas del Estado.
         </p>
         <button type="button" onClick={enviarEnlaceWhatsApp} className="btn btn-chico">
           <MessageCircle className="ic" aria-hidden="true" /> Enviarme el enlace por WhatsApp
