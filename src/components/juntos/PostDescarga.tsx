@@ -72,7 +72,15 @@ export default function PostDescarga({
       )}
 
       {/* Anuncio grande del valor que sigue: el pedido de Victor era que no se
-          sienta que después de descargar ya no hay nada. */}
+          sienta que después de descargar ya no hay nada. Cuando ya tiene los
+          dos documentos, una flecha lo empuja a seguir bajando. */}
+      {derechoPeticion?.descargado && (
+        <div className="jt-sigue" aria-hidden="true">
+          <span>Falta lo que casi nadie sabe</span>
+          <i />
+        </div>
+      )}
+
       <div className="jt-mas-valor">
         <span className="mas-valor-etiqueta">Información que te puede servir</span>
         <h2>Cómo reclamarle a tu seguro sin que te den vueltas</h2>

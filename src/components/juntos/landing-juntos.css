@@ -727,6 +727,28 @@
   padding: 10px 13px;
   line-height: 1.5;
 }
+/* Aviso plegable: en pantalla manda la versión corta; el texto completo
+   queda a un toque, sin robarle cinco líneas a quien solo va de paso. */
+.ljt .aviso-mas {
+  display: inline;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ljt .aviso-largo {
+  display: block;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--ambar-bde);
+  font-weight: 500;
+}
 .ljt .aviso-azul {
   border-color: var(--azul-bde);
   background: var(--azul-50);
@@ -1041,6 +1063,95 @@
 .ljt .carpeta-pie-ok {
   color: var(--verde-txt);
   font-weight: 700;
+}
+
+/* Al completar la carpeta: qué es lo que acaba de descargar y para qué le
+   sirve. Antes de descargarlo no cabe explicarlo —competiría con el botón—;
+   después sí, porque ya tiene el papel en la mano y ahora quiere saber qué
+   hacer con él. */
+.ljt .carpeta-listo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ljt .para-que {
+  border-radius: 12px;
+  border: 1.5px solid var(--gris-bde);
+  background: var(--gris-50);
+  padding: 13px 15px;
+}
+.ljt .para-que > b {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.ljt .para-que p {
+  font-size: 13px;
+  color: var(--gris);
+  margin-top: 4px;
+}
+.ljt .para-que ul {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ljt .para-que li {
+  position: relative;
+  padding-left: 17px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ljt .para-que li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--azul);
+}
+.ljt .para-que .plazo-dp {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--gris-bde);
+  color: var(--tinta);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Empujón a seguir bajando: cuando ya tiene los dos documentos, la tarea
+   terminó y el instinto es cerrar. La flecha dice que todavía falta algo. */
+.ljt .jt-sigue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 14px;
+}
+.ljt .jt-sigue span {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gris);
+}
+.ljt .jt-sigue i {
+  width: 11px;
+  height: 11px;
+  border-right: 2.5px solid var(--azul);
+  border-bottom: 2.5px solid var(--azul);
+  transform: rotate(45deg);
+  animation: ljt-bajar 1.9s ease-in-out infinite;
+}
+@keyframes ljt-bajar {
+  0%, 60%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.55; }
+  30% { transform: rotate(45deg) translate(3px, 3px); opacity: 1; }
 }
 
 /* Anuncio del valor que sigue: que no se sienta que tras descargar ya no

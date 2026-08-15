@@ -91,9 +91,19 @@ export default function CarpetaDocumentos({ variante, derechoPeticion }: Carpeta
       )}
 
       {derechoPeticion.descargado && (
-        <p className="carpeta-pie carpeta-pie-ok">
-          Ya tienes los dos. Fírmalos y radícalos juntos en el punto de atención de tu ciudad.
-        </p>
+        <div className="carpeta-listo">
+          <p className="carpeta-pie carpeta-pie-ok">Ya tienes los dos. Fírmalos y radícalos juntos.</p>
+          <div className="para-que">
+            <b>¿Para qué sirve el derecho de petición?</b>
+            <p>Es una carta formal a tu alcaldía. Úsala para pedir:</p>
+            <ul>
+              <li>Que te incluyan en el censo de damnificados</li>
+              <li>La evaluación técnica de tu vivienda</li>
+              <li>El subsidio de arriendo, si quedó inhabitable</li>
+            </ul>
+            <p className="plazo-dp">Tienen 15 días hábiles para responderte.</p>
+          </div>
+        </div>
       )}
     </div>
   );

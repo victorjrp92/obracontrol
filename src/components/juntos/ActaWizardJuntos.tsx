@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Building, Building2, Home, Plus, Store, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, MAX_ESPACIOS, MAX_FOTOS, estimarBytesBase64, type TipoInmueble } from "@/lib/alerta/acta";
@@ -244,6 +244,14 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
     onDescargar: handleDerechoPeticion,
     descargado: dpDescargado,
   };
+
+  // Al llegar a la pantalla final, subir al tope: lo primero que debe ver es
+  // la carpeta con el documento que le falta, no el punto donde quedó el scroll.
+  useEffect(() => {
+    if (paso !== "post") return;
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
+  }, [paso]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

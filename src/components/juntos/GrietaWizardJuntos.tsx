@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, estimarBytesBase64 } from "@/lib/alerta/acta";
@@ -349,6 +349,14 @@ export default function GrietaWizardJuntos() {
       setGenerandoDp(false);
     }
   }
+
+  // Al llegar a la pantalla final, subir al tope: lo primero que debe ver es
+  // la carpeta con el documento que le falta, no el punto donde quedó el scroll.
+  useEffect(() => {
+    if (paso !== "post") return;
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
+  }, [paso]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
