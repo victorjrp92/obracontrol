@@ -58,6 +58,8 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
 
   // Derecho de petición (post-descarga).
   const [generandoDp, setGenerandoDp] = useState(false);
+  // La carpeta necesita saber si ya bajó el segundo documento para pasar a «2 de 2».
+  const [dpDescargado, setDpDescargado] = useState(false);
   const [errorDp, setErrorDp] = useState<string | null>(null);
 
   // Topes globales en vivo (fotos guardadas + en edición).
@@ -228,6 +230,7 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      setDpDescargado(true); // la carpeta pasa a «2 de 2»
     } catch (err) {
       setErrorDp(err instanceof Error ? err.message : "No pudimos generar el documento.");
     } finally {
@@ -239,6 +242,7 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
     generando: generandoDp,
     error: errorDp,
     onDescargar: handleDerechoPeticion,
+    descargado: dpDescargado,
   };
 
   return (
