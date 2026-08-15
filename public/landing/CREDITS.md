@@ -34,3 +34,13 @@ Todas Unsplash, licencia libre para uso comercial. Tono: acompañamiento, sin im
 - juntos-manos-mesa.jpg — Priscilla Du Preez · unsplash.com/photos/aPa843frIzI (secundaria)
 - juntos-mano-cielo.jpg — Austin Kehmeier · unsplash.com/photos/lyiKExA4zQA (secundaria)
 - juntos-barrio.jpg — Sergio Aguirre · unsplash.com/photos/uzDKu--eFMU (secundaria, contexto)
+
+## Juntos — fotos de elementos (ubicar la grieta) · 2026-08-15
+Imágenes GENERADAS CON IA (ChatGPT) por Victor, a partir de prompts propios.
+Sin rostros ni personas — cumplen la regla de la casa. Muestran columna, viga,
+muro de carga, muro divisorio, losa y piso de un apartamento tipo, con las
+anotaciones en rojo (español, centímetros) que las hacen legibles de un vistazo.
+El "10 cm" del muro divisorio se compuso aparte para que la comparación con los
+25-30 cm del muro de carga quedara pareja.
+- elem-columna.jpg · elem-viga.jpg · elem-muro-carga.jpg
+- elem-muro-divisorio.jpg · elem-techo.jpg · elem-piso.jpg

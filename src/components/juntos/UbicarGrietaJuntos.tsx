@@ -21,8 +21,7 @@ interface UbicarGrietaJuntosProps {
 
 /**
  * Paso 1 del wizard de grietas: ¿dónde está la grieta? Siete tarjetas con
- * ilustración didáctica (casa en corte, elemento resaltado en índigo) y nota
- * de una línea. Nada preseleccionado; «No estoy seguro» siempre visible y
+ * foto anotada del elemento (más el sello con su esquema) y nota de una línea. Nada preseleccionado; «No estoy seguro» siempre visible y
  * empujado (spec-go-juntos.md).
  */
 export default function UbicarGrietaJuntos({ onSeleccionar }: UbicarGrietaJuntosProps) {
@@ -32,7 +31,7 @@ export default function UbicarGrietaJuntos({ onSeleccionar }: UbicarGrietaJuntos
     <div className="panel">
       <div>
         <h2>¿Dónde está la grieta?</h2>
-        <p className="desc">Elige lo que más se parezca a lo que ves. La zona azul de cada dibujo es el elemento.</p>
+        <p className="desc">Elige la foto que más se parezca a lo que ves en tu casa.</p>
       </div>
 
       <div className="opciones">

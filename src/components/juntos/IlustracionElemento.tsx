@@ -1,12 +1,16 @@
+import Image from "next/image";
 import type { Elemento } from "@/lib/alerta/tipos";
 
 /**
- * Ilustraciones didácticas para ubicar la grieta (spec-go-juntos.md,
- * sección Ilustraciones): nada de fotos — SVG esquemáticos propios, la misma
- * casa en corte en todas las tarjetas con el elemento resaltado en índigo y
- * una grieta indicativa encima. Estilo Aizome: trazo tinta 2px, relleno
- * índigo suave, esquinas rectas (las clases .trazo/.suave/.resalte/.grieta
- * viven en landing-juntos.css).
+ * Tarjetas para ubicar la grieta (spec-go-juntos.md, §Ilustraciones).
+ *
+ * Decisión de Victor tras comparar cuatro enfoques: **foto anotada + esquema**.
+ * La foto da el reconocimiento ("eso se parece a lo mío") y las anotaciones
+ * rojas — lenguaje de plano marcado a mano — lo hacen práctico de leer al
+ * instante; el esquema de la esquina dice qué pieza es cuando la tarjeta se ve
+ * pequeña. Las fotos son generadas con IA (sin rostros, ver CREDITS.md) porque
+ * el banco de imágenes no distinguía muro de carga de muro divisorio: la clave
+ * es la profundidad de la jamba en el vano, y eso hubo que componerlo.
  */
 
 /** Los 7 elementos que se ofrecen en el Paso 1 (los demás solo los alcanza el modelo). */
@@ -18,67 +22,104 @@ export type ElementoTarjeta = Extract<
 /** Nota de una línea bajo cada tarjeta (lenguaje llano). */
 export const NOTA_ELEMENTO: Record<ElementoTarjeta, string> = {
   columna: "Vertical y gruesa: sostiene el techo.",
-  viga: "Horizontal, arriba: carga el techo o el piso de arriba.",
-  muro_carga: "Suele ser más grueso y sostiene el techo.",
-  muro_divisorio: "Delgado: solo separa espacios, no sostiene.",
-  losa_techo: "La plancha del techo o del piso de arriba.",
-  piso: "La superficie sobre la que caminas.",
+  viga: "Horizontal, arriba: cruza de pared a pared.",
+  muro_carga: "Grueso (25-30 cm): sostiene la casa.",
+  muro_divisorio: "Delgado (10 cm): solo separa espacios.",
+  losa_techo: "La plancha sobre tu cabeza.",
+  piso: "La superficie donde caminas.",
   no_determinado: "Si dudas, elige esto — así no se subestima el resultado.",
 };
 
-type Pieza = "losa" | "viga" | "colIzq" | "colDer" | "muroCarga" | "muroDiv" | "piso";
-
-/** Qué pieza de la casa se resalta por tarjeta (null = ninguna, caso "no estoy seguro"). */
-const RESALTE: Record<ElementoTarjeta, Pieza | null> = {
-  columna: "colIzq",
-  viga: "viga",
-  muro_carga: "muroCarga",
-  muro_divisorio: "muroDiv",
-  losa_techo: "losa",
-  piso: "piso",
-  no_determinado: null,
+/** Foto anotada por elemento (public/landing/juntos/elementos). */
+const FOTO: Record<Exclude<ElementoTarjeta, "no_determinado">, string> = {
+  columna: "elem-columna",
+  viga: "elem-viga",
+  muro_carga: "elem-muro-carga",
+  muro_divisorio: "elem-muro-divisorio",
+  losa_techo: "elem-techo",
+  piso: "elem-piso",
 };
 
-/** Grieta indicativa (polyline) sobre la pieza resaltada. */
-const GRIETA: Record<Exclude<Pieza, never>, string> = {
-  colIzq: "24,42 20,54 26,66 22,80",
-  viga: "62,21 67,24 64,27 69,28",
-  losa: "72,11 76,15 73,19",
-  muroCarga: "52,44 47,58 53,72 49,88",
-  muroDiv: "86,50 83,64 88,78",
-  piso: "58,101 64,103 61,105",
-  colDer: "116,42 113,56 118,70",
-};
-
-export default function IlustracionElemento({ elemento }: { elemento: ElementoTarjeta }) {
-  const resalte = RESALTE[elemento];
-  const cls = (pieza: Pieza) => (pieza === resalte ? "resalte" : "suave");
+/**
+ * Esquema del sello: la pieza en índigo dentro de una casa simplificada. Se lee
+ * aunque la foto se vea diminuta, y no depende del texto quemado en la imagen.
+ */
+function Esquema({ elemento }: { elemento: ElementoTarjeta }) {
+  const g = { fill: "#EEF1F6", stroke: "#0B1220", strokeWidth: 1.4 };
+  const a = { fill: "#2563EB", stroke: "#0B1220", strokeWidth: 1.4 };
+  const s = { fill: "#DCE6FB", stroke: "#2563EB", strokeWidth: 1.4 };
 
   return (
-    <svg viewBox="0 0 140 112" className="ilu" aria-hidden="true" focusable="false">
-      {/* Casa en corte: losa de techo, viga, dos columnas, muro que sostiene
-          (grueso), muro divisorio (delgado) y piso, sobre la línea de suelo. */}
-      <line x1="2" y1="108" x2="138" y2="108" className="trazo" />
-      <rect x="8" y="10" width="124" height="10" className={cls("losa")} />
-      <rect x="18" y="20" width="104" height="8" className={cls("viga")} />
-      <rect x="18" y="28" width="10" height="72" className={cls("colIzq")} />
-      <rect x="112" y="28" width="10" height="72" className={cls("colDer")} />
-      <rect x="44" y="28" width="14" height="72" className={cls("muroCarga")} />
-      <rect x="84" y="28" width="5" height="72" className={cls("muroDiv")} />
-      <rect x="8" y="100" width="124" height="6" className={cls("piso")} />
-
-      {resalte ? (
-        <polyline points={GRIETA[resalte]} className="grieta" />
-      ) : (
-        <text
-          x="70"
-          y="78"
-          textAnchor="middle"
-          style={{ fill: "var(--azul)", fontFamily: "inherit", fontWeight: 800, fontSize: 40 }}
-        >
-          ?
-        </text>
+    <svg viewBox="0 0 40 40" className="esquema" aria-hidden="true" focusable="false">
+      {elemento === "columna" && (
+        <>
+          <rect x="2" y="4" width="36" height="5" {...g} />
+          <rect x="2" y="32" width="36" height="5" {...g} />
+          <rect x="15" y="9" width="10" height="23" {...a} />
+        </>
+      )}
+      {elemento === "viga" && (
+        <>
+          <rect x="2" y="3" width="36" height="4" {...g} />
+          <rect x="4" y="9" width="32" height="8" {...a} />
+          <rect x="6" y="17" width="6" height="20" {...g} />
+          <rect x="28" y="17" width="6" height="20" {...g} />
+        </>
+      )}
+      {elemento === "muro_carga" && (
+        <>
+          <rect x="2" y="4" width="36" height="4" {...g} />
+          <rect x="2" y="33" width="36" height="4" {...g} />
+          <rect x="11" y="8" width="18" height="25" {...a} />
+        </>
+      )}
+      {elemento === "muro_divisorio" && (
+        <>
+          <rect x="2" y="4" width="36" height="4" {...g} />
+          <rect x="2" y="33" width="36" height="4" {...g} />
+          <rect x="17" y="8" width="6" height="25" {...s} />
+        </>
+      )}
+      {elemento === "losa_techo" && (
+        <>
+          <rect x="2" y="4" width="36" height="9" {...a} />
+          <rect x="5" y="13" width="6" height="24" {...g} />
+          <rect x="29" y="13" width="6" height="24" {...g} />
+        </>
+      )}
+      {elemento === "piso" && (
+        <>
+          <rect x="2" y="28" width="36" height="9" {...a} />
+          <rect x="5" y="5" width="6" height="23" {...g} />
+          <rect x="29" y="5" width="6" height="23" {...g} />
+        </>
       )}
     </svg>
+  );
+}
+
+export default function IlustracionElemento({ elemento }: { elemento: ElementoTarjeta }) {
+  // «No estoy seguro» no lleva foto: un signo de interrogación grande y limpio.
+  if (elemento === "no_determinado") {
+    return (
+      <span className="ilu ilu-duda" aria-hidden="true">
+        ?
+      </span>
+    );
+  }
+
+  return (
+    <span className="ilu">
+      <Image
+        src={`/landing/juntos/elementos/${FOTO[elemento]}.jpg`}
+        alt=""
+        width={900}
+        height={675}
+        sizes="(max-width: 640px) 45vw, 200px"
+      />
+      <span className="ilu-sello">
+        <Esquema elemento={elemento} />
+      </span>
+    </span>
   );
 }
