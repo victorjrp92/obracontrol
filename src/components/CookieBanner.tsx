@@ -3,28 +3,31 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Cookie, X } from "lucide-react";
+import { guardarConsentimiento, leerConsentimiento } from "@/lib/consentimiento-cookies";
 
-const COOKIE_KEY = "seiricon-cookie-consent";
+
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem(COOKIE_KEY);
-    if (!consent) {
+    if (leerConsentimiento() === "sin-responder") {
       // Small delay so it doesn't flash on page load
       const timer = setTimeout(() => setVisible(true), 1000);
       return () => clearTimeout(timer);
     }
   }, []);
 
+  // Guardar dispara el evento que enciende (o deja apagada) la analítica de
+  // comportamiento. Antes ambos botones hacían lo mismo; ahora "Rechazar"
+  // significa algo: Clarity no se carga nunca.
   function accept() {
-    localStorage.setItem(COOKIE_KEY, "accepted");
+    guardarConsentimiento("aceptado");
     setVisible(false);
   }
 
   function decline() {
-    localStorage.setItem(COOKIE_KEY, "declined");
+    guardarConsentimiento("rechazado");
     setVisible(false);
   }
 
@@ -37,8 +40,8 @@ export default function CookieBanner() {
           <Cookie className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-slate-600">
             <p>
-              Usamos cookies esenciales para que la plataforma funcione correctamente.
-              Consulta nuestra{" "}
+              Usamos cookies esenciales para que la plataforma funcione. Si aceptas, además
+              medimos de forma anónima cómo se usa la página para poder mejorarla. Consulta nuestra{" "}
               <Link href="/cookies" className="text-blue-600 hover:text-blue-700 font-medium">
                 politica de cookies
               </Link>{" "}

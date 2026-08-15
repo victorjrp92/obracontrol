@@ -38,6 +38,8 @@ export default function CookiesPage() {
           <tbody className="divide-y divide-slate-100 text-slate-600">
             <tr><td className="py-2 pr-4 font-mono text-xs">sb-*-auth-token</td><td className="py-2 pr-4">Sesion de autenticacion (Supabase)</td><td className="py-2">Sesion / 7 dias</td></tr>
             <tr><td className="py-2 pr-4 font-mono text-xs">sb-*-auth-token-code-verifier</td><td className="py-2 pr-4">Verificacion PKCE de autenticacion</td><td className="py-2">Sesion</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs">seiricon-cookie-consent</td><td className="py-2 pr-4">Guarda tu respuesta a este aviso (no es cookie: queda en tu navegador)</td><td className="py-2">Permanente</td></tr>
+            <tr><td className="py-2 pr-4 font-mono text-xs">_clck, _clsk (Microsoft Clarity)</td><td className="py-2 pr-4">Solo si aceptas: medicion anonima de como se usa la pagina de Juntos (mapas de calor). No se cargan si rechazas, y no se usan en los formularios ni en el paso de fotos.</td><td className="py-2">1 ano / sesion</td></tr>
           </tbody>
         </table>
 

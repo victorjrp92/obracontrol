@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
+// Analítica agregada de Vercel: sin cookies y sin identificar personas, por eso
+// no necesita consentimiento. Nos da el embudo (visitas, rutas, procedencia).
+import { Analytics } from "@vercel/analytics/next";
 
 const APP_NAME = "Seiricon";
 const APP_DESCRIPTION =
@@ -50,6 +53,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col antialiased">
         {children}
         <CookieBanner />
+        <Analytics />
       </body>
     </html>
   );
