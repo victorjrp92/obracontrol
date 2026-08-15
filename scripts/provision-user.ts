@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as dotenv from "dotenv";
 import * as path from "path";
-import { PrismaClient } from "@/generated/prisma";
+import { PrismaClient } from "../src/generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 // Load environment variables from .env.local
@@ -10,7 +10,7 @@ dotenv.config({ path: envPath });
 
 /**
  * CLI script to provision an existing Supabase Auth user with a full Prisma data set.
- * Usage: NODE_TLS_REJECT_UNAUTHORIZED=0 npx tsx src/scripts/provision-user.ts <email> <nombre> <empresa>
+ * Usage: NODE_TLS_REJECT_UNAUTHORIZED=0 npx tsx scripts/provision-user.ts <email> <nombre> <empresa>
  */
 
 async function main() {
