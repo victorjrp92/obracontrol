@@ -253,6 +253,10 @@ Inicio (dashboard ejecutivo) y Proyectos.
 
 El obrero entra mediante un **enlace único (token)** que le comparte su contratista o administrador — no necesita email ni contraseña.
 
+> **El enlace es la llave.** Como no hay usuario ni contraseña, quien tenga el enlace entra. Compártelo solo por un canal privado (WhatsApp directo, no grupos) y avisa a soporte si sospechas que se filtró: se puede regenerar, y el anterior deja de funcionar en el acto.
+
+**Actualización de agosto de 2026.** Los enlaces se generaron de nuevo con un código mucho más largo y aleatorio, para que nadie pueda adivinarlos a partir de otro. Si tus obreros tenían enlaces de antes de esa fecha, **dejaron de funcionar y hay que reenviarles el nuevo** desde la pestaña de obreros. Además, el sistema ahora bloquea de forma temporal a quien pruebe muchos enlaces incorrectos seguidos.
+
 ### Qué puede hacer
 
 - Ver, organizadas por jerarquía (proyecto → edificio → piso → apartamento → espacio), las tareas que le asignaron.

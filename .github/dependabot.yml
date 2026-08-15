@@ -1,0 +1,36 @@
+version: 2
+
+# Avisos automáticos de dependencias con vulnerabilidad conocida.
+#
+# El repo tiene 20 dependencias directas y varias procesan entrada de usuario
+# sin intermediarios: exceljs (importación de tareas), @react-pdf/renderer
+# (fotos en base64), mapbox-gl, pg. Un CVE en cualquiera de ellas es una vía
+# directa desde una carga de archivo hasta el servidor.
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Agrupar el ruido: las actualizaciones de seguridad llegan sueltas y se
+    # revisan una por una; las de rutina, juntas y una vez por semana.
+    groups:
+      dependencias-menores:
+        update-types:
+          - minor
+          - patch
+    # Next y React se actualizan a mano: en este repo un salto de major cambia
+    # convenciones de rutas y de params (ver AGENTS.md).
+    ignore:
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

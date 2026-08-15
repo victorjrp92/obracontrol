@@ -1,0 +1,66 @@
+name: Seguridad y tipos
+
+# Puerta mínima antes de mergear. NO reemplaza la revisión humana: cubre lo
+# que una máquina detecta sin ambigüedad (tipos, lint, CVE conocidos) para que
+# la revisión se concentre en lo que sí requiere criterio.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Lunes 6:00 UTC (1:00 en Colombia): un CVE publicado el fin de semana se
+    # ve el lunes temprano, sin depender de que alguien abra un PR.
+    - cron: "0 6 * * 1"
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # El cliente de Prisma está gitignorado (se genera en src/generated/prisma),
+      # así que sin este paso no compila nada. No necesita base de datos.
+      - name: Generar cliente de Prisma
+        run: npx prisma generate
+
+      - name: Tipos
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Lint
+        run: npm run lint
+
+      # Falla solo con vulnerabilidades altas o críticas: en `moderate` el ruido
+      # transitivo hace que se ignore el semáforo, que es peor que no tenerlo.
+      - name: Vulnerabilidades conocidas
+        run: npm audit --audit-level=high
+
+  motor-de-grietas:
+    # El triage de grietas decide si a alguien se le dice que salga de su casa.
+    # Sus dos scripts de verificación son lo más parecido a tests que hay en el
+    # repo, y corren sin base de datos ni red.
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Reglas y triage (43/43 y 37/37)
+        run: npm run verify:alerta
