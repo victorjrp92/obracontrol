@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import NavJuntos from "@/components/juntos/NavJuntos";
 import FlujoRevisar from "@/components/juntos/FlujoRevisar";
 import FooterJuntos from "@/components/juntos/FooterJuntos";
+import { juntosPausado } from "@/lib/juntos/pausa";
+import JuntosPausado from "@/components/juntos/JuntosPausado";
 
 export const metadata: Metadata = {
   title: { absolute: "Revisar una grieta — Juntos, de Seiricon" },
@@ -11,6 +13,8 @@ export const metadata: Metadata = {
 
 /** Wizard de grietas de Juntos. Server component: todo el estado vive en FlujoRevisar (cliente). */
 export default function RevisarPage() {
+  if (juntosPausado()) return <JuntosPausado />;
+
   return (
     <>
       <NavJuntos />

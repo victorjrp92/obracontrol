@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { juntosPausado } from "@/lib/juntos/pausa";
 import "./aviso-emergencia.css";
 
 /**
@@ -16,6 +17,10 @@ import "./aviso-emergencia.css";
  * `src/app/page.tsx` (B2B) y `src/app/go/page.tsx` (Go).
  */
 export default function AvisoEmergencia() {
+  // Si la línea está pausada, la franja desaparece: invitar a una puerta
+  // cerrada es peor que no invitar.
+  if (juntosPausado()) return null;
+
   return (
     <Link href="/go/juntos" className="avem">
       <span className="avem-in">

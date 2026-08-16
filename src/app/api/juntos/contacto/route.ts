@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 import { normalizarWhatsapp } from "@/lib/juntos/acta-juntos";
+import { juntosPausado, MENSAJE_PAUSA_API } from "@/lib/juntos/pausa";
 
 /**
  * Contacto del gate de datos de «Juntos» (/go/juntos/documentar). Público y
@@ -28,6 +29,12 @@ const MAX_POR_MINUTO_POR_IP = 5;
 const WHATSAPP_RE = /^\+?\d{7,15}$/;
 
 export async function POST(req: NextRequest) {
+  // Interruptor de emergencia: se corta antes de leer el cuerpo, así una
+  // avalancha no cuesta ni el ancho de banda de las fotos.
+  if (juntosPausado()) {
+    return NextResponse.json({ error: MENSAJE_PAUSA_API }, { status: 503 });
+  }
+
   try {
     const contentLength = Number(req.headers.get("content-length") ?? 0);
     if (contentLength > MAX_BODY) {

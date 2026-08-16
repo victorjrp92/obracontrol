@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import NavJuntos from "@/components/juntos/NavJuntos";
 import FlujoDocumentar from "@/components/juntos/FlujoDocumentar";
 import FooterJuntos from "@/components/juntos/FooterJuntos";
+import { juntosPausado } from "@/lib/juntos/pausa";
+import JuntosPausado from "@/components/juntos/JuntosPausado";
 
 export const metadata: Metadata = {
   title: { absolute: "Documentar los daños — Juntos, de Seiricon" },
@@ -20,6 +22,8 @@ export default async function DocumentarPage({
 }: {
   searchParams: Promise<{ desde?: string }>;
 }) {
+  if (juntosPausado()) return <JuntosPausado />;
+
   const { desde } = await searchParams;
   return (
     <>

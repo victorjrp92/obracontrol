@@ -11,6 +11,7 @@ import {
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 import { registrarDocumento } from "@/lib/juntos/registro-documento";
 import { ESPERA_SUGERIDA_SEGUNDOS, MENSAJE_SIN_CUPO, soltarCupo, tomarCupo } from "@/lib/juntos/compuerta";
+import { juntosPausado, MENSAJE_PAUSA_API } from "@/lib/juntos/pausa";
 
 /**
  * POST /api/juntos/acta-pdf — genera y devuelve el Acta de documentación de
@@ -33,6 +34,12 @@ export const maxDuration = 60;
 const MAX_POR_MINUTO_POR_IP = 6;
 
 export async function POST(req: NextRequest) {
+  // Interruptor de emergencia: se corta antes de leer el cuerpo, así una
+  // avalancha no cuesta ni el ancho de banda de las fotos.
+  if (juntosPausado()) {
+    return NextResponse.json({ error: MENSAJE_PAUSA_API }, { status: 503 });
+  }
+
   try {
     const contentLength = req.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
