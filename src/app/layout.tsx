@@ -10,12 +10,33 @@ const APP_DESCRIPTION =
   "SaaS para constructoras en Colombia. Controla obra blanca, carpintería y madera en tiempo real. Evidencia fotográfica, aprobaciones y métricas de desempeño.";
 
 export const metadata: Metadata = {
+  // Obligatorio para las tarjetas sociales: og:image tiene que ser una URL
+  // absoluta, y sin esto Next deja la ruta relativa y WhatsApp/Facebook no la
+  // resuelven. Vercel expone el dominio de producción en VERCEL_PROJECT_
+  // PRODUCTION_URL; el fallback cubre local y cualquier otro entorno.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "https://seiricon.com")
+  ),
   applicationName: APP_NAME,
   title: {
     default: `${APP_NAME} — Control de Obra Inteligente`,
     template: `%s — ${APP_NAME}`,
   },
   description: APP_DESCRIPTION,
+  // Tarjeta por defecto: cualquier ruta sin openGraph propio hereda esta.
+  openGraph: {
+    siteName: APP_NAME,
+    locale: "es_CO",
+    type: "website",
+    images: [{ url: "/og/seiricon.jpg", width: 1200, height: 630, alt: `${APP_NAME} — control de obra` }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og/seiricon.jpg"],
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

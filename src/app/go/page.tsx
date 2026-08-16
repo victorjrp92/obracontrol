@@ -37,7 +37,16 @@ export const metadata: Metadata = {
       "Tu obra con pruebas: foto, GPS y hora en cada avance, el dinero con factura y el semáforo que avisa a tiempo. Estés donde estés.",
     locale: "es_CO",
     type: "website",
+    images: [
+      {
+        url: "/og/seiricon-go.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Seiricon Go — Nadie cuida tu proyecto como tú",
+      },
+    ],
   },
+  twitter: { card: "summary_large_image", images: ["/og/seiricon-go.jpg"] },
 };
 
 export default function SeiriconGoPage() {
