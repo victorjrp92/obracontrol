@@ -13,21 +13,50 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
-    # Agrupar el ruido: las actualizaciones de seguridad llegan sueltas y se
-    # revisan una por una; las de rutina, juntas y una vez por semana.
+    # Agrupar el ruido: las actualizaciones de rutina llegan juntas una vez por
+    # semana; lo que exige criterio, suelto.
+    #
+    # `exclude-patterns` corrige un error de la primera versión: agrupaba TODO
+    # lo menor, así que el primer PR mezcló parches triviales (lucide, gsap) con
+    # `next 16.2.2 → 16.3.0` y `@supabase/ssr 0.10 → 0.12`. Dos problemas:
+    #   - En paquetes 0.x un salto de MINOR puede ser incompatible; la garantía
+    #     de semver solo aplica a partir de 1.0. Y `@supabase/ssr` es auth: si
+    #     algo cambia ahí, se rompe el login y el proxy.
+    #   - Next en este repo no es un paquete cualquiera (ver AGENTS.md: cambian
+    #     convenciones entre versiones).
+    # Mezclarlos obligaba a elegir entre mergear todo o nada. Ahora lo trivial
+    # se mergea rápido y lo delicado se revisa aparte, con su preview.
     groups:
       dependencias-menores:
         update-types:
           - minor
           - patch
-    # Next y React se actualizan a mano: en este repo un salto de major cambia
-    # convenciones de rutas y de params (ver AGENTS.md).
+        exclude-patterns:
+          - "next"
+          - "eslint-config-next"
+          - "react"
+          - "react-dom"
+          - "@supabase/*"
+          - "prisma"
+          - "@prisma/*"
+    # Estos se actualizan a mano. Un major aquí no es «subir una versión»:
+    #   next/react   cambian convenciones de rutas, params y renderizado
+    #   typescript   la 7 es la reescritura nativa; hay que probarla, no asumirla
+    #   eslint       la 10 rompe la config plana y arrastra a eslint-config-next
+    #   @types/node  debe seguir a la versión de Node que se USA (hoy 22), no a
+    #                la última publicada
     ignore:
       - dependency-name: next
         update-types: ["version-update:semver-major"]
       - dependency-name: react
         update-types: ["version-update:semver-major"]
       - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
