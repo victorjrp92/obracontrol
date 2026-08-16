@@ -1,8 +1,9 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Check, Loader2, RotateCcw } from "lucide-react";
+import { Camera, Check, Lightbulb, Loader2, RotateCcw } from "lucide-react";
 import { comprimirParaAnalisis, obtenerGPS, quemarOverlay, type GPSCoords } from "@/lib/media/overlay";
+import { analizarCalidadFoto, type ResultadoCalidadFoto } from "@/lib/media/calidad-foto";
 import type { Elemento } from "@/lib/alerta/tipos";
 import type { RespuestaPasante } from "@/lib/alerta/triage";
 import GuiaFotoJuntos from "./GuiaFotoJuntos";
@@ -15,6 +16,12 @@ export interface CapturedPhotoGrieta {
   preview: string;
   timestamp: Date;
   gps: GPSCoords | null;
+  /**
+   * Medición local de nitidez/exposición hecha en el celular, antes de subir
+   * nada. `null` si el navegador no pudo medirla — en ese caso no se muestra
+   * nada, no se inventa una advertencia.
+   */
+  calidad: ResultadoCalidadFoto | null;
 }
 
 interface GrietaCameraCaptureJuntosProps {
@@ -53,8 +60,12 @@ export default function GrietaCameraCaptureJuntos({ elementoDeclarado, onComplet
       comprimirParaAnalisis(file),
       quemarOverlay(file, timestamp, gps, etiqueta),
     ]);
+    // Se mide sobre el blob de análisis, no sobre el de evidencia: la franja
+    // negra del overlay tapa ~10% de la foto y falsearía brillo y nitidez.
+    // Va dentro del "Procesando foto..." que ya se muestra — son milisegundos.
+    const calidad = await analizarCalidadFoto(blobAnalisis);
     const preview = URL.createObjectURL(blobEvidencia);
-    return { blobAnalisis, blobEvidencia, preview, timestamp, gps };
+    return { blobAnalisis, blobEvidencia, preview, timestamp, gps, calidad };
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -177,21 +188,44 @@ function ConfirmarFoto({
   onRepetir: () => void;
   onContinuar: () => void;
 }) {
+  // Solo hay consejo cuando SÍ se pudo medir y la medida dio floja. Si el
+  // navegador no midió (calidad === null) no se dice nada: preferimos callar
+  // antes que sembrar una duda que no tenemos cómo sostener.
+  const consejo = foto.calidad && foto.calidad.veredicto !== "ok" ? foto.calidad.consejo : null;
+
   return (
     <div className="panel">
       {/* Preview de la foto ya con overlay (blobEvidencia) — la misma que verá el PDF. */}
       <img src={foto.preview} alt="Foto capturada de la grieta, con fecha y ubicación" className="foto-preview" />
+
+      {consejo && (
+        // Aviso, no barrera: el botón de continuar sigue ahí y funcionando.
+        // Quien está de noche, con una mano o con un celular malo tiene que
+        // poder seguir aunque la foto no sea la ideal.
+        <div className="aviso" role="status" style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+          <Lightbulb className="ic" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span>
+            {consejo}
+            <span className="aviso-largo">Si no puedes tomar otra, continúa igual: esto es un consejo, no un requisito.</span>
+          </span>
+        </div>
+      )}
+
       <p className="desc" style={{ marginTop: 0 }}>
-        ¿Se ve nítida, con buena luz, y completa (la moneda o el elemento entero)? Revisa antes de continuar.
+        {consejo
+          ? "Revísala tú: si la grieta se alcanza a ver, puedes continuar."
+          : "¿Se ve nítida, con buena luz, y completa (la moneda o el elemento entero)? Revisa antes de continuar."}
       </p>
       <div className="par-sino">
-        <button type="button" onClick={onRepetir} className="btn-sino">
+        {/* Con consejo, el azul se lo lleva "Repetir foto": empuja hacia la
+            mejor foto sin quitarle la salida a quien no puede tomarla. */}
+        <button type="button" onClick={onRepetir} className={consejo ? "btn-sino no-sel" : "btn-sino"}>
           <RotateCcw className="ic" style={{ verticalAlign: -3, marginRight: 6 }} aria-hidden="true" />
           Repetir foto
         </button>
-        <button type="button" onClick={onContinuar} className="btn-sino no-sel">
+        <button type="button" onClick={onContinuar} className={consejo ? "btn-sino" : "btn-sino no-sel"}>
           <Check className="ic" style={{ verticalAlign: -3, marginRight: 6 }} aria-hidden="true" />
-          Continuar
+          {consejo ? "Continuar así" : "Continuar"}
         </button>
       </div>
     </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
+import type { VeredictoCalidad } from "@/lib/media/calidad-foto";
 import { MAX_BODY_BYTES, estimarBytesBase64 } from "@/lib/alerta/acta";
 import type { InformeJuntosPayload } from "@/lib/juntos/informe-juntos";
 import type { DerechoPeticionPayload } from "@/lib/juntos/derecho-peticion";
@@ -14,7 +15,7 @@ import {
   type RespuestaPasante,
 } from "@/lib/alerta/triage";
 import { COPY_SIN_IA, LABEL_ELEMENTO } from "@/lib/alerta/copys";
-import type { Banderas, Elemento, ObservacionGrieta, Patron } from "@/lib/alerta/tipos";
+import { DIAGNOSTICO_FOTO, type Banderas, type Elemento, type ObservacionGrieta, type Patron, type ProblemaCalidadFoto } from "@/lib/alerta/tipos";
 import UbicarGrietaJuntos from "./UbicarGrietaJuntos";
 import GrietaCameraCaptureJuntos, { type CapturedPhotoGrieta } from "./GrietaCameraCaptureJuntos";
 import DescribirGrietaManualJuntos from "./DescribirGrietaManualJuntos";
@@ -23,7 +24,19 @@ import ResumenInmuebleJuntos from "./ResumenInmuebleJuntos";
 import GateDatos, { type DatosGate } from "./GateDatos";
 import PostDescarga from "./PostDescarga";
 
-type Paso = "ubicar" | "fotos" | "manual" | "resultado" | "resumen" | "gate" | "post";
+type Paso = "ubicar" | "fotos" | "foto_mala" | "manual" | "resultado" | "resumen" | "gate" | "post";
+
+/**
+ * Cuántas veces se le ofrece repetir la foto por grieta antes de pasar
+ * derecho a modo manual. Con una alcanza: si la segunda tanda vuelve a salir
+ * mal, insistir es dejar a alguien atrapado en un bucle de cámara.
+ */
+const MAX_REPETICIONES_FOTO = 1;
+
+/** Valida contra el enum antes de mostrarle nada a la persona (el texto lo pone el cliente, no el servidor). */
+function esProblemaCalidad(valor: unknown): valor is ProblemaCalidadFoto {
+  return typeof valor === "string" && valor in DIAGNOSTICO_FOTO;
+}
 
 /** Una grieta ya evaluada + las dos fotos de evidencia que la respaldan. */
 export interface GrietaGuardada {
@@ -36,6 +49,46 @@ export interface GrietaGuardada {
 
 /** Confianza alta fija para observaciones armadas a mano (spec D4). */
 const CONFIANZA_MANUAL = { elemento: 0.9, patron: 0.9, ancho: 0.9 };
+
+/**
+ * Equivalencia entre los dos controles de calidad de foto que existen.
+ *
+ * `src/lib/media/calidad-foto.ts` mide nitidez y exposición EN EL CELULAR antes
+ * de subir; el modelo de visión vuelve a juzgarlas del otro lado. Sus
+ * vocabularios se solapan justo en «oscura» y «movida».
+ *
+ * `muy_clara` no está aquí porque el servidor no tiene ese veredicto: si el
+ * modelo se queja por otra razón, es un reclamo nuevo y sí vale preguntarlo.
+ */
+const EQUIVALENCIA_CALIDAD: Partial<Record<VeredictoCalidad, ProblemaCalidadFoto>> = {
+  oscura: "oscura",
+  movida: "movida",
+};
+
+/**
+ * ¿El chequeo del dispositivo ya avisó de ESTE mismo problema, y la persona
+ * decidió continuar de todos modos?
+ *
+ * Sin esto el recorrido sería: el celular avisa «salió movida» → la persona
+ * elige «continuar así» → sube la foto → y el servidor le pide repetirla por lo
+ * mismo. Preguntar dos veces por el mismo problema, después de que ya decidió,
+ * no es cuidado: es no escuchar. Y alguien asustado, de noche y con mala señal,
+ * abandona ahí.
+ *
+ * Cuando el reclamo se repite se salta el paso de repetir y se va a modo
+ * manual, que es la salida digna: describe la grieta con sus palabras y el
+ * triage la trata como fuente «manual» (T4 — nunca resuelve en verde).
+ */
+function yaSeAvisoEnElDispositivo(
+  problemaDelServidor: ProblemaCalidadFoto,
+  ...fotos: CapturedPhotoGrieta[]
+): boolean {
+  return fotos.some((f) => {
+    const veredicto = f.calidad?.veredicto;
+    if (!veredicto || veredicto === "ok") return false;
+    return EQUIVALENCIA_CALIDAD[veredicto] === problemaDelServidor;
+  });
+}
 
 /**
  * Flujo completo del wizard de grietas de «Juntos» (/go/juntos/revisar) —
@@ -65,6 +118,10 @@ export default function GrietaWizardJuntos() {
   const [pasante, setPasante] = useState<RespuestaPasante>("no_se");
   const [analizando, setAnalizando] = useState(false);
   const [avisoSinIA, setAvisoSinIA] = useState(false);
+  // Foto que el modelo sí leyó pero marcó como inservible (motivo "foto_mala"):
+  // se le ofrece repetirla en vez de arrastrar una lectura dudosa.
+  const [problemaFoto, setProblemaFoto] = useState<ProblemaCalidadFoto | null>(null);
+  const repeticionesFoto = useRef(0);
   const [resultadoActual, setResultadoActual] = useState<{ evaluada: GrietaEvaluada; notaVisual: string | null } | null>(
     null
   );
@@ -109,6 +166,8 @@ export default function GrietaWizardJuntos() {
     setFotoLejos(null);
     setPasante("no_se");
     setAvisoSinIA(false);
+    setProblemaFoto(null);
+    repeticionesFoto.current = 0;
     setResultadoActual(null);
   }
 
@@ -147,6 +206,15 @@ export default function GrietaWizardJuntos() {
       if (miId !== idSolicitud.current) return; // el usuario ya optó por describirla manualmente
       if (data?.ok) {
         resolverGrieta(data.observacion as ObservacionGrieta, "ia", (data.notaVisual as string | null) ?? null);
+      } else if (
+        data?.motivo === "foto_mala" &&
+        esProblemaCalidad(data.calidad_foto) &&
+        repeticionesFoto.current < MAX_REPETICIONES_FOTO &&
+        !yaSeAvisoEnElDispositivo(data.calidad_foto, cerca, lejos)
+      ) {
+        // El modelo leyó la foto y dijo que no daba: la persona puede repetirla.
+        setProblemaFoto(data.calidad_foto);
+        setPaso("foto_mala");
       } else {
         setAvisoSinIA(true);
         setPaso("manual");
@@ -166,6 +234,25 @@ export default function GrietaWizardJuntos() {
     idSolicitud.current++;
     setAnalizando(false);
     setAvisoSinIA(false);
+    setPaso("manual");
+  }
+
+  /** "foto_mala" → volver a la cámara. Las fotos descartadas no van al PDF: se liberan sus previews. */
+  function handleRepetirFotos() {
+    repeticionesFoto.current += 1;
+    if (fotoCerca) URL.revokeObjectURL(fotoCerca.preview);
+    if (fotoLejos) URL.revokeObjectURL(fotoLejos.preview);
+    setFotoCerca(null);
+    setFotoLejos(null);
+    setPasante("no_se");
+    setProblemaFoto(null);
+    setPaso("fotos");
+  }
+
+  /** "foto_mala" → seguir a mano. Las fotos SE CONSERVAN: son la evidencia que va al PDF. */
+  function handleSeguirSinRepetir() {
+    setProblemaFoto(null);
+    setAvisoSinIA(true);
     setPaso("manual");
   }
 
@@ -387,6 +474,25 @@ export default function GrietaWizardJuntos() {
           ) : (
             <GrietaCameraCaptureJuntos elementoDeclarado={declarado} onCompletar={handleFotosCompletas} />
           )}
+        </div>
+      )}
+
+      {paso === "foto_mala" && problemaFoto && (
+        <div className="panel">
+          <div>
+            <h2 style={{ fontSize: 17 }}>{DIAGNOSTICO_FOTO[problemaFoto].queFallo}</h2>
+            <p className="desc">
+              {DIAGNOSTICO_FOTO[problemaFoto].consejo} Con una foto mejor, la lectura automática puede medir la grieta.
+            </p>
+          </div>
+          <div className="cta-abajo">
+            <button type="button" onClick={handleRepetirFotos} className="btn btn-azul">
+              <Camera className="ic" aria-hidden="true" /> Repetir las fotos
+            </button>
+            <button type="button" onClick={handleSeguirSinRepetir} className="btn btn-fantasma">
+              Prefiero describirla yo
+            </button>
+          </div>
         </div>
       )}
 
