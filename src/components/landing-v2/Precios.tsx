@@ -1,26 +1,37 @@
 import Link from "next/link";
 
-/** Precios claros en pesos — 4 planes del spec. 14 días gratis, sin tarjeta. */
+/**
+ * Planes sin cifras, mientras la pasarela de pagos no esté viva.
+ *
+ * POR QUÉ: publicar $1.500.000/mes cuando no se puede cobrar es prometer algo
+ * que el producto no puede cumplir todavía — y peor, fija un ancla que después
+ * cuesta mover. Se conserva la ESTRUCTURA (qué incluye cada plan y hasta
+ * cuántas obras), que es información real y útil para calificar al prospecto,
+ * y el precio se conversa. Devolver las cifras es volver a poner el bloque
+ * `.pr` con su valor: la maqueta y el CSS quedan intactos.
+ */
 export default function Precios() {
   return (
     <section className="precios" id="precios">
       <div className="wrap">
         <div className="denso-head reveal">
-          <span className="eyebrow">Precios claros, en pesos</span>
+          <span className="eyebrow">Planes</span>
           <h2>Un plan para cada etapa</h2>
-          <p className="precios-nota">14 días gratis en cualquier plan, sin tarjeta de crédito.</p>
+          <p className="precios-nota">
+            Empieza gratis, sin tarjeta. El plan lo ajustamos a cuántas obras llevas.
+          </p>
         </div>
         <div className="precios-grid">
           <div className="plan-d reveal">
             <h4>Obra</h4>
             <div className="pr">
-              $650.000
-              <small>COP/mes · 1 obra activa</small>
+              1 obra
+              <small>hasta 150 unidades</small>
             </div>
             <ul>
-              <li>Hasta 150 unidades</li>
               <li>Evidencia con aprobación</li>
               <li>Dashboard + semáforo</li>
+              <li>Reportes de avance</li>
             </ul>
             <Link className="btn btn-borde" href="/registro">
               Empezar gratis
@@ -30,10 +41,8 @@ export default function Precios() {
             <span className="rec">RECOMENDADO</span>
             <h4>Pro</h4>
             <div className="pr">
-              <span className="pr-antes">$1.800.000</span>
-              $1.500.000
-              <small>COP/mes · hasta 5 obras</small>
-              <span className="pr-fundador">Precio fundador · ahorra $300.000</span>
+              Hasta 5 obras
+              <small>el más pedido</small>
             </div>
             <ul>
               <li>Usuarios ilimitados</li>
@@ -47,8 +56,8 @@ export default function Precios() {
           <div className="plan-d reveal" style={{ transitionDelay: ".12s" }}>
             <h4>Empresa</h4>
             <div className="pr">
-              $3.500.000
-              <small>COP/mes · hasta 15 obras</small>
+              Hasta 15 obras
+              <small>varios equipos</small>
             </div>
             <ul>
               <li>Benchmarking entre obras</li>
