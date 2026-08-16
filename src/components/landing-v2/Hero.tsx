@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import CtaCupoB2B from "./CtaCupoB2B";
 import { Check, CircleDollarSign, FileSpreadsheet, Plus } from "lucide-react";
 import LiveDemo from "./LiveDemo";
 import RotadorPalabras from "./RotadorPalabras";
@@ -50,14 +51,14 @@ export default function Hero() {
         {/* flex con gap: en ≤390px los dos botones no caben en una línea y,
             como inline-flex sueltos, el segundo bajaba pegado sin aire */}
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link className="btn btn-azul" href="/registro">
-            Empezar gratis →
-          </Link>
+          <CtaCupoB2B origen="hero" className="btn btn-azul">
+            Reserva tu cupo →
+          </CtaCupoB2B>
           <Link className="btn btn-borde" href="/contacto">
             Agendar demo
           </Link>
         </div>
-        <p className="micro-cta">14 días gratis · Sin tarjeta de crédito</p>
+        <p className="micro-cta">Entramos por grupos · Sin compromiso</p>
 
         <LiveDemo />
 

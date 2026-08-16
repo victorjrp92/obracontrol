@@ -1,5 +1,5 @@
 import Image from "next/image";
-import Link from "next/link";
+import CtaCupoB2B from "./CtaCupoB2B";
 
 /** Cierre navy con f5 (Medellín al atardecer) como textura sutil aspiracional. */
 export default function Cierre() {
@@ -18,10 +18,10 @@ export default function Cierre() {
             />
           </div>
           <h2>Tu próxima obra, bajo control desde el día uno</h2>
-          <p>14 días gratis, sin tarjeta. Tu primer proyecto puede quedar montado hoy mismo.</p>
-          <Link className="btn btn-azul" href="/registro">
-            Empezar gratis →
-          </Link>
+          <p>Estamos entrando por grupos para acompañar bien a cada constructora. Deja tu correo y te contactamos.</p>
+          <CtaCupoB2B origen="cierre" className="btn btn-azul">
+            Reserva tu cupo →
+          </CtaCupoB2B>
         </div>
       </div>
     </section>

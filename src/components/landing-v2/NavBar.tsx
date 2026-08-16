@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import CtaCupoB2B from "./CtaCupoB2B";
 
 /**
  * Nav con el logo real de Seiricon (icono transparente + wordmark + lema,
@@ -29,9 +30,9 @@ export default function NavBar() {
           <Link className="btn btn-borde" href="/login">
             Ingresar
           </Link>
-          <Link className="btn btn-azul" href="/registro">
-            Empezar gratis
-          </Link>
+          <CtaCupoB2B origen="nav" className="btn btn-azul">
+            Reserva tu cupo
+          </CtaCupoB2B>
         </div>
       </div>
     </nav>
