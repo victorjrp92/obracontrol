@@ -9,16 +9,24 @@ import {
   validarActaJuntosPayload,
 } from "@/lib/juntos/acta-juntos";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
+import { registrarDocumento } from "@/lib/juntos/registro-documento";
 import { ESPERA_SUGERIDA_SEGUNDOS, MENSAJE_SIN_CUPO, soltarCupo, tomarCupo } from "@/lib/juntos/compuerta";
 
 /**
  * POST /api/juntos/acta-pdf — genera y devuelve el Acta de documentación de
- * daños de «Juntos». Público, sin auth, SIN PERSISTENCIA de ningún tipo.
+ * daños de «Juntos». Público y sin auth.
  *
  * REGLA DURA (spec-go-juntos.md): la cédula y la dirección del inmueble
  * ENTRAN en este request, se IMPRIMEN en el PDF y se DESCARTAN al responder.
  * No se escriben en base de datos, ni en logs, ni en ningún otro lado — por
  * eso ningún `catch` de esta ruta serializa el body ni el error.
+ *
+ * LO ÚNICO QUE SE PERSISTE es el registro de verificación: folio, huella, tipo,
+ * ciudad y número de espacios. Ninguno de esos campos identifica a una persona,
+ * y sin ellos el sello «Verificación: <folio> · <hash>» que imprime el pie del
+ * PDF no significaría nada — no habría contra qué cotejarlo cuando una
+ * aseguradora pregunte si el documento es auténtico. Ver
+ * `src/lib/juntos/registro-documento.ts`.
  */
 export const maxDuration = 60;
 
@@ -55,9 +63,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validacion.error }, { status: 400 });
     }
 
-    // Folio + huella de verificación: viven solo dentro del PDF (nada se guarda).
+    // Folio + huella: se imprimen en el PDF y se registran para poder verificarlos.
     const folio = generarFolio("JT");
-    const hash = hashCorto(hashContenido(JSON.stringify(validacion.payload), folio));
+    const hashCompleto = hashContenido(JSON.stringify(validacion.payload), folio);
+    const hash = hashCorto(hashCompleto);
 
     // Semáforo de concurrencia: rechaza rápido antes que morir por memoria.
     if (!tomarCupo()) {
@@ -75,6 +84,17 @@ export async function POST(req: NextRequest) {
     } finally {
       soltarCupo(); // sin esto, un error deja el cupo tomado para siempre
     }
+    // Deja constancia para que el sello «Verificación» del pie signifique algo.
+    // Best-effort y sin bloquear: si falla, el acta se entrega igual. Solo entra
+    // folio, huella, tipo y ciudad — nunca nombre, cédula, dirección ni fotos.
+    await registrarDocumento({
+      folio,
+      hash: hashCompleto,
+      tipo: "ACTA",
+      ciudad: validacion.payload.identidad.ciudad,
+      piezas: validacion.payload.espacios.length,
+    });
+
     const filename = `acta-documentacion-danos-${folio}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

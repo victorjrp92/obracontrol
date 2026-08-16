@@ -998,6 +998,55 @@ model ListaEsperaGo {
 // se guardan aquí ni en ninguna otra tabla — viajan solo en el request de
 // generación del PDF, se imprimen en el documento y se descartan.
 
+enum TipoDocumentoJuntos {
+  ACTA // acta de documentación de daños
+  INFORME // informe de revisión de grietas
+  PETICION // derecho de petición
+}
+
+/**
+ * Registro de verificación de los documentos de «Juntos».
+ *
+ * POR QUÉ EXISTE: cada PDF imprime en el pie «Verificación: <folio> · <hash>».
+ * Hasta ahora ese sello era decorativo — el folio y el hash se calculaban al
+ * generar el documento y no se guardaban en ninguna parte, así que si una
+ * aseguradora llamaba a preguntar «¿este acta es suya?», no había contra qué
+ * cotejarlo. El producto prometía una verificación que no podía cumplir.
+ *
+ * QUÉ SE GUARDA Y QUÉ NO. Esta tabla contiene únicamente datos que NO
+ * identifican a nadie: el folio, la huella del contenido, el tipo de documento,
+ * la ciudad y el nivel del semáforo. Con eso se puede confirmar que un documento
+ * salió de aquí, y de paso saber cómo se está repartiendo el daño por ciudad —
+ * que es justo lo que una alcaldía necesita para el censo del RUD.
+ *
+ * NO se guarda, y no debe guardarse nunca: nombre, cédula, dirección, teléfono
+ * ni las fotos. La cédula y la dirección tienen una promesa explícita en
+ * pantalla; las fotos son el interior de la casa de alguien. Guardar fotos
+ * exigiría un consentimiento aparte, con finalidad y plazo — decisión de negocio
+ * que no se toma en el esquema.
+ *
+ * El hash se guarda COMPLETO aunque en el PDF se imprima corto: así se puede
+ * cotejar con cualquiera de los dos.
+ */
+model DocumentoJuntos {
+  id     String              @id @default(cuid())
+  folio  String              @unique
+  /** SHA-256 completo del contenido validado + folio. */
+  hash   String
+  tipo   TipoDocumentoJuntos
+  ciudad String?
+  /** Peor nivel del semáforo del documento: "rojo" | "amarillo" | "verde". Solo informes. */
+  nivel  String?
+  /** Cuántas grietas o espacios trae. Para el agregado, sin identificar nada. */
+  piezas Int?
+
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+  @@index([ciudad, nivel])
+  @@map("documentos_juntos")
+}
+
 model ContactoJuntos {
   id              String   @id @default(cuid())
   nombre          String
