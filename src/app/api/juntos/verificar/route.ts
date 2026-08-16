@@ -23,6 +23,21 @@ const MAX_POR_MINUTO_POR_IP = 20;
 const FOLIO_RE = /^(JT|DP)-\d{8}-[0-9a-f]{6}$/;
 const HUELLA_RE = /^[0-9a-f]{8,64}$/;
 
+/**
+ * Deja el folio exactamente como lo guarda `generarFolio()`: prefijo en
+ * MAYÚSCULA y la parte aleatoria en minúscula (`randomBytes(3).toString("hex")`).
+ *
+ * Hace falta porque la persona lo copia a mano del pie de un PDF y puede
+ * escribirlo como sea. La primera versión pasaba todo a mayúsculas y así NINGÚN
+ * folio válido pasaba el filtro — el hex quedaba en mayúscula y la expresión
+ * regular solo acepta minúscula. Lo cazó la primera prueba contra el servidor.
+ */
+function normalizarFolio(crudo: string): string {
+  const partes = crudo.trim().split("-");
+  if (partes.length !== 3) return crudo.trim();
+  return `${partes[0].toUpperCase()}-${partes[1]}-${partes[2].toLowerCase()}`;
+}
+
 export async function GET(req: NextRequest) {
   try {
     if (!permitirPeticion(`juntos-verificar:${claveDesdeHeaders(req.headers)}`, MAX_POR_MINUTO_POR_IP)) {
@@ -33,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const folio = (searchParams.get("folio") ?? "").trim().toUpperCase();
+    const folio = normalizarFolio(searchParams.get("folio") ?? "");
     const huellaCruda = (searchParams.get("huella") ?? "").trim().toLowerCase();
 
     if (!FOLIO_RE.test(folio)) {

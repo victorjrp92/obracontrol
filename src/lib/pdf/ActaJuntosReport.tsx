@@ -267,7 +267,7 @@ export function ActaJuntosReport({ data, folio, hashCorto, logoDataUrl }: ActaJu
           <Text style={actaStyles.footerDisclaimer}>{DISCLAIMER_PIE}</Text>
           <View style={actaStyles.footerFila}>
             <Text style={pdfStyles.footerText}>
-              Seiricon Juntos · seiricon.com/go/juntos · Verificación: {folio} · {hashCorto}
+              Seiricon Juntos · Verifica este documento en seiricon.com/go/juntos/verificar · Folio: {folio} · Huella: {hashCorto}
             </Text>
             <Text
               style={pdfStyles.footerText}

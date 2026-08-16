@@ -46,10 +46,33 @@ export default function PostDescarga({
           <CheckCircle2 style={{ width: 28, height: 28 }} aria-hidden="true" />
         </span>
         <b>{variante === "acta" ? "Tu acta quedó descargada." : "Tu informe quedó descargado."}</b>
+        {/* Antes decía solo «guárdala donde no se pierda». Faltaba la mitad que
+            importa: NO tenemos una copia. Callarlo dejaba a la persona creyendo
+            que podía volver a pedirla — sobre todo porque el campo de WhatsApp
+            se lo insinuaba. Decirlo aquí, con la instrucción concreta de qué
+            hacer ahora mismo, es lo único que de verdad evita que la pierda. */}
         <p>
           {variante === "acta"
-            ? "Guárdala donde no se pierda y compártela solo con quien la necesite."
-            : "Guárdalo donde no se pierda y compártelo solo con quien lo necesite."}
+            ? "Guárdala donde no se pierda: no tenemos una copia. Mándatela ahora mismo a tu correo o a tu WhatsApp, antes de cerrar esta página."
+            : "Guárdalo donde no se pierda: no tenemos una copia. Mándatelo ahora mismo a tu correo o a tu WhatsApp, antes de cerrar esta página."}
+        </p>
+      </div>
+
+      {/* La comparación temporal —«¿creció la grieta?»— es la señal que de verdad
+          distingue una grieta activa de una dormida, y no la podemos calcular:
+          la tabla de decisión del motor todavía no la firma un ingeniero. Pero
+          el documento que la persona acaba de descargar YA lleva las fotos con
+          fecha, hora y ubicación quemadas, así que ya es el «antes». Decírselo
+          le entrega la comparación sin que nosotros afirmemos nada técnico, y
+          sin guardar un solo byte. */}
+      <div className="jt-carpeta">
+        <div className="carpeta-cab">
+          <b>{variante === "acta" ? "Esta acta es la foto del antes." : "Este informe es la foto del antes."}</b>
+        </div>
+        <p style={{ padding: "0 16px 16px", margin: 0, fontSize: 14 }}>
+          Las fotos llevan la fecha, la hora y el lugar marcados. Si dentro de unas semanas la grieta se
+          ve distinta, vuelve y documéntala otra vez: con los dos documentos y sus fechas, un ingeniero
+          puede ver qué cambió — y eso es lo que más le sirve.
         </p>
       </div>
 

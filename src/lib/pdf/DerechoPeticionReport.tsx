@@ -189,7 +189,7 @@ export function DerechoPeticionReport({ data, folio, hashCorto, logoDataUrl }: D
           </Text>
           <View style={dpStyles.footerFila}>
             <Text style={pdfStyles.footerText}>
-              Seiricon Juntos · seiricon.com/go/juntos · Verificación: {folio} · {hashCorto}
+              Seiricon Juntos · Verifica este documento en seiricon.com/go/juntos/verificar · Folio: {folio} · Huella: {hashCorto}
             </Text>
             <Text
               style={pdfStyles.footerText}

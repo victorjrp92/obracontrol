@@ -15,6 +15,22 @@ export default function FaqJuntos() {
             </p>
           </details>
 
+          {/* El sello de verificación es el argumento de venta del producto —
+              «evidencia verificable»— y hasta ahora no se lo estábamos dando a
+              la persona en ningún lado. Va antes que la pregunta de los datos
+              porque es lo que convierte el documento en algo que su aseguradora
+              se puede tomar en serio. */}
+          <details>
+            <summary>¿Mi aseguradora puede comprobar que este documento es real?</summary>
+            <p>
+              Sí. Cada documento lleva en el pie un folio y una huella. Con esos dos datos, cualquiera
+              puede entrar a{" "}
+              <a href="/go/juntos/verificar">seiricon.com/go/juntos/verificar</a> y confirmar que se
+              generó aquí y que nadie lo modificó — sin cuenta y sin costo. El registro no caduca: tu
+              folio se va a poder comprobar dentro de cinco años igual que hoy.
+            </p>
+          </details>
+
           <details>
             <summary>¿Qué pasa con mis fotos y mis datos?</summary>
             <p>

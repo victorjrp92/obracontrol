@@ -324,8 +324,10 @@ export function InformeGrietasReport({ data, folio, hashCorto, logoDataUrl = nul
           </Text>
           <View style={informeStyles.footerRow}>
             <Text style={pdfStyles.footerText}>
-              Seiricon Juntos · seiricon.com/go/juntos
-              {folio && hashCorto ? ` · Verificación: ${folio} · ${hashCorto}` : ""}
+              Seiricon Juntos
+              {folio && hashCorto
+                ? ` · Verifica este documento en seiricon.com/go/juntos/verificar · Folio: ${folio} · Huella: ${hashCorto}`
+                : " · seiricon.com/go/juntos"}
             </Text>
             <Text
               style={pdfStyles.footerText}
