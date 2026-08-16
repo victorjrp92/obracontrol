@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Building, Building2, Home, Plus, Store, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, MAX_ESPACIOS, MAX_FOTOS, estimarBytesBase64, type TipoInmueble } from "@/lib/alerta/acta";
@@ -58,6 +58,8 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
 
   // Derecho de petición (post-descarga).
   const [generandoDp, setGenerandoDp] = useState(false);
+  // La carpeta necesita saber si ya bajó el segundo documento para pasar a «2 de 2».
+  const [dpDescargado, setDpDescargado] = useState(false);
   const [errorDp, setErrorDp] = useState<string | null>(null);
 
   // Topes globales en vivo (fotos guardadas + en edición).
@@ -228,6 +230,7 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+      setDpDescargado(true); // la carpeta pasa a «2 de 2»
     } catch (err) {
       setErrorDp(err instanceof Error ? err.message : "No pudimos generar el documento.");
     } finally {
@@ -239,7 +242,16 @@ export default function ActaWizardJuntos({ modoAfuera = false }: { modoAfuera?: 
     generando: generandoDp,
     error: errorDp,
     onDescargar: handleDerechoPeticion,
+    descargado: dpDescargado,
   };
+
+  // Al llegar a la pantalla final, subir al tope: lo primero que debe ver es
+  // la carpeta con el documento que le falta, no el punto donde quedó el scroll.
+  useEffect(() => {
+    if (paso !== "post") return;
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
+  }, [paso]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

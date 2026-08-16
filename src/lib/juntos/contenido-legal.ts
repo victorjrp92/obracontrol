@@ -113,6 +113,16 @@ export const TARJETA_ANTIESTAFA: TarjetaLegal = {
   verificado: "2026-08-14",
 };
 
-/** Aviso legal del acta y de los resultados — compartido por pantallas y PDF. */
+/**
+ * Aviso legal del acta y de los resultados.
+ *
+ * Va en DOS tamaños a propósito: en pantalla manda la versión corta —el lapso
+ * de atención no da para cincuenta palabras, y un aviso que nadie lee no
+ * protege a nadie— con la larga a un toque de distancia. En el PDF, donde sí
+ * hay que ser exhaustivo y el papel se lee con calma, va la larga.
+ */
+export const AVISO_DOCUMENTO_CORTO =
+  "Esto registra lo que tú declaras. No dice si tu casa es segura: eso lo define un ingeniero o los Bomberos.";
+
 export const AVISO_DOCUMENTO =
   "Este documento registra los daños declarados por quien lo genera, con fotografías fechadas y geolocalizadas. No es un peritaje, ni un dictamen técnico, ni una evaluación de habitabilidad: esas las realiza un ingeniero estructural o los organismos oficiales (Bomberos, Cruz Roja).";

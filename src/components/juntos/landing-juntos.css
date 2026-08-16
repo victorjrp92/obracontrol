@@ -727,6 +727,28 @@
   padding: 10px 13px;
   line-height: 1.5;
 }
+/* Aviso plegable: en pantalla manda la versión corta; el texto completo
+   queda a un toque, sin robarle cinco líneas a quien solo va de paso. */
+.ljt .aviso-mas {
+  display: inline;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ljt .aviso-largo {
+  display: block;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--ambar-bde);
+  font-weight: 500;
+}
 .ljt .aviso-azul {
   border-color: var(--azul-bde);
   background: var(--azul-50);
@@ -912,186 +934,257 @@
   }
 }
 
-/* Segundo documento (derecho de petición): va ARRIBA de las tarjetas y con
-   acento ámbar para diferenciarse de ellas — es una ACCIÓN, no información.
-   Victor: tiene que ser evidente que también puede pedir esto para acceder
-   a los subsidios. */
-.ljt .doc-segundo {
+/* Carpeta de documentos: lo primero tras descargar. «1 de 2» hace visible
+   la pieza que falta — un documento a medias pide cerrarse. */
+.ljt .jt-carpeta {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--ambar-50);
+  gap: 9px;
+  background: #fff;
   border: 2px solid var(--tinta);
   border-radius: 14px;
-  padding: 20px 18px;
-  box-shadow: 4px 4px 0 var(--ambar);
+  padding: 16px 14px;
+  box-shadow: 4px 4px 0 var(--azul);
+  transition: box-shadow 0.3s;
 }
-.ljt .doc-etiqueta {
-  align-self: flex-start;
-  background: var(--ambar);
-  color: #fff;
-  font-size: 10.5px;
+.ljt .jt-carpeta.completa {
+  box-shadow: 4px 4px 0 var(--verde-app);
+}
+.ljt .carpeta-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ljt .carpeta-cab b {
+  font-size: 15.5px;
+}
+.ljt .carpeta-cab span {
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 4px 10px;
+  color: var(--azul);
+  font-variant-numeric: tabular-nums;
+}
+.ljt .carpeta-barra {
+  height: 7px;
+  border-radius: 99px;
+  background: var(--linea);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.ljt .carpeta-barra i {
+  display: block;
+  height: 100%;
+  background: var(--azul);
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+.ljt .jt-carpeta.completa .carpeta-barra i {
+  background: var(--verde-app);
+}
+.ljt .doc-fila {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 11px;
+  border: 1.5px solid var(--linea);
+  border-radius: 11px;
+}
+.ljt .doc-fila.hecho {
+  background: #edf9f0;
+  border-color: #b8eccb;
+}
+.ljt .doc-fila.falta {
+  background: var(--ambar-50);
+  border-color: var(--ambar-bde);
+  border-width: 2px;
+}
+/* hoja de papel con sus renglones, dibujada en CSS */
+.ljt .doc-ico {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 40px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1.5px solid var(--tinta);
+}
+.ljt .doc-ico::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 9px;
+  height: 2px;
+  background: var(--linea);
+  box-shadow: 0 6px 0 var(--linea), 0 12px 0 var(--linea);
+}
+.ljt .doc-txt {
+  min-width: 0;
+}
+.ljt .doc-txt b {
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+.ljt .doc-txt small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--gris);
+  margin-top: 2px;
+}
+.ljt .doc-sello {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
   border-radius: 6px;
   border: 1.5px solid var(--tinta);
 }
-.ljt .doc-segundo h2 {
-  font-size: 19px;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+.ljt .sello-ok {
+  background: var(--verde-app);
+  color: #fff;
 }
-.ljt .doc-segundo p {
-  font-size: 14.5px;
-  color: var(--tinta);
-  margin: 0;
+.ljt .sello-falta {
+  background: var(--ambar);
+  color: #fff;
 }
-.ljt .doc-segundo .doc-listo {
-  font-size: 13.5px;
+.ljt .carpeta-pie {
+  font-size: 11.5px;
   color: var(--gris);
+  text-align: center;
+  margin-top: 2px;
 }
-.ljt .doc-segundo .btn {
-  margin-top: 4px;
-}
-
-/* CTA grande del hero: la landing existe para que la persona empiece su
-   revisión — el botón no puede competir de igual a igual con el resto. */
-.ljt .btn-grande {
-  font-size: 17px;
-  padding: 18px 34px;
-  min-height: 58px;
-  box-shadow: 5px 5px 0 var(--tinta);
-}
-.ljt .btn-grande:active {
-  box-shadow: 1px 1px 0 var(--tinta);
+.ljt .carpeta-pie-ok {
+  color: var(--verde-txt);
+  font-weight: 700;
 }
 
-/* Barra de acción pegajosa: la acción viaja con el scroll (se oculta sobre
-   el hero y el cierre, que ya tienen su propio CTA). */
-.ljt .jt-cta-pegajoso {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  background: rgba(251, 250, 247, 0.96);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 2px solid var(--tinta);
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  transform: translateY(120%);
-  opacity: 0;
-  visibility: hidden;
-  transition: transform 0.28s ease, opacity 0.28s ease, visibility 0.28s;
-}
-.ljt .jt-cta-pegajoso.on {
-  transform: none;
-  opacity: 1;
-  visibility: visible;
-}
-.ljt .jt-cta-pegajoso-in {
-  max-width: 640px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-.ljt .jt-cta-texto {
+/* Al completar la carpeta: qué es lo que acaba de descargar y para qué le
+   sirve. Antes de descargarlo no cabe explicarlo —competiría con el botón—;
+   después sí, porque ya tiene el papel en la mano y ahora quiere saber qué
+   hacer con él. */
+.ljt .carpeta-listo {
   display: flex;
   flex-direction: column;
-  line-height: 1.25;
-  min-width: 0;
+  gap: 12px;
 }
-.ljt .jt-cta-texto b {
-  font-size: 14.5px;
+.ljt .para-que {
+  border-radius: 12px;
+  border: 1.5px solid var(--gris-bde);
+  background: var(--gris-50);
+  padding: 13px 15px;
 }
-.ljt .jt-cta-texto small {
-  font-size: 11.5px;
-  color: var(--gris);
+.ljt .para-que > b {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
-.ljt .jt-cta-pegajoso .btn {
-  flex: none;
-}
-@media (max-width: 420px) {
-  .ljt .jt-cta-texto small {
-    display: none;
-  }
-  .ljt .jt-cta-pegajoso .btn {
-    padding: 14px 20px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ljt .jt-cta-pegajoso {
-    transition: none;
-  }
-}
-
-/* Casilla opcional: mismo mecanismo legal (explícita, sin premarcar) pero
-   con menos peso visual que la obligatoria — es una invitación, no un
-   requisito. Nunca se oculta ni se premarca: eso invalidaría el
-   consentimiento y, además, no es lo que somos. */
-.ljt .check-suave {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--linea);
-}
-.ljt .check-suave span {
+.ljt .para-que p {
   font-size: 13px;
   color: var(--gris);
+  margin-top: 4px;
 }
-.ljt .check-suave span small {
+.ljt .para-que ul {
+  list-style: none;
+  margin: 9px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ljt .para-que li {
+  position: relative;
+  padding-left: 17px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ljt .para-que li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--azul);
+}
+.ljt .para-que .plazo-dp {
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--gris-bde);
+  color: var(--tinta);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Empujón a seguir bajando: cuando ya tiene los dos documentos, la tarea
+   terminó y el instinto es cerrar. La flecha dice que todavía falta algo. */
+.ljt .jt-sigue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 14px;
+}
+.ljt .jt-sigue span {
   font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--gris);
 }
-.ljt .check-suave.marcada {
+.ljt .jt-sigue i {
+  width: 11px;
+  height: 11px;
+  border-right: 2.5px solid var(--azul);
+  border-bottom: 2.5px solid var(--azul);
+  transform: rotate(45deg);
+  animation: ljt-bajar 1.9s ease-in-out infinite;
+}
+@keyframes ljt-bajar {
+  0%, 60%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.55; }
+  30% { transform: rotate(45deg) translate(3px, 3px); opacity: 1; }
+}
+
+/* Anuncio del valor que sigue: que no se sienta que tras descargar ya no
+   hay nada. Titular grande y promesa concreta. */
+.ljt .jt-mas-valor {
+  text-align: center;
+  padding: 20px 6px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ljt .mas-valor-etiqueta {
+  align-self: center;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--azul);
   background: var(--azul-50);
-  border-style: solid;
+  border: 1.5px solid var(--azul-bde);
+  border-radius: 99px;
+  padding: 5px 13px;
 }
-
-/* Ilustración de cada camino: cuenta de un vistazo qué va a hacer la
-   persona (enfocar una grieta / recibir el acta). */
-.ljt .jt-ilu-camino {
-  width: 100%;
-  max-width: 190px;
-  height: auto;
-  display: block;
-  margin: 4px 0 2px;
+.ljt .jt-mas-valor h2 {
+  font-size: clamp(21px, 5.6vw, 27px);
+  line-height: 1.14;
+  letter-spacing: -0.025em;
 }
-
-/* Empujón de la flecha: movimiento periférico, no llamada de atención.
-   Amplitud mínima (3px), lento, y con pausa larga entre repeticiones — el
-   ciclo dura 5s pero el movimiento ocupa apenas el primer 18%. Al pasar el
-   cursor, la flecha se adelanta con decisión. */
-.ljt .flecha-punta {
-  display: inline-block;
-  font-style: normal;
-  will-change: transform;
-  animation: ljt-empujon 5s ease-in-out infinite;
-}
-@keyframes ljt-empujon {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  7% {
-    transform: translateX(3px);
-  }
-  18% {
-    transform: translateX(0);
-  }
-}
-.ljt .jt-camino:hover .flecha-punta,
-.ljt .jt-camino:focus-visible .flecha-punta {
-  animation: none;
-  transform: translateX(5px);
-  transition: transform 0.18s ease;
-}
-@media (prefers-reduced-motion: reduce) {
-  .ljt .flecha-punta {
-    animation: none;
-  }
+.ljt .jt-mas-valor p {
+  font-size: 13.5px;
+  color: var(--gris);
+  max-width: 420px;
+  margin: 0 auto;
 }
 
 /* Campos de formulario (gate de datos) */
@@ -1178,6 +1271,47 @@
   color: var(--azul);
   text-decoration: underline;
 }
+/* Las tres casillas como un bloque: menos aire entre ellas que el del panel,
+   para que se lean juntas y no como tres pasos independientes. */
+.ljt .checks {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* «Acepto todo»: es un atajo, no un permiso más. Borde punteado y una sola
+   línea, sin letra chica — lo que acepta está justo debajo, a la vista. */
+.ljt .check-todo {
+  padding: 11px 14px;
+  border-style: dashed;
+}
+.ljt .check-todo span {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.ljt .check-todo.marcada {
+  border-style: solid;
+}
+
+/* La opcional NO debe pesar lo mismo que la obligatoria: es un ofrecimiento.
+   Borde tenue y sin fondo blanco, hasta que la marcan. */
+.ljt .check-suave {
+  border-width: 1.5px;
+  border-color: var(--linea);
+  background: transparent;
+  padding: 11px 14px;
+}
+.ljt .check-suave span {
+  color: var(--gris);
+}
+.ljt .check-suave.marcada {
+  border-color: var(--azul-bde);
+}
+.ljt .check-suave.marcada span {
+  color: var(--tinta);
+}
+
 .ljt .check small {
   display: block;
   font-size: 11.5px;

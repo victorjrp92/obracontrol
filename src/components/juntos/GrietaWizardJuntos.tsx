@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { blobToDataUrl } from "@/lib/media/overlay";
 import { MAX_BODY_BYTES, estimarBytesBase64 } from "@/lib/alerta/acta";
 import type { InformeJuntosPayload } from "@/lib/juntos/informe-juntos";
+import type { DerechoPeticionPayload } from "@/lib/juntos/derecho-peticion";
 import {
   evaluarTriageGrieta,
   type EntradaTriage,
@@ -12,7 +13,7 @@ import {
   type GrietaEvaluada,
   type RespuestaPasante,
 } from "@/lib/alerta/triage";
-import { COPY_SIN_IA } from "@/lib/alerta/copys";
+import { COPY_SIN_IA, LABEL_ELEMENTO } from "@/lib/alerta/copys";
 import type { Banderas, Elemento, ObservacionGrieta, Patron } from "@/lib/alerta/tipos";
 import UbicarGrietaJuntos from "./UbicarGrietaJuntos";
 import GrietaCameraCaptureJuntos, { type CapturedPhotoGrieta } from "./GrietaCameraCaptureJuntos";
@@ -77,6 +78,14 @@ export default function GrietaWizardJuntos() {
   const [generandoPdf, setGenerandoPdf] = useState(false);
   const [errorPdf, setErrorPdf] = useState<string | null>(null);
   const [ciudadGate, setCiudadGate] = useState<string | null>(null);
+  // Datos del gate: quedan en memoria para poder generar el derecho de
+  // petición sin volver a pedirlos. NO se persisten (cédula y dirección
+  // solo viajan en el request del PDF y mueren con él).
+  const [datosGate, setDatosGate] = useState<DatosGate | null>(null);
+  const [folioInforme, setFolioInforme] = useState<string | null>(null);
+  const [generandoDp, setGenerandoDp] = useState(false);
+  const [errorDp, setErrorDp] = useState<string | null>(null);
+  const [dpDescargado, setDpDescargado] = useState(false);
   // El contacto se envía UNA sola vez por sesión del wizard: si el PDF falla
   // (429/500/red) y la persona reintenta el gate, no se duplica la fila en
   // contacto_juntos (el contacto y el PDF son independientes a propósito).
@@ -282,6 +291,8 @@ export default function GrietaWizardJuntos() {
       URL.revokeObjectURL(url);
 
       setCiudadGate(datos.ciudad);
+      setDatosGate(datos);
+      setFolioInforme(folio);
       setPaso("post"); // paso final: tarjetas-gancho (spec)
     } catch (err) {
       setErrorPdf(err instanceof Error ? err.message : "No pudimos generar el informe en PDF.");
@@ -289,6 +300,63 @@ export default function GrietaWizardJuntos() {
       setGenerandoPdf(false);
     }
   }
+
+  /** El derecho de petición también aquí: quien revisa una grieta puede
+   *  necesitar pedir ayudas igual que quien levanta el acta. Los daños
+   *  declarados son las grietas evaluadas. */
+  async function handleDerechoPeticion() {
+    if (generandoDp || !datosGate) return; // single-flight
+    setErrorDp(null);
+    setGenerandoDp(true);
+    try {
+      const payload: DerechoPeticionPayload = {
+        identidad: {
+          nombre: datosGate.nombre,
+          cedula: datosGate.cedula,
+          whatsapp: datosGate.whatsapp,
+          direccion: datosGate.direccion,
+          ciudad: datosGate.ciudad,
+        },
+        danos: grietas.map((g, i) => ({
+          espacio: `Grieta ${i + 1} — ${LABEL_ELEMENTO[g.evaluada.reconciliacion.elemento]}`,
+          descripcion: g.evaluada.veredicto.que_hacer,
+        })),
+        folioActa: folioInforme,
+      };
+      const res = await fetch("/api/juntos/derecho-peticion-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "No pudimos generar el documento.");
+      }
+      const folioDp = res.headers.get("X-Juntos-Folio");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `derecho-de-peticion-${folioDp ?? new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDpDescargado(true);
+    } catch (err) {
+      setErrorDp(err instanceof Error ? err.message : "No pudimos generar el documento.");
+    } finally {
+      setGenerandoDp(false);
+    }
+  }
+
+  // Al llegar a la pantalla final, subir al tope: lo primero que debe ver es
+  // la carpeta con el documento que le falta, no el punto donde quedó el scroll.
+  useEffect(() => {
+    if (paso !== "post") return;
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
+  }, [paso]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -349,7 +417,22 @@ export default function GrietaWizardJuntos() {
         </div>
       )}
 
-      {paso === "post" && <PostDescarga variante="informe" ciudad={ciudadGate} />}
+      {paso === "post" && (
+        <PostDescarga
+          variante="informe"
+          ciudad={ciudadGate}
+          derechoPeticion={
+            datosGate
+              ? {
+                  generando: generandoDp,
+                  error: errorDp,
+                  onDescargar: handleDerechoPeticion,
+                  descargado: dpDescargado,
+                }
+              : null
+          }
+        />
+      )}
     </div>
   );
 }
