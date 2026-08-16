@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CtaCupoB2B from "./CtaCupoB2B";
 
 /**
  * Planes sin cifras, mientras la pasarela de pagos no esté viva.
@@ -18,7 +19,7 @@ export default function Precios() {
           <span className="eyebrow">Planes</span>
           <h2>Un plan para cada etapa</h2>
           <p className="precios-nota">
-            Empieza gratis, sin tarjeta. El plan lo ajustamos a cuántas obras llevas.
+            Estamos entrando por grupos. Reserva tu cupo y armamos el plan según cuántas obras llevas.
           </p>
         </div>
         <div className="precios-grid">
@@ -33,9 +34,9 @@ export default function Precios() {
               <li>Dashboard + semáforo</li>
               <li>Reportes de avance</li>
             </ul>
-            <Link className="btn btn-borde" href="/registro">
-              Empezar gratis
-            </Link>
+            <CtaCupoB2B origen="precio-obra" className="btn btn-borde">
+              Reserva tu cupo
+            </CtaCupoB2B>
           </div>
           <div className="plan-d destacado reveal" style={{ transitionDelay: ".06s" }}>
             <span className="rec">RECOMENDADO</span>
@@ -49,9 +50,9 @@ export default function Precios() {
               <li>Mapa de obras + alertas</li>
               <li>Soporte prioritario</li>
             </ul>
-            <Link className="btn btn-azul" href="/registro">
-              Empezar gratis
-            </Link>
+            <CtaCupoB2B origen="precio-pro" className="btn btn-azul">
+              Reserva tu cupo
+            </CtaCupoB2B>
           </div>
           <div className="plan-d reveal" style={{ transitionDelay: ".12s" }}>
             <h4>Empresa</h4>
@@ -64,9 +65,9 @@ export default function Precios() {
               <li>Reportes PDF</li>
               <li>Onboarding asistido</li>
             </ul>
-            <Link className="btn btn-borde" href="/registro">
-              Empezar gratis
-            </Link>
+            <CtaCupoB2B origen="precio-empresa" className="btn btn-borde">
+              Reserva tu cupo
+            </CtaCupoB2B>
           </div>
           <div className="plan-d reveal" style={{ transitionDelay: ".18s" }}>
             <h4>Corporativo</h4>

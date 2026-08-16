@@ -24,6 +24,7 @@ import Testimonio from "@/components/landing-v2/Testimonio";
 import Faq from "@/components/landing-v2/Faq";
 import Cierre from "@/components/landing-v2/Cierre";
 import Footer from "@/components/landing-v2/Footer";
+import ModalCupoB2B from "@/components/landing-v2/ModalCupoB2B";
 import Reveals from "@/components/landing-v2/Reveals";
 
 export default async function LandingPage() {
@@ -71,6 +72,7 @@ export default async function LandingPage() {
       <Faq />
       <Cierre />
       <Footer />
+      <ModalCupoB2B />
       <Reveals />
     </div>
   );
