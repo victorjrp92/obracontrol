@@ -255,7 +255,7 @@ export default function GateDatos({ enviando, error, onEnviar, variante = "acta"
           <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
           <span>
             Autorizo el tratamiento de mis datos (Ley 1581 de 2012,{" "}
-            <a href="/privacidad" target="_blank" rel="noopener noreferrer">
+            <a href="/privacidad#juntos" target="_blank" rel="noopener noreferrer">
               política de privacidad
             </a>
             ) para generar este documento y enviármelo por los canales que yo pida. Entiendo que este
