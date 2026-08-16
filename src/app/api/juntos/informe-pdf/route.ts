@@ -9,6 +9,7 @@ import {
   validarInformeJuntosPayload,
 } from "@/lib/juntos/informe-juntos";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
+import { ESPERA_SUGERIDA_SEGUNDOS, MENSAJE_SIN_CUPO, soltarCupo, tomarCupo } from "@/lib/juntos/compuerta";
 
 /**
  * POST /api/juntos/informe-pdf — genera y devuelve el Informe de grietas de
@@ -64,9 +65,22 @@ export async function POST(req: NextRequest) {
     const folio = generarFolio("JT");
     const hash = hashCorto(hashContenido(JSON.stringify(validacion.payload), folio));
 
-    const pdfBuffer = await renderToBuffer(
-      InformeGrietasReport({ data: validacion.payload, folio, hashCorto: hash, logoDataUrl: logoSeiriconDataUrl() })
-    );
+    // Semáforo de concurrencia: rechaza rápido antes que morir por memoria.
+    if (!tomarCupo()) {
+      return NextResponse.json(
+        { error: MENSAJE_SIN_CUPO },
+        { status: 503, headers: { "Retry-After": String(ESPERA_SUGERIDA_SEGUNDOS) } }
+      );
+    }
+
+    let pdfBuffer: Buffer;
+    try {
+      pdfBuffer = await renderToBuffer(
+        InformeGrietasReport({ data: validacion.payload, folio, hashCorto: hash, logoDataUrl: logoSeiriconDataUrl() })
+      );
+    } finally {
+      soltarCupo(); // sin esto, un error deja el cupo tomado para siempre
+    }
     const filename = `informe-de-grietas-${folio}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

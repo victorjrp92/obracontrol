@@ -169,13 +169,22 @@ export default function GrietaWizardJuntos() {
     setPaso("manual");
   }
 
-  function handleManualCompleto(datos: { patron: Patron; banderas: Banderas }) {
+  function handleManualCompleto(datos: { patron: Patron; banderas: Banderas; ancho_mm: number | null }) {
     if (!declarado) return;
     const observacion: ObservacionGrieta = {
       elemento: declarado,
       patron: datos.patron,
-      ancho_mm: null,
+      // El ancho lo estima la persona comparando con el canto de la moneda de
+      // $500. Antes iba fijo en `null`, y eso apagaba la regla 4 de reglas.ts
+      // (muro de carga con ancho > 3 mm → ROJO): una grieta ancha en un muro de
+      // carga salía AMARILLA. Era el único punto donde el sistema subestimaba.
+      ancho_mm: datos.ancho_mm,
       banderas: datos.banderas,
+      // `confianza.ancho` solo alimenta la regla 7 de reglas.ts, que es lo único
+      // que impide llegar a verde por una lectura dudosa. En modo manual eso ya
+      // lo cubre T4 de triage.ts (una descripción propia nunca resuelve en
+      // verde), así que bajarla aquí no cambiaría el nivel y sí cambiaría la
+      // razón que ve la persona por una menos clara. Se deja como estaba.
       confianza: CONFIANZA_MANUAL,
       calidad_foto: "ok",
     };
