@@ -20,7 +20,9 @@ type Estado =
   | { fase: "error"; mensaje: string }
   | {
       fase: "listo";
-      existe: boolean;
+      existe?: boolean;
+      /** El registro todavía no está disponible (migración sin aplicar). */
+      indisponible?: boolean;
       tipo?: string;
       emitido?: string;
       huellaCoincide?: boolean | null;
@@ -129,7 +131,27 @@ export default function VerificarDocumento() {
 
       {estado.fase === "error" && <p className="error-inline">{estado.mensaje}</p>}
 
-      {estado.fase === "listo" && !estado.existe && (
+      {/* El registro aún no está listo. NO se puede decir «no encontramos este
+          folio»: el documento puede ser auténtico y estaríamos sembrando una
+          duda falsa justo sobre lo que alguien va a presentarle a su
+          aseguradora. Se dice la verdad y se ofrece otra vía. */}
+      {estado.fase === "listo" && estado.indisponible && (
+        <div className="panel" role="status">
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <ShieldQuestion className="ic" style={{ width: 22, height: 22, flexShrink: 0 }} aria-hidden="true" />
+            <div>
+              <b>La comprobación en línea todavía no está disponible.</b>
+              <p className="desc" style={{ marginTop: 6 }}>
+                Estamos terminando de habilitarla. Esto no dice nada sobre tu documento — puede ser
+                perfectamente auténtico. Si necesitas confirmarlo ahora, escríbenos a{" "}
+                <a href="mailto:info@seiricon.com">info@seiricon.com</a> con el folio y te respondemos.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {estado.fase === "listo" && !estado.indisponible && !estado.existe && (
         <div className="panel" role="status">
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <ShieldQuestion className="ic" style={{ width: 22, height: 22, flexShrink: 0 }} aria-hidden="true" />
@@ -144,7 +166,7 @@ export default function VerificarDocumento() {
         </div>
       )}
 
-      {estado.fase === "listo" && estado.existe && estado.huellaCoincide === false && (
+      {estado.fase === "listo" && !estado.indisponible && estado.existe && estado.huellaCoincide === false && (
         <div className="panel" role="status">
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <ShieldAlert className="ic" style={{ width: 22, height: 22, flexShrink: 0 }} aria-hidden="true" />
@@ -159,7 +181,7 @@ export default function VerificarDocumento() {
         </div>
       )}
 
-      {estado.fase === "listo" && estado.existe && estado.huellaCoincide !== false && (
+      {estado.fase === "listo" && !estado.indisponible && estado.existe && estado.huellaCoincide !== false && (
         <div className="panel" role="status">
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
             <CheckCircle2 className="ic" style={{ width: 22, height: 22, flexShrink: 0 }} aria-hidden="true" />

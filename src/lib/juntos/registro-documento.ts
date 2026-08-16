@@ -63,6 +63,7 @@ export async function registrarDocumento(datos: RegistroDocumento): Promise<void
 
 export type ResultadoVerificacion =
   | { existe: false }
+  | { indisponible: true }
   | {
       existe: true;
       tipo: TipoDocumentoJuntos;
@@ -70,6 +71,19 @@ export type ResultadoVerificacion =
       /** `null` si quien consulta no mandó huella para cotejar. */
       huellaCoincide: boolean | null;
     };
+
+/**
+ * ¿El error viene de que la tabla todavía no existe?
+ *
+ * Importa distinguirlo: si la migración `20260815180000_documentos_juntos` aún
+ * no se aplicó, decirle a alguien «no encontramos este folio» sería mentir —
+ * su documento puede ser perfectamente auténtico. Postgres devuelve 42P01 para
+ * «relation does not exist»; Prisma lo pasa como P2021 («table does not exist»).
+ */
+function esTablaInexistente(err: unknown): boolean {
+  const codigo = (err as { code?: string })?.code;
+  return codigo === "P2021" || codigo === "42P01";
+}
 
 /**
  * Comprueba un folio y, si se aporta, su huella.
@@ -85,10 +99,20 @@ export async function verificarDocumento(
   folio: string,
   huella?: string | null
 ): Promise<ResultadoVerificacion> {
-  const doc = await prisma.documentoJuntos.findUnique({
-    where: { folio },
-    select: { tipo: true, hash: true, created_at: true },
-  });
+  let doc: { tipo: TipoDocumentoJuntos; hash: string; created_at: Date } | null;
+  try {
+    doc = await prisma.documentoJuntos.findUnique({
+      where: { folio },
+      select: { tipo: true, hash: true, created_at: true },
+    });
+  } catch (err) {
+    // Sin la migración aplicada NO se puede decir «no encontramos este folio»:
+    // el documento podría ser auténtico y estaríamos sembrando una duda falsa
+    // sobre algo que la persona va a presentarle a su aseguradora.
+    if (esTablaInexistente(err)) return { indisponible: true };
+    throw err;
+  }
+
   if (!doc) return { existe: false };
 
   let huellaCoincide: boolean | null = null;
