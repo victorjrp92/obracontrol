@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/components/landing-go/landing-go.css";
 
-import PromoBarGo from "@/components/landing-go/PromoBarGo";
+import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";
 import NavBarGo from "@/components/landing-go/NavBarGo";
 import HeroGo from "@/components/landing-go/HeroGo";
 import ConfianzaGo from "@/components/landing-go/ConfianzaGo";
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 export default function SeiriconGoPage() {
   return (
     <div className="lgo">
-      <PromoBarGo />
+      <AvisoEmergencia />
       <NavBarGo />
       <HeroGo />
       <ConfianzaGo />
