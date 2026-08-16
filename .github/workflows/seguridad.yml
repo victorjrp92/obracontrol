@@ -78,3 +78,6 @@ jobs:
 
       - name: Reglas y triage (43/43 y 37/37)
         run: npm run verify:alerta
+
+      - name: Pagos y suscripciones (firmas de Wompi + vigencia)
+        run: npm run verify:pagos

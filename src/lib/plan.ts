@@ -119,15 +119,17 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
 }
 
 /**
- * Tope de obras ACTIVAS del plan gratis (freemium). `Infinity` = sin tope.
- * El tope se aplica solo a planes PERSONAL; los planes de pago no tienen límite.
+ * Tope de obras ACTIVAS según el plan.
+ *
+ * Vive ahora en `src/lib/suscripcion.ts`, junto a los precios: el tope y lo que
+ * cuesta cada plan son la misma decisión comercial y no deben poder divergir.
+ *
+ * La versión anterior devolvía `Infinity` para todo lo que no fuera PERSONAL,
+ * así que los tres planes de pago no tenían tope — y como el registro creaba
+ * cada cuenta en PROYECTO, en la práctica todo el mundo tenía obras ilimitadas
+ * gratis. Se reexporta para no romper a quien ya la importaba de aquí.
  */
-export function limiteObrasActivas(plan: PlanTipo, tipo: TipoCuenta): number {
-  if (plan !== "PERSONAL") return Infinity;
-  // Plan gratis: el propietario arranca con 1 obra; el contratista B2C con 2
-  // clientes para que pruebe el flujo real antes de pasar a un plan de pago.
-  return tipo === "CONTRATISTA" ? 2 : 1;
-}
+export { limiteObrasActivas } from "@/lib/suscripcion";
 
 /**
  * Copys/labels dependientes del perfil. Centralizar el tono aquí evita

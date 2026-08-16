@@ -20,6 +20,18 @@ model Constructora {
   sitio_web        String?
   descripcion      String?
   plan_suscripcion PlanTipo   @default(OBRA)
+
+  // ── Suscripción ───────────────────────────────────────────────────────────
+  // `plan_suscripcion` dice QUÉ plan tiene; estos campos dicen si está VIGENTE.
+  // Antes no existían: el plan era un enum suelto que nadie verificaba, así que
+  // toda cuenta nueva quedaba con el producto completo y gratis para siempre.
+  estado_suscripcion    EstadoSuscripcion @default(PRUEBA)
+  /** Fin de la prueba o del período pagado. `null` = sin vencimiento (cortesía, socios). */
+  suscripcion_vence_el  DateTime?
+  /** Solo se puede cobrar solo si hay fuente de pago. PSE NO permite recurrencia. */
+  renovacion_automatica Boolean           @default(false)
+  /** ID de la fuente de pago de Wompi (tarjeta/Nequi/Bancolombia tokenizados). */
+  wompi_fuente_pago_id  String?
   // Tipo de cuenta: gobierna qué módulos/menú ve y el tono del producto.
   // CONSTRUCTORA = comportamiento actual (empresa). CONTRATISTA y PROPIETARIO
   // son los perfiles "personales" (modo simple). Ver src/lib/plan.ts.
@@ -34,6 +46,7 @@ model Constructora {
   tareas_aprendidas  TareaAprendida[]
   clientes           Cliente[]
   perfil_onboarding  PerfilOnboarding?
+  pagos_suscripcion  PagoSuscripcion[]
 
   @@map("constructoras")
 }
@@ -848,6 +861,60 @@ enum PlanTipo {
   OBRA
   PROYECTO
   EMPRESA
+}
+
+enum EstadoSuscripcion {
+  PRUEBA // periodo de prueba, con fecha de fin
+  ACTIVA // pagada y vigente
+  VENCIDA // se acabó el periodo y no renovó
+  CANCELADA // el cliente pidió cancelar; vale hasta que venza
+}
+
+/** Estado de un cobro de SUSCRIPCIÓN. No confundir con `EstadoPago`, que es el
+ *  de los pagos a contratistas (PENDIENTE/PAGADO/PARCIAL) y no tiene relación. */
+enum EstadoPagoSuscripcion {
+  PENDIENTE // creado, esperando que Wompi confirme por webhook
+  APROBADO
+  RECHAZADO
+  ANULADO
+  ERROR
+}
+
+/**
+ * Un intento de pago de suscripción. Se crea ANTES de mandar a la persona a
+ * Wompi (en estado PENDIENTE) y se cierra cuando llega el webhook.
+ *
+ * Existe como tabla propia —y no como campos sueltos en Constructora— por tres
+ * razones: hace falta un historial para facturar y para soporte; `referencia`
+ * debe ser única para que el webhook sea idempotente (Wompi puede reintentarlo);
+ * y guardar `cubre_desde`/`cubre_hasta` deja por escrito qué período pagó cada
+ * transacción, que es lo que se discute cuando alguien reclama.
+ */
+model PagoSuscripcion {
+  id                   String     @id @default(cuid())
+  constructora_id      String
+  /** La referencia que viaja a Wompi. Única: es la llave de idempotencia del webhook. */
+  referencia           String     @unique
+  /** ID de la transacción en Wompi. Llega con el webhook. */
+  wompi_transaccion_id String?    @unique
+  plan                 PlanTipo
+  periodo_meses        Int        @default(1)
+  /** En centavos, como lo exige Wompi. Evita cualquier redondeo de punto flotante. */
+  monto_centavos       Int
+  moneda               String     @default("COP")
+  /** CARD | PSE | NEQUI | BANCOLOMBIA_TRANSFER — lo reporta Wompi. */
+  metodo               String?
+  estado               EstadoPagoSuscripcion @default(PENDIENTE)
+  cubre_desde          DateTime?
+  cubre_hasta          DateTime?
+  created_at           DateTime   @default(now())
+  updated_at           DateTime   @updatedAt
+
+  constructora Constructora @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+
+  @@index([constructora_id, created_at])
+  @@index([estado])
+  @@map("pagos_suscripcion")
 }
 
 // Tipo de cuenta: perfil con el que se usa la app.
