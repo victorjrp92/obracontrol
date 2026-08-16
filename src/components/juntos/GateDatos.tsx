@@ -86,6 +86,14 @@ export default function GateDatos({ enviando, error, onEnviar, variante = "acta"
   const [sitioWeb, setSitioWeb] = useState(""); // honeypot
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
+  // El maestro es estado DERIVADO, no una tercera variable: así desmarcar una
+  // casilla suelta lo apaga solo, sin lógica de sincronización que se desfase.
+  const aceptaTodo = aceptaDatos && aceptaContacto;
+  function marcarTodo(valor: boolean) {
+    setAceptaDatos(valor);
+    setAceptaContacto(valor);
+  }
+
   function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (enviando) return;
@@ -216,29 +224,46 @@ export default function GateDatos({ enviando, error, onEnviar, variante = "acta"
         />
       </div>
 
-      <label className={`check ${aceptaDatos ? "marcada" : ""}`}>
-        <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
-        <span>
-          Autorizo el tratamiento de mis datos (Ley 1581 de 2012,{" "}
-          <a href="/privacidad" target="_blank" rel="noopener noreferrer">
-            política de privacidad
-          </a>
-          ) para generar este documento y enviármelo por los canales que yo pida. Entiendo que este
-          documento no es una evaluación estructural ni un dictamen técnico.
-          <small>{txt.obligatoria}</small>
-        </span>
-      </label>
+      {/* Las tres casillas van juntas y con menos aire entre ellas: se leen
+          como un solo bloque de permisos, no como tres pasos sueltos. */}
+      <div className="checks">
+        {/* Atajo de una marca, ARRIBA: abajo sería un atajo que se descubre
+            tarde. Las dos casillas siguen visibles y se pueden desmarcar por
+            separado — la Ley 1581 exige finalidad específica, y un «acepto
+            todo» que esconda los fines no la cumple. */}
+        <label className={`check check-todo ${aceptaTodo ? "marcada" : ""}`}>
+          <input
+            type="checkbox"
+            checked={aceptaTodo}
+            onChange={(e) => marcarTodo(e.target.checked)}
+          />
+          <span>Acepto todo</span>
+        </label>
 
-      {/* Consentimiento comercial: explícito y sin premarcar (Ley 1581 exige
-          finalidad específica), pero visualmente ligero — es un ofrecimiento,
-          no un requisito, y no debe pesar lo mismo que la casilla obligatoria. */}
-      <label className={`check check-suave ${aceptaContacto ? "marcada" : ""}`}>
-        <input type="checkbox" checked={aceptaContacto} onChange={(e) => setAceptaContacto(e.target.checked)} />
-        <span>
-          Si quieres, te escribimos más adelante para darte una mano con la reparación.
-          <small>Opcional. Puedes descargar tu documento sin marcar esto.</small>
-        </span>
-      </label>
+        <label className={`check ${aceptaDatos ? "marcada" : ""}`}>
+          <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
+          <span>
+            Autorizo el tratamiento de mis datos (Ley 1581 de 2012,{" "}
+            <a href="/privacidad" target="_blank" rel="noopener noreferrer">
+              política de privacidad
+            </a>
+            ) para generar este documento y enviármelo por los canales que yo pida. Entiendo que este
+            documento no es una evaluación estructural ni un dictamen técnico.
+            <small>{txt.obligatoria}</small>
+          </span>
+        </label>
+
+        {/* Consentimiento comercial: explícito y sin premarcar (Ley 1581 exige
+            finalidad específica), pero visualmente ligero — es un ofrecimiento,
+            no un requisito, y no debe pesar lo mismo que la obligatoria. */}
+        <label className={`check check-suave ${aceptaContacto ? "marcada" : ""}`}>
+          <input type="checkbox" checked={aceptaContacto} onChange={(e) => setAceptaContacto(e.target.checked)} />
+          <span>
+            Acepto que me escriban más adelante, por si necesito una mano con la reparación.
+            <small>Opcional. Tu documento se descarga igual.</small>
+          </span>
+        </label>
+      </div>
 
       {(errorLocal || error) && <p className="error-inline">{errorLocal ?? error}</p>}
 

@@ -1271,6 +1271,47 @@
   color: var(--azul);
   text-decoration: underline;
 }
+/* Las tres casillas como un bloque: menos aire entre ellas que el del panel,
+   para que se lean juntas y no como tres pasos independientes. */
+.ljt .checks {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* «Acepto todo»: es un atajo, no un permiso más. Borde punteado y una sola
+   línea, sin letra chica — lo que acepta está justo debajo, a la vista. */
+.ljt .check-todo {
+  padding: 11px 14px;
+  border-style: dashed;
+}
+.ljt .check-todo span {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.ljt .check-todo.marcada {
+  border-style: solid;
+}
+
+/* La opcional NO debe pesar lo mismo que la obligatoria: es un ofrecimiento.
+   Borde tenue y sin fondo blanco, hasta que la marcan. */
+.ljt .check-suave {
+  border-width: 1.5px;
+  border-color: var(--linea);
+  background: transparent;
+  padding: 11px 14px;
+}
+.ljt .check-suave span {
+  color: var(--gris);
+}
+.ljt .check-suave.marcada {
+  border-color: var(--azul-bde);
+}
+.ljt .check-suave.marcada span {
+  color: var(--tinta);
+}
+
 .ljt .check small {
   display: block;
   font-size: 11.5px;
