@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getUsuarioActual } from "@/lib/data";
 import { esCuentaPersonal, limiteObrasActivas } from "@/lib/plan";
+import { estadoDeAcceso } from "@/lib/suscripcion";
 import { generarNumeroTarea } from "@/lib/numero-registro";
 import { subtipoDesdePropiedad, nombreFaseDesdeObra } from "@/lib/plantillas-personal";
 import { normalizarTarea } from "@/lib/normalizar-tarea";
@@ -353,18 +354,40 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
 
   const constructoraId = usuario.constructora_id;
 
-  // ── Tope freemium ──────────────────────────────────────────────────────────
+  // ── Suscripción vigente ────────────────────────────────────────────────────
+  // Antes esto no se verificaba en ningún lado: el plan era un enum decorativo.
+  // Se corta la CREACIÓN de obras nuevas, no la lectura — quien venció sigue
+  // pudiendo entrar y ver todo lo que ya registró. Quitarle el acceso a su
+  // propia información sería un rehén, no un cobro.
+  const acceso = estadoDeAcceso({
+    plan_suscripcion: usuario.constructora.plan_suscripcion,
+    estado_suscripcion: usuario.constructora.estado_suscripcion,
+    suscripcion_vence_el: usuario.constructora.suscripcion_vence_el,
+  });
+  if (!acceso.permite) {
+    return {
+      ok: false,
+      limiteAlcanzado: true,
+      error:
+        acceso.motivo === "cancelada"
+          ? "Tu suscripción está cancelada. Actívala de nuevo en Configuración › Plan para crear obras."
+          : "Tu suscripción venció. Renueva en Configuración › Plan para crear obras nuevas. Todo lo que ya registraste sigue disponible.",
+    };
+  }
+
+  // ── Tope de obras del plan ─────────────────────────────────────────────────
   const limite = limiteObrasActivas(usuario.constructora.plan_suscripcion, tipoCuenta);
   if (Number.isFinite(limite)) {
     const activas = await prisma.proyecto.count({
       where: { constructora_id: constructoraId, estado: "ACTIVO" },
     });
     if (activas >= limite) {
+      const esGratis = usuario.constructora.plan_suscripcion === "PERSONAL";
       return {
         ok: false,
         limiteAlcanzado: true,
         error:
-          `Tu plan gratis permite ${limite} obra${limite === 1 ? "" : "s"} activa${limite === 1 ? "" : "s"}. ` +
+          `Tu plan ${esGratis ? "gratis" : "actual"} permite ${limite} obra${limite === 1 ? "" : "s"} activa${limite === 1 ? "" : "s"}. ` +
           `Archiva una obra terminada o pásate a un plan superior para crear más.`,
       };
     }

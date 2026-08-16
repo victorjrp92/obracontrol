@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Topbar from "@/components/dashboard/Topbar";
 import RolesManager from "@/components/dashboard/RolesManager";
+import { getUsuarioActual } from "@/lib/data";
+import { estadoDeAcceso, PLANES } from "@/lib/suscripcion";
 import { Building2, Bell, Briefcase, Shield, CreditCard, Users, Wrench } from "lucide-react";
 
 const sections = [
@@ -63,28 +65,76 @@ const sections = [
     iconBg: "bg-sky-50",
     iconColor: "text-sky-600",
     title: "Suscripción y facturación",
-    description: "Plan actual, historial de pagos y actualización de método de pago.",
+    description: "Plan actual, historial de pagos y cambio de plan.",
     action: "Gestionar",
-    href: null,
+    href: "/dashboard/configuracion/plan",
   },
 ];
 
-export default function ConfiguracionPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ConfiguracionPage() {
+  // El bloque del plan estaba QUEMADO: decía «Plan Proyecto · $1.800.000 ·
+  // Próxima facturación: 7 Mayo 2026» para todo el mundo, sin relación con la
+  // base de datos. Ahora sale del estado real de la suscripción.
+  const usuario = await getUsuarioActual();
+  const c = usuario?.constructora;
+
+  const acceso = c
+    ? estadoDeAcceso({
+        plan_suscripcion: c.plan_suscripcion,
+        estado_suscripcion: c.estado_suscripcion,
+        suscripcion_vence_el: c.suscripcion_vence_el,
+      })
+    : null;
+
+  const def = c ? PLANES[c.plan_suscripcion] : null;
+  const vencido = acceso !== null && !acceso.permite;
+
   return (
     <>
       <Topbar title="Configuración" subtitle="Administración de la cuenta" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {/* Plan badge */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 mb-6 flex items-center justify-between">
-          <div>
-            <div className="text-white font-bold text-base">Plan Proyecto</div>
-            <div className="text-blue-100 text-sm mt-0.5">Próxima facturación: 7 Mayo 2026</div>
-          </div>
-          <div className="text-right">
-            <div className="text-white font-extrabold text-lg">$1.800.000 COP</div>
-            <div className="text-blue-200 text-xs">/mes</div>
-          </div>
-        </div>
+        {/* Plan actual */}
+        {c && def && acceso && (
+          <Link
+            href="/dashboard/configuracion/plan"
+            className={`block rounded-2xl p-5 mb-6 transition-opacity hover:opacity-95 ${
+              vencido
+                ? "bg-gradient-to-r from-red-600 to-red-700"
+                : acceso.porVencer
+                  ? "bg-gradient-to-r from-amber-500 to-amber-600"
+                  : "bg-gradient-to-r from-blue-600 to-blue-700"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-white font-bold text-base">Plan {def.nombre}</div>
+                <div className="text-white/80 text-sm mt-0.5">
+                  {acceso.motivo === "gratuito"
+                    ? "Plan gratuito · sin vencimiento"
+                    : vencido
+                      ? "Venció — renueva para crear obras nuevas"
+                      : c.suscripcion_vence_el
+                        ? `${acceso.motivo === "prueba" ? "Prueba gratis" : "Renovación"}: ${c.suscripcion_vence_el.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}`
+                        : "Activo"}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-white font-extrabold text-lg tabular-nums">
+                  {def.precioCentavos === 0
+                    ? "Gratis"
+                    : new Intl.NumberFormat("es-CO", {
+                        style: "currency",
+                        currency: "COP",
+                        maximumFractionDigits: 0,
+                      }).format(def.precioCentavos / 100)}
+                </div>
+                {def.precioCentavos > 0 && <div className="text-white/70 text-xs">/mes</div>}
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Config sections */}
         <div className="grid md:grid-cols-2 gap-4">
