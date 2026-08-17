@@ -46,6 +46,10 @@ export const metadata: Metadata = {
       },
     ],
   },
+  other: {
+    "og:image:secure_url": `https://seiricon.com/og/seiricon-go.jpg`,
+    "og:image:type": "image/jpeg",
+  },
   twitter: { card: "summary_large_image", images: ["/og/seiricon-go.jpg"] },
 };
 

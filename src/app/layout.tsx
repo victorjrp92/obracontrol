@@ -37,6 +37,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/og/seiricon.jpg"],
   },
+  other: {
+    "og:image:secure_url": "https://seiricon.com/og/seiricon.jpg",
+    "og:image:type": "image/jpeg",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
