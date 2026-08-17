@@ -64,9 +64,10 @@ export default function PrivacidadPage() {
             </p>
             <p>
               Cuando la lectura automatica de grietas esta activa, las dos fotos de cada grieta se envian a un
-              proveedor de analisis de imagenes (actualmente <strong>Anthropic, en Estados Unidos</strong> — pais
+              proveedor de analisis de imagenes (actualmente <strong>Google, en Estados Unidos</strong> — pais
               incluido en la lista de paises con nivel adecuado de proteccion de la Superintendencia de Industria
-              y Comercio) con el unico fin de leer el ancho y el patron de la grieta. Ese proveedor no las utiliza
+              y Comercio) con el unico fin de leer el ancho y el patron de la grieta. Se envian unicamente las dos
+              fotografias: nunca tu nombre, tu cedula, tu direccion ni tu telefono. Ese proveedor no las utiliza
               para entrenar sus modelos ni las conserva para otros fines. Si cambiamos de proveedor, actualizaremos
               esta politica.
             </p>

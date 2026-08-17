@@ -603,6 +603,8 @@ Cada PDF imprime folio y huella. En `/go/juntos/verificar` una aseguradora o alc
 |---|---|
 | `JUNTOS_PAUSADO=true` | Baja las tres páginas del flujo, las cuatro rutas de API y la franja de las landings. **`/verificar` sigue viva.** Requiere redespliegue (1-2 min). |
 | `ALERTA_VISION_ENABLED=true` | Enciende la lectura automática de grietas. Ausente o distinto de `true` = todo el mundo en modo manual. |
+| `ALERTA_VISION_PROVEEDOR` | `anthropic` (por defecto) o `gemini`. Cambiar de proveedor es cambiar esta variable; no hace falta desplegar código. **Al cambiarla hay que actualizar la sección 0.2 de /privacidad**, que nombra al proveedor y su país. |
+| `ALERTA_VISION_MODEL` | Modelo concreto. Si se omite: `claude-haiku-4-5` o `gemini-2.5-flash` según el proveedor. |
 | `PDF_MAX_CONCURRENTES` | Renders de PDF simultáneos por instancia (2 por defecto). Al llenarse responde «espera unos segundos», no falla. |
 
 ---

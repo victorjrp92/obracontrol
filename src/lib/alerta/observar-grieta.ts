@@ -63,9 +63,11 @@ import {
   type Patron,
   type ProblemaCalidadFoto,
 } from "./tipos";
+import { proveedorActivo, type PeticionVision } from "./proveedores-vision";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = process.env.ALERTA_VISION_MODEL || "claude-haiku-4-5";
+// El proveedor (Anthropic o Gemini), su URL, su cabecera y la forma del cuerpo
+// viven en `proveedores-vision.ts`. Aquí se queda lo que está calibrado y no
+// depende de quién responda: el prompt, la sanitización y los reintentos.
 const MAX_TOKENS = 700;
 
 /** Timeout de CADA intento. Dos intentos + espera caben en PRESUPUESTO_TOTAL_MS. */
@@ -108,68 +110,6 @@ Cómo estimar "ancho_mm" (es el dato más frágil de todos — trátalo con cuid
 5. La moneda es la escala válida solo si está sobre la misma superficie que la grieta. Ladrillos, baldosas, enchufes o dedos NO son referencias válidas: si solo tienes eso, es "sin_referencia_escala".
 
 - Responde EXCLUSIVAMENTE llamando la herramienta "reportar_observacion" con el JSON exacto que pide su esquema.`;
-
-const OBSERVACION_TOOL = {
-  name: "reportar_observacion",
-  description: "Reporta la observación estructurada de la grieta a partir de las dos fotos, sin diagnóstico ni consejo.",
-  input_schema: {
-    type: "object",
-    properties: {
-      elemento: {
-        type: "string",
-        enum: ["columna", "viga", "nudo_viga_columna", "muro_carga", "muro_divisorio", "losa_techo", "piso", "fachada", "no_determinado"],
-        description: "Tipo de elemento estructural que se ve en la Foto 2 (elemento completo).",
-      },
-      patron: {
-        type: "string",
-        enum: ["diagonal", "diagonal_x", "vertical", "horizontal", "escalonada", "craquelado", "esquina_vano", "junta_entre_elementos"],
-        description: "Patrón geométrico de la grieta.",
-      },
-      escala: {
-        type: "string",
-        description:
-          "Razonamiento de escala ANTES de estimar el ancho: dónde ves la moneda de $500 (diámetro 23,7 mm) y cuántas veces cabe el ancho de la grieta en su diámetro. Si no la distingues con claridad o está en otro plano, escríbelo aquí y reporta calidad_foto = 'sin_referencia_escala'. Máximo ~200 caracteres.",
-      },
-      ancho_mm: {
-        type: ["number", "null"],
-        description: "Ancho estimado de la grieta en milímetros, derivado del razonamiento del campo 'escala'. null si no se puede estimar.",
-      },
-      banderas: {
-        type: "object",
-        properties: {
-          acero_expuesto: { type: "boolean" },
-          concreto_triturado: { type: "boolean" },
-          desplazamiento_caras: { type: "boolean", description: "Un lado de la grieta quedó más alto/adelante que el otro." },
-          elemento_inclinado: { type: "boolean" },
-          separacion_muro_estructura: { type: "boolean" },
-        },
-        required: ["acero_expuesto", "concreto_triturado", "desplazamiento_caras", "elemento_inclinado", "separacion_muro_estructura"],
-      },
-      confianza: {
-        type: "object",
-        properties: {
-          elemento: { type: "number", description: "0 a 1." },
-          patron: { type: "number", description: "0 a 1." },
-          ancho: { type: "number", description: "0 a 1. Solo relevante si ancho_mm no es null." },
-        },
-        required: ["elemento", "patron", "ancho"],
-      },
-      calidad_foto: {
-        type: "string",
-        enum: ["ok", "oscura", "movida", "muy_lejos", "sin_referencia_escala"],
-      },
-      nota_visual: {
-        type: "string",
-        description: "Una frase corta y neutral de lo que se ve. Sin juicios de seguridad ni consejos. Máximo ~140 caracteres.",
-      },
-    },
-    // `escala` va ANTES de `ancho_mm` a propósito: obliga al modelo a escribir
-    // el razonamiento de escala antes de emitir el número. El campo NO viaja al
-    // motor de reglas — `normalizarObservacion` lo ignora, como cualquier clave
-    // desconocida.
-    required: ["elemento", "patron", "escala", "ancho_mm", "banderas", "confianza", "calidad_foto", "nota_visual"],
-  },
-};
 
 function parseDataUrl(dataUrl: string): { mediaType: string; base64: string } | null {
   const match = /^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/]+=*)$/.exec(dataUrl);
@@ -365,18 +305,14 @@ type IntentoLectura =
  * como reintentable o fatal. No serializa jamás el cuerpo ni el error (son
  * fotos de la casa de alguien).
  */
-async function intentarLectura(key: string, cuerpo: string, timeoutMs: number): Promise<IntentoLectura> {
+async function intentarLectura(peticion: PeticionVision, timeoutMs: number): Promise<IntentoLectura> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(ANTHROPIC_URL, {
+    const res = await fetch(peticion.url, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-      },
-      body: cuerpo,
+      headers: peticion.headers,
+      body: peticion.cuerpo,
       signal: ctrl.signal,
     });
 
@@ -419,7 +355,8 @@ export async function observarGrieta(args: {
   fotoCercaDataUrl: string;
   fotoLejosDataUrl: string;
 }): Promise<ObservarGrietaResult> {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const proveedor = proveedorActivo();
+  const key = process.env[proveedor.variableKey];
   if (!key || process.env.ALERTA_VISION_ENABLED !== "true") {
     return { ok: false, motivo: "sin_key" };
   }
@@ -428,28 +365,18 @@ export async function observarGrieta(args: {
   const lejos = parseDataUrl(args.fotoLejosDataUrl);
   if (!cerca || !lejos) return { ok: false, motivo: "error" };
 
-  const cuerpo = JSON.stringify({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    temperature: 0,
-    system: SYSTEM_PROMPT,
-    tools: [OBSERVACION_TOOL],
-    tool_choice: { type: "tool", name: OBSERVACION_TOOL.name },
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: "Foto 1 — acercamiento con moneda de referencia:" },
-          { type: "image", source: { type: "base64", media_type: cerca.mediaType, data: cerca.base64 } },
-          { type: "text", text: "Foto 2 — elemento completo, de piso a techo:" },
-          { type: "image", source: { type: "base64", media_type: lejos.mediaType, data: lejos.base64 } },
-        ],
-      },
-    ],
+  const peticion = proveedor.armar({
+    key,
+    systemPrompt: SYSTEM_PROMPT,
+    maxTokens: MAX_TOKENS,
+    cerca,
+    lejos,
+    textoCerca: "Foto 1 — acercamiento con moneda de referencia:",
+    textoLejos: "Foto 2 — elemento completo, de piso a techo:",
   });
 
   const inicio = Date.now();
-  let intento = await intentarLectura(key, cuerpo, TIMEOUT_INTENTO_MS);
+  let intento = await intentarLectura(peticion, TIMEOUT_INTENTO_MS);
 
   if (intento.estado === "reintentable") {
     // Un solo reintento, y solo si alcanza a caber en el presupuesto de la
@@ -458,21 +385,19 @@ export async function observarGrieta(args: {
     const restante = PRESUPUESTO_TOTAL_MS - (Date.now() - inicio) - intento.esperaMs;
     if (restante >= MINIMO_PARA_REINTENTAR_MS) {
       await dormir(intento.esperaMs);
-      intento = await intentarLectura(key, cuerpo, Math.min(TIMEOUT_INTENTO_MS, restante));
+      intento = await intentarLectura(peticion, Math.min(TIMEOUT_INTENTO_MS, restante));
     }
   }
 
   if (intento.estado !== "ok") return { ok: false, motivo: "error" };
 
-  const data = intento.data as Record<string, unknown> | null;
-  const content: unknown[] = Array.isArray(data?.content) ? (data.content as unknown[]) : [];
-  const toolUse = content.find(
-    (bloque): bloque is { type: "tool_use"; input: unknown } =>
-      !!bloque && typeof bloque === "object" && (bloque as Record<string, unknown>).type === "tool_use"
-  );
-  if (!toolUse) return { ok: false, motivo: "error" };
+  // Cada proveedor esconde el JSON en un sitio distinto (tool_use en Anthropic,
+  // candidates[].content.parts[].text en Gemini). Eso, y solo eso, es lo que
+  // cambia entre uno y otro a partir de aquí.
+  const entrada = proveedor.extraer(intento.data);
+  if (!entrada) return { ok: false, motivo: "error" };
 
-  const observacion = normalizarObservacion(toolUse.input);
+  const observacion = normalizarObservacion(entrada);
   if (!observacion) return { ok: false, motivo: "error" };
 
   // La foto no daba: se le ofrece repetirla en vez de usar una lectura que el
@@ -480,7 +405,7 @@ export async function observarGrieta(args: {
   const problema = diagnosticarCalidadFoto(observacion.calidad_foto);
   if (problema) return { ok: false, motivo: "foto_mala", ...problema };
 
-  const notaCruda = (toolUse.input as Record<string, unknown> | null)?.nota_visual;
+  const notaCruda = (entrada as Record<string, unknown> | null)?.nota_visual;
   const notaVisual = sanitizarNotaVisual(notaCruda);
 
   return { ok: true, observacion, notaVisual };

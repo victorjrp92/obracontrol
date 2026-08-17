@@ -40,6 +40,12 @@ function verificar(descripcion: string, condicion: boolean) {
 console.log("Seiricon Alerta — verificación del cliente de visión (observar-grieta, sin red)\n");
 
 const FUENTE = readFileSync(join(process.cwd(), "src", "lib", "alerta", "observar-grieta.ts"), "utf8");
+// El esquema y los modelos por defecto viven en la capa de proveedores desde
+// que hay más de uno. Las invariantes que los tocan se verifican ahí.
+const FUENTE_PROVEEDORES = readFileSync(
+  join(process.cwd(), "src", "lib", "alerta", "proveedores-vision.ts"),
+  "utf8"
+);
 
 // ─── 1) diagnosticarCalidadFoto — qué foto se usa y qué foto se repite ─────
 console.log("1) diagnosticarCalidadFoto — 'ok' pasa; cualquier otra calidad se convierte en foto_mala");
@@ -189,15 +195,35 @@ verificar(
   /NO adivines el ancho[\s\S]{0,200}sin_referencia_escala/.test(FUENTE)
 );
 
-const indiceEscala = FUENTE.indexOf('"elemento", "patron", "escala", "ancho_mm"');
+// El orden importa en los DOS proveedores y por vías distintas: en Anthropic
+// basta el array `required`; en Gemini el orden de `properties` se ignora al
+// generar y manda `propertyOrdering`. Un proveedor nuevo que se olvide de esto
+// haría que el modelo emita el número antes del razonamiento — es decir, que
+// invente el ancho y luego lo justifique.
+const ordenRequerido = /"elemento",\s*"patron",\s*"escala",\s*(?:\/\/[^\n]*\n\s*)?"ancho_mm"/;
 verificar(
-  "el tool exige 'escala' y la pide ANTES de 'ancho_mm' (el razonamiento va primero, el número después)",
-  indiceEscala !== -1
+  "Anthropic: el tool exige 'escala' y la pide ANTES de 'ancho_mm'",
+  ordenRequerido.test(FUENTE_PROVEEDORES)
+);
+verificar(
+  "Gemini: propertyOrdering pone 'escala' antes de 'ancho_mm' (properties no basta: se ignora al generar)",
+  /propertyOrdering:\s*\[[\s\S]{0,400}?"escala",[\s\S]{0,120}?"ancho_mm"/.test(FUENTE_PROVEEDORES)
 );
 
 verificar(
-  "el modelo por defecto es el ID verificado claude-haiku-4-5 (con override por ALERTA_VISION_MODEL)",
-  /ALERTA_VISION_MODEL \|\| "claude-haiku-4-5"/.test(FUENTE)
+  "los modelos por defecto son los IDs verificados (claude-haiku-4-5 y gemini-2.5-flash)",
+  /anthropic:\s*"claude-haiku-4-5"/.test(FUENTE_PROVEEDORES) &&
+    /gemini:\s*"gemini-2\.5-flash"/.test(FUENTE_PROVEEDORES)
+);
+
+verificar(
+  "el proveedor por defecto es anthropic (usar Gemini tiene que ser explícito y reversible con una variable)",
+  /ALERTA_VISION_PROVEEDOR \?\? "anthropic"/.test(FUENTE_PROVEEDORES)
+);
+
+verificar(
+  "la clave de Gemini viaja en cabecera, nunca como ?key= en la URL (los secretos en URL terminan en logs)",
+  /"x-goog-api-key"/.test(FUENTE_PROVEEDORES) && !/[?&]key=\$\{/.test(FUENTE_PROVEEDORES)
 );
 
 // El peor caso real es: intento (timeout completo) + espera máxima + reintento
