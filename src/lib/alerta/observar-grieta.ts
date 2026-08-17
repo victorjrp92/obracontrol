@@ -317,6 +317,22 @@ async function intentarLectura(peticion: PeticionVision, timeoutMs: number): Pro
     });
 
     if (!res.ok) {
+      // Diagnóstico mínimo. Se registra SOLO el código HTTP y el código de error
+      // del proveedor (NOT_FOUND, PERMISSION_DENIED, INVALID_ARGUMENT…), que son
+      // metadatos de la API. NUNCA el cuerpo de la petición ni el de la
+      // respuesta: ahí viajan las fotos del interior de la casa de alguien.
+      //
+      // Sin esto, un fallo de configuración —modelo inexistente, clave mala,
+      // facturación apagada— es indistinguible de un timeout: todo el mundo cae
+      // a modo manual y no queda rastro de por qué.
+      let codigo = "";
+      try {
+        const cuerpoErr = (await res.clone().json()) as { error?: { status?: string } };
+        codigo = typeof cuerpoErr?.error?.status === "string" ? cuerpoErr.error.status : "";
+      } catch {
+        /* respuesta sin JSON: el HTTP solo ya dice bastante */
+      }
+      console.error(`[alerta:vision] HTTP ${res.status}${codigo ? ` ${codigo}` : ""}`);
       if (!esReintentable(res.status)) return { estado: "fatal" };
       const esperaMs = esperaReintentoMs(res.headers.get("retry-after"));
       return esperaMs === null ? { estado: "fatal" } : { estado: "reintentable", esperaMs };
@@ -395,7 +411,10 @@ export async function observarGrieta(args: {
   // candidates[].content.parts[].text en Gemini). Eso, y solo eso, es lo que
   // cambia entre uno y otro a partir de aquí.
   const entrada = proveedor.extraer(intento.data);
-  if (!entrada) return { ok: false, motivo: "error" };
+  if (!entrada) {
+    console.error(`[alerta:vision] respuesta 200 sin observación utilizable (proveedor: ${proveedor.nombre}, modelo: ${proveedor.modelo})`);
+    return { ok: false, motivo: "error" };
+  }
 
   const observacion = normalizarObservacion(entrada);
   if (!observacion) return { ok: false, motivo: "error" };
