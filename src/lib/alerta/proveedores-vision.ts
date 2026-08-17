@@ -91,59 +91,70 @@ const DESC_NOTA =
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
+/**
+ * Esquema de la observación. JSON Schema estándar, compartido por los dos
+ * proveedores: Anthropic lo consume como `input_schema` de un tool y Gemini
+ * como `response_format[].schema`. Un solo sitio que tocar cuando cambie el
+ * contrato — dos copias divergiendo es cómo un proveedor empieza a devolver
+ * campos que el otro no.
+ */
+const ESQUEMA_OBSERVACION = {
+  type: "object",
+  properties: {
+    elemento: {
+      type: "string",
+      enum: ELEMENTOS,
+      description: "Tipo de elemento estructural que se ve en la Foto 2 (elemento completo).",
+    },
+    patron: { type: "string", enum: PATRONES, description: "Patrón geométrico de la grieta." },
+    escala: { type: "string", description: DESC_ESCALA },
+    ancho_mm: { type: ["number", "null"], description: DESC_ANCHO },
+    banderas: {
+      type: "object",
+      properties: {
+        acero_expuesto: { type: "boolean" },
+        concreto_triturado: { type: "boolean" },
+        desplazamiento_caras: {
+          type: "boolean",
+          description: "Un lado de la grieta quedó más alto/adelante que el otro.",
+        },
+        elemento_inclinado: { type: "boolean" },
+        separacion_muro_estructura: { type: "boolean" },
+      },
+      required: [
+        "acero_expuesto",
+        "concreto_triturado",
+        "desplazamiento_caras",
+        "elemento_inclinado",
+        "separacion_muro_estructura",
+      ],
+    },
+    confianza: {
+      type: "object",
+      properties: {
+        elemento: { type: "number", description: "0 a 1." },
+        patron: { type: "number", description: "0 a 1." },
+        ancho: { type: "number", description: "0 a 1. Solo relevante si ancho_mm no es null." },
+      },
+      required: ["elemento", "patron", "ancho"],
+    },
+    calidad_foto: { type: "string", enum: CALIDADES },
+    nota_visual: { type: "string", description: DESC_NOTA },
+  },
+  // `escala` va ANTES de `ancho_mm` en `properties` y en `required` a propósito:
+  // el modelo tiende a emitir los campos en ese orden, así que el razonamiento
+  // de escala sale antes que el número. El refuerzo de verdad está en el prompt
+  // (pasos 2 y 3), que lo pide explícitamente — el esquema solo acompaña.
+  // El campo NO viaja al motor de reglas: `normalizarObservacion` lo ignora,
+  // como cualquier clave desconocida.
+  required: ["elemento", "patron", "escala", "ancho_mm", "banderas", "confianza", "calidad_foto", "nota_visual"],
+};
+
 const OBSERVACION_TOOL = {
   name: "reportar_observacion",
   description:
     "Reporta la observación estructurada de la grieta a partir de las dos fotos, sin diagnóstico ni consejo.",
-  input_schema: {
-    type: "object",
-    properties: {
-      elemento: {
-        type: "string",
-        enum: ELEMENTOS,
-        description: "Tipo de elemento estructural que se ve en la Foto 2 (elemento completo).",
-      },
-      patron: { type: "string", enum: PATRONES, description: "Patrón geométrico de la grieta." },
-      escala: { type: "string", description: DESC_ESCALA },
-      ancho_mm: { type: ["number", "null"], description: DESC_ANCHO },
-      banderas: {
-        type: "object",
-        properties: {
-          acero_expuesto: { type: "boolean" },
-          concreto_triturado: { type: "boolean" },
-          desplazamiento_caras: {
-            type: "boolean",
-            description: "Un lado de la grieta quedó más alto/adelante que el otro.",
-          },
-          elemento_inclinado: { type: "boolean" },
-          separacion_muro_estructura: { type: "boolean" },
-        },
-        required: [
-          "acero_expuesto",
-          "concreto_triturado",
-          "desplazamiento_caras",
-          "elemento_inclinado",
-          "separacion_muro_estructura",
-        ],
-      },
-      confianza: {
-        type: "object",
-        properties: {
-          elemento: { type: "number", description: "0 a 1." },
-          patron: { type: "number", description: "0 a 1." },
-          ancho: { type: "number", description: "0 a 1. Solo relevante si ancho_mm no es null." },
-        },
-        required: ["elemento", "patron", "ancho"],
-      },
-      calidad_foto: { type: "string", enum: CALIDADES },
-      nota_visual: { type: "string", description: DESC_NOTA },
-    },
-    // `escala` va ANTES de `ancho_mm` a propósito: obliga al modelo a escribir
-    // el razonamiento de escala antes de emitir el número. El campo NO viaja al
-    // motor de reglas — `normalizarObservacion` lo ignora, como cualquier clave
-    // desconocida.
-    required: ["elemento", "patron", "escala", "ancho_mm", "banderas", "confianza", "calidad_foto", "nota_visual"],
-  },
+  input_schema: ESQUEMA_OBSERVACION,
 };
 
 const anthropic = (modelo: string): ProveedorVision => ({
@@ -194,82 +205,10 @@ const anthropic = (modelo: string): ProveedorVision => ({
 // Google — Gemini Flash
 // ═══════════════════════════════════════════════════════════════════════════
 
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-
-/**
- * Esquema en el dialecto de Gemini (subconjunto de OpenAPI 3.0), NO JSON Schema:
- *
- *   - `type: ["number","null"]` no existe → se expresa con `nullable: true`.
- *   - El orden de `properties` NO se respeta al generar; hay que declararlo
- *     aparte en `propertyOrdering`. Esto importa de verdad aquí: todo el truco
- *     de precisión del ancho depende de que el modelo escriba `escala` ANTES
- *     que `ancho_mm`. Sin propertyOrdering, Gemini puede emitir el número
- *     primero y el razonamiento después — o sea, inventar el número y luego
- *     justificarlo, que es exactamente lo que el prompt intenta evitar.
- */
-const ESQUEMA_GEMINI = {
-  type: "object",
-  properties: {
-    elemento: {
-      type: "string",
-      enum: ELEMENTOS,
-      description: "Tipo de elemento estructural que se ve en la Foto 2 (elemento completo).",
-    },
-    patron: { type: "string", enum: PATRONES, description: "Patrón geométrico de la grieta." },
-    escala: { type: "string", description: DESC_ESCALA },
-    ancho_mm: { type: "number", nullable: true, description: DESC_ANCHO },
-    banderas: {
-      type: "object",
-      properties: {
-        acero_expuesto: { type: "boolean" },
-        concreto_triturado: { type: "boolean" },
-        desplazamiento_caras: {
-          type: "boolean",
-          description: "Un lado de la grieta quedó más alto/adelante que el otro.",
-        },
-        elemento_inclinado: { type: "boolean" },
-        separacion_muro_estructura: { type: "boolean" },
-      },
-      required: [
-        "acero_expuesto",
-        "concreto_triturado",
-        "desplazamiento_caras",
-        "elemento_inclinado",
-        "separacion_muro_estructura",
-      ],
-      propertyOrdering: [
-        "acero_expuesto",
-        "concreto_triturado",
-        "desplazamiento_caras",
-        "elemento_inclinado",
-        "separacion_muro_estructura",
-      ],
-    },
-    confianza: {
-      type: "object",
-      properties: {
-        elemento: { type: "number", description: "0 a 1." },
-        patron: { type: "number", description: "0 a 1." },
-        ancho: { type: "number", description: "0 a 1. Solo relevante si ancho_mm no es null." },
-      },
-      required: ["elemento", "patron", "ancho"],
-      propertyOrdering: ["elemento", "patron", "ancho"],
-    },
-    calidad_foto: { type: "string", enum: CALIDADES },
-    nota_visual: { type: "string", description: DESC_NOTA },
-  },
-  required: ["elemento", "patron", "escala", "ancho_mm", "banderas", "confianza", "calidad_foto", "nota_visual"],
-  propertyOrdering: [
-    "elemento",
-    "patron",
-    "escala", // ← antes de ancho_mm, a propósito
-    "ancho_mm",
-    "banderas",
-    "confianza",
-    "calidad_foto",
-    "nota_visual",
-  ],
-};
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+/** Revisión del contrato de la API. Fijarla evita que un cambio de esquema del
+ *  lado de Google rompa el parseo sin que toquemos nada. */
+const GEMINI_REVISION = "2026-05-20";
 
 const gemini = (modelo: string): ProveedorVision => ({
   nombre: "gemini",
@@ -277,55 +216,63 @@ const gemini = (modelo: string): ProveedorVision => ({
   modelo,
   armar({ key, systemPrompt, maxTokens, cerca, lejos, textoCerca, textoLejos }) {
     return {
-      // La clave va en cabecera y NO como `?key=` en la URL: una URL con
-      // secreto termina en logs de proxy, en trazas de error y en el
-      // historial de cualquier herramienta que toque la petición.
-      url: `${GEMINI_BASE}/${encodeURIComponent(modelo)}:generateContent`,
+      // Interactions API. La antigua `:generateContent` con
+      // `generationConfig.responseSchema` quedó atrás: Google puso el 8 de
+      // junio de 2026 como fecha límite de migración, así que escribir contra
+      // ella hoy es escribir contra una puerta cerrada — y el fallo sería
+      // silencioso, porque un 4xx no se reintenta y todo el mundo caería a
+      // modo manual sin que nada avise.
+      url: GEMINI_URL,
       headers: {
         "content-type": "application/json",
         "x-goog-api-key": key,
+        // Fija el contrato: sin esto la API puede servir otra revisión del
+        // esquema y romper el parseo sin que cambiemos una línea.
+        "Api-Revision": GEMINI_REVISION,
       },
       cuerpo: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { text: textoCerca },
-              { inlineData: { mimeType: cerca.mediaType, data: cerca.base64 } },
-              { text: textoLejos },
-              { inlineData: { mimeType: lejos.mediaType, data: lejos.base64 } },
-            ],
-          },
+        model: modelo,
+        system_instruction: systemPrompt,
+        input: [
+          { type: "text", text: textoCerca },
+          { type: "image", mime_type: cerca.mediaType, data: cerca.base64 },
+          { type: "text", text: textoLejos },
+          { type: "image", mime_type: lejos.mediaType, data: lejos.base64 },
         ],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: maxTokens,
-          responseMimeType: "application/json",
-          responseSchema: ESQUEMA_GEMINI,
-        },
+        generation_config: { temperature: 0, max_output_tokens: maxTokens },
+        // `response_format` es un ARRAY, no un objeto.
+        response_format: [
+          { type: "text", mime_type: "application/json", schema: ESQUEMA_OBSERVACION },
+        ],
+        // Que Google no conserve la interacción. Son fotos del interior de la
+        // casa de alguien y /privacidad promete que no se almacenan: la
+        // promesa tiene que viajar en la petición, no solo en el texto legal.
+        store: false,
       }),
     };
   },
   extraer(data) {
     const d = data as Record<string, unknown> | null;
-    const candidatos = Array.isArray(d?.candidates) ? (d.candidates as unknown[]) : [];
-    const primero = candidatos[0] as Record<string, unknown> | undefined;
-    const contenido = primero?.content as Record<string, unknown> | undefined;
-    const partes = Array.isArray(contenido?.parts) ? (contenido.parts as unknown[]) : [];
-    // Con responseMimeType JSON la respuesta llega como texto en la primera
-    // parte; si el modelo se corta por maxOutputTokens el JSON queda truncado
-    // y el parse falla — se trata como fallo y cae a modo manual, que es lo
-    // correcto: media observación es peor que ninguna.
-    const texto = partes
-      .map((p) => (p && typeof p === "object" ? (p as Record<string, unknown>).text : null))
-      .find((t): t is string => typeof t === "string" && t.trim().length > 0);
-    if (!texto) return null;
-    try {
-      return JSON.parse(texto);
-    } catch {
-      return null;
+    const steps = Array.isArray(d?.steps) ? (d.steps as unknown[]) : [];
+    for (const step of steps) {
+      if (!step || typeof step !== "object") continue;
+      const s = step as Record<string, unknown>;
+      if (s.type !== "model_output") continue;
+      const contenido = Array.isArray(s.content) ? (s.content as unknown[]) : [];
+      for (const bloque of contenido) {
+        if (!bloque || typeof bloque !== "object") continue;
+        const b = bloque as Record<string, unknown>;
+        if (b.type !== "text" || typeof b.text !== "string" || !b.text.trim()) continue;
+        try {
+          return JSON.parse(b.text);
+        } catch {
+          // JSON truncado (tope de tokens) o texto libre: se trata como fallo
+          // y cae a modo manual. Media observación es peor que ninguna.
+          return null;
+        }
+      }
     }
+    return null;
   },
 });
 
@@ -334,7 +281,12 @@ const gemini = (modelo: string): ProveedorVision => ({
 /** Modelo por defecto de cada proveedor, sobreescribible con ALERTA_VISION_MODEL. */
 const MODELO_POR_DEFECTO: Record<string, string> = {
   anthropic: "claude-haiku-4-5",
-  gemini: "gemini-2.5-flash",
+  // gemini-2.5-flash está marcado para retiro el 16 de octubre de 2026: no
+  // sirve como cimiento. 3.7 Flash es el vigente (13 de agosto de 2026).
+  // Si el volumen aprieta, la palanca barata es gemini-3.1-flash-lite —
+  // pero es el modelo más débil justo en lo que aquí importa, medir un ancho
+  // en milímetros, así que esa palanca se jala con calibración, no a ciegas.
+  gemini: "gemini-3.7-flash",
 };
 
 /**

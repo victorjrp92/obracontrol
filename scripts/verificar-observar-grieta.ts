@@ -195,25 +195,45 @@ verificar(
   /NO adivines el ancho[\s\S]{0,200}sin_referencia_escala/.test(FUENTE)
 );
 
-// El orden importa en los DOS proveedores y por vías distintas: en Anthropic
-// basta el array `required`; en Gemini el orden de `properties` se ignora al
-// generar y manda `propertyOrdering`. Un proveedor nuevo que se olvide de esto
-// haría que el modelo emita el número antes del razonamiento — es decir, que
-// invente el ancho y luego lo justifique.
-const ordenRequerido = /"elemento",\s*"patron",\s*"escala",\s*(?:\/\/[^\n]*\n\s*)?"ancho_mm"/;
+// El esquema es uno solo y lo comparten los dos proveedores. `escala` tiene que
+// ir antes que `ancho_mm` tanto en properties como en required: el modelo emite
+// los campos en ese orden, así que el razonamiento de escala sale antes que el
+// número. Al revés sería inventar el ancho y justificarlo después.
 verificar(
-  "Anthropic: el tool exige 'escala' y la pide ANTES de 'ancho_mm'",
-  ordenRequerido.test(FUENTE_PROVEEDORES)
+  "el esquema declara 'escala' antes de 'ancho_mm' en properties",
+  /escala:\s*\{[\s\S]{0,200}?\},\s*\n\s*ancho_mm:/.test(FUENTE_PROVEEDORES)
 );
 verificar(
-  "Gemini: propertyOrdering pone 'escala' antes de 'ancho_mm' (properties no basta: se ignora al generar)",
-  /propertyOrdering:\s*\[[\s\S]{0,400}?"escala",[\s\S]{0,120}?"ancho_mm"/.test(FUENTE_PROVEEDORES)
+  "el esquema declara 'escala' antes de 'ancho_mm' en required",
+  /"elemento",\s*"patron",\s*"escala",\s*"ancho_mm"/.test(FUENTE_PROVEEDORES)
+);
+verificar(
+  "el esquema es UNO solo para los dos proveedores (dos copias divergen)",
+  /input_schema:\s*ESQUEMA_OBSERVACION/.test(FUENTE_PROVEEDORES) &&
+    /schema:\s*ESQUEMA_OBSERVACION/.test(FUENTE_PROVEEDORES)
 );
 
 verificar(
-  "los modelos por defecto son los IDs verificados (claude-haiku-4-5 y gemini-2.5-flash)",
+  "los modelos por defecto son IDs vigentes (claude-haiku-4-5 y gemini-3.7-flash; 2.5 se retira el 16-oct-2026)",
   /anthropic:\s*"claude-haiku-4-5"/.test(FUENTE_PROVEEDORES) &&
-    /gemini:\s*"gemini-2\.5-flash"/.test(FUENTE_PROVEEDORES)
+    /gemini:\s*"gemini-3\.7-flash"/.test(FUENTE_PROVEEDORES)
+);
+
+// Se comprueba la CONSTANTE de la URL, no el archivo entero: el comentario que
+// explica por qué se abandonó `:generateContent` la nombra a propósito, y un
+// regex sobre todo el texto castigaría justamente la documentación.
+const urlGemini = /const GEMINI_URL = "([^"]+)"/.exec(FUENTE_PROVEEDORES)?.[1] ?? "";
+verificar(
+  "Gemini apunta a la Interactions API, no a la generateContent con esquema retirada en junio de 2026",
+  urlGemini.endsWith("/v1beta/interactions") && !/generateContent/.test(urlGemini)
+);
+verificar(
+  "Gemini fija la revisión del contrato con la cabecera Api-Revision",
+  /"Api-Revision"/.test(FUENTE_PROVEEDORES)
+);
+verificar(
+  "Gemini pide store:false — las fotos no se guardan del lado de Google, como promete /privacidad",
+  /store:\s*false/.test(FUENTE_PROVEEDORES)
 );
 
 verificar(
