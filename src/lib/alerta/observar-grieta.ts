@@ -65,10 +65,10 @@ import {
 } from "./tipos";
 import { proveedorActivo, type PeticionVision } from "./proveedores-vision";
 
-// El proveedor (Anthropic o Gemini), su URL, su cabecera y la forma del cuerpo
-// viven en `proveedores-vision.ts`. Aquí se queda lo que está calibrado y no
-// depende de quién responda: el prompt, la sanitización y los reintentos.
-const MAX_TOKENS = 700;
+// El proveedor (Anthropic o Gemini), su URL, su cabecera, la forma del cuerpo y
+// su presupuesto de tokens viven en `proveedores-vision.ts`. Aquí se queda lo
+// que está calibrado y no depende de quién responda: el prompt, la
+// sanitización y los reintentos.
 
 /** Timeout de CADA intento. Dos intentos + espera caben en PRESUPUESTO_TOTAL_MS. */
 const TIMEOUT_INTENTO_MS = 20_000;
@@ -384,7 +384,6 @@ export async function observarGrieta(args: {
   const peticion = proveedor.armar({
     key,
     systemPrompt: SYSTEM_PROMPT,
-    maxTokens: MAX_TOKENS,
     cerca,
     lejos,
     textoCerca: "Foto 1 — acercamiento con moneda de referencia:",

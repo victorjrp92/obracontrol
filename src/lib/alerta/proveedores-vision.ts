@@ -37,10 +37,16 @@ export interface ProveedorVision {
   variableKey: string;
   /** Modelo efectivo (ya resuelto contra ALERTA_VISION_MODEL). */
   modelo: string;
+  /**
+   * Tope de tokens de salida. NO es el mismo para todos y no es un detalle:
+   * los modelos que razonan antes de responder gastan de este mismo
+   * presupuesto, así que un tope pensado para un modelo directo deja al que
+   * razona sin sitio para el JSON. Medido, no estimado — ver cada adaptador.
+   */
+  maxTokens: number;
   armar(args: {
     key: string;
     systemPrompt: string;
-    maxTokens: number;
     cerca: FotoVision;
     lejos: FotoVision;
     textoCerca: string;
@@ -161,7 +167,11 @@ const anthropic = (modelo: string): ProveedorVision => ({
   nombre: "anthropic",
   variableKey: "ANTHROPIC_API_KEY",
   modelo,
-  armar({ key, systemPrompt, maxTokens, cerca, lejos, textoCerca, textoLejos }) {
+  // Responde directo, sin paso de razonamiento: el JSON de la observación ronda
+  // los 250 tokens y 700 va sobrado.
+  maxTokens: 700,
+  armar({ key, systemPrompt, cerca, lejos, textoCerca, textoLejos }) {
+    const maxTokens = 700;
     return {
       url: ANTHROPIC_URL,
       headers: {
@@ -214,7 +224,13 @@ const gemini = (modelo: string): ProveedorVision => ({
   nombre: "gemini",
   variableKey: "GEMINI_API_KEY",
   modelo,
-  armar({ key, systemPrompt, maxTokens, cerca, lejos, textoCerca, textoLejos }) {
+  // Gemini 3.x emite un paso `thought` ANTES de la respuesta, y ese
+  // razonamiento gasta de este mismo presupuesto. Medido contra el esquema
+  // real: con 700 el JSON sale cortado a 173 caracteres y `JSON.parse` falla;
+  // con 2000 sale completo. 2500 deja margen para fotos que den más que pensar.
+  maxTokens: 2500,
+  armar({ key, systemPrompt, cerca, lejos, textoCerca, textoLejos }) {
+    const maxTokens = 2500;
     return {
       // Interactions API. La antigua `:generateContent` con
       // `generationConfig.responseSchema` quedó atrás: Google puso el 8 de

@@ -231,6 +231,25 @@ verificar(
   "Gemini fija la revisión del contrato con la cabecera Api-Revision",
   /"Api-Revision"/.test(FUENTE_PROVEEDORES)
 );
+// El fallo que costó tres días: 700 tokens es correcto para un modelo que
+// responde directo, y deja sin sitio al JSON de uno que razona antes. Que el
+// presupuesto sea por proveedor no es un lujo, es la diferencia entre
+// funcionar y devolver un JSON cortado a la mitad.
+const presupuestos = [...FUENTE_PROVEEDORES.matchAll(/maxTokens:\s*(\d+)/g)].map((m) => Number(m[1]));
+verificar(
+  "cada proveedor declara su propio tope de tokens (no hay una constante única compartida)",
+  presupuestos.length >= 2 && new Set(presupuestos).size >= 2
+);
+verificar(
+  "el tope de Gemini deja sitio al JSON después del paso de razonamiento (>= 2000, medido)",
+  /nombre: "gemini"[\s\S]{0,900}?maxTokens:\s*(\d+)/.exec(FUENTE_PROVEEDORES) !== null &&
+    Number(/nombre: "gemini"[\s\S]{0,900}?maxTokens:\s*(\d+)/.exec(FUENTE_PROVEEDORES)![1]) >= 2000
+);
+verificar(
+  "observar-grieta.ts ya no impone un MAX_TOKENS global",
+  !/const MAX_TOKENS\s*=/.test(FUENTE)
+);
+
 verificar(
   "Gemini pide store:false — las fotos no se guardan del lado de Google, como promete /privacidad",
   /store:\s*false/.test(FUENTE_PROVEEDORES)
