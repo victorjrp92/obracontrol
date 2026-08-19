@@ -644,10 +644,23 @@
 }
 .ljt .jt-footer .wrap {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+/* El aviso se limita a 72ch para que no se lea como una línea larguísima en
+   pantalla ancha; centrado, ese límite lo deja alineado con el contenido de
+   arriba en vez de pegado al borde izquierdo. */
+.ljt .jt-footer-aviso {
+  max-width: 72ch;
+  margin: 0;
+}
+.ljt .jt-footer-legales {
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  justify-content: center;
+  gap: 6px 16px;
 }
 .ljt .jt-footer a {
   color: var(--gris);
