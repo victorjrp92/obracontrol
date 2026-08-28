@@ -73,19 +73,55 @@ export function normalizarFase(texto: string): FaseObra | null {
     if (limpiar(fase) === t) return fase;
   }
 
-  // 2) Variantes por inclusión; gana la keyword más larga (más específica).
-  let mejor: FaseObra | null = null;
-  let mejorLargo = 0;
+  // 2) Variantes por inclusión. Se recorren TODAS las fases y se guarda el
+  //    mejor puntaje de cada una, para poder detectar empates: si dos fases
+  //    empatan, el término es ambiguo y adivinar sería peor que no responder.
+  const puntajes = new Map<FaseObra, number>();
   for (const fase of FASES_OBRA) {
+    let mejorDeEstaFase = 0;
     for (const v of VARIANTES_FASE[fase]) {
       const vv = limpiar(v);
-      if ((t.includes(vv) || vv.includes(t)) && vv.length > mejorLargo) {
-        mejor = fase;
-        mejorLargo = vv.length;
+
+      // (a) El texto del usuario CONTIENE la variante: señal fuerte. Cuanto más
+      //     larga la variante, más específico el match («acabados de piso» pesa
+      //     más que «piso»).
+      if (t.includes(vv)) {
+        if (vv.length > mejorDeEstaFase) mejorDeEstaFase = vv.length;
+        continue;
+      }
+
+      // (b) La variante contiene al texto: solo vale para diferencias menores
+      //     de sufijo o número («electrica» ⊂ «electricas», «piso» ⊂ «pisos»).
+      //
+      //     Antes esta rama aceptaba cualquier fragmento, y como puntuaba por
+      //     el largo de la VARIANTE, un término genérico y corto ganaba con la
+      //     variante más larga que lo contuviera. Efecto real: «ACABADOS»
+      //     resolvía a «Pintura», porque «acabados de pintura» (19) le ganaba a
+      //     «acabados de piso» (16) — mandando repello, estuco, pisos, enchapes
+      //     y grifería a la fase equivocada en la importación de un presupuesto.
+      //
+      //     El umbral del 80% deja pasar plurales y sufijos, y corta los
+      //     fragmentos genéricos.
+      if (vv.includes(t) && t.length >= vv.length * 0.8) {
+        if (t.length > mejorDeEstaFase) mejorDeEstaFase = t.length;
       }
     }
+    if (mejorDeEstaFase > 0) puntajes.set(fase, mejorDeEstaFase);
   }
-  return mejor;
+
+  if (puntajes.size === 0) return null;
+
+  const maximo = Math.max(...puntajes.values());
+  const ganadoras = [...puntajes.entries()].filter(([, p]) => p === maximo);
+
+  // Empate = término de CAPÍTULO, no de fase («Acabados» agrupa repello,
+  // pintura, pisos y grifería; «Instalaciones» puede ser eléctrica o
+  // hidrosanitaria). Devolver `null` lo manda al mapeo manual, que es
+  // justamente el camino que este módulo declara en su cabecera. En un
+  // presupuesto adivinar mal no es un detalle: mueve dinero de capítulo.
+  if (ganadoras.length > 1) return null;
+
+  return ganadoras[0][0];
 }
 
 // ─────────────────────────────────────────────────────────────────────────

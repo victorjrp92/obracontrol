@@ -23,7 +23,8 @@
     "verify:calidad": "npx tsx scripts/verificar-calidad-foto.ts",
     "seguridad:probar": "npx tsx scripts/pentest.ts",
     "seguridad:rotar-tokens": "npx tsx scripts/rotar-tokens-obrero.ts",
-    "db:migrate-deploy": "prisma migrate deploy"
+    "db:migrate-deploy": "prisma migrate deploy",
+    "verify:fases": "npx tsx scripts/verificar-fases.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
