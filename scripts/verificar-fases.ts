@@ -130,6 +130,52 @@ comprobar(
   `obtuvo ${faseDeTarea("Pintura sobre muros internos") ?? "null"}`
 );
 
+
+// ─── 8. Presupuesto real: las 21 partidas de Juan Carlos Ordóñez ────────────
+// Banco de pruebas con datos de campo, no inventados. La regla que valida:
+// en el nombre de una partida, la FASE la marca la ACCIÓN (demoler, estucar,
+// pintar), no el ELEMENTO (muros, cielos). Un muro se demuele, se construye,
+// se repella, se estuca y se pinta.
+//
+// Antes de este arreglo: 13 correctas, 2 MAL clasificadas, 6 sin clasificar.
+// «Demolición de muros» y «Estuco sobre muros» caían en Obra gris/Estructura
+// porque mandaba la tabla de precios, que empareja por elemento.
+seccion("8) Presupuesto real: cada partida a su fase");
+
+const PRESUPUESTO_REAL: [string, string | null][] = [
+  ["Demolicion de muros de cuarto del servicio, cocina", "Preliminares/Demolición"],
+  ["Desmonte de carpinteria de aluminio existente", "Preliminares/Demolición"],
+  ["Desmonte de carpinteria madera, cocina", "Preliminares/Demolición"],
+  ["Construccion de muro de mamposteria para cerrar vano", "Obra gris/Estructura"],
+  ["Construccion de muros y dintel en drywall", "Obra gris/Estructura"],
+  ["Estructura en concreto reforzado, vigas de cimentacion, columnas", "Obra gris/Estructura"],
+  ["Cubierta en estructura metalica - incluye canal", "Obra gris/Estructura"],
+  ["Repello sobre muros", "Repello/Estuco"],
+  ["Estuco sobre muros", "Repello/Estuco"],
+  ["Estuco para cielos", "Repello/Estuco"],
+  ["Pintura sobre muros internos y cubierta", "Pintura"],
+  ["Pintura sobre muros externos", "Pintura"],
+  ["Desague de lavadero", "Instalaciones hidrosanitarias"],
+  ["instalacion griferia lavamanos", "Aparatos y grifería"],
+];
+
+for (const [partida, esperada] of PRESUPUESTO_REAL) {
+  const r = faseDeTarea(partida);
+  comprobar(`${partida.slice(0, 44)} → ${esperada}`, r === esperada, `obtuvo ${r ?? "null"}`);
+}
+
+// Lo esencial: NINGUNA partida puede caer en una fase equivocada. Sin
+// clasificar es aceptable (va a mapeo manual); mal clasificada, no.
+const malClasificadas = PRESUPUESTO_REAL.filter(([p, esp]) => {
+  const r = faseDeTarea(p);
+  return r !== null && r !== esp;
+});
+comprobar(
+  "ninguna partida del presupuesto real cae en fase equivocada",
+  malClasificadas.length === 0,
+  malClasificadas.map(([p]) => p).join("; ")
+);
+
 // ─── Resultado ──────────────────────────────────────────────────────────────
 console.log(`\n${ok}/${ok + fallos} verificaciones OK`);
 if (fallos > 0) {

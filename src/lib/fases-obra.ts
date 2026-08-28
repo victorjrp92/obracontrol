@@ -172,11 +172,31 @@ export const FASE_POR_KEY: Record<string, FaseObra> = {
 
 // Heurística por keywords para tareas SIN clave semilla. Se evalúa después de
 // buscarPrecioSemilla; gana la keyword más larga.
+/**
+ * En el nombre de una partida de presupuesto, la FASE la determina la ACCIÓN
+ * («demoler», «estucar», «pintar»), no el ELEMENTO sobre el que se ejecuta
+ * («muros», «cielos», «pisos»). Un muro se demuele, se construye, se repella,
+ * se estuca y se pinta: la palabra «muro» sola no dice en qué fase estás.
+ *
+ * Por eso esta tabla lista acciones y materiales inequívocos, y por eso se
+ * consulta ANTES que la tabla de precios (ver `faseDeTarea`).
+ */
 const KEYWORDS_FASE: [string, FaseObra][] = [
   ["demolicion", "Preliminares/Demolición"],
   ["demoler", "Preliminares/Demolición"],
   ["desmonte", "Preliminares/Demolición"],
   ["retiro de escombro", "Preliminares/Demolición"],
+  // Acciones de acabado. Faltaban, y su ausencia hacía que «Estuco sobre muros»
+  // cayera en Estructura: sin ellas mandaba la tabla de precios, que empareja
+  // «muros» con mampostería e ignora el «estuco».
+  ["repello", "Repello/Estuco"],
+  ["estuco", "Repello/Estuco"],
+  ["panete", "Repello/Estuco"],
+  ["pañete", "Repello/Estuco"],
+  ["revoque", "Repello/Estuco"],
+  ["resane", "Repello/Estuco"],
+  ["pintura", "Pintura"],
+  ["pintar", "Pintura"],
   ["cielo raso", "Obra gris/Estructura"],
   ["drywall", "Obra gris/Estructura"],
   ["superboard", "Obra gris/Estructura"],
@@ -208,9 +228,15 @@ const KEYWORDS_FASE: [string, FaseObra][] = [
  *     reconocidas vive en otra capa, NUNCA aquí).
  */
 export function faseDeTarea(nombre: string): FaseObra | null {
-  const p = buscarPrecioSemilla(nombre);
-  if (p && FASE_POR_KEY[p.key]) return FASE_POR_KEY[p.key];
-
+  // 1) La tabla de ACCIONES manda. Está curada para decidir fases y por eso va
+  //    primero.
+  //
+  //    Antes se consultaba primero `buscarPrecioSemilla`, que está afinada para
+  //    encontrar un precio comparable — no una fase. Emparejaba por el elemento
+  //    y no por la acción, así que «Estuco sobre muros» y «Demolición de muros»
+  //    caían las dos en Obra gris/Estructura por la palabra «muros». Dos de las
+  //    veintiuna partidas de un presupuesto real quedaban en la fase equivocada,
+  //    y con ellas su cronograma y su corte.
   const n = limpiar(nombre);
   let mejor: FaseObra | null = null;
   let mejorLargo = 0;
@@ -220,5 +246,12 @@ export function faseDeTarea(nombre: string): FaseObra | null {
       mejorLargo = kw.length;
     }
   }
-  return mejor;
+  if (mejor) return mejor;
+
+  // 2) Sin acción reconocible, la tabla de precios sigue siendo un buen
+  //    respaldo: cubre cientos de partidas típicas por su nombre completo.
+  const p = buscarPrecioSemilla(nombre);
+  if (p && FASE_POR_KEY[p.key]) return FASE_POR_KEY[p.key];
+
+  return null;
 }
