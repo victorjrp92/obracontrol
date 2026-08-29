@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { isGeneralAdmin } from "@/lib/access";
+import { borrarArchivos } from "@/lib/storage";
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -128,10 +129,47 @@ export async function POST(
       return NextResponse.json({ error: "Código de verificación incorrecto o expirado" }, { status: 400 });
     }
 
+    // ── Rutas de los archivos, ANTES de borrar ────────────────────────────
+    // Obligatorio recogerlas aquí: al borrar el proyecto, las filas de
+    // Evidencia y Gasto caen en cascada y con ellas la única referencia a los
+    // archivos del bucket. Después ya no hay forma de saber cuáles eran suyos.
+    //
+    // Hasta este arreglo eso era justo lo que pasaba: se borraban las filas y
+    // las fotos del interior de las obras se quedaban en Storage para siempre,
+    // pese a que la política de privacidad promete que los datos se eliminan.
+    const [evidencias, gastos] = await Promise.all([
+      prisma.evidencia.findMany({
+        where: {
+          tarea: {
+            espacio: { unidad: { piso: { edificio: { proyecto_id: proyecto.id } } } },
+          },
+        },
+        select: { url_storage: true },
+      }),
+      prisma.gasto.findMany({
+        where: { proyecto_id: proyecto.id, factura_url: { not: null } },
+        select: { factura_url: true },
+      }),
+    ]);
+
+    const archivos = [
+      ...evidencias.map((e) => e.url_storage),
+      ...gastos.map((g) => g.factura_url),
+    ];
+
+    // ── Base de datos primero, Storage después ────────────────────────────
+    // El orden es una decisión de seguridad, no de estilo. Si falla el segundo
+    // paso quedan archivos huérfanos, que es el estado previo a este arreglo.
+    // Al revés —borrar archivos y que falle la transacción— dejaría un proyecto
+    // vivo con sus fotos destruidas, y eso no se deshace.
     await prisma.$transaction([
       prisma.proyecto.delete({ where: { id: proyecto.id } }),
       prisma.auditLog.deleteMany({ where: { proyecto_id: proyecto.id } }),
     ]);
+
+    // Best-effort: `borrarArchivos` nunca lanza. El proyecto ya está borrado y
+    // la respuesta no puede depender de Storage.
+    await borrarArchivos(archivos);
 
     return NextResponse.json({ deleted: true });
   } catch (error) {
