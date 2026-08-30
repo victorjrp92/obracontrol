@@ -539,9 +539,10 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 
 ### Cronograma: cuánto debería tardar tu obra
 
-- Al definir tus tareas, Seiricon calcula **cuánto suele tardar** lo que planeas, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos).
-- Si pusiste fechas, te da un **contra-pronóstico que solo guía**: "para lo que planeas, usualmente toma ~N días hábiles — tu plan es más corto de lo usual / está dentro de lo normal / es holgado". Nunca te bloquea.
-- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
+- Al definir tus tareas, Seiricon calcula **en qué fecha terminarías**, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos) y el calendario laboral colombiano (semana de seis días y los 18 festivos).
+- Lo que ves es una **fecha, no un número de días**: *"lo más probable es que termines el 14 de octubre; en 8 de cada 10 obras parecidas, se termina antes del 3 de noviembre"*. También te decimos la fecha que casi nunca se pasa, por si necesitas comprometerte con alguien.
+- Si pusiste fecha de entrega, te da un **contra-pronóstico que solo guía**: te dice **cuántas veces de cada 10** se cumple una fecha así en obras parecidas. Nunca te bloquea.
+- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las fechas de cada fase, las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
 - Con cada obra que se completa, Seiricon aprende de las duraciones reales para afinar sus estimados.
 
 ### Cómo defines el presupuesto (3 modos)
