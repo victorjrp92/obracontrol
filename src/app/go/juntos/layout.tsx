@@ -17,7 +17,20 @@ export const metadata: Metadata = {
       "Revisa tu casa acompañado y documenta los daños con fotos fechadas y ubicadas — lista para tu aseguradora y para solicitar ayudas del Estado. Gratis, sin crear cuenta.",
     locale: "es_CO",
     type: "website",
+    images: [
+      {
+        url: "/og/juntos.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Juntos, de Seiricon — No estás solo frente a estas grietas",
+      },
+    ],
   },
+  other: {
+    "og:image:secure_url": `https://seiricon.com/og/juntos.jpg`,
+    "og:image:type": "image/jpeg",
+  },
+  twitter: { card: "summary_large_image", images: ["/og/juntos.jpg"] },
 };
 
 export const viewport: Viewport = {

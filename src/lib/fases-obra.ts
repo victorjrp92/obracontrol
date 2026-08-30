@@ -30,15 +30,10 @@ export function ordenFase(fase: string): number {
   return (FASES_OBRA as readonly string[]).indexOf(fase);
 }
 
-/** Normalización de texto para matching: minúsculas, sin tildes, sin espacios extra. */
-function limpiar(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// Una sola normalización para TODO el matching del repo: minúsculas, sin
+// tildes, sin puntuación y sin palabras vacías ("Enchape de pared" ≡ "enchape
+// pared"). Se aplica a los dos lados de cada comparación.
+import { normalizarParaMatch as limpiar } from "./normalizar-tarea";
 
 // Variantes aceptadas por fase (además del nombre curado). El matching es por
 // INCLUSIÓN de keyword en el texto del usuario, con la keyword más larga
@@ -92,7 +87,7 @@ export function normalizarFase(texto: string): FaseObra | null {
 // Clasificación de TAREAS en fases (determinista).
 // ─────────────────────────────────────────────────────────────────────────
 
-import { buscarPrecioSemilla } from "./precios-semilla";
+import { buscarPrecioSemillaConLargo } from "./precios-semilla";
 
 /**
  * Mapa clave de la base semilla (precios-semilla.ts) → fase curada.
@@ -129,18 +124,28 @@ export const FASE_POR_KEY: Record<string, FaseObra> = {
   mueble_bajo_cocina: "Cocina/Closets",
   mueble_alto_cocina: "Cocina/Closets",
   mueble_bano: "Cocina/Closets",
-  // Sin clave semilla pero con rendimiento (rendimientos.ts)
+  // Claves que solo existen en rendimientos.ts (no tienen precio semilla).
+  // `faseDeTarea` NO llega a ellas por esta vía —la vía es KEYWORDS_FASE, más
+  // abajo— pero están aquí para que FASE_POR_KEY sea el mapa COMPLETO
+  // clave → fase: es lo que consulta quien ya tiene la clave en la mano.
   demolicion: "Preliminares/Demolición",
   aseo: "Detalles y aseo",
+  drywall: "Obra gris/Estructura",
+  impermeabilizacion: "Obra gris/Estructura",
+  meson: "Cocina/Closets",
+  ventana: "Carpintería/Madera",
+  mueble_generico: "Cocina/Closets",
 };
 
-// Heurística por keywords para tareas SIN clave semilla. Se evalúa después de
-// buscarPrecioSemilla; gana la keyword más larga.
+// Heurística por keywords. COMPITE con el match de la semilla de precios (no
+// va después de él): gana el término más largo de los dos. Es la vía por la
+// que se clasifican las claves sin precio semilla (demolición, drywall…).
 const KEYWORDS_FASE: [string, FaseObra][] = [
   ["demolicion", "Preliminares/Demolición"],
   ["demoler", "Preliminares/Demolición"],
   ["desmonte", "Preliminares/Demolición"],
-  ["retiro de escombro", "Preliminares/Demolición"],
+  ["desmantelamiento", "Preliminares/Demolición"],
+  ["retiro", "Preliminares/Demolición"],
   ["cielo raso", "Obra gris/Estructura"],
   ["drywall", "Obra gris/Estructura"],
   ["superboard", "Obra gris/Estructura"],
@@ -157,6 +162,7 @@ const KEYWORDS_FASE: [string, FaseObra][] = [
   ["ventana", "Carpintería/Madera"],
   ["marco", "Carpintería/Madera"],
   ["meson", "Cocina/Closets"],
+  ["mueble", "Cocina/Closets"],
   ["estufa", "Cocina/Closets"],
   ["campana", "Cocina/Closets"],
   ["espejo", "Detalles y aseo"],
@@ -170,18 +176,25 @@ const KEYWORDS_FASE: [string, FaseObra][] = [
  *  2) Heurística por keywords (KEYWORDS_FASE).
  *  3) `null` si nada matchea (la clasificación por IA de tareas no
  *     reconocidas vive en otra capa, NUNCA aquí).
+ *
+ * Entre (1) y (2) gana el término MÁS LARGO, igual que en `buscarRendimiento`:
+ * si la fase y el rendimiento usaran criterios distintos, una misma tarea
+ * podría estimarse como demolición y agendarse en la fase de estuco.
  */
 export function faseDeTarea(nombre: string): FaseObra | null {
-  const p = buscarPrecioSemilla(nombre);
-  if (p && FASE_POR_KEY[p.key]) return FASE_POR_KEY[p.key];
-
   const n = limpiar(nombre);
-  let mejor: FaseObra | null = null;
-  let mejorLargo = 0;
+  if (!n) return null;
+
+  const p = buscarPrecioSemillaConLargo(nombre);
+  const desdePrecio = p && FASE_POR_KEY[p.precio.key] ? FASE_POR_KEY[p.precio.key] : null;
+  let mejor: FaseObra | null = desdePrecio;
+  let mejorLargo = desdePrecio && p ? p.largo : 0;
+
   for (const [kw, fase] of KEYWORDS_FASE) {
-    if (n.includes(kw) && kw.length > mejorLargo) {
+    const k = limpiar(kw);
+    if (k && n.includes(k) && k.length > mejorLargo) {
       mejor = fase;
-      mejorLargo = kw.length;
+      mejorLargo = k.length;
     }
   }
   return mejor;

@@ -2,11 +2,11 @@ import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getProyectoDetalle } from "@/lib/data-detail";
 import { getAccessibleProjectIds } from "@/lib/access";
-import { esCuentaPersonal } from "@/lib/plan";
+import { esCuentaPersonal, puede } from "@/lib/plan";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, FileText, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 import CompartirAvanceCliente from "@/components/dashboard/CompartirAvanceCliente";
 import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
@@ -30,6 +30,21 @@ type SelectedUnidadType = {
   pisoNumero: number;
   tareas: TareaType[];
 };
+
+/**
+ * Cómo se llama una unidad en pantalla.
+ *
+ * En las obras personales (CASA / LOCAL / APARTAMENTO) hay UNA unidad por piso
+ * y `nombre` es «Piso 2» — el mismo dato que ya se pinta a la izquierda de la
+ * fila. El uso que el usuario le dio a ese piso («Farmacia», «Peluquería») vive
+ * en `nombre_personalizado`, que no tiene columna propia en `Piso`
+ * (ver `empezar/actions.ts:721`). Sin leerlo, el LOCAL de dos pisos mostraba
+ * «Piso 1 · Piso 1» y el uso quedaba invisible fuera del wizard.
+ */
+function etiquetaUnidad(unidad: { nombre: string; nombre_personalizado?: string | null }): string {
+  const uso = unidad.nombre_personalizado?.trim();
+  return uso ? uso : unidad.nombre;
+}
 
 function getUnidadColor(tareas: { estado: string }[]): string {
   if (tareas.length === 0) return "bg-slate-100 text-slate-400";
@@ -220,9 +235,11 @@ export default async function ProyectoDetallePage({
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login");
 
+  const tipoCuenta = usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA";
+
   // Cuentas personales (contratista B2C/propietario) no ven el wizard estructural
   // de empresa (torres/pisos/distribución): para ellas la obra es simple.
-  const personal = esCuentaPersonal(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA");
+  const personal = esCuentaPersonal(tipoCuenta);
 
   const { id } = await params;
 
@@ -247,7 +264,7 @@ export default async function ProyectoDetallePage({
         const u = piso.unidades.find((u) => u.id === unidadId);
         if (u) {
           selectedUnidad = {
-            nombre: u.nombre,
+            nombre: etiquetaUnidad(u),
             edificioNombre: edificio.nombre,
             pisoNumero: piso.numero,
             tareas: u.espacios.flatMap((e) =>
@@ -336,7 +353,7 @@ export default async function ProyectoDetallePage({
 
         {/* Gastos y materiales — visible para todos los que ven la obra
             (el dueño aprueba; el obrero/contratista registra). */}
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap gap-2">
           <Link
             href={`/dashboard/proyectos/${id}/gastos`}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
@@ -344,6 +361,20 @@ export default async function ProyectoDetallePage({
             <Wallet className="w-3.5 h-3.5" />
             Gastos y materiales
           </Link>
+
+          {/* Planos y renders — solo ARQUITECTO y CONSTRUCTORA
+              (`puede(tipo, "productosTecnicos")`, src/lib/plan.ts). La ruta
+              ya valida el 403; esto es la mitad de "no ofrecer lo que no se
+              puede usar". */}
+          {puede(tipoCuenta, "productosTecnicos") && (
+            <Link
+              href={`/dashboard/proyectos/${id}/tecnicos`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Planos y renders
+            </Link>
+          )}
         </div>
 
         {/* Compartir avance con el cliente — solo cuentas personales
@@ -452,6 +483,9 @@ export default async function ProyectoDetallePage({
               colapsable
               defaultAbierto={false}
               titulo="Cronograma estimado de la obra"
+              proyectoId={id}
+              fechaInicio={proyecto.fecha_inicio?.toISOString() ?? null}
+              diasHabilesSemana={proyecto.dias_habiles_semana}
             />
           </div>
         )}
@@ -500,15 +534,16 @@ export default async function ProyectoDetallePage({
                             const tareas = unidad.espacios.flatMap((e) => e.tareas);
                             const progreso = calcularProgreso(tareas);
                             const colorClass = getUnidadColor(tareas);
+                            const etiqueta = etiquetaUnidad(unidad);
 
                             return (
                               <Link
                                 key={unidad.id}
                                 href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
                                 className={`w-14 h-12 sm:w-20 sm:h-16 rounded-lg sm:rounded-xl flex flex-col items-center justify-center text-[10px] sm:text-xs font-medium hover:shadow-md transition-all flex-shrink-0 ${colorClass}`}
-                                title={`${personal ? "" : "Apto "}${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
+                                title={`${personal ? "" : "Apto "}${etiqueta}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
                               >
-                                <span className="font-bold">{unidad.nombre}</span>
+                                <span className="font-bold text-center leading-tight px-0.5 truncate max-w-full">{etiqueta}</span>
                                 <span className="text-[9px] sm:text-[10px] opacity-75">{progreso.porcentajeAprobado}%</span>
                               </Link>
                             );
@@ -547,16 +582,17 @@ export default async function ProyectoDetallePage({
                       const tareas = unidad.espacios.flatMap((e) => e.tareas);
                       const progreso = calcularProgreso(tareas);
                       const colorClass = getUnidadColor(tareas);
+                      const etiqueta = etiquetaUnidad(unidad);
 
                       return (
                         <Link
                           key={unidad.id}
                           href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
                           className={`px-4 py-3 rounded-xl flex flex-col items-center justify-center text-xs font-medium hover:shadow-md transition-all min-w-[100px] ${colorClass}`}
-                          title={`${unidad.nombre}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
+                          title={`${etiqueta}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
                         >
                           <Trees className="w-4 h-4 mb-1 opacity-70" />
-                          <span className="font-bold text-center leading-tight">{unidad.nombre}</span>
+                          <span className="font-bold text-center leading-tight">{etiqueta}</span>
                           <span className="text-[10px] opacity-75 mt-0.5">{progreso.porcentajeAprobado}%</span>
                         </Link>
                       );

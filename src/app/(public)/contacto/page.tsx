@@ -53,7 +53,7 @@ export default function ContactoPage() {
       <div className="mt-8 bg-slate-50 border border-slate-100 rounded-xl p-5 text-sm text-slate-600">
         <strong className="text-slate-800">Derechos como titular de datos:</strong> Si deseas consultar,
         actualizar, rectificar o suprimir tus datos personales conforme a la Ley 1581 de 2012, puedes usar
-        este formulario seleccionando "Derechos de datos personales" como asunto, o escribir directamente a{" "}
+        este formulario seleccionando &ldquo;Derechos de datos personales&rdquo; como asunto, o escribir directamente a{" "}
         <a href="mailto:info@seiricon.com" className="text-blue-600">info@seiricon.com</a>.
         Responderemos en los plazos establecidos por la ley.
       </div>

@@ -38,13 +38,24 @@ interface GateDatosProps {
   variante?: "acta" | "informe";
 }
 
+/**
+ * El microcopy del WhatsApp decía «Te enviamos el acta también por ahí, por si
+ * pierdes el archivo». Era falso: no se envía nada por ningún canal — el único
+ * `wa.me` del flujo está en la pantalla roja y lo dispara la propia persona, y
+ * el spec prohíbe expresamente montar el envío por correo.
+ *
+ * Justificar un campo OBLIGATORIO con una finalidad que no se cumple es
+ * exactamente lo que la Ley 1581 no perdona, y además le decía a alguien que su
+ * documento era recuperable cuando no lo es. El texto nuevo dice la razón
+ * verdadera, que existe y es buena: el número va impreso en el documento.
+ */
 const TEXTOS = {
   acta: {
     titulo: "Ponle tu nombre al acta",
     documento: "el acta",
     boton: "Descargar mi acta",
     generando: "Generando tu acta...",
-    pistaWhatsapp: "Te enviamos el acta también por ahí, por si pierdes el archivo.",
+    pistaWhatsapp: "Va impreso en el acta: es el número por el que tu aseguradora o la alcaldía te van a buscar.",
     obligatoria: "Obligatoria para generar el acta.",
   },
   informe: {
@@ -52,7 +63,7 @@ const TEXTOS = {
     documento: "el informe",
     boton: "Descargar mi informe",
     generando: "Generando tu informe...",
-    pistaWhatsapp: "Te enviamos el informe también por ahí, por si pierdes el archivo.",
+    pistaWhatsapp: "Va impreso en el informe: es el número por el que tu aseguradora o la alcaldía te van a buscar.",
     obligatoria: "Obligatoria para generar el informe.",
   },
 } as const;
@@ -244,7 +255,7 @@ export default function GateDatos({ enviando, error, onEnviar, variante = "acta"
           <input type="checkbox" checked={aceptaDatos} onChange={(e) => setAceptaDatos(e.target.checked)} />
           <span>
             Autorizo el tratamiento de mis datos (Ley 1581 de 2012,{" "}
-            <a href="/privacidad" target="_blank" rel="noopener noreferrer">
+            <a href="/privacidad#juntos" target="_blank" rel="noopener noreferrer">
               política de privacidad
             </a>
             ) para generar este documento y enviármelo por los canales que yo pida. Entiendo que este

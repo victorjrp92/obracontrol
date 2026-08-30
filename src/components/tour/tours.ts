@@ -1,4 +1,5 @@
 import type { TipoCuenta } from "@/generated/prisma";
+import { esCuentaPersonal } from "@/lib/plan";
 
 /**
  * Definiciones de la guía interactiva (tour). Son datos puros y serializables
@@ -114,6 +115,6 @@ function tourEmpresa(nombre: string): TourDef {
 
 /** Devuelve el tour del dashboard adecuado al tipo de cuenta. */
 export function getDashboardTour(tipoCuenta: TipoCuenta, nombre: string): TourDef {
-  if (tipoCuenta === "CONTRATISTA" || tipoCuenta === "PROPIETARIO") return tourPersonal(nombre);
+  if (esCuentaPersonal(tipoCuenta)) return tourPersonal(nombre);
   return tourEmpresa(nombre);
 }

@@ -644,10 +644,23 @@
 }
 .ljt .jt-footer .wrap {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+/* El aviso se limita a 72ch para que no se lea como una línea larguísima en
+   pantalla ancha; centrado, ese límite lo deja alineado con el contenido de
+   arriba en vez de pegado al borde izquierdo. */
+.ljt .jt-footer-aviso {
+  max-width: 72ch;
+  margin: 0;
+}
+.ljt .jt-footer-legales {
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  justify-content: center;
+  gap: 6px 16px;
 }
 .ljt .jt-footer a {
   color: var(--gris);
@@ -1975,5 +1988,89 @@
   .ljt *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   Barra de acción pegajosa (CtaPegajoso.tsx)
+
+   Faltaba por completo: el componente pintaba sus clases y ninguna existía,
+   así que la barra caía como un div suelto al final del documento —ni fija,
+   ni separada, y con el <small> en la misma línea que el titular.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.ljt .jt-cta-pegajoso {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(251, 250, 247, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 1.5px solid var(--linea);
+  /* Fuera de pantalla y sin capturar clics mientras está oculta. */
+  transform: translateY(110%);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s, visibility 0.28s;
+}
+.ljt .jt-cta-pegajoso.on {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.ljt .jt-cta-pegajoso-in {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.ljt .jt-cta-texto {
+  display: flex;
+  flex-direction: column; /* el <small> iba pegado al titular en la misma línea */
+  min-width: 0;
+  line-height: 1.25;
+}
+.ljt .jt-cta-texto b {
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+}
+.ljt .jt-cta-texto small {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gris);
+  margin-top: 1px;
+}
+
+.ljt .jt-cta-pegajoso .btn {
+  flex: none;
+}
+
+@media (max-width: 560px) {
+  .ljt .jt-cta-pegajoso {
+    padding: 9px 13px calc(9px + env(safe-area-inset-bottom));
+  }
+  .ljt .jt-cta-texto b {
+    font-size: 13.5px;
+  }
+  .ljt .jt-cta-texto small {
+    font-size: 11px;
+  }
+}
+
+/* Con movimiento reducido aparece sin deslizar, pero sigue apareciendo. */
+@media (prefers-reduced-motion: reduce) {
+  .ljt .jt-cta-pegajoso {
+    transform: none;
   }
 }

@@ -6,9 +6,20 @@ import { getUsuarioActual } from "@/lib/data";
 import { esCuentaPersonal, limiteObrasActivas } from "@/lib/plan";
 import { estadoDeAcceso } from "@/lib/suscripcion";
 import { generarNumeroTarea } from "@/lib/numero-registro";
-import { subtipoDesdePropiedad, nombreFaseDesdeObra } from "@/lib/plantillas-personal";
+import { subtipoDesdePropiedad, nombreFaseDesdeObra, resolverTipoObra } from "@/lib/plantillas-personal";
 import { normalizarTarea } from "@/lib/normalizar-tarea";
-import type { TipoObra, TipoPropiedad } from "@/lib/plantillas-personal";
+import { cadenaDeEspacio } from "@/lib/cronograma";
+import { ordenConstructivoDeTarea } from "@/lib/estimar-duracion";
+import {
+  clavePrediccion,
+  construirPreRegistro,
+  flushPreRegistrosDuracion,
+  predecirDuracionesMotor,
+  type PrediccionTarea,
+  type PreRegistroDuracion,
+} from "@/lib/duraciones-mercado";
+import type { EspacioEstim } from "@/lib/estimar-presupuesto";
+import type { TipoPropiedad } from "@/lib/plantillas-personal";
 import type {
   CrearObraInput,
   CrearObraResult,
@@ -46,6 +57,17 @@ function metrajeValido(v: unknown): number | undefined {
 /** Punto de partida de la obra (estado); null si no es un valor permitido. */
 function puntoPartidaValido(v: unknown): "NUEVA" | "MEDIAS" | "AVANZADA" | null {
   return v === "NUEVA" || v === "MEDIAS" || v === "AVANZADA" ? v : null;
+}
+
+/**
+ * Uso nombrable de un piso (p.ej. "Farmacia" en el primer piso de un LOCAL):
+ * trim + tope corto (es una etiqueta, no una descripción). Null si viene
+ * vacío — así `nombre_personalizado` queda limpio en vez de guardar "".
+ */
+function usoNombreValido(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t.slice(0, 100) : null;
 }
 
 /**
@@ -149,6 +171,89 @@ interface PrecioCapturado {
   proyecto_id: string | null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Predicción del motor de duración (Fase 0: medir al ALGORITMO, no al usuario)
+//
+// `Tarea.tiempo_acordado_dias` es el PLAN DEL USUARIO (el wizard reparte el
+// plazo que él puso entre las tareas). Para poder calcular el error del motor
+// hace falta guardar aparte lo que predijo `estimarDuracion` al crear la obra:
+// eso va a `RegistroDuracion.dias_motor` como fila PRE-REGISTRADA, que la
+// aprobación de la tarea completará con los días reales.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Clave sintética de un espacio dentro de la obra. Se calcula IGUAL en la
+ * pasada de predicción y en la de creación —que recorren los mismos arrays con
+ * los mismos topes y en el mismo orden—, así que cada tarea creada encuentra su
+ * predicción sin depender de nombres (que se repiten entre unidades).
+ */
+function claveEspacioObra(grupo: string, indice: number): string {
+  return `${grupo}#${indice}`;
+}
+
+/**
+ * Espacios de un grupo (un tipo de apto, o un piso) en la forma que consume el
+ * motor de duración. Espeja EXACTAMENTE los topes y filtros de
+ * `crearEspaciosYTareas` para que los índices coincidan.
+ */
+function espaciosEstimDeGrupo(grupo: string, espacios: EspacioInput[]): EspacioEstim[] {
+  return espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD).map((esp, i) => ({
+    id: claveEspacioObra(grupo, i),
+    nombre: esp.nombre?.trim() || "Espacio",
+    ...(typeof esp.metraje === "number" && esp.metraje > 0 ? { metraje: esp.metraje } : {}),
+    tareas: (esp.tareas ?? [])
+      .filter((t) => t.activa && t.nombre?.trim())
+      .slice(0, MAX_TAREAS_POR_ESPACIO)
+      .map((t) => ({
+        nombre: t.nombre.trim(),
+        dias: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
+        on: true,
+      })),
+  }));
+}
+
+/**
+ * Corre el motor sobre toda la obra y devuelve su predicción por espacio+tarea.
+ * NUNCA lanza: si el motor falla, la obra se crea igual y solo se pierde la
+ * telemetría (`dias_motor` queda en null).
+ *
+ * En modo EDIFICIO la predicción se hace UNA vez por tipo de apto: todas las
+ * unidades del mismo tipo tienen los mismos espacios y metrajes, así que la
+ * predicción por tarea es idéntica. `areaTotal` solo se aplica al modo
+ * casa/apto/local, donde los pisos SÍ son toda la obra (en un edificio el m²
+ * total no es repartible entre las plantillas de tipo).
+ */
+function predecirObraPersonal(args: {
+  esEdificio: boolean;
+  tipos: TipoAptoInput[];
+  pisos: PisoInput[];
+  areaTotal?: number;
+}): Map<string, PrediccionTarea> {
+  const predicciones = new Map<string, PrediccionTarea>();
+  try {
+    if (args.esEdificio) {
+      for (let i = 0; i < args.tipos.length; i++) {
+        const esps = espaciosEstimDeGrupo(`tipo${i}`, args.tipos[i]?.espacios ?? []);
+        for (const [k, v] of predecirDuracionesMotor(esps)) predicciones.set(k, v);
+      }
+    } else {
+      const esps = args.pisos.flatMap((p, i) =>
+        espaciosEstimDeGrupo(`piso${i}`, p.espacios ?? []),
+      );
+      for (const [k, v] of predecirDuracionesMotor(
+        esps,
+        args.areaTotal ? { areaTotal: args.areaTotal } : {},
+      )) {
+        predicciones.set(k, v);
+      }
+    }
+  } catch (err) {
+    // No es crítico: el flywheel de duraciones es telemetría, no parte del flujo.
+    console.warn("predecirObraPersonal falló (no crítico):", err);
+  }
+  return predicciones;
+}
+
 interface CrearCtx {
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
   faseId: string;
@@ -162,6 +267,12 @@ interface CrearCtx {
   ciudad: string | null;
   tipoObra: string | null;
   constructoraId: string;
+  /** Nombre de la fase de la obra (respaldo cuando `faseDeTarea` no matchea). */
+  faseProyecto: string;
+  /** Predicción del motor por espacio+tarea (clave de `clavePrediccion`). */
+  predicciones: Map<string, PrediccionTarea>;
+  /** Acumulador de pre-registros de duración (se persiste fuera de la tx). */
+  preRegistrosDuracion: PreRegistroDuracion[];
 }
 
 /**
@@ -203,16 +314,24 @@ async function flushPreciosCapturados(
  * Crea espacios + tareas activas dentro de una unidad ya creada.
  * Solo se persisten tareas con `activa === true` ("qué falta por hacer").
  * Lanza "MAX_TAREAS" si se supera el tope global.
+ *
+ * `grupo` identifica el bloque de espacios (tipo de apto o piso) para poder
+ * cruzar cada tarea con la predicción del motor. Si no se pasa (camino de
+ * EDICIÓN), no se generan pre-registros de duración: la edición no vuelve a
+ * correr el motor, así que esas tareas quedarán sin `dias_motor` y su
+ * aprobación creará una fila completa normal.
  */
 async function crearEspaciosYTareas(
   ctx: CrearCtx,
   unidadId: string,
   espacios: EspacioInput[],
+  grupo?: string,
 ): Promise<void> {
   const espaciosLimitados = renombrarEspaciosDuplicados(
     espacios.slice(0, MAX_ESPACIOS_POR_UNIDAD),
   );
-  for (const espacioInput of espaciosLimitados) {
+  for (let idxEspacio = 0; idxEspacio < espaciosLimitados.length; idxEspacio++) {
+    const espacioInput = espaciosLimitados[idxEspacio];
     const nombreEspacio = espacioInput.nombre?.trim();
     if (!nombreEspacio) continue;
 
@@ -234,13 +353,28 @@ async function crearEspaciosYTareas(
       },
     });
 
-    for (const t of tareasActivas) {
+    // CRONOGRAMA: las tareas del espacio se crean en ORDEN CONSTRUCTIVO y se
+    // encadenan con `depende_de` (ver `src/lib/cronograma/dependencias.ts`).
+    // El campo llevaba meses en el esquema sin que nadie lo escribiera, así que
+    // el usuario veía una lista de tareas, no un cronograma. La cadena es POR
+    // ESPACIO —el baño 2 no espera al baño 1—, que es la misma precedencia con
+    // la que el motor de duración construye su grafo.
+    const cadena = cadenaDeEspacio(
+      tareasActivas.map((t) => ordenConstructivoDeTarea(t.nombre?.trim() ?? "")),
+    );
+    /** Id ya persistido de cada tarea, por su índice en `tareasActivas`. */
+    const idsCreados = new Map<number, string>();
+
+    for (const eslabon of cadena) {
+      const t = tareasActivas[eslabon.indice];
       const nombreTarea = t.nombre?.trim();
       if (!nombreTarea) continue;
       if (ctx.seq.n >= MAX_TAREAS_TOTALES) throw new Error("MAX_TAREAS");
       ctx.seq.n++;
       const { precio, manoObra, materiales } = desgloseTarea(t);
-      await ctx.tx.tarea.create({
+      const dependeDe =
+        eslabon.dependeDe != null ? idsCreados.get(eslabon.dependeDe) ?? null : null;
+      const creada = await ctx.tx.tarea.create({
         data: {
           espacio_id: espacio.id,
           fase_id: ctx.faseId,
@@ -250,12 +384,15 @@ async function crearEspaciosYTareas(
           ...(precio != null ? { precio } : {}),
           ...(manoObra != null ? { presupuesto_mano_obra: manoObra } : {}),
           ...(materiales != null ? { presupuesto_materiales: materiales } : {}),
+          ...(dependeDe ? { depende_de: dependeDe } : {}),
           // Las tareas se asignan al dueño de la cuenta: sus obreros (que cuelgan
           // de él como contratista) las reportan y él mismo las valida.
           asignado_a: ctx.usuarioId,
           estado: "PENDIENTE",
         },
+        select: { id: true },
       });
+      idsCreados.set(eslabon.indice, creada.id);
 
       // Captura pasiva: deja rastro del precio fijado para el flywheel.
       if (precio != null) {
@@ -269,6 +406,24 @@ async function crearEspaciosYTareas(
           constructora_id: ctx.constructoraId,
           proyecto_id: null, // se rellena en el flush con el proyecto creado
         });
+      }
+
+      // Pre-registro de duración: guarda lo que PREDIJO EL MOTOR para esta
+      // tarea. El metraje es el mismo que se persistió en el Espacio, para que
+      // la aprobación pueda emparejar la fila.
+      if (grupo) {
+        const pre = construirPreRegistro({
+          nombreTarea,
+          faseProyecto: ctx.faseProyecto,
+          diasAcordados: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
+          metraje: espacioInput.metraje ?? null,
+          ciudad: ctx.ciudad,
+          cuadrillas: 1, // los dos call sites del motor fijan 1 hoy
+          prediccion: ctx.predicciones.get(
+            clavePrediccion(claveEspacioObra(grupo, idxEspacio), nombreTarea),
+          ),
+        });
+        if (pre) ctx.preRegistrosDuracion.push(pre);
       }
     }
   }
@@ -427,6 +582,15 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
 
   // Acumulador de precios para captura pasiva (se persiste FUERA de la tx).
   const precios: PrecioCapturado[] = [];
+  // Predicción del motor por espacio+tarea (pura, fuera de la tx) y su
+  // acumulador de pre-registros (se persiste FUERA de la tx).
+  const predicciones = predecirObraPersonal({
+    esEdificio,
+    tipos: edificioInput?.tipos ?? [],
+    pisos,
+    ...(metrajeTotal != null ? { areaTotal: metrajeTotal } : {}),
+  });
+  const preRegistrosDuracion: PreRegistroDuracion[] = [];
 
   try {
     const proyecto = await prisma.$transaction(
@@ -447,7 +611,7 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
             numero_registro: numeroRegistro,
             nombre: nombreObra,
             subtipo,
-            dias_habiles_semana: 5,
+            dias_habiles_semana: 6,
             estado: "ACTIVO",
             fecha_inicio: fechaInicio,
             fecha_fin_estimada: fechaFin,
@@ -484,6 +648,9 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
           ciudad,
           tipoObra: input.tipoObra,
           constructoraId,
+          faseProyecto: faseNombre,
+          predicciones,
+          preRegistrosDuracion,
         };
 
         if (esEdificio && edificioInput) {
@@ -553,7 +720,7 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
                     tipo_unidad_id: tipoUnidadId,
                   },
                 });
-                await crearEspaciosYTareas(ctx, unidad.id, def.espacios ?? []);
+                await crearEspaciosYTareas(ctx, unidad.id, def.espacios ?? [], `tipo${ti}`);
               }
             }
           }
@@ -568,9 +735,16 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
               data: { edificio_id: edificio.id, numero },
             });
             const unidad = await tx.unidad.create({
-              data: { piso_id: piso.id, nombre: nombrePiso(numero, totalPisos, nombreObra) },
+              data: {
+                piso_id: piso.id,
+                nombre: nombrePiso(numero, totalPisos, nombreObra),
+                // Uso del piso (LOCAL, opcional): sin columna propia en `Piso`
+                // (no se toca el schema), vive en `Unidad.nombre_personalizado`
+                // — ver PisoInput.usoNombre en types.ts.
+                nombre_personalizado: usoNombreValido(pisoInput.usoNombre),
+              },
             });
-            await crearEspaciosYTareas(ctx, unidad.id, pisoInput.espacios ?? []);
+            await crearEspaciosYTareas(ctx, unidad.id, pisoInput.espacios ?? [], `piso${i}`);
           }
         }
 
@@ -581,6 +755,20 @@ export async function crearObraPersonal(input: CrearObraInput): Promise<CrearObr
 
     // Captura pasiva del flywheel de precios (fuera de la tx, no crítica).
     await flushPreciosCapturados(precios, proyecto.id);
+    // Tripwire: si el motor predijo algo y no salió NI UN pre-registro, las dos
+    // pasadas (predicción y creación) dejaron de recorrer los mismos índices.
+    // Es el único modo en que esto falla en silencio, así que se grita.
+    if (
+      preRegistrosDuracion.length === 0 &&
+      [...predicciones.values()].some((p) => p.diasMotor != null)
+    ) {
+      console.warn(
+        "crearObraPersonal: el motor predijo tareas pero no se pre-registró ninguna. " +
+          "Revisa la alineación de claves espacio/tarea (claveEspacioObra).",
+      );
+    }
+    // Pre-registros de duración con la predicción del motor (idem: no crítica).
+    await flushPreRegistrosDuracion(preRegistrosDuracion, proyecto.id, constructoraId);
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/proyectos");
@@ -663,7 +851,9 @@ export async function cargarObraParaEditar(
   });
   if (!proyecto) return null;
 
-  const tipoObra = (proyecto.tipo_obra as TipoObra) ?? "REFORMA";
+  // Obras existentes con tipo_obra = "MODIFICACION" (clave retirada, fusionada
+  // en "REFORMA") deben seguir abriendo: resolverTipoObra hace el mapeo.
+  const tipoObra = resolverTipoObra(proyecto.tipo_obra);
   const tipoPropiedad = (proyecto.tipo_propiedad as TipoPropiedad) ?? "CASA";
   const esEdificio = tipoPropiedad === "EDIFICIO";
 
@@ -775,6 +965,7 @@ export async function cargarObraParaEditar(
     return {
       numero: i + 1,
       espacios: unidad ? unidad.espacios.map(espacioToInput) : [],
+      ...(unidad?.nombre_personalizado ? { usoNombre: unidad.nombre_personalizado } : {}),
     };
   });
 
@@ -1052,6 +1243,7 @@ export async function editarObraPersonal(
                 data: {
                   piso_id: piso.id,
                   nombre: nombrePiso(numero, pisosInput.length, nombreObra),
+                  nombre_personalizado: usoNombreValido(pisoInput.usoNombre),
                 },
               });
               const ctx: CrearCtx = {
@@ -1064,6 +1256,14 @@ export async function editarObraPersonal(
                 ciudad,
                 tipoObra: input.tipoObra,
                 constructoraId,
+                // EDICIÓN: no se vuelve a correr el motor (el usuario ya movió
+                // los días a mano), así que no hay predicción que pre-registrar.
+                // Sin `grupo` en la llamada, `crearEspaciosYTareas` no genera
+                // ninguna fila: las tareas nuevas quedarán sin `dias_motor` y su
+                // aprobación creará un registro completo normal.
+                faseProyecto: nombreFaseDesdeObra(input.tipoObra),
+                predicciones: new Map(),
+                preRegistrosDuracion: [],
               };
               await crearEspaciosYTareas(ctx, unidad.id, pisoInput.espacios ?? []);
               continue;
@@ -1072,6 +1272,7 @@ export async function editarObraPersonal(
             await sincronizarUnidad(tx, {
               unidad: existente.unidad!,
               espaciosInput: (pisoInput.espacios ?? []).slice(0, MAX_ESPACIOS_POR_UNIDAD),
+              usoNombre: pisoInput.usoNombre,
               faseId: fase.id,
               usuarioId: usuario.id,
               numeroRegistro: proyecto.numero_registro ?? `OB-${proyectoId.slice(0, 6)}`,
@@ -1159,6 +1360,8 @@ interface SyncUnidadArgs {
     }[];
   };
   espaciosInput: EspacioInput[];
+  /** Uso del piso (LOCAL, opcional) — ver PisoInput.usoNombre en types.ts. */
+  usoNombre?: string;
   faseId: string;
   usuarioId: string;
   numeroRegistro: string;
@@ -1178,6 +1381,15 @@ async function sincronizarUnidad(
   args: SyncUnidadArgs,
 ): Promise<void> {
   const { unidad, faseId, usuarioId, numeroRegistro, seq } = args;
+
+  // Uso del piso (LOCAL, opcional): se actualiza siempre, incluso si quedó
+  // vacío (permite borrarlo). No toca `nombre` (ese es el rótulo posicional
+  // "Primer piso"/nombre de la obra, no editable por el usuario aquí).
+  await tx.unidad.update({
+    where: { id: unidad.id },
+    data: { nombre_personalizado: usoNombreValido(args.usoNombre) },
+  });
+
   // Unicidad server-side: espacios duplicados en el mismo piso se auto-numeran
   // ANTES de emparejar por nombre (evita fusionar dos "Cocina" en una).
   const espaciosInput = renombrarEspaciosDuplicados(args.espaciosInput);

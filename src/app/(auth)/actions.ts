@@ -7,6 +7,11 @@ import { provisionarUsuario, provisionarPersonal } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
 import { getHomePathForRole } from "@/lib/access";
 import { registrarConsentimiento } from "@/lib/consent";
+import type { TipoCuenta } from "@/generated/prisma";
+import { esCuentaPersonal } from "@/lib/plan";
+
+/** Valores válidos del enum, para validar lo que llega del formulario. */
+const TIPOS_CUENTA: TipoCuenta[] = ["CONSTRUCTORA", "CONTRATISTA", "PROPIETARIO", "ARQUITECTO"];
 
 /**
  * Registra el consentimiento (IP + fecha) del usuario recién creado.
@@ -59,11 +64,14 @@ export async function registro(formData: FormData) {
   // Perfil elegido en el paso 0 del wizard. Por defecto CONSTRUCTORA (empresa)
   // para no cambiar el comportamiento de quien no eligió perfil.
   const tipoCuentaRaw = (formData.get("tipo_cuenta") as string) || "CONSTRUCTORA";
-  const tipoCuenta =
-    tipoCuentaRaw === "CONTRATISTA" || tipoCuentaRaw === "PROPIETARIO"
-      ? (tipoCuentaRaw as "CONTRATISTA" | "PROPIETARIO")
-      : "CONSTRUCTORA";
-  const esPersonal = tipoCuenta !== "CONSTRUCTORA";
+  // Se valida contra el enum de Prisma, NO contra una lista escrita a mano: la
+  // lista anterior tenía solo CONTRATISTA y PROPIETARIO, así que al añadir
+  // ARQUITECTO el perfil se caía en silencio a la rama de empresa. Cualquier
+  // perfil futuro entra aquí solo.
+  const tipoCuenta: TipoCuenta = TIPOS_CUENTA.includes(tipoCuentaRaw as TipoCuenta)
+    ? (tipoCuentaRaw as TipoCuenta)
+    : "CONSTRUCTORA";
+  const esPersonal = esCuentaPersonal(tipoCuenta);
 
   // ── Cuenta PERSONAL (contratista B2C / propietario) ───────────────────────
   if (esPersonal) {

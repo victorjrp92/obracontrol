@@ -6,6 +6,7 @@ import { getHomePathForRole } from "@/lib/access";
 import PwaLaunchRedirect from "@/components/pwa/PwaLaunchRedirect";
 import "@/components/landing-v2/landing-v2.css";
 
+import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";
 import NavBar from "@/components/landing-v2/NavBar";
 import Hero from "@/components/landing-v2/Hero";
 import Pasos from "@/components/landing-v2/Pasos";
@@ -23,6 +24,7 @@ import Testimonio from "@/components/landing-v2/Testimonio";
 import Faq from "@/components/landing-v2/Faq";
 import Cierre from "@/components/landing-v2/Cierre";
 import Footer from "@/components/landing-v2/Footer";
+import ModalCupoB2B from "@/components/landing-v2/ModalCupoB2B";
 import Reveals from "@/components/landing-v2/Reveals";
 
 export default async function LandingPage() {
@@ -52,6 +54,7 @@ export default async function LandingPage() {
       <Suspense fallback={null}>
         <PwaLaunchRedirect />
       </Suspense>
+      <AvisoEmergencia />
       <NavBar />
       <Hero />
       <Pasos />
@@ -69,6 +72,7 @@ export default async function LandingPage() {
       <Faq />
       <Cierre />
       <Footer />
+      <ModalCupoB2B />
       <Reveals />
     </div>
   );

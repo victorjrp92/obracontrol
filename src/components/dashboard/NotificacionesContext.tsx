@@ -107,9 +107,15 @@ export function NotificacionesProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initial fetch + polling defensivo (60s por si Realtime se cae)
+  // Initial fetch + polling defensivo (60s por si Realtime se cae).
+  // El primer `refetch` va envuelto en una función async: llamarlo suelto en el
+  // cuerpo del efecto deja el `setState` en cascada con el render
+  // (`react-hooks/set-state-in-effect`). El del intervalo no hace falta
+  // envolverlo — ya corre en un callback, fuera del render.
   useEffect(() => {
-    refetch();
+    void (async () => {
+      await refetch();
+    })();
     const interval = setInterval(refetch, 60_000);
     return () => clearInterval(interval);
   }, [refetch]);

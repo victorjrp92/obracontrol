@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         constructora_id: usuario.constructora_id,
         nombre,
         subtipo,
-        dias_habiles_semana: dias_habiles_semana ?? 5,
+        dias_habiles_semana: dias_habiles_semana ?? 6,
         fecha_inicio: fecha_inicio ? new Date(fecha_inicio) : null,
         fecha_fin_estimada: fecha_fin_estimada ? new Date(fecha_fin_estimada) : null,
         ubicacion_lat,

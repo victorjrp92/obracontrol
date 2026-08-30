@@ -85,7 +85,7 @@ export default function AprobarButtons({
         <textarea
           value={justificacion}
           onChange={(e) => setJustificacion(e.target.value)}
-          placeholder="Indica qué hace falta o qué debe corregirse. El obrero verá este mensaje al reenviar la tarea."
+          placeholder="Indica qué hace falta o qué debe corregirse. El personal de campo verá este mensaje al reenviar la tarea."
           className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
           rows={3}
           autoFocus

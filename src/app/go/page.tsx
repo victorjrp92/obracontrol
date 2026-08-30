@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "@/components/landing-go/landing-go.css";
 
+import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";
 import PromoBarGo from "@/components/landing-go/PromoBarGo";
 import NavBarGo from "@/components/landing-go/NavBarGo";
 import HeroGo from "@/components/landing-go/HeroGo";
@@ -36,12 +37,26 @@ export const metadata: Metadata = {
       "Tu obra con pruebas: foto, GPS y hora en cada avance, el dinero con factura y el semáforo que avisa a tiempo. Estés donde estés.",
     locale: "es_CO",
     type: "website",
+    images: [
+      {
+        url: "/og/seiricon-go.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Seiricon Go — Nadie cuida tu proyecto como tú",
+      },
+    ],
   },
+  other: {
+    "og:image:secure_url": `https://seiricon.com/og/seiricon-go.jpg`,
+    "og:image:type": "image/jpeg",
+  },
+  twitter: { card: "summary_large_image", images: ["/og/seiricon-go.jpg"] },
 };
 
 export default function SeiriconGoPage() {
   return (
     <div className="lgo">
+      <AvisoEmergencia />
       <PromoBarGo />
       <NavBarGo />
       <HeroGo />

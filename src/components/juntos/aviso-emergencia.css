@@ -1,0 +1,117 @@
+/* ════════════════════════════════════════════════════════════════════════
+   Franja de emergencia → /go/juntos
+
+   Autocontenida a propósito: vive dentro de `.lv2` y de `.lgo`, que tienen
+   tokens distintos. Nada de var() heredadas — si mañana se mueve a una
+   tercera página, se ve igual.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.avem {
+  display: block;
+  background: #0f172a;
+  color: #fff;
+  text-decoration: none;
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.18s;
+}
+.avem:hover {
+  background: #16233d;
+}
+
+.avem-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  flex-wrap: wrap;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 11px 20px;
+}
+
+/* Etiqueta: dice de qué se trata sin adjetivos. El ámbar es lo único
+   saturado de la franja — un solo punto de atención, no tres. */
+.avem-eti {
+  flex: none;
+  border-radius: 999px;
+  background: #d97706;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.avem-txt {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.88);
+}
+.avem-txt b {
+  font-weight: 800;
+  color: #fff;
+}
+
+.avem-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  padding: 7px 15px;
+  white-space: nowrap;
+}
+/* Chevron en CSS: evita cargar un icono para una flecha de 8 px. */
+.avem-btn i {
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.18s;
+}
+.avem:hover .avem-btn i {
+  transform: rotate(45deg) translate(2px, -2px);
+}
+
+.avem:focus-visible {
+  outline: 3px solid #d97706;
+  outline-offset: -3px;
+}
+
+/* Móvil: el texto largo se parte y empuja el botón fuera de vista. Se acorta
+   el mensaje al gancho y el botón sube al lado de la etiqueta. */
+@media (max-width: 720px) {
+  .avem-in {
+    gap: 9px;
+    padding: 10px 15px;
+  }
+  .avem-txt {
+    flex: 1 1 100%;
+    order: 3;
+    font-size: 12.5px;
+    text-align: left;
+  }
+  .avem-in {
+    justify-content: flex-start;
+  }
+  .avem-btn {
+    margin-left: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avem,
+  .avem-btn i {
+    transition: none;
+  }
+}

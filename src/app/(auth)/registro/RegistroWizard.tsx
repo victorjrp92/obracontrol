@@ -16,6 +16,7 @@ import {
   Check,
   Home,
   Compass,
+  PencilRuler,
   ChevronRight,
 } from "lucide-react";
 import { registro, loginConGoogle } from "../actions";
@@ -24,7 +25,14 @@ import PasswordField from "./PasswordField";
 const INPUT_CLS =
   "w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-900 placeholder:text-slate-400";
 
-type Perfil = "PROPIETARIO" | "CONTRATISTA" | "CONSTRUCTORA";
+type Perfil = "PROPIETARIO" | "ARQUITECTO" | "CONTRATISTA" | "CONSTRUCTORA";
+
+/** Los tres perfiles B2C: comparten el formulario de un solo paso. */
+type PerfilPersonal = Exclude<Perfil, "CONSTRUCTORA">;
+
+function esPerfilPersonal(p: Perfil): p is PerfilPersonal {
+  return p !== "CONSTRUCTORA";
+}
 
 const PERFILES: {
   key: Perfil;
@@ -40,11 +48,20 @@ const PERFILES: {
     desc: "Remodelo o construyo mi vivienda y superviso a los obreros que contrato.",
     acento: "text-emerald-600 bg-emerald-50 border-emerald-200",
   },
+  // Arquitecto va segundo, entre el propietario y el contratista: es quien diseña
+  // antes de que alguien ejecute, y el orden de la lista sigue esa secuencia.
+  {
+    key: "ARQUITECTO",
+    icon: PencilRuler,
+    titulo: "Soy arquitecto",
+    desc: "Diseño y superviso obras. Entrego planos, renders e informes firmados a mis clientes.",
+    acento: "text-indigo-600 bg-indigo-50 border-indigo-200",
+  },
   {
     key: "CONTRATISTA",
     icon: Compass,
     titulo: "Soy contratista",
-    desc: "Eres arquitecto o tienes un negocio de pintura, instalación eléctrica, cocinas, carpintería… y envías a tu personal a ejecutar trabajos donde tus clientes.",
+    desc: "Tengo un negocio de pintura, instalación eléctrica, cocinas o carpintería y envío a mi personal a ejecutar trabajos donde mis clientes.",
     acento: "text-blue-600 bg-blue-50 border-blue-200",
   },
   {
@@ -55,6 +72,31 @@ const PERFILES: {
     acento: "text-slate-700 bg-slate-100 border-slate-200",
   },
 ];
+
+/** Encabezado del formulario de cuenta, por perfil personal. */
+const COPY_CUENTA: Record<PerfilPersonal, { titulo: string; subtitulo: string }> = {
+  PROPIETARIO: {
+    titulo: "Crea tu cuenta",
+    subtitulo: "Solo lo esencial. Tu primera obra la creamos en cuanto ingreses.",
+  },
+  ARQUITECTO: {
+    titulo: "Crea tu cuenta de arquitecto",
+    subtitulo: "En unos minutos tendrás tu cuenta lista. El resto lo configuramos juntos.",
+  },
+  CONTRATISTA: {
+    titulo: "Crea tu cuenta de contratista",
+    subtitulo: "En unos minutos tendrás tu cuenta lista. El resto lo configuramos juntos.",
+  },
+};
+
+/**
+ * Perfiles que facturan a terceros: el nombre de la cuenta es el del negocio o
+ * el del estudio, no el de la persona. El propietario no tiene ninguno.
+ */
+const COPY_NEGOCIO: Record<"ARQUITECTO" | "CONTRATISTA", { label: string; placeholder: string }> = {
+  ARQUITECTO: { label: "Nombre del estudio", placeholder: "Estudio Pérez (opcional)" },
+  CONTRATISTA: { label: "Nombre del negocio", placeholder: "Pinturas Pérez (opcional)" },
+};
 
 export default function RegistroWizard({ error }: { error?: string }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
@@ -68,7 +110,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [empresaTelefono, setEmpresaTelefono] = useState("");
   const [empresaSitioWeb, setEmpresaSitioWeb] = useState("");
 
-  // Personal (contratista B2C): nombre del negocio
+  // Personal (contratista B2C / arquitecto): nombre del negocio o del estudio
   const [estudioNombre, setEstudioNombre] = useState("");
 
   // Cuenta (todos)
@@ -79,7 +121,6 @@ export default function RegistroWizard({ error }: { error?: string }) {
   const [passwordError, setPasswordError] = useState("");
   const [consent, setConsent] = useState(false);
 
-  const esPersonal = perfil === "PROPIETARIO" || perfil === "CONTRATISTA";
   const canProceed1 = empresaNombre.trim().length >= 1;
   const passwordsCoinciden = password === passwordConfirm;
 
@@ -109,7 +150,7 @@ export default function RegistroWizard({ error }: { error?: string }) {
       formData.set("empresa_ciudad", empresaCiudad);
       formData.set("empresa_telefono", empresaTelefono);
       formData.set("empresa_sitio_web", empresaSitioWeb);
-    } else if (perfil === "CONTRATISTA") {
+    } else if (perfil === "CONTRATISTA" || perfil === "ARQUITECTO") {
       formData.set("estudio_nombre", estudioNombre);
     }
     await registro(formData);
@@ -163,21 +204,18 @@ export default function RegistroWizard({ error }: { error?: string }) {
     );
   }
 
-  // ── Flujo PERSONAL (contratista B2C / propietario): un solo paso ───────────
-  if (esPersonal) {
+  // ── Flujo PERSONAL (propietario / arquitecto / contratista B2C): un solo paso ──
+  if (esPerfilPersonal(perfil)) {
+    const copy = COPY_CUENTA[perfil];
+    const negocio = perfil === "PROPIETARIO" ? null : COPY_NEGOCIO[perfil];
+
     return (
       <>
         <BackToPicker onClick={() => setPerfil(null)} />
 
         <div className="mb-6">
-          <h2 className="text-lg font-bold text-slate-900">
-            {perfil === "CONTRATISTA" ? "Crea tu cuenta de contratista" : "Crea tu cuenta"}
-          </h2>
-          <p className="text-sm text-slate-500">
-            {perfil === "CONTRATISTA"
-              ? "En unos minutos tendrás tu cuenta lista. El resto lo configuramos juntos."
-              : "Solo lo esencial. Tu primera obra la creamos en cuanto ingreses."}
-          </p>
+          <h2 className="text-lg font-bold text-slate-900">{copy.titulo}</h2>
+          <p className="text-sm text-slate-500">{copy.subtitulo}</p>
         </div>
 
         {error && (
@@ -189,12 +227,12 @@ export default function RegistroWizard({ error }: { error?: string }) {
         <form action={handleSubmit} className="flex flex-col gap-4">
           <Field id="name" name="name" label="Tu nombre" required icon={User} placeholder="Juan Pérez" value={nombre} onChange={setNombre} autoFocus />
 
-          {perfil === "CONTRATISTA" && (
+          {negocio && (
             <Field
               id="estudio_nombre"
-              label="Nombre del negocio"
+              label={negocio.label}
               icon={Building2}
-              placeholder="Pinturas Pérez (opcional)"
+              placeholder={negocio.placeholder}
               value={estudioNombre}
               onChange={setEstudioNombre}
             />
@@ -332,8 +370,8 @@ export default function RegistroWizard({ error }: { error?: string }) {
 
           {/* "Continuar con Google" SOLO en el flujo de empresa: el callback de
               OAuth provisiona como CONSTRUCTORA por defecto. Ofrecerlo en los
-              perfiles personales (Propietario/Contratista B2C) crearía el tipo de
-              cuenta equivocado y perdería el perfil personal. */}
+              perfiles personales (Propietario / Arquitecto / Contratista B2C)
+              crearía el tipo de cuenta equivocado y perdería el perfil personal. */}
           <GoogleDivider />
           <GoogleButton />
         </form>

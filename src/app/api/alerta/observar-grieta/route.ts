@@ -9,6 +9,15 @@ import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 // payload sobredimensionado (413) y el rate limit (429 implícito como
 // {ok:false}, el cliente cae a modo manual). Adaptada para Juntos
 // (spec-go-juntos.md): rate limit en memoria por IP, sin logs de datos.
+//
+// Motivos que puede devolver (ver ObservarGrietaResult en observar-grieta.ts):
+//   - "sin_key"   → lectura automática apagada → el cliente cae a modo manual.
+//   - "error"     → falló y no hay nada que la persona pueda hacer → modo manual.
+//   - "foto_mala" → el modelo leyó pero la foto no daba; viaja además
+//                   `calidad_foto` (enum ya validado), `queFallo` y `consejo`
+//                   para que el cliente le ofrezca REPETIR la foto.
+// `maxDuration = 60` cubre el ciclo completo de observarGrieta() con su único
+// reintento (presupuesto interno de 50s).
 export const maxDuration = 60;
 
 const MAX_POR_MINUTO_POR_IP = 10;

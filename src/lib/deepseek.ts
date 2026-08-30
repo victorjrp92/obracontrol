@@ -77,9 +77,20 @@ async function chatJSON<T>(opts: ChatOpts): Promise<T | null> {
   }
 }
 
+/**
+ * Etiqueta legible del tipo de obra para el prompt.
+ *
+ * `MODIFICACION` se fusionó dentro de `REFORMA` (ver `plantillas-personal.ts`:
+ * `TIPOS_OBRA` ya solo tiene dos claves), pero NO se borra la entrada: los
+ * proyectos creados antes de la fusión siguen con `tipo_obra = "MODIFICACION"`
+ * en la base y al reabrirlos el valor crudo llega hasta aquí. Sin esta línea
+ * caerían en el `||` de abajo y el modelo recibiría «obra de construcción»
+ * —peor prompt— en vez del texto correcto. Apunta al MISMO texto que REFORMA,
+ * que es lo que dice hoy la fusión.
+ */
 const LABEL_OBRA: Record<string, string> = {
   REFORMA: "reforma / remodelación",
-  MODIFICACION: "modificación / ampliación",
+  MODIFICACION: "reforma / remodelación",
   OBRA_NUEVA: "obra nueva (de cero)",
 };
 const LABEL_PROP: Record<string, string> = {

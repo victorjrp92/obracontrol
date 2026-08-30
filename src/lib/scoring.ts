@@ -1,33 +1,21 @@
 import { prisma } from "@/lib/prisma";
+import { diasHabilesEntre } from "@/lib/calendario-colombia";
 
 /**
- * Calcula los días hábiles transcurridos entre dos fechas
- * según la configuración del proyecto (5, 6 o 7 días/semana)
+ * Días hábiles transcurridos entre dos fechas, según la jornada del proyecto
+ * (`dias_habiles_semana`: 5, 6 o 7).
+ *
+ * ALIAS del nombre histórico. La implementación —y con ella LA definición de
+ * «día hábil» de todo el repo— vive en `calendario-colombia.ts`. Aquí había
+ * una copia propia que solo excluía sábados y domingos: **no conocía ni un
+ * festivo colombiano**, y son 18 al año (6–7% del calendario). Los llamadores
+ * (`data.ts`, `data-detail.ts`, `data-contratista.ts`, `data-directivo.ts`,
+ * `data-obrero.ts`, `api/progreso`) no cambian: misma firma, misma convención
+ * de conteo (días ENTEROS en `[inicio, fin)`), un día menos por cada festivo
+ * que el proyecto se comió. El conteo pasa de hora local a UTC para que dos
+ * servidores en zonas distintas no den semáforos distintos.
  */
-export function calcularDiasHabiles(
-  desde: Date,
-  hasta: Date,
-  diasSemanales: number
-): number {
-  let dias = 0;
-  const cursor = new Date(desde);
-  cursor.setHours(0, 0, 0, 0);
-  const fin = new Date(hasta);
-  fin.setHours(0, 0, 0, 0);
-
-  while (cursor < fin) {
-    const dow = cursor.getDay(); // 0=dom, 6=sab
-    const esHabil =
-      diasSemanales === 7
-        ? true
-        : diasSemanales === 6
-        ? dow !== 0 // excluye domingo
-        : dow !== 0 && dow !== 6; // excluye sab y dom
-    if (esHabil) dias++;
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return dias;
-}
+export { diasHabilesEntre as calcularDiasHabiles } from "@/lib/calendario-colombia";
 
 /**
  * Determina el semáforo de una tarea según su desviación de tiempo
@@ -129,7 +117,7 @@ export async function recalcularScoreContratista(contratistaId: string): Promise
       const fin = t.fecha_fin_real ?? new Date();
       const diasSemanales =
         t.espacio.unidad.piso.edificio.proyecto.dias_habiles_semana;
-      const diasReales = calcularDiasHabiles(inicio, fin, diasSemanales);
+      const diasReales = diasHabilesEntre(inicio, fin, diasSemanales);
 
       // Si el retraso fue por falta de pista (sin culpa del contratista), no penaliza
       const tieneRetrasoContratista = t.retrasos.some(
@@ -252,7 +240,7 @@ export async function recalcularScoreObrerosDeTarea(tareaId: string): Promise<vo
     const aTiempo = tareasDelObrero.filter((t) => {
       if (t.estado !== "APROBADA" || !t.fecha_fin_real || !t.fecha_inicio) return false;
       const diasHabilesProyecto = t.espacio.unidad.piso.edificio.proyecto.dias_habiles_semana;
-      const diasReales = calcularDiasHabiles(t.fecha_inicio, t.fecha_fin_real, diasHabilesProyecto);
+      const diasReales = diasHabilesEntre(t.fecha_inicio, t.fecha_fin_real, diasHabilesProyecto);
       return diasReales <= t.tiempo_acordado_dias;
     }).length;
 

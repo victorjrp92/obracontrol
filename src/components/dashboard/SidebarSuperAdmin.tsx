@@ -30,7 +30,7 @@ const navItems = [
   { key: "sa-proyectos", icon: FolderOpen, label: "Proyectos", href: "/super-admin/proyectos" },
   { key: "sa-admins", icon: UsersRound, label: "Admin Generales", href: "/super-admin/admins-generales" },
   { key: "sa-contratistas", icon: Briefcase, label: "Contratistas", href: "/super-admin/contratistas" },
-  { key: "sa-obreros", icon: HardHat, label: "Obreros", href: "/super-admin/obreros" },
+  { key: "sa-obreros", icon: HardHat, label: "Personal de campo", href: "/super-admin/obreros" },
   { key: "sa-roles", icon: KeyRound, label: "Roles del sistema", href: "/super-admin/roles" },
   { key: "sa-reportes", icon: BarChart3, label: "Reportes globales", href: "/super-admin/reportes" },
   { key: "sa-pwa", icon: Smartphone, label: "Instalaciones PWA", href: "/super-admin/pwa-metricas" },

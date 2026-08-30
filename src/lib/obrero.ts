@@ -1,4 +1,9 @@
-import { EspecialidadObrero } from "@/generated/prisma";
+// `import type`, no `import`: `EspecialidadObrero` es un enum, o sea una
+// constante REAL en el cliente generado. Con la forma de valor bastaba con
+// usarla una vez fuera de una posición de tipo para arrastrar todo
+// `@/generated/prisma` al bundle de `ObreroManager.tsx` y de
+// `dashboard/obreros/client.tsx`, que son "use client".
+import type { EspecialidadObrero } from "@/generated/prisma";
 
 export const ESPECIALIDADES: EspecialidadObrero[] = [
   "ALBANIL",

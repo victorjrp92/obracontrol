@@ -25,6 +25,7 @@ import { Pool } from "pg";
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "crypto";
+import { esHabil as esHabilCanonico } from "../src/lib/calendario-colombia";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -102,13 +103,22 @@ function genPassword(): string {
   return pass;
 }
 
-// Réplica de la regla de días hábiles de src/lib/scoring.ts (no importamos de
-// src/ porque ese módulo arrastra el cliente Prisma del app).
+/**
+ * Día hábil, con la MISMA definición que el resto del repo.
+ *
+ * Antes esto era una réplica local («no importamos de src/ porque ese módulo
+ * arrastra el cliente Prisma»). El motivo dejó de ser cierto:
+ * `calendario-colombia.ts` no tiene ninguna dependencia —ni Prisma, ni red, ni
+ * reloj— así que se importa directo. La réplica descontaba domingos pero NO los
+ * 18 festivos colombianos, y sembraba datos de demo con fechas que la app
+ * después interpretaba con otra regla.
+ *
+ * Se pregunta por la fecha normalizada a medianoche UTC porque el canónico mira
+ * `getUTCDay()` y este script camina el calendario en hora local.
+ */
 function esHabil(d: Date, diasSemana: number): boolean {
-  const dow = d.getDay();
-  if (diasSemana === 7) return true;
-  if (diasSemana === 6) return dow !== 0;
-  return dow !== 0 && dow !== 6;
+  const enUTC = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  return esHabilCanonico(enUTC, diasSemana);
 }
 
 function addBusinessDays(from: Date, n: number, diasSemana = DIAS_HABILES_SEMANA): Date {

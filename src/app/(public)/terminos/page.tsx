@@ -15,7 +15,7 @@ export default function TerminosPage() {
         <h2>1. Objeto</h2>
         <p>
           Los presentes Terminos y Condiciones regulan el acceso y uso de la plataforma tecnologica SEIRICON
-          (en adelante, "la Plataforma"), operada por SEIRICON S.A.S., sociedad constituida bajo las leyes de la
+          (en adelante, &ldquo;la Plataforma&rdquo;), operada por SEIRICON S.A.S., sociedad constituida bajo las leyes de la
           Republica de Colombia, identificada con NIT [pendiente de registro], con domicilio en la ciudad de Cali, Valle del Cauca
         </p>
         <p>

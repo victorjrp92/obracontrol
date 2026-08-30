@@ -14,6 +14,8 @@
 // La carpintería (closets, cocinas) suele cotizarse "a todo costo" → marcado.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { normalizarParaMatch } from "./normalizar-tarea";
+
 export type UnidadPrecio = "m2" | "ml" | "unidad" | "global";
 export type Confianza = "alta" | "media" | "baja";
 export type IncluyeMaterial = "no" | "si" | "parcial";
@@ -21,7 +23,11 @@ export type IncluyeMaterial = "no" | "si" | "parcial";
 export interface PrecioSemilla {
   /** clave normalizada para matching */
   key: string;
-  /** términos que, si aparecen en el nombre de la tarea, mapean a este precio */
+  /**
+   * Términos que, si aparecen en el nombre de la tarea, mapean a este precio.
+   * Se comparan NORMALIZADOS (`normalizarParaMatch`): NO hace falta listar la
+   * variante con conector ("estuco de pared" ≡ "estuco pared") ni con tilde.
+   */
   match: string[];
   label: string;
   unidad: UnidadPrecio;
@@ -46,33 +52,33 @@ export const PCT_MANO_OBRA_DEFAULT = 0.45;
 
 export const PRECIOS_SEMILLA: PrecioSemilla[] = [
   // ── Obra blanca / acabados ──────────────────────────────────────────────
-  { key: "estuco_pared", match: ["estuco pared", "estuco de pared", "estuco paredes"], label: "Estuco de paredes", unidad: "m2", medianoCOP: 9000, minCOP: 8000, maxCOP: 12000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.55 },
-  { key: "estuco_techo", match: ["estuco techo", "estuco de techo", "estuco cielo"], label: "Estuco de techo", unidad: "m2", medianoCOP: 11000, minCOP: 9000, maxCOP: 14000, incluyeMaterial: "no", confianza: "baja", pctManoObra: 0.55, nota: "Estimado +15-25% sobre estuco de pared; poca data específica." },
+  { key: "estuco_pared", match: ["estuco", "estuco pared", "estuco paredes"], label: "Estuco de paredes", unidad: "m2", medianoCOP: 9000, minCOP: 8000, maxCOP: 12000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.55 },
+  { key: "estuco_techo", match: ["estuco techo", "estuco cielo"], label: "Estuco de techo", unidad: "m2", medianoCOP: 11000, minCOP: 9000, maxCOP: 14000, incluyeMaterial: "no", confianza: "baja", pctManoObra: 0.55, nota: "Estimado +15-25% sobre estuco de pared; poca data específica." },
   { key: "sellador", match: ["sellador"], label: "Sellador", unidad: "m2", medianoCOP: 4000, minCOP: 3000, maxCOP: 6000, incluyeMaterial: "no", confianza: "baja", pctManoObra: 0.55, nota: "Suele ir embebido en la 1ª mano de pintura." },
   { key: "pintura_base", match: ["pintura base", "primera mano"], label: "Pintura base", unidad: "m2", medianoCOP: 7000, minCOP: 6000, maxCOP: 9000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.55 },
   { key: "pintura_final", match: ["pintura final", "pintura", "vinilo"], label: "Pintura final / vinilo", unidad: "m2", medianoCOP: 11000, minCOP: 9000, maxCOP: 13000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.55 },
-  { key: "enchape_piso", match: ["enchape piso", "ceramica piso", "cerámica de piso", "piso ceramica", "baldosa piso"], label: "Enchape / cerámica de piso", unidad: "m2", medianoCOP: 20000, minCOP: 15000, maxCOP: 25000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.42 },
-  { key: "enchape_pared", match: ["enchape pared", "ceramica pared", "cerámica de pared", "enchape baño", "enchape cocina"], label: "Enchape de pared", unidad: "m2", medianoCOP: 26000, minCOP: 18000, maxCOP: 35000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
+  { key: "enchape_piso", match: ["enchape piso", "ceramica piso", "piso ceramica", "baldosa piso", "baldoseria", "baldoseria piso", "acabado piso"], label: "Enchape / cerámica de piso", unidad: "m2", medianoCOP: 20000, minCOP: 15000, maxCOP: 25000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.42 },
+  { key: "enchape_pared", match: ["enchape pared", "ceramica pared", "enchape baño", "enchape cocina", "baldoseria pared"], label: "Enchape de pared", unidad: "m2", medianoCOP: 26000, minCOP: 18000, maxCOP: 35000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
   { key: "porcelanato", match: ["porcelanato"], label: "Porcelanato", unidad: "m2", medianoCOP: 28000, minCOP: 22000, maxCOP: 50000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.25, nota: "Rango amplio según formato." },
-  { key: "resane", match: ["resane", "masilla", "dilatacion"], label: "Resane", unidad: "m2", medianoCOP: 8000, minCOP: 6000, maxCOP: 12000, incluyeMaterial: "no", confianza: "baja", pctManoObra: 0.65 },
+  { key: "resane", match: ["resane", "resanar", "masilla", "dilatacion"], label: "Resane", unidad: "m2", medianoCOP: 8000, minCOP: 6000, maxCOP: 12000, incluyeMaterial: "no", confianza: "baja", pctManoObra: 0.65 },
 
   // ── Madera / carpintería ────────────────────────────────────────────────
   { key: "puerta_instalacion", match: ["puerta", "instalar puerta", "puerta de paso"], label: "Instalación puerta de paso (M.O.)", unidad: "unidad", medianoCOP: 90000, minCOP: 60000, maxCOP: 150000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.40, nota: "Solo instalación; el producto va aparte (350k-800k)." },
-  { key: "closet", match: ["closet", "clóset", "armario"], label: "Closet a medida (fab.+inst.)", unidad: "ml", medianoCOP: 1800000, minCOP: 1500000, maxCOP: 2200000, incluyeMaterial: "si", confianza: "alta", pctManoObra: 0.30, nota: "A todo costo, por metro lineal. MDF +15-50%. Data de Medellín. Material variable: el usuario puede ajustar el % de M.O." },
-  { key: "mueble_bajo_cocina", match: ["mueble bajo cocina", "mueble bajo de cocina", "cocina bajo"], label: "Mueble bajo de cocina (fab.+inst.)", unidad: "ml", medianoCOP: 400000, minCOP: 250000, maxCOP: 700000, incluyeMaterial: "parcial", confianza: "media", pctManoObra: 0.28, nota: "No incluye mesón ni electrodomésticos. Material variable: el usuario puede ajustar el % de M.O." },
-  { key: "mueble_alto_cocina", match: ["mueble alto cocina", "mueble alto de cocina", "cocina alto"], label: "Mueble alto de cocina (fab.+inst.)", unidad: "ml", medianoCOP: 400000, minCOP: 250000, maxCOP: 600000, incluyeMaterial: "parcial", confianza: "media", pctManoObra: 0.28, nota: "Material variable: el usuario puede ajustar el % de M.O." },
-  { key: "mueble_bano", match: ["mueble baño", "mueble de baño", "lavamanos mueble", "vanity"], label: "Mueble de baño / lavamanos (fab.+inst.)", unidad: "unidad", medianoCOP: 800000, minCOP: 350000, maxCOP: 2000000, incluyeMaterial: "si", confianza: "media", pctManoObra: 0.28, nota: "Alta dispersión. Material variable: el usuario puede ajustar el % de M.O." },
+  { key: "closet", match: ["closet", "armario", "vestier"], label: "Closet a medida (fab.+inst.)", unidad: "ml", medianoCOP: 1800000, minCOP: 1500000, maxCOP: 2200000, incluyeMaterial: "si", confianza: "alta", pctManoObra: 0.30, nota: "A todo costo, por metro lineal. MDF +15-50%. Data de Medellín. Material variable: el usuario puede ajustar el % de M.O." },
+  { key: "mueble_bajo_cocina", match: ["mueble bajo cocina", "cocina bajo"], label: "Mueble bajo de cocina (fab.+inst.)", unidad: "ml", medianoCOP: 400000, minCOP: 250000, maxCOP: 700000, incluyeMaterial: "parcial", confianza: "media", pctManoObra: 0.28, nota: "No incluye mesón ni electrodomésticos. Material variable: el usuario puede ajustar el % de M.O." },
+  { key: "mueble_alto_cocina", match: ["mueble alto cocina", "cocina alto"], label: "Mueble alto de cocina (fab.+inst.)", unidad: "ml", medianoCOP: 400000, minCOP: 250000, maxCOP: 600000, incluyeMaterial: "parcial", confianza: "media", pctManoObra: 0.28, nota: "Material variable: el usuario puede ajustar el % de M.O." },
+  { key: "mueble_bano", match: ["mueble baño", "lavamanos mueble", "vanity"], label: "Mueble de baño / lavamanos (fab.+inst.)", unidad: "unidad", medianoCOP: 800000, minCOP: 350000, maxCOP: 2000000, incluyeMaterial: "si", confianza: "media", pctManoObra: 0.28, nota: "Alta dispersión. Material variable: el usuario puede ajustar el % de M.O." },
   { key: "lustro", match: ["lustro", "barniz", "barnizado", "detallado", "lijado"], label: "Lustro / barnizado de madera (M.O.)", unidad: "m2", medianoCOP: 17000, minCOP: 14000, maxCOP: 22000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.55, nota: "Fuente única (CYPE), pero APU detallado." },
 
   // ── Instalaciones ─────────────────────────────────────────────────────────
-  { key: "punto_electrico", match: ["punto electrico", "punto eléctrico", "toma", "interruptor", "salida electrica"], label: "Punto eléctrico (M.O.)", unidad: "unidad", medianoCOP: 40000, minCOP: 25000, maxCOP: 65000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
-  { key: "punto_hidraulico", match: ["punto hidraulico", "punto hidráulico", "punto agua", "suministro agua"], label: "Punto hidráulico (M.O.)", unidad: "unidad", medianoCOP: 80000, minCOP: 65000, maxCOP: 138000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
-  { key: "punto_sanitario", match: ["punto sanitario", "desague", "desagüe"], label: "Punto sanitario / desagüe (M.O.)", unidad: "unidad", medianoCOP: 100000, minCOP: 75000, maxCOP: 131000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
-  { key: "aparato_sanitario", match: ["sanitario", "lavamanos", "ducha", "instalar aparato", "grifería", "griferia"], label: "Instalación aparato sanitario (M.O.)", unidad: "unidad", medianoCOP: 60000, minCOP: 50000, maxCOP: 110000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.25, nota: "Material variable (el aparato): el usuario puede ajustar el % de M.O." },
+  { key: "punto_electrico", match: ["punto electrico", "toma", "interruptor", "salida electrica"], label: "Punto eléctrico (M.O.)", unidad: "unidad", medianoCOP: 40000, minCOP: 25000, maxCOP: 65000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
+  { key: "punto_hidraulico", match: ["punto hidraulico", "punto agua", "suministro agua"], label: "Punto hidráulico (M.O.)", unidad: "unidad", medianoCOP: 80000, minCOP: 65000, maxCOP: 138000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
+  { key: "punto_sanitario", match: ["punto sanitario", "desague"], label: "Punto sanitario / desagüe (M.O.)", unidad: "unidad", medianoCOP: 100000, minCOP: 75000, maxCOP: 131000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.45 },
+  { key: "aparato_sanitario", match: ["sanitario", "lavamanos", "ducha", "instalar aparato", "griferia"], label: "Instalación aparato sanitario (M.O.)", unidad: "unidad", medianoCOP: 60000, minCOP: 50000, maxCOP: 110000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.25, nota: "Material variable (el aparato): el usuario puede ajustar el % de M.O." },
 
   // ── Obra gris ─────────────────────────────────────────────────────────────
-  { key: "mamposteria", match: ["mamposteria", "mampostería", "muro", "ladrillo", "bloque", "pared ladrillo"], label: "Mampostería / muro (M.O.)", unidad: "m2", medianoCOP: 24000, minCOP: 18000, maxCOP: 40000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.40 },
-  { key: "panete", match: ["pañete", "panete", "revoque", "repello"], label: "Pañete / revoque (M.O.)", unidad: "m2", medianoCOP: 15000, minCOP: 10000, maxCOP: 22000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.40 },
+  { key: "mamposteria", match: ["mamposteria", "muro", "ladrillo", "bloque", "pared ladrillo"], label: "Mampostería / muro (M.O.)", unidad: "m2", medianoCOP: 24000, minCOP: 18000, maxCOP: 40000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.40 },
+  { key: "panete", match: ["panete", "revoque", "repello"], label: "Pañete / revoque (M.O.)", unidad: "m2", medianoCOP: 15000, minCOP: 10000, maxCOP: 22000, incluyeMaterial: "no", confianza: "alta", pctManoObra: 0.40 },
   { key: "placa", match: ["placa", "estructura", "concreto armado", "losa"], label: "Placa / estructura (M.O.)", unidad: "m2", medianoCOP: 45000, minCOP: 35000, maxCOP: 55000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.28 },
   { key: "pulida_piso", match: ["pulida", "alisado", "piso concreto", "afinado"], label: "Pulida / alisado de piso (M.O.)", unidad: "m2", medianoCOP: 25000, minCOP: 20000, maxCOP: 35000, incluyeMaterial: "no", confianza: "media", pctManoObra: 0.65 },
 ];
@@ -91,21 +97,43 @@ export const FACTOR_REGIONAL: Record<string, number> = {
   default: 0.85, // resto del país
 };
 
-/** Busca el precio semilla que mejor coincide con el nombre de una tarea. */
+/**
+ * Busca el precio semilla que mejor coincide con el nombre de una tarea.
+ *
+ * Ambos lados se pasan por `normalizarParaMatch` (minúsculas, sin tildes, sin
+ * puntuación y SIN palabras vacías), así que «Enchape de pared» encuentra el
+ * término "enchape pared": el conector intermedio ya no rompe el `includes`.
+ * Gana el término más largo (el más específico).
+ */
 export function buscarPrecioSemilla(nombreTarea: string): PrecioSemilla | null {
-  const n = nombreTarea.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return buscarPrecioSemillaConLargo(nombreTarea)?.precio ?? null;
+}
+
+/**
+ * Igual que `buscarPrecioSemilla` pero devuelve también el LARGO del término
+ * que ganó. Lo necesita `buscarRendimiento` (rendimientos.ts) para poder
+ * comparar en igualdad de condiciones contra las claves que solo viven en la
+ * tabla de rendimientos: sin el largo, un "muro" de 4 letras le ganaba a una
+ * "demolicion" de 10 y una demolición se estimaba como si fuera levantar el
+ * muro.
+ */
+export function buscarPrecioSemillaConLargo(
+  nombreTarea: string,
+): { precio: PrecioSemilla; largo: number } | null {
+  const n = normalizarParaMatch(nombreTarea);
+  if (!n) return null;
   let mejor: PrecioSemilla | null = null;
   let mejorLargo = 0;
   for (const p of PRECIOS_SEMILLA) {
     for (const m of p.match) {
-      const mm = m.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-      if (n.includes(mm) && mm.length > mejorLargo) {
+      const mm = normalizarParaMatch(m);
+      if (mm && n.includes(mm) && mm.length > mejorLargo) {
         mejor = p;
         mejorLargo = mm.length;
       }
     }
   }
-  return mejor;
+  return mejor ? { precio: mejor, largo: mejorLargo } : null;
 }
 
 /**

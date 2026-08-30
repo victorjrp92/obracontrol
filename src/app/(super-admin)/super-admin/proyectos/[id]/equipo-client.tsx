@@ -172,7 +172,7 @@ export default function EquipoClient({
       {/* Obreros */}
       <Section title={`Obreros activos (${obreros.length})`} icon={HardHat}>
         {obreros.length === 0 ? (
-          <Empty>Sin obreros activos.</Empty>
+          <Empty>Sin personal de campo activos.</Empty>
         ) : (
           <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
             {obreros.map((o) => (

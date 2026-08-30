@@ -785,7 +785,7 @@ export default function WizardStep3({
           </button>
         </div>
         {personas.length === 0 ? (
-          <p className="text-xs text-slate-400">Puedes vincular personas externas al proyecto (ej: interventor, arquitecto, cliente)</p>
+          <p className="text-xs text-slate-400">Puedes vincular personal del proyecto (ej: interventor, arquitecto, cliente). Participan en la obra, pero no responden por ella.</p>
         ) : (
           <div className="flex flex-col gap-3">
             {personas.map((p, idx) => (

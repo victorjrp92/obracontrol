@@ -9,7 +9,9 @@ import { prisma } from "@/lib/prisma";
  * si el correo ya estaba) y errores genéricos que nunca ecoan el input.
  */
 
-const AUDIENCIAS = ["propietario", "contratista"];
+// "constructora" es el B2B: mismo hecho de negocio (alguien levantó la mano
+// antes de que hubiera producto que venderle) y por eso comparte tabla.
+const AUDIENCIAS = ["propietario", "contratista", "constructora"];
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_BODY = 2048;
 // Throttle global sin IPs (amigable con Ley 1581): si en el último minuto ya

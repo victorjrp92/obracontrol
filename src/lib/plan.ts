@@ -7,10 +7,10 @@ import type { PlanTipo, TipoCuenta } from "@/generated/prisma";
  * tanto en el front (ocultar menú/botones) como en el back (guardas de API),
  * para que ocultar no sea lo mismo que "no autorizar".
  *
- * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA / CONTRATISTA
- * / PROPIETARIO) y el cobro lo gobierna `plan_suscripcion`. Se mantienen
- * separados a propósito — un contratista puede subir de plan sin dejar de ser
- * contratista.
+ * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA /
+ * CONTRATISTA / PROPIETARIO / ARQUITECTO) y el cobro lo gobierna
+ * `plan_suscripcion`. Se mantienen separados a propósito — un contratista puede
+ * subir de plan sin dejar de ser contratista.
  */
 
 export type Capacidad =
@@ -25,7 +25,28 @@ export type Capacidad =
   | "empresa"        // ficha/pestaña de empresa
   | "reportes"       // reportes y exportables
   | "validar"        // aprobar/rechazar lo reportado
-  | "modoSimple";    // usa la cáscara simple + módulo de intención (/empezar)
+  | "modoSimple"     // usa la cáscara simple + módulo de intención (/empezar)
+  | "productosTecnicos"; // planos, renders, registro inicial y actas firmadas
+
+/**
+ * Todas las capacidades, en orden estable. Existe para poder recorrer la matriz
+ * (verificación, depuración) sin volver a escribir la lista en cada consumidor.
+ */
+export const CAPACIDADES: readonly Capacidad[] = [
+  "contratistas",
+  "obreros",
+  "equipo",
+  "clientes",
+  "multiproyecto",
+  "pagos",
+  "usuarios",
+  "sugerencias",
+  "empresa",
+  "reportes",
+  "validar",
+  "modoSimple",
+  "productosTecnicos",
+];
 
 /** Matriz de capacidades por tipo de cuenta. */
 const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
@@ -43,6 +64,7 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: false,
+    productosTecnicos: true,
   },
   // Contratista B2C: emprendedor de oficio; maneja varias obras de varios
   // clientes, arma su propio equipo/personal que le reporta, y valida lo reportado.
@@ -59,6 +81,7 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: true,
+    productosTecnicos: false,
   },
   // Propietario (persona natural): lleva su propia obra y contrata obreros
   // directos que le reportan para validar. Sin contratistas, clientes ni pagos.
@@ -75,6 +98,27 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: true,
+    productosTecnicos: false,
+  },
+  // Arquitecto: profesional que diseña y supervisa. Como el contratista, maneja
+  // varias obras de varios clientes y valida lo reportado — pero su entregable
+  // no es la ejecución, son los productos técnicos: planos, renders, registro
+  // fotográfico inicial y actas firmadas con su matrícula. Es lo único que lo
+  // distingue en la matriz, y es lo que justifica su plan aparte.
+  ARQUITECTO: {
+    contratistas: true,
+    obreros: true,
+    equipo: true,
+    clientes: true,
+    multiproyecto: true,
+    pagos: true,
+    usuarios: false,
+    sugerencias: true,
+    empresa: false,
+    reportes: true,
+    validar: true,
+    modoSimple: true,
+    productosTecnicos: true,
   },
 };
 
@@ -83,17 +127,31 @@ export function puede(tipo: TipoCuenta, cap: Capacidad): boolean {
   return MATRIZ[tipo]?.[cap] ?? false;
 }
 
-/** ¿Es una cuenta personal (contratista B2C o propietario) en modo simple? */
-export function esCuentaPersonal(tipo: TipoCuenta): boolean {
-  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO";
+/**
+ * La fila entera de la matriz para un perfil. Se devuelve una copia: la matriz
+ * gobierna guardas de API, así que no se presta la referencia viva.
+ */
+export function capacidadesDe(tipo: TipoCuenta): Readonly<Record<Capacidad, boolean>> {
+  return { ...MATRIZ[tipo] };
 }
+
+/**
+ * ¿Es una cuenta personal en modo simple? Lo son los tres perfiles B2C:
+ * contratista, propietario y arquitecto.
+ */
+export function esCuentaPersonal(tipo: TipoCuenta): tipo is TipoCuentaPersonal {
+  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO" || tipo === "ARQUITECTO";
+}
+
+/** Los tipos de cuenta B2C: negocio o vivienda propia, en modo simple. */
+export type TipoCuentaPersonal = Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO" | "ARQUITECTO">;
 
 /**
  * ¿El usuario puede crear y administrar obreros DIRECTOS (que cuelgan de él
  * mismo como `contratista_id`)? Cierto para:
  *   - CONTRATISTA (flujo de empresa de siempre).
- *   - ADMIN_GENERAL de una cuenta personal (contratista B2C/propietario): es su
- *     propio "dueño de obreros" y a la vez el aprobador.
+ *   - ADMIN_GENERAL de una cuenta personal (contratista B2C, propietario o
+ *     arquitecto): es su propio "dueño de obreros" y a la vez el aprobador.
  */
 export function puedeGestionarEquipoDirecto(nivel: string, tipo: TipoCuenta): boolean {
   if (nivel === "CONTRATISTA") return true;
@@ -111,10 +169,9 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
     // No se usa: la empresa delega en getPermissions(). Valor de respaldo.
     return ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"];
   }
-  if (tipo === "CONTRATISTA") {
-    return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
-  }
-  // PROPIETARIO
+  // Los tres perfiles personales (CONTRATISTA, PROPIETARIO, ARQUITECTO) ven la
+  // misma cáscara simple. Los productos técnicos del arquitecto viven DENTRO de
+  // la obra, igual que la gestión de equipo, así que no añaden ítem aquí.
   return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
 }
 
@@ -129,7 +186,16 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
  * cada cuenta en PROYECTO, en la práctica todo el mundo tenía obras ilimitadas
  * gratis. Se reexporta para no romper a quien ya la importaba de aquí.
  */
-export { limiteObrasActivas } from "@/lib/suscripcion";
+// El tope de obras y los tramos de precio viven en `suscripcion.ts`, junto a lo
+// que cuesta cada plan: son la misma decisión comercial y no deben divergir. Se
+// reexportan aquí para no romper a quien ya los importaba de `plan.ts`.
+export {
+  limiteObrasActivas,
+  tramoPorObrasActivas,
+  TRAMOS_OBRAS_ACTIVAS,
+  type TramoObras,
+  type TramoObrasKey,
+} from "@/lib/suscripcion";
 
 /**
  * Copys/labels dependientes del perfil. Centralizar el tono aquí evita
@@ -147,7 +213,10 @@ export interface TonoPerfil {
 }
 
 export function tonoPerfil(tipo: TipoCuenta): TonoPerfil {
-  if (tipo === "CONTRATISTA") {
+  // El arquitecto comparte el tono del contratista: los dos trabajan varias
+  // obras de varios clientes y coordinan a quien ejecuta. Lo que los distingue
+  // son los productos técnicos, no cómo se les nombra la obra ni el equipo.
+  if (tipo === "CONTRATISTA" || tipo === "ARQUITECTO") {
     return {
       equipoLabel: "Mis contratistas",
       equipoSingular: "contratista",

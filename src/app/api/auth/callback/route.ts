@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { provisionarUsuario, provisionarPersonal } from "@/lib/onboarding";
+import { esCuentaPersonal } from "@/lib/plan";
 
 /**
  * Destinos internos permitidos tras el callback. Lista blanca CERRADA: el
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
         const tipoCuenta = user.user_metadata?.tipo_cuenta;
 
         try {
-          if (tipoCuenta === "CONTRATISTA" || tipoCuenta === "PROPIETARIO") {
+          if (tipoCuenta && esCuentaPersonal(tipoCuenta)) {
             // Cuenta personal: sin datos demo, entra al módulo de intención.
             await provisionarPersonal(user.email, nombre, tipoCuenta, {
               estudioNombre: user.user_metadata?.estudio_nombre,

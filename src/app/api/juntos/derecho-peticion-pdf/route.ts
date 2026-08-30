@@ -9,7 +9,9 @@ import {
   validarDerechoPeticionPayload,
 } from "@/lib/juntos/derecho-peticion";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
+import { registrarDocumento } from "@/lib/juntos/registro-documento";
 import { ESPERA_SUGERIDA_SEGUNDOS, MENSAJE_SIN_CUPO, soltarCupo, tomarCupo } from "@/lib/juntos/compuerta";
+import { juntosPausado, MENSAJE_PAUSA_API } from "@/lib/juntos/pausa";
 
 /**
  * POST /api/juntos/derecho-peticion-pdf — genera y devuelve el derecho de
@@ -23,6 +25,12 @@ export const maxDuration = 60;
 const MAX_POR_MINUTO_POR_IP = 6;
 
 export async function POST(req: NextRequest) {
+  // Interruptor de emergencia: se corta antes de leer el cuerpo, así una
+  // avalancha no cuesta ni el ancho de banda de las fotos.
+  if (juntosPausado()) {
+    return NextResponse.json({ error: MENSAJE_PAUSA_API }, { status: 503 });
+  }
+
   try {
     const contentLength = req.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_BODY_PETICION_BYTES) {
@@ -54,7 +62,8 @@ export async function POST(req: NextRequest) {
     }
 
     const folio = generarFolio("DP");
-    const hash = hashCorto(hashContenido(JSON.stringify(validacion.payload), folio));
+    const hashCompleto = hashContenido(JSON.stringify(validacion.payload), folio);
+    const hash = hashCorto(hashCompleto);
 
     // Semáforo de concurrencia: rechaza rápido antes que morir por memoria.
     if (!tomarCupo()) {
@@ -72,6 +81,17 @@ export async function POST(req: NextRequest) {
     } finally {
       soltarCupo(); // sin esto, un error deja el cupo tomado para siempre
     }
+    // Registro de verificación. En el derecho de petición importa más que en los
+    // otros dos: es un documento que se radica ante una alcaldía, y quien lo
+    // reciba puede querer confirmar de dónde salió.
+    await registrarDocumento({
+      folio,
+      hash: hashCompleto,
+      tipo: "PETICION",
+      ciudad: validacion.payload.identidad.ciudad,
+      piezas: validacion.payload.danos.length,
+    });
+
     const filename = `derecho-de-peticion-${folio}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

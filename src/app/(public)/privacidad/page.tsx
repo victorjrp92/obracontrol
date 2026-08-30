@@ -18,6 +18,110 @@ export default function PrivacidadPage() {
 
       <div className="prose prose-slate prose-sm max-w-none [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:text-slate-600 [&_li]:text-slate-600 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
 
+        {/* Bloque de Juntos ARRIBA de todo y con ancla propia: quien llega aquí
+            viene de marcar la casilla del gate, y el resto del documento habla
+            de la plataforma B2B —donde "Usuario" es una constructora con
+            cuenta—, que no es su caso. Enterrarlo en una subseccion 6.6 seria
+            cumplir de forma y no de fondo. El enlace del gate apunta a #juntos. */}
+        <div id="juntos" className="not-prose scroll-mt-24 rounded-xl border-2 border-blue-200 bg-blue-50/60 p-5 mb-10">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-700 mb-1">
+            Si vienes de Juntos, lee esto
+          </p>
+          <h2 className="text-lg font-bold text-slate-900 mb-3">
+            0. Linea «Juntos» — revision de grietas y acta de danos
+          </h2>
+
+          <div className="prose prose-slate prose-sm max-w-none [&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_p]:text-slate-600 [&_li]:text-slate-600 [&_ul]:list-disc [&_ul]:pl-5">
+            <p>
+              <strong>Juntos</strong> es la linea publica y gratuita que Seiricon abrio tras el sismo del 10 de
+              agosto de 2026. No requiere crear cuenta ni pagar. Como el tratamiento de datos es distinto al del
+              resto de la plataforma, se describe aparte: lo que sigue en las secciones 1 a 19 aplica a Juntos
+              solo en lo que no contradiga esta seccion.
+            </p>
+
+            <h3>0.1 Que datos pedimos, y cuales NO guardamos</h3>
+            <p>
+              Para poner tu nombre en el documento te pedimos: <strong>nombre y apellido, numero de cedula,
+              WhatsApp, direccion del inmueble, ciudad</strong> y que nos digas <strong>que es ese inmueble para
+              ti</strong> (si vives ahi, lo arriendas, administras una copropiedad, etc.).
+            </p>
+            <p>
+              <strong>Tu cedula y la direccion del inmueble NO se guardan en nuestros servidores.</strong> Viajan
+              con la peticion, se imprimen en tu documento y se descartan al terminar de generarlo. No existe una
+              columna para ellas en nuestra base de datos y no quedan en registros de actividad.
+            </p>
+            <p>De lo que nos das, lo unico que conservamos es:</p>
+            <ul>
+              <li>Tu nombre, tu WhatsApp, tu ciudad y el rol que declaraste</li>
+              <li>Si autorizaste, o no, que te contactemos mas adelante</li>
+              <li>La fecha y hora en que diste esa autorizacion</li>
+            </ul>
+
+            <h3>0.2 Tus fotos</h3>
+            <p>
+              Las fotos que tomas <strong>no se almacenan</strong>. Se usan para armar el PDF que descargas y se
+              descartan. No hay una copia en nuestros servidores: si pierdes el archivo, no podemos reenviartelo.
+            </p>
+            <p>
+              Cuando la lectura automatica de grietas esta activa, las dos fotos de cada grieta se envian a un
+              proveedor de analisis de imagenes (actualmente <strong>Google, en Estados Unidos</strong> — pais
+              incluido en la lista de paises con nivel adecuado de proteccion de la Superintendencia de Industria
+              y Comercio) con el unico fin de leer el ancho y el patron de la grieta. Se envian unicamente las dos
+              fotografias: nunca tu nombre, tu cedula, tu direccion ni tu telefono. Ese proveedor no las utiliza
+              para entrenar sus modelos ni las conserva para otros fines. Si cambiamos de proveedor, actualizaremos
+              esta politica.
+            </p>
+
+            <h3>0.3 Para que usamos lo que guardamos</h3>
+            <ul>
+              <li>
+                <strong>Generar tu documento</strong> y llevar la cuenta de cuantos documentos se emiten por
+                ciudad y nivel de riesgo, sin asociarlos a personas.
+              </li>
+              <li>
+                <strong>Escribirte sobre la reparacion de tu vivienda</strong> — solo si marcaste esa casilla, que
+                es opcional y separada. No condiciona la descarga de tu documento y puedes retirarla cuando
+                quieras.
+              </li>
+            </ul>
+            <p>
+              <strong>No vendemos tus datos</strong> ni los entregamos a terceros con fines publicitarios.
+            </p>
+
+            <h3>0.4 El registro de verificacion</h3>
+            <p>
+              Cada documento lleva impreso un folio y una huella digital para que una aseguradora o una alcaldia
+              puedan comprobar que salio de aqui. De ese registro guardamos folio, huella, tipo de documento,
+              ciudad, nivel del semaforo y numero de piezas documentadas. <strong>Ese registro no contiene nombre,
+              cedula, direccion, telefono ni fotos</strong>, y no permite identificar a ninguna persona.
+            </p>
+
+            <h3>0.5 Cuanto tiempo lo conservamos</h3>
+            <p>
+              Los datos de contacto de Juntos se conservan mientras la linea este activa y hasta doce (12) meses
+              despues de su cierre, o hasta que nos pidas eliminarlos — lo que ocurra primero. El registro de
+              verificacion, al no identificar a nadie, se conserva de forma indefinida para que los documentos
+              emitidos sigan siendo comprobables.
+            </p>
+
+            <h3>0.6 Como pides que borremos tus datos</h3>
+            <p>
+              Escribe a <a href="mailto:info@seiricon.com" className="text-blue-600">info@seiricon.com</a> desde
+              cualquier correo, indicando el nombre y el WhatsApp con los que generaste el documento. No hace falta
+              que acredites nada mas: como no guardamos tu cedula, no podemos ni queremos pedirtela. Tienes los
+              mismos derechos descritos en las secciones 9 y 10 de esta politica.
+            </p>
+
+            <h3>0.7 Lo que Juntos no es</h3>
+            <p>
+              El documento registra los danos <em>que tu declaras</em>, con fotografias fechadas y geolocalizadas.
+              <strong> No es un peritaje, ni un dictamen tecnico, ni una evaluacion de habitabilidad</strong>: esas
+              las realiza un ingeniero estructural o los organismos oficiales (Bomberos, Cruz Roja). Ninguna
+              respuesta de Juntos debe entenderse como una afirmacion de que tu vivienda es segura.
+            </p>
+          </div>
+        </div>
+
         <h2>1. Responsable del Tratamiento</h2>
         <table className="text-sm border-collapse w-full not-prose mb-4">
           <tbody className="divide-y divide-slate-100">
@@ -261,7 +365,7 @@ export default function PrivacidadPage() {
 
         <h2>18. Limitacion de responsabilidad</h2>
         <p>
-          La plataforma se provee "tal cual" y "segun disponibilidad". En la maxima medida permitida por la ley,
+          La plataforma se provee «tal cual» y «segun disponibilidad». En la maxima medida permitida por la ley,
           SEIRICON no sera responsable por: (i) el uso que el Usuario o sus colaboradores hagan de la plataforma o
           de los datos; (ii) la exactitud, licitud o veracidad de la informacion cargada por el Usuario; (iii)
           danos indirectos, incidentales, lucro cesante o perdida de datos derivados del uso o imposibilidad de

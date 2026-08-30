@@ -9,7 +9,9 @@ import {
   validarInformeJuntosPayload,
 } from "@/lib/juntos/informe-juntos";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
+import { registrarDocumento } from "@/lib/juntos/registro-documento";
 import { ESPERA_SUGERIDA_SEGUNDOS, MENSAJE_SIN_CUPO, soltarCupo, tomarCupo } from "@/lib/juntos/compuerta";
+import { juntosPausado, MENSAJE_PAUSA_API } from "@/lib/juntos/pausa";
 
 /**
  * POST /api/juntos/informe-pdf — genera y devuelve el Informe de grietas de
@@ -31,6 +33,12 @@ export const maxDuration = 60;
 const MAX_POR_MINUTO_POR_IP = 6;
 
 export async function POST(req: NextRequest) {
+  // Interruptor de emergencia: se corta antes de leer el cuerpo, así una
+  // avalancha no cuesta ni el ancho de banda de las fotos.
+  if (juntosPausado()) {
+    return NextResponse.json({ error: MENSAJE_PAUSA_API }, { status: 503 });
+  }
+
   try {
     const contentLength = req.headers.get("content-length");
     if (contentLength && Number(contentLength) > MAX_BODY_BYTES) {
@@ -61,9 +69,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validacion.error }, { status: 400 });
     }
 
-    // Folio + huella de verificación: viven solo dentro del PDF (nada se guarda).
+    // Folio + huella: se imprimen en el PDF y se registran para poder verificarlos.
     const folio = generarFolio("JT");
-    const hash = hashCorto(hashContenido(JSON.stringify(validacion.payload), folio));
+    const hashCompleto = hashContenido(JSON.stringify(validacion.payload), folio);
+    const hash = hashCorto(hashCompleto);
 
     // Semáforo de concurrencia: rechaza rápido antes que morir por memoria.
     if (!tomarCupo()) {
@@ -81,6 +90,27 @@ export async function POST(req: NextRequest) {
     } finally {
       soltarCupo(); // sin esto, un error deja el cupo tomado para siempre
     }
+    // Registro de verificación. Aquí sí se guarda el NIVEL, porque el agregado
+    // «cuántas casas en rojo por ciudad» es exactamente lo que una alcaldía
+    // necesita para priorizar el censo del RUD — y no identifica a nadie.
+    // El nivel del inmueble es el PEOR de sus grietas, nunca el promedio
+    // (misma regla que `evaluarInmueble` en reglas.ts).
+    const RANGO: Record<string, number> = { verde: 0, amarillo: 1, rojo: 2 };
+    const nivelPeor = validacion.payload.grietas.reduce<string | null>((peor, g) => {
+      const n = g.veredicto.nivel;
+      if (!peor) return n;
+      return RANGO[n] > RANGO[peor] ? n : peor;
+    }, null);
+
+    await registrarDocumento({
+      folio,
+      hash: hashCompleto,
+      tipo: "INFORME",
+      ciudad: validacion.payload.identidad.ciudad,
+      nivel: nivelPeor,
+      piezas: validacion.payload.grietas.length,
+    });
+
     const filename = `informe-de-grietas-${folio}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

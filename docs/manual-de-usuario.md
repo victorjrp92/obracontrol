@@ -28,7 +28,8 @@ _Última actualización: junio 2026._
 16. [Notificaciones](#16-notificaciones)
 17. [Instalar la app (PWA)](#17-instalar-la-app-pwa)
 18. [Cuentas personales (B2C): Propietario y Arquitecto](#18-cuentas-personales-b2c-propietario-y-arquitecto)
-19. [Preguntas frecuentes](#19-preguntas-frecuentes)
+19. [Juntos: línea pública post-sismo](#19-juntos-linea-publica-post-sismo)
+20. [Preguntas frecuentes](#20-preguntas-frecuentes)
 
 ---
 
@@ -538,9 +539,10 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 
 ### Cronograma: cuánto debería tardar tu obra
 
-- Al definir tus tareas, Seiricon calcula **cuánto suele tardar** lo que planeas, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos).
-- Si pusiste fechas, te da un **contra-pronóstico que solo guía**: "para lo que planeas, usualmente toma ~N días hábiles — tu plan es más corto de lo usual / está dentro de lo normal / es holgado". Nunca te bloquea.
-- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
+- Al definir tus tareas, Seiricon calcula **en qué fecha terminarías**, con rendimientos reales de construcción en Colombia (cuánto avanza un equipo de trabajo por día en cada actividad, más tiempos de secado e imprevistos) y el calendario laboral colombiano (semana de seis días y los 18 festivos).
+- Lo que ves es una **fecha, no un número de días**: *"lo más probable es que termines el 14 de octubre; en 8 de cada 10 obras parecidas, se termina antes del 3 de noviembre"*. También te decimos la fecha que casi nunca se pasa, por si necesitas comprometerte con alguien.
+- Si pusiste fecha de entrega, te da un **contra-pronóstico que solo guía**: te dice **cuántas veces de cada 10** se cumple una fecha así en obras parecidas. Nunca te bloquea.
+- En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las fechas de cada fase, las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
 - Con cada obra que se completa, Seiricon aprende de las duraciones reales para afinar sus estimados.
 
 ### Cómo defines el presupuesto (3 modos)
@@ -560,7 +562,55 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 
 ---
 
-## 19. Preguntas frecuentes
+## 19. Juntos: línea pública post-sismo
+
+**Ruta:** `/go/juntos` · **No requiere cuenta ni pago.**
+
+Línea pública abierta tras el sismo del 10 de agosto de 2026. Es la única parte de Seiricon a la que se entra sin registrarse, y funciona en el celular sin instalar nada.
+
+### Cómo se llega
+
+Una franja fija arriba de la landing B2B (`/`) y de Seiricon Go (`/go`) enlaza a Juntos. Es temporal: se retira cuando pase la emergencia quitando los dos `<AvisoEmergencia />`.
+
+### Los dos caminos
+
+| Camino | Qué hace | Usa IA |
+|---|---|---|
+| **Revisar una grieta** (`/go/juntos/revisar`) | Filtro de seguridad primero; después, grieta por grieta, entrega la **prioridad de revisión** (urgente / pronto / cuando puedas) y un informe en PDF | Sí, si está activa |
+| **Documentar los daños** (`/go/juntos/documentar`) | Acta de daños espacio por espacio, con fotos fechadas y geolocalizadas | No |
+
+Ambos terminan igual: un gate que pide los datos, la descarga del PDF, y una pantalla con el **derecho de petición prellenado** más información legal sobre seguros, copropiedades, ayudas del Estado y estafas.
+
+### Qué NO hace
+
+**Nunca dice que una vivienda es segura.** Entrega prioridad de revisión, no diagnóstico. No es peritaje ni evaluación de habitabilidad: eso lo hace un ingeniero estructural o los organismos oficiales.
+
+Dos reglas del motor están pendientes de visto bueno de un ingeniero. Mientras tanto, todas las capas de reconciliación **solo elevan** la severidad, nunca la ablandan — invariante verificado por máquina en `npm run verify:alerta`. Con la lectura automática apagada, ninguna grieta puede resolver en verde.
+
+### Datos
+
+- **La cédula y la dirección NO se guardan.** Viajan con la petición, se imprimen en el documento y se descartan.
+- **Las fotos no se almacenan.** Se usan para armar el PDF y se descartan.
+- Se conservan nombre, WhatsApp, ciudad, rol y las dos autorizaciones (`contacto_juntos`).
+- Detalle completo en la sección 0 de [/privacidad](/privacidad#juntos).
+
+### Verificación de documentos
+
+Cada PDF imprime folio y huella. En `/go/juntos/verificar` una aseguradora o alcaldía puede comprobar que salió de aquí. El registro (`documentos_juntos`) no contiene datos personales.
+
+### Controles de operación
+
+| Variable | Efecto |
+|---|---|
+| `JUNTOS_PAUSADO=true` | Baja las tres páginas del flujo, las cuatro rutas de API y la franja de las landings. **`/verificar` sigue viva.** Requiere redespliegue (1-2 min). |
+| `ALERTA_VISION_ENABLED=true` | Enciende la lectura automática de grietas. Ausente o distinto de `true` = todo el mundo en modo manual. |
+| `ALERTA_VISION_PROVEEDOR` | `anthropic` (por defecto) o `gemini`. Cambiar de proveedor es cambiar esta variable; no hace falta desplegar código. **Al cambiarla hay que actualizar la sección 0.2 de /privacidad**, que nombra al proveedor y su país. |
+| `ALERTA_VISION_MODEL` | Modelo concreto. Si se omite: `claude-haiku-4-5` o `gemini-3.7-flash` según el proveedor. Ojo: `gemini-2.5-flash` y `gemini-2.5-flash-lite` se retiran el 16 de octubre de 2026. |
+| `PDF_MAX_CONCURRENTES` | Renders de PDF simultáneos por instancia (2 por defecto). Al llenarse responde «espera unos segundos», no falla. |
+
+---
+
+## 20. Preguntas frecuentes
 
 ### ¿Puedo editar un proyecto después de crearlo?
 

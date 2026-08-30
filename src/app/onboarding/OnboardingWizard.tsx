@@ -19,7 +19,10 @@ import {
   CONTROL_OTRA_APP,
 } from "./opciones";
 
-type TipoCuenta = "CONTRATISTA" | "PROPIETARIO" | "CONSTRUCTORA";
+// Se importa del enum de Prisma en vez de redeclararlo: este tipo local se
+// quedó atrás cuando entró ARQUITECTO, y el siguiente perfil habría hecho lo
+// mismo. Una sola fuente de verdad.
+import type { TipoCuenta } from "@/generated/prisma";
 
 /** Respuestas acumuladas; cada perfil llena solo las suyas. */
 interface Respuestas {
@@ -71,6 +74,10 @@ export default function OnboardingWizard({
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // El arquitecto responde el mismo cuestionario que el contratista: los dos
+  // tienen negocio propio, clientes y equipo que ejecuta. Sin esto vería tres
+  // pasos en blanco.
+  const esPerfilContratista = tipoCuenta === "CONTRATISTA" || tipoCuenta === "ARQUITECTO";
   const total = totalPasos(tipoCuenta);
   const esUltimo = paso >= total;
   const primerNombre = (nombreUsuario || "").split(" ")[0];
@@ -81,7 +88,7 @@ export default function OnboardingWizard({
 
   // ¿El paso actual permite avanzar? (validación mínima por paso/perfil).
   const puedeAvanzar = useMemo(() => {
-    if (tipoCuenta === "CONTRATISTA") {
+    if (esPerfilContratista) {
       if (paso === 1) return r.oficio !== null;
       if (paso === 2) return r.tamano_equipo !== null;
       return true; // paso 3: ubicación + control son omitibles
@@ -94,14 +101,18 @@ export default function OnboardingWizard({
     if (paso === 1) return r.obras_activas !== null && r.tipo_obra !== null;
     if (paso === 2) return r.tamano_equipo !== null && r.num_contratistas !== null;
     return true; // paso 3 ubicación, paso 4 control: omitibles
-  }, [tipoCuenta, paso, r]);
+    // `esPerfilContratista` se deriva de `tipoCuenta` en el propio render, así
+    // que hoy no puede desincronizarse — pero listarlo lo deja dicho en vez de
+    // supuesto, y quita el aviso de exhaustive-deps que introdujo el soporte
+    // de ARQUITECTO.
+  }, [tipoCuenta, esPerfilContratista, paso, r]);
 
   // ¿Tiene sentido ofrecer "Omitir por ahora" en este paso?
   const puedeOmitir = useMemo(() => {
-    if (tipoCuenta === "CONTRATISTA") return paso === 3;
+    if (esPerfilContratista) return paso === 3;
     if (tipoCuenta === "PROPIETARIO") return paso >= 2;
     return paso >= 3; // CONSTRUCTORA
-  }, [tipoCuenta, paso]);
+  }, [tipoCuenta, esPerfilContratista, paso]);
 
   /** Construye el payload con solo los campos del perfil que tengan valor. */
   function construirPayload(): Record<string, unknown> {
@@ -120,7 +131,7 @@ export default function OnboardingWizard({
       }
     };
 
-    if (tipoCuenta === "CONTRATISTA") {
+    if (esPerfilContratista) {
       if (r.oficio) payload.oficio = r.oficio;
       if (r.tamano_equipo) payload.tamano_equipo = r.tamano_equipo;
       agregarControl();
@@ -206,7 +217,7 @@ export default function OnboardingWizard({
 
         {/* Contenido del paso */}
         <div className="space-y-6">
-          {tipoCuenta === "CONTRATISTA" && (
+          {esPerfilContratista && (
             <ContratistaPaso paso={paso} r={r} set={set} />
           )}
           {tipoCuenta === "PROPIETARIO" && (

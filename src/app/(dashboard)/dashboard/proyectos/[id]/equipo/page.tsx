@@ -45,7 +45,7 @@ export default async function EquipoProyectoPage({
 
   if (!proyecto) notFound();
 
-  // Personas externas vinculadas al proyecto
+  // Personal del proyecto vinculadas al proyecto
   const personasExternas = await prisma.personaExternaProyecto.findMany({
     where: { proyecto_id: id },
     orderBy: { created_at: "desc" },

@@ -47,6 +47,15 @@ export async function GET() {
         eps: true,
         arl: true,
         anos_experiencia: true,
+        // La ficha de la lista PINTA dirección y contacto de emergencia
+        // (ObreroManager.tsx). Sin traerlos aquí llegaban siempre undefined y
+        // solo aparecían al abrir «Editar», que pide la ficha completa a
+        // GET /api/obreros/[id].
+        fecha_nacimiento: true,
+        direccion: true,
+        contacto_emergencia: true,
+        contacto_emergencia_telefono: true,
+        tipo_sangre: true,
         score_total: true,
         score_calidad: true,
         score_velocidad: true,
