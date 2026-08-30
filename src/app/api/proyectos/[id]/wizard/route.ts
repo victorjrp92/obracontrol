@@ -407,7 +407,7 @@ export async function POST(
         data: {
           nombre: body.nombre,
           subtipo: body.subtipo,
-          dias_habiles_semana: body.dias_habiles_semana ?? 5,
+          dias_habiles_semana: body.dias_habiles_semana ?? 6,
           fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : null,
           fecha_fin_estimada: body.fecha_fin_estimada
             ? new Date(body.fecha_fin_estimada)

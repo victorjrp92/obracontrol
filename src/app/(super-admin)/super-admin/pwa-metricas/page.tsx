@@ -7,6 +7,19 @@ import { Smartphone, Download, Apple, Monitor, TrendingUp, Users } from "lucide-
 
 export const dynamic = "force-dynamic";
 
+const UN_DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Instante de hace `dias` días. Vive FUERA del componente a propósito: leer el
+ * reloj dentro del cuerpo de un componente es impuro (`react-hooks/purity`), y
+ * aunque aquí sea un Server Component asíncrono que se renderiza una vez por
+ * petición, la regla no puede distinguirlo — y una excepción por archivo se
+ * acaba copiando a un componente de cliente donde sí rompe.
+ */
+function haceDias(dias: number): Date {
+  return new Date(Date.now() - dias * UN_DIA_MS);
+}
+
 export default async function PwaMetricasPage() {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login");
@@ -26,7 +39,7 @@ export default async function PwaMetricasPage() {
   const tasaConversion = totalPrompts > 0 ? (totalAceptados / totalPrompts) * 100 : 0;
 
   // Usuarios activos PWA: distinct usuario_id con LAUNCHED_STANDALONE últimos 7 días
-  const sieteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sieteDiasAtras = haceDias(7);
   const activosPwa = await prisma.pwaEvento.findMany({
     where: {
       evento: "LAUNCHED_STANDALONE",
@@ -49,7 +62,7 @@ export default async function PwaMetricasPage() {
   );
 
   // Últimos 14 días: installs por día
-  const catorceDiasAtras = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const catorceDiasAtras = haceDias(14);
   const installsRecientes = await prisma.pwaEvento.findMany({
     where: {
       evento: { in: ["INSTALL_ACCEPTED", "APP_INSTALLED"] },
@@ -60,7 +73,7 @@ export default async function PwaMetricasPage() {
   });
   const installsPorDia = new Map<string, number>();
   for (let i = 13; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const d = haceDias(i);
     installsPorDia.set(d.toISOString().slice(0, 10), 0);
   }
   for (const e of installsRecientes) {

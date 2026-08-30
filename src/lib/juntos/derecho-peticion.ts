@@ -11,6 +11,7 @@
  */
 import { MAX_ESPACIOS } from "@/lib/alerta/acta";
 import { validarIdentidad, type IdentidadActa } from "./acta-juntos";
+import { esFolioDeFamilia } from "@/lib/documentos";
 
 export interface DanoDeclarado {
   espacio: string;
@@ -30,7 +31,9 @@ export const MAX_BODY_PETICION_BYTES = 64 * 1024;
 
 const MAX_LARGO_ESPACIO = 100;
 const MAX_LARGO_DESCRIPCION = 500;
-const FOLIO_RE = /^JT-\d{8}-[0-9a-f]{6}$/;
+// Antes había aquí una copia del formato de folio. Una segunda definición del
+// mismo patrón es exactamente la deriva que el módulo compartido elimina: si
+// mañana cambia el formato, esta copia habría quedado atrás en silencio.
 
 export type ValidacionDerechoPeticion =
   | { ok: true; payload: DerechoPeticionPayload }
@@ -68,7 +71,7 @@ export function validarDerechoPeticionPayload(body: unknown): ValidacionDerechoP
   }
 
   let folioActa: string | null = null;
-  if (typeof b.folioActa === "string" && FOLIO_RE.test(b.folioActa.trim())) {
+  if (typeof b.folioActa === "string" && esFolioDeFamilia(b.folioActa.trim(), ["JT"])) {
     folioActa = b.folioActa.trim();
   }
 

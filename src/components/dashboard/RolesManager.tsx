@@ -21,7 +21,7 @@ const NIVEL_LABELS: Record<NivelAcceso, string> = {
   ADMIN_GENERAL: "Administrador general",
   ADMIN_PROYECTO: "Administrador Proyectos",
   CONTRATISTA: "Contratista",
-  OBRERO: "Obrero",
+  OBRERO: "Personal de campo",
 };
 
 const NIVEL_COLORS: Record<NivelAcceso, string> = {

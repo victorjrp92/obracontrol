@@ -39,14 +39,27 @@ export async function obtenerGPS(): Promise<GPSCoords | null> {
 }
 
 /**
+ * Marca de agua por defecto. Es la de la línea Juntos, que fue quien estrenó
+ * este módulo; se mantiene como valor por defecto para que las tres superficies
+ * de Juntos (acta de daños, grietas) sigan produciendo el MISMO píxel que antes.
+ */
+export const WORDMARK_DEFECTO = "SEIRICON ALERTA";
+
+/**
  * Redimensiona la foto a `MAX_DIM`, quema una franja con fecha/hora/GPS/
  * etiqueta de espacio y la comprime a JPEG en `CALIDAD_JPEG`.
+ *
+ * @param wordmark marca de agua de la esquina. Se parametriza porque el módulo
+ *   dejó de ser exclusivo de Juntos: el registro fotográfico inicial del
+ *   arquitecto usa la misma cámara y salía con «SEIRICON ALERTA» quemado en un
+ *   acta que no tiene nada que ver con la línea de alertas.
  */
 export async function quemarOverlay(
   file: File,
   timestamp: Date,
   gps: GPSCoords | null,
-  etiquetaEspacio?: string
+  etiquetaEspacio?: string,
+  wordmark: string = WORDMARK_DEFECTO
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -107,7 +120,7 @@ export async function quemarOverlay(
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.font = `bold ${Math.round(fontSize * 0.85)}px sans-serif`;
       ctx.textAlign = "right";
-      ctx.fillText("SEIRICON ALERTA", canvas.width - padding, padding);
+      if (wordmark) ctx.fillText(wordmark, canvas.width - padding, padding);
 
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("Error creando imagen"))),

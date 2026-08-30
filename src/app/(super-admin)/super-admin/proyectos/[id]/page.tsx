@@ -58,7 +58,7 @@ export default async function ProyectoSuperAdminDetallePage({
     },
   });
 
-  // Obreros activos de la constructora cuyo contratista trabaja en este proyecto
+  // Personal de campo activo de la constructora cuyo contratista trabaja en este proyecto
   const contratistaIds = contratistas.map((c) => c.id);
   const obreros =
     contratistaIds.length > 0
@@ -88,7 +88,7 @@ export default async function ProyectoSuperAdminDetallePage({
     { icon: ClipboardList, color: "violet", label: "Tareas", value: tareasCount },
     { icon: Users, color: "yellow", label: "Admin Juniors", value: proyecto.admins_proyecto.length },
     { icon: Users, color: "green", label: "Contratistas", value: contratistas.length },
-    { icon: Users, color: "orange", label: "Obreros activos", value: obreros.length },
+    { icon: Users, color: "orange", label: "Personal de campo activo", value: obreros.length },
   ];
 
   // Listas para hijo

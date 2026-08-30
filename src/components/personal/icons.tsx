@@ -18,7 +18,6 @@ import {
   DoorOpen,
   LayoutGrid,
   Wrench,
-  Ruler,
   Sparkles,
   MoreHorizontal,
   type LucideIcon,
@@ -65,9 +64,10 @@ export function IconBox({
 }
 
 // ─── Tipos de obra (paso 1) ──────────────────────────────────────────────────
+// REFORMA cubre ahora "trabajar sobre algo que ya existe" (fusión de las
+// antiguas REFORMA + MODIFICACION, ver plantillas-personal.ts).
 export const ICONO_TIPO_OBRA: Record<TipoObra, LucideIcon> = {
   REFORMA: Wrench,
-  MODIFICACION: Ruler,
   OBRA_NUEVA: Sparkles,
 };
 

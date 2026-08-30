@@ -106,7 +106,7 @@ export default function EquipoAdminGeneral({
   const [permisosLoading, setPermisosLoading] = useState(false);
   const [permisosError, setPermisosError] = useState("");
 
-  // Personas externas state
+  // Personal del proyecto state
   const [personaForm, setPersonaForm] = useState({ nombre: "", cargo: "", telefono: "", email: "" });
   const [personaError, setPersonaError] = useState("");
   const [personaLoading, setPersonaLoading] = useState(false);
@@ -739,9 +739,9 @@ export default function EquipoAdminGeneral({
         />
       )}
 
-      {/* Personas externas -- spans both columns */}
+      {/* Personal del proyecto -- spans both columns */}
       <div className="lg:col-span-2">
-      <Section title={`Personas externas (${personasExternas.length})`} icon={UserRound}>
+      <Section title={`Personal del proyecto (${personasExternas.length})`} icon={UserRound}>
         {personaError && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{personaError}</div>
         )}
@@ -789,7 +789,7 @@ export default function EquipoAdminGeneral({
         )}
 
         {personasExternas.length === 0 ? (
-          <Empty>Sin personas externas vinculadas.</Empty>
+          <Empty>Sin personal del proyecto vinculado.</Empty>
         ) : (
           <div className="flex flex-col gap-2">
             {personasExternas.map((p) => (

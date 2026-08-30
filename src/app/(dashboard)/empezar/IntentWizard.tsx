@@ -24,7 +24,10 @@ import {
   TIPOS_OBRA,
   TIPOS_PROPIEDAD,
   ESPACIOS_PERSONAL,
+  MODIFICACIONES_GENERALES,
   sugerirTareas,
+  expandirModificacionesGenerales,
+  espaciosParaTipo,
   type TipoObra,
   type TipoPropiedad,
 } from "@/lib/plantillas-personal";
@@ -45,6 +48,7 @@ import ContraPronostico from "@/components/personal/ContraPronostico";
 import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
 import type { PreviewImport, TareaImportadaResuelta } from "@/components/personal/import-excel-types";
 import { ESPACIO_GENERAL, type CrearObraInput, type EspacioInput } from "./types";
+import { diasHabilesEntre as diasHabilesCalendario } from "@/lib/calendario-colombia";
 
 // ─── Modelo interno del wizard ────────────────────────────────────────────────
 
@@ -112,6 +116,11 @@ interface TareaW {
    *  todas las tareas con este flag (decisión de producto: si el archivo tenía
    *  un error, corregirlo y volver a subir lo arregla de inmediato). */
   importada?: boolean;
+  /** `key` de MODIFICACIONES_GENERALES si esta tarea la inyectó un toggle de
+   *  "modificación general" (techo/pisos/pintura, sin espacio concreto). Sirve
+   *  para poder quitarla al apagar el toggle sin tocar lo que el usuario haya
+   *  agregado a mano con el mismo nombre. */
+  origenModGeneral?: string;
 }
 
 interface EspacioW {
@@ -135,6 +144,8 @@ interface EspacioW {
 
 interface PisoW {
   espacios: EspacioW[];
+  /** Uso de este piso (solo LOCAL, opcional), p.ej. "Farmacia". Ver PisoInput.usoNombre. */
+  usoNombre?: string;
 }
 
 interface TipoAptoW {
@@ -177,11 +188,6 @@ const PUNTOS_PARTIDA: { key: PuntoPartida; titulo: string; desc: string }[] = [
   { key: "AVANZADA", titulo: "Próxima a finalizar", desc: "Falta poco para completarla." },
 ];
 
-// Espacios "singulares" que se prenden/apagan con toggle (uno por piso).
-const ESPACIOS_TOGGLE = ESPACIOS_PERSONAL.filter(
-  (e) => !["bano", "habitacion", "otro"].includes(e.key),
-);
-
 const TOTAL_PASOS = 6; // pasos 1..6 (índices 0..5) + pantalla final (índice 6)
 
 // Bandera de "primera vez" para el mensaje guía del paso "¿Qué te falta?".
@@ -190,19 +196,26 @@ const LS_QFALTA_VISTO = "seiricon_b2c_qfalta_visto";
 
 // ─── Helpers de costos / días ─────────────────────────────────────────────────
 
+/**
+ * Envoltorio sobre la definición canónica de `calendario-colombia.ts`.
+ *
+ * Aquí vivía una copia que solo excluía sábados y domingos: **ignoraba los 18
+ * festivos colombianos**, así que el plazo que veía el usuario en el wizard era
+ * entre un 6 y un 7% más corto que el real. La única diferencia legítima de
+ * esta capa es la de la UI —entradas de texto que pueden venir vacías o
+ * inválidas, y `null` para «todavía no hay plazo»—, así que eso es lo único
+ * que se conserva.
+ */
 function diasHabilesEntre(inicio?: string, fin?: string): number | null {
   if (!inicio || !fin) return null;
   const a = new Date(inicio);
   const b = new Date(fin);
   if (isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) return null;
-  let dias = 0;
-  const cur = new Date(a);
-  while (cur <= b) {
-    const d = cur.getDay();
-    if (d !== 0 && d !== 6) dias++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return dias;
+  // +1 día: la canónica cuenta el intervalo [inicio, fin), y aquí el plazo que
+  // el usuario declara incluye el día de entrega.
+  const finInclusivo = new Date(b);
+  finInclusivo.setDate(finInclusivo.getDate() + 1);
+  return diasHabilesCalendario(a, finInclusivo);
 }
 
 /** Reparte `total` ponderado por `pesos`, redondeando y cuadrando el residuo. */
@@ -271,7 +284,10 @@ export default function IntentWizard({
   // Paso 3 — estructura (uno de los dos según tipo)
   const [pisos, setPisos] = useState<PisoW[]>(() =>
     initial?.pisos?.length
-      ? initial.pisos.map((p) => ({ espacios: espaciosDesdeInput(p.espacios) }))
+      ? initial.pisos.map((p) => ({
+          espacios: espaciosDesdeInput(p.espacios),
+          ...(p.usoNombre ? { usoNombre: p.usoNombre } : {}),
+        }))
       : [{ espacios: [] }],
   );
   const [edifNumPisos, setEdifNumPisos] = useState(initial?.edificio?.numPisos ?? 4);
@@ -398,7 +414,13 @@ export default function IntentWizard({
 
   const esEdificio = tipoPropiedad === "EDIFICIO";
   const esApto = tipoPropiedad === "APARTAMENTO";
+  const esLocal = tipoPropiedad === "LOCAL";
   const tipoObraSafe: TipoObra = tipoObra ?? "REFORMA";
+
+  // Catálogo de espacios a ofrecer: comercio para LOCAL, residencial para el
+  // resto (CASA/APARTAMENTO sin cambios; EDIFICIO usa el residencial siempre,
+  // ver EdificioBuilder más abajo).
+  const catalogoEspacios = useMemo(() => espaciosParaTipo(tipoPropiedad), [tipoPropiedad]);
 
   // ── Acceso uniforme a la lista de "grupos de espacios" según el modo ─────────
   // CASA/LOCAL → un grupo por piso. APTO → un grupo (1 piso). EDIFICIO → un grupo por tipo.
@@ -470,6 +492,7 @@ export default function IntentWizard({
         // 1) Reemplazo: retira las tareas de importaciones anteriores y los
         //    espacios que la importación creó y quedaron vacíos.
         const next: PisoW[] = prev.map((p) => ({
+          ...p,
           espacios: p.espacios
             .map((e) => ({
               ...e,
@@ -595,7 +618,7 @@ export default function IntentWizard({
       });
 
     if (esEdificio) setTipos((prev) => prev.map((t) => ({ ...t, espacios: aplicar(t.espacios) })));
-    else setPisos((prev) => prev.map((p) => ({ espacios: aplicar(p.espacios) })));
+    else setPisos((prev) => prev.map((p) => ({ ...p, espacios: aplicar(p.espacios) })));
     setIaCargando(false);
   }
 
@@ -622,8 +645,12 @@ export default function IntentWizard({
   // ── Mutadores de estructura (CASA/LOCAL/APTO) ───────────────────────────────
   function setEspaciosDePiso(idx: number, fn: (e: EspacioW[]) => EspacioW[]) {
     setPisos((prev) =>
-      prev.map((p, i) => (i === idx ? { espacios: fn(p.espacios.map((e) => ({ ...e }))) } : p)),
+      prev.map((p, i) => (i === idx ? { ...p, espacios: fn(p.espacios.map((e) => ({ ...e }))) } : p)),
     );
+  }
+  /** Uso de un piso (solo LOCAL), p.ej. "Farmacia" en el piso 1. */
+  function setUsoPiso(idx: number, uso: string) {
+    setPisos((prev) => prev.map((p, i) => (i === idx ? { ...p, usoNombre: uso } : p)));
   }
   function cambiarNumPisos(delta: number) {
     setPisos((prev) => {
@@ -641,6 +668,9 @@ export default function IntentWizard({
       prev.map((p, i) =>
         i === idx
           ? {
+              // Preserva el uso propio de ESTE piso (no el del piso anterior):
+              // "copiar espacios" no implica "copiar para qué se usa el piso".
+              ...p,
               espacios: prev[idx - 1].espacios.map((e) => ({
                 ...e,
                 id: nuevoId(),
@@ -706,6 +736,43 @@ export default function IntentWizard({
   // Cuenta cuántos espacios de cierto prefijo hay (para los steppers).
   function contar(espacios: EspacioW[], baseLabel: string): number {
     return espacios.filter((e) => e.nombre.startsWith(baseLabel)).length;
+  }
+
+  /**
+   * Prende/apaga una modificación general (techo, pisos, pintura general)
+   * sobre TODOS los espacios recibidos: sin espacio declarado, se asume que
+   * aplica a todo el piso (regla de producto, ver plantillas-personal.ts).
+   *
+   * Idempotente y "rellena huecos": al activar no duplica la tarea en un
+   * espacio que ya la tenía, así que sirve también para aplicarla a espacios
+   * agregados después de prender el toggle (solo hace falta volver a pulsarlo).
+   * Al desactivar, únicamente quita las tareas que ESTA modificación inyectó
+   * (`origenModGeneral`); nunca una tarea homónima que el usuario haya
+   * agregado a mano.
+   */
+  function aplicarModGeneral(espacios: EspacioW[], key: string, activar: boolean): EspacioW[] {
+    if (!activar) {
+      return espacios.map((e) => ({
+        ...e,
+        tareas: e.tareas.filter((t) => t.origenModGeneral !== key),
+      }));
+    }
+    const nombres = espacios.map((e) => e.nombre.trim()).filter(Boolean);
+    const porEspacio = new Map(
+      expandirModificacionesGenerales([key], nombres).map((x) => [x.espacio, x.tarea]),
+    );
+    return espacios.map((e) => {
+      if (e.tareas.some((t) => t.origenModGeneral === key)) return e; // ya la tiene
+      const tarea = porEspacio.get(e.nombre.trim());
+      if (!tarea) return e;
+      return {
+        ...e,
+        tareas: [
+          ...e.tareas,
+          { nombre: tarea.nombre, dias: tarea.tiempo_acordado_dias, on: true, origenModGeneral: key },
+        ],
+      };
+    });
   }
 
   // ── Tareas (paso 5) ─────────────────────────────────────────────────────────
@@ -1111,7 +1178,11 @@ export default function IntentWizard({
         }
       : {
           ...base,
-          pisos: pisos.map((p, i) => ({ numero: i + 1, espacios: mapEspacios(p.espacios) })),
+          pisos: pisos.map((p, i) => ({
+            numero: i + 1,
+            espacios: mapEspacios(p.espacios),
+            usoNombre: p.usoNombre?.trim() || undefined,
+          })),
         };
 
     const res =
@@ -1283,17 +1354,22 @@ export default function IntentWizard({
                 onCantidadTipo={(i, c) =>
                   setTipos((prev) => prev.map((t, j) => (j === i ? { ...t, cantidadPorPiso: c } : t)))
                 }
-                espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar }}
+                espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar, aplicarModGeneral }}
                 mostrarMetraje={modoMetraje === "espacio"}
                 setEspaciosDeTipo={setEspaciosDeTipo}
+                // Un edificio siempre es residencial (nunca LOCAL): catálogo fijo.
+                catalogo={ESPACIOS_PERSONAL}
               />
             ) : (
               <CasaBuilder
                 esApto={esApto}
+                esLocal={esLocal}
+                catalogo={catalogoEspacios}
                 pisos={pisos}
                 onNumPisos={cambiarNumPisos}
                 onCopiar={copiarPisoAnterior}
-                espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar }}
+                onUsoPiso={setUsoPiso}
+                espacioOps={{ setContador, toggleEspacioSingular, renombrarEspacio, setMetraje, contar, aplicarModGeneral }}
                 mostrarMetraje={modoMetraje === "espacio"}
                 setEspaciosDePiso={setEspaciosDePiso}
               />
@@ -1549,8 +1625,14 @@ export default function IntentWizard({
                   espacios={espaciosEstim}
                   plazoDias={plazoDias}
                   areaTotal={areaTotalNum}
+                  fechaInicio={fechaInicio || null}
+                  fechaFin={fechaFin || null}
                 />
-                <LineaTiempoObra espacios={espaciosEstim} areaTotal={areaTotalNum} />
+                <LineaTiempoObra
+                  espacios={espaciosEstim}
+                  areaTotal={areaTotalNum}
+                  fechaInicio={fechaInicio || null}
+                />
               </div>
             )}
           </div>
@@ -1682,6 +1764,7 @@ interface EspacioOps {
   renombrarEspacio: (e: EspacioW[], id: string, nombre: string) => EspacioW[];
   setMetraje: (e: EspacioW[], id: string, m?: number) => EspacioW[];
   contar: (e: EspacioW[], baseLabel: string) => number;
+  aplicarModGeneral: (e: EspacioW[], key: string, activar: boolean) => EspacioW[];
 }
 
 /**
@@ -1769,17 +1852,24 @@ function AreaObra({
 
 function CasaBuilder({
   esApto,
+  esLocal,
+  catalogo,
   pisos,
   onNumPisos,
   onCopiar,
+  onUsoPiso,
   espacioOps,
   mostrarMetraje,
   setEspaciosDePiso,
 }: {
   esApto: boolean;
+  /** LOCAL: catálogo de comercio + uso nombrable por piso. */
+  esLocal: boolean;
+  catalogo: typeof ESPACIOS_PERSONAL;
   pisos: PisoW[];
   onNumPisos: (delta: number) => void;
   onCopiar: (idx: number) => void;
+  onUsoPiso: (idx: number, uso: string) => void;
   espacioOps: EspacioOps;
   mostrarMetraje: boolean;
   setEspaciosDePiso: (idx: number, fn: (e: EspacioW[]) => EspacioW[]) => void;
@@ -1800,7 +1890,19 @@ function CasaBuilder({
         <PisoCard
           key={idx}
           idx={idx}
-          titulo={pisos.length > 1 ? ordinalPiso(idx + 1).replace("— ", "") : esApto ? "Tu apartamento" : "Tu casa"}
+          titulo={
+            pisos.length > 1
+              ? ordinalPiso(idx + 1).replace("— ", "")
+              : esApto
+                ? "Tu apartamento"
+                : esLocal
+                  ? "Tu local"
+                  : "Tu casa"
+          }
+          esLocal={esLocal}
+          catalogo={catalogo}
+          usoNombre={piso.usoNombre}
+          onUsoNombre={(v) => onUsoPiso(idx, v)}
           espacios={piso.espacios}
           puedeCopiar={idx > 0}
           onCopiar={() => onCopiar(idx)}
@@ -1828,6 +1930,7 @@ function EdificioBuilder({
   espacioOps,
   mostrarMetraje,
   setEspaciosDeTipo,
+  catalogo,
 }: {
   numPisos: number;
   aptosPorPiso: number;
@@ -1843,6 +1946,8 @@ function EdificioBuilder({
   espacioOps: EspacioOps;
   mostrarMetraje: boolean;
   setEspaciosDeTipo: (idx: number, fn: (e: EspacioW[]) => EspacioW[]) => void;
+  /** Un edificio siempre es residencial (nunca LOCAL). */
+  catalogo: typeof ESPACIOS_PERSONAL;
 }) {
   return (
     <>
@@ -1908,6 +2013,8 @@ function EdificioBuilder({
               espacioOps={espacioOps}
               mostrarMetraje={mostrarMetraje}
               setEspacios={(fn) => setEspaciosDeTipo(idx, fn)}
+              catalogo={catalogo}
+              esLocal={false}
             />
           </div>
         </div>
@@ -1926,6 +2033,10 @@ function EdificioBuilder({
 
 function PisoCard({
   titulo,
+  esLocal,
+  catalogo,
+  usoNombre,
+  onUsoNombre,
   espacios,
   puedeCopiar,
   onCopiar,
@@ -1935,6 +2046,11 @@ function PisoCard({
 }: {
   idx: number;
   titulo: string;
+  /** LOCAL: catálogo de comercio + input de uso del piso. */
+  esLocal: boolean;
+  catalogo: typeof ESPACIOS_PERSONAL;
+  usoNombre?: string;
+  onUsoNombre: (v: string) => void;
   espacios: EspacioW[];
   puedeCopiar: boolean;
   onCopiar: () => void;
@@ -1956,33 +2072,69 @@ function PisoCard({
           </button>
         )}
       </div>
-      <div className="p-4">
+      <div className="p-4 flex flex-col gap-4">
+        {/* Uso de este piso (solo LOCAL): opcional, un local puede tener un
+            negocio distinto por piso (p.ej. farmacia abajo, peluquería arriba). */}
+        {esLocal && (
+          <div>
+            <label className="text-xs font-medium text-slate-500 mb-1 block">
+              Uso de este piso (opcional)
+            </label>
+            <input
+              value={usoNombre ?? ""}
+              onChange={(e) => onUsoNombre(e.target.value)}
+              placeholder="Ej: Farmacia, Peluquería"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+            />
+          </div>
+        )}
         <EspaciosEditor
           espacios={espacios}
           espacioOps={espacioOps}
           mostrarMetraje={mostrarMetraje}
           setEspacios={setEspacios}
+          catalogo={catalogo}
+          esLocal={esLocal}
         />
       </div>
     </div>
   );
 }
 
-/** Editor común de espacios: steppers de habitaciones/baños + toggles singulares + lista renombrable. */
+/**
+ * Editor común de espacios: en CASA/APARTAMENTO/EDIFICIO, steppers de
+ * habitaciones/baños + toggles singulares (catálogo residencial). En LOCAL
+ * (`esLocal`) no hay "Habitaciones" — el local no tiene dormitorios — así que
+ * los steppers no se muestran y el catálogo completo de comercio entra como
+ * toggles (incluye sus propios baños: "Baño de clientes"/"Baño de personal").
+ * En los dos casos: lista renombrable + "otro espacio" libre.
+ */
 function EspaciosEditor({
   espacios,
   espacioOps,
   mostrarMetraje,
   setEspacios,
+  catalogo,
+  esLocal,
 }: {
   espacios: EspacioW[];
   espacioOps: EspacioOps;
   mostrarMetraje: boolean;
   setEspacios: (fn: (e: EspacioW[]) => EspacioW[]) => void;
+  catalogo: typeof ESPACIOS_PERSONAL;
+  esLocal: boolean;
 }) {
   const nHab = espacioOps.contar(espacios, "Habitación");
   const nBano = espacioOps.contar(espacios, "Baño");
   const [otro, setOtro] = useState("");
+  // Toggles: todo el catálogo salvo "otro" (que tiene su propio input de texto
+  // libre más abajo). Para LOCAL no hay claves "bano"/"habitacion" que excluir
+  // (sus baños son entradas propias: bano_clientes/bano_personal), así que el
+  // mismo filtro sirve para los dos catálogos.
+  const toggles = useMemo(
+    () => catalogo.filter((e) => !["bano", "habitacion", "otro"].includes(e.key)),
+    [catalogo],
+  );
   // Aviso sutil cuando auto-numeramos un nombre duplicado ("Cocina 2").
   const [aviso, setAviso] = useState<{ id: string; nombre: string } | null>(null);
 
@@ -2008,31 +2160,37 @@ function EspaciosEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Steppers de habitaciones y baños */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
-          <span className="text-sm text-slate-700">Habitaciones</span>
-          <Stepper
-            value={nHab}
-            min={0}
-            max={20}
-            onChange={(d) => setEspacios((e) => espacioOps.setContador(e, "Habitación", nHab + d))}
-          />
+      {/* Steppers de habitaciones y baños: no aplican a LOCAL (no hay dormitorios;
+          sus baños son toggles propios en el catálogo de comercio). */}
+      {!esLocal && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+            <span className="text-sm text-slate-700">Habitaciones</span>
+            <Stepper
+              value={nHab}
+              min={0}
+              max={20}
+              onChange={(d) => setEspacios((e) => espacioOps.setContador(e, "Habitación", nHab + d))}
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
+            <span className="text-sm text-slate-700">Baños</span>
+            <Stepper
+              value={nBano}
+              min={0}
+              max={20}
+              onChange={(d) => setEspacios((e) => espacioOps.setContador(e, "Baño", nBano + d))}
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2">
-          <span className="text-sm text-slate-700">Baños</span>
-          <Stepper
-            value={nBano}
-            min={0}
-            max={20}
-            onChange={(d) => setEspacios((e) => espacioOps.setContador(e, "Baño", nBano + d))}
-          />
-        </div>
-      </div>
+      )}
 
-      {/* Toggles de espacios singulares */}
+      {/* Toggles de espacios: "Espacios" en LOCAL (catálogo de comercio), sin
+          encabezado propio en el resto (el catálogo residencial ya lo dejan
+          claro los steppers de arriba). */}
+      {esLocal && <p className="text-xs font-medium text-slate-500">Espacios</p>}
       <div className="flex flex-wrap gap-2">
-        {ESPACIOS_TOGGLE.map((e) => {
+        {toggles.map((e) => {
           const activo = espacios.some((x) => x.nombre === e.label);
           return (
             <button
@@ -2052,6 +2210,35 @@ function EspaciosEditor({
           );
         })}
       </div>
+
+      {/* Modificaciones generales: no van atadas a un espacio — sin uno
+          declarado, se asume que aplican a TODO este piso/grupo (se expanden
+          a cada espacio de la lista de abajo). */}
+      {espacios.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+          <p className="text-xs font-medium text-slate-500">
+            Modificaciones generales (aplican a todos los espacios de aquí)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {MODIFICACIONES_GENERALES.map((m) => {
+              const activo = espacios.every((e) => e.tareas.some((t) => t.origenModGeneral === m.key));
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setEspacios((prev) => espacioOps.aplicarModGeneral(prev, m.key, !activo))}
+                  className={`inline-flex items-center gap-1.5 pl-3 pr-3 py-1.5 rounded-full border text-sm font-medium transition-colors cursor-pointer ${
+                    activo ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-200 text-slate-700 hover:border-blue-300"
+                  }`}
+                >
+                  {m.label}
+                  {activo && <Check className="w-3.5 h-3.5" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Otro espacio (texto libre) */}
       <div className="flex gap-2">

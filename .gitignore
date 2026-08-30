@@ -59,3 +59,8 @@ hero-*.png
 
 # artefactos de generación de documentos de ventas (docx/pptx)
 docs/ventas/build/
+
+# unlazy: estado local del hook y aprobaciones de oráculos (rutas absolutas de
+# la máquina). El ledger (.unlazy/<scope>/) SÍ se versiona: es la evidencia.
+.unlazy-hook-state.json
+.claude/settings.local.json

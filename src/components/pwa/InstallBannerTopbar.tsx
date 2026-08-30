@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, X, Share, Plus } from "lucide-react";
-import { emitPwaEvento, triggerInstall, usePwaInstall } from "@/lib/pwa-install";
+import {
+  emitPwaEvento,
+  marcarDescartado,
+  triggerInstall,
+  useBannerDescartado,
+  usePwaInstall,
+} from "@/lib/pwa-install";
 
 const DISMISS_KEY = "pwa-install-banner-dismissed";
 
@@ -15,13 +21,10 @@ const DISMISS_KEY = "pwa-install-banner-dismissed";
  */
 export default function InstallBannerTopbar() {
   const { canInstall, standalone, ios } = usePwaInstall();
-  const [dismissed, setDismissed] = useState(true); // empieza true para no flashear en hidratación
+  // `true` en hidratación para no flashear el banner antes de saber si ya se
+  // cerró. El valor real sale de localStorage en cuanto hay navegador.
+  const dismissed = useBannerDescartado(DISMISS_KEY, true);
   const [showIosModal, setShowIosModal] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
-  }, []);
 
   if (standalone || dismissed) return null;
   if (!canInstall && !ios) return null;
@@ -36,8 +39,7 @@ export default function InstallBannerTopbar() {
   }
 
   function handleDismiss() {
-    localStorage.setItem(DISMISS_KEY, "1");
-    setDismissed(true);
+    marcarDescartado(DISMISS_KEY);
   }
 
   return (

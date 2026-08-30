@@ -96,7 +96,7 @@ export default function ObrerosRankingClient({ obreros }: { obreros: ObreroRow[]
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-slate-100 bg-slate-50">
                 <th className="px-4 py-3 font-medium">#</th>
-                <th className="px-4 py-3 font-medium">Obrero</th>
+                <th className="px-4 py-3 font-medium">Personal de campo</th>
                 <th className="px-4 py-3 font-medium">Especialidad</th>
                 <th className="px-4 py-3 font-medium">Contratista</th>
                 <th className="px-4 py-3 font-medium text-center">Score</th>
@@ -108,7 +108,7 @@ export default function ObrerosRankingClient({ obreros }: { obreros: ObreroRow[]
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center text-slate-400 py-10">
-                    No hay obreros que coincidan con los filtros.
+                    No hay personal de campo que coincida con los filtros.
                   </td>
                 </tr>
               ) : (
@@ -155,7 +155,7 @@ export default function ObrerosRankingClient({ obreros }: { obreros: ObreroRow[]
       </div>
 
       <p className="mt-3 text-[11px] text-slate-400">
-        El score se calcula automáticamente cada vez que un obrero reporta una tarea y el contratista la aprueba o rechaza.
+        El score se calcula automáticamente cada vez que una persona de campo reporta una tarea y el contratista la aprueba o rechaza.
       </p>
     </>
   );

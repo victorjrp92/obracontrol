@@ -32,6 +32,18 @@ export interface TareaEstim {
    * como fallback determinista.
    */
   fase?: string;
+  /**
+   * Id de la tarea en el sistema del llamador (`Tarea.id`). Solo hace falta
+   * cuando se quieren pasar dependencias explícitas: es el valor al que
+   * apunta el `dependeDe` de otra tarea. El estimador de COSTOS lo ignora.
+   */
+  id?: string;
+  /**
+   * `Tarea.depende_de`: id de la tarea que tiene que terminar antes que esta.
+   * El motor de duración lo convierte en una arista del grafo del cronograma
+   * y RECHAZA la que cierre un ciclo. El estimador de costos lo ignora.
+   */
+  dependeDe?: string;
 }
 
 export interface EspacioEstim {

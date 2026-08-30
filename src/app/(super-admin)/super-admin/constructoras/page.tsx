@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const TIPO_CUENTA_BADGE: Record<TipoCuenta, { label: string; cls: string }> = {
   CONSTRUCTORA: { label: "Empresa", cls: "bg-slate-100 text-slate-600 border-slate-200" },
   CONTRATISTA: { label: "Contratista", cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  ARQUITECTO: { label: "Arquitecto", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   PROPIETARIO: { label: "Propietario", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
 

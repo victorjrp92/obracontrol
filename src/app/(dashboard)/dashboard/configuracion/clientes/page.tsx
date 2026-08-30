@@ -30,7 +30,15 @@ export default function ClientesPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchClientes(); }, [fetchClientes]);
+  // La carga inicial se envuelve en una función async en vez de llamar a
+  // `fetchClientes()` suelto en el cuerpo del efecto. No es cosmética: deja
+  // explícito que el `setState` llega DESPUÉS del await, no en cascada con el
+  // render, que es justo lo que exige `react-hooks/set-state-in-effect`.
+  useEffect(() => {
+    void (async () => {
+      await fetchClientes();
+    })();
+  }, [fetchClientes]);
 
   async function handleAdd() {
     if (!nombre.trim()) return;

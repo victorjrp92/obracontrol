@@ -34,7 +34,7 @@ export default async function ObrerosPage() {
 
   return (
     <>
-      <Topbar title="Obreros" subtitle="Todos los obreros del sistema" />
+      <Topbar title="Personal de campo" subtitle="Todo el personal de campo del sistema" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <ObrerosClient obreros={data} constructoras={constructoras} />
       </main>

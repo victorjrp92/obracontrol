@@ -7,10 +7,10 @@ import type { PlanTipo, TipoCuenta } from "@/generated/prisma";
  * tanto en el front (ocultar menú/botones) como en el back (guardas de API),
  * para que ocultar no sea lo mismo que "no autorizar".
  *
- * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA / CONTRATISTA
- * / PROPIETARIO) y el cobro lo gobierna `plan_suscripcion`. Se mantienen
- * separados a propósito — un contratista puede subir de plan sin dejar de ser
- * contratista.
+ * Diseño: el comportamiento lo gobierna `tipo_cuenta` (CONSTRUCTORA /
+ * CONTRATISTA / PROPIETARIO / ARQUITECTO) y el cobro lo gobierna
+ * `plan_suscripcion`. Se mantienen separados a propósito — un contratista puede
+ * subir de plan sin dejar de ser contratista.
  */
 
 export type Capacidad =
@@ -25,7 +25,28 @@ export type Capacidad =
   | "empresa"        // ficha/pestaña de empresa
   | "reportes"       // reportes y exportables
   | "validar"        // aprobar/rechazar lo reportado
-  | "modoSimple";    // usa la cáscara simple + módulo de intención (/empezar)
+  | "modoSimple"     // usa la cáscara simple + módulo de intención (/empezar)
+  | "productosTecnicos"; // planos, renders, registro inicial y actas firmadas
+
+/**
+ * Todas las capacidades, en orden estable. Existe para poder recorrer la matriz
+ * (verificación, depuración) sin volver a escribir la lista en cada consumidor.
+ */
+export const CAPACIDADES: readonly Capacidad[] = [
+  "contratistas",
+  "obreros",
+  "equipo",
+  "clientes",
+  "multiproyecto",
+  "pagos",
+  "usuarios",
+  "sugerencias",
+  "empresa",
+  "reportes",
+  "validar",
+  "modoSimple",
+  "productosTecnicos",
+];
 
 /** Matriz de capacidades por tipo de cuenta. */
 const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
@@ -43,6 +64,7 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: false,
+    productosTecnicos: true,
   },
   // Contratista B2C: emprendedor de oficio; maneja varias obras de varios
   // clientes, arma su propio equipo/personal que le reporta, y valida lo reportado.
@@ -59,6 +81,7 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: true,
+    productosTecnicos: false,
   },
   // Propietario (persona natural): lleva su propia obra y contrata obreros
   // directos que le reportan para validar. Sin contratistas, clientes ni pagos.
@@ -75,6 +98,27 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     reportes: true,
     validar: true,
     modoSimple: true,
+    productosTecnicos: false,
+  },
+  // Arquitecto: profesional que diseña y supervisa. Como el contratista, maneja
+  // varias obras de varios clientes y valida lo reportado — pero su entregable
+  // no es la ejecución, son los productos técnicos: planos, renders, registro
+  // fotográfico inicial y actas firmadas con su matrícula. Es lo único que lo
+  // distingue en la matriz, y es lo que justifica su plan aparte.
+  ARQUITECTO: {
+    contratistas: true,
+    obreros: true,
+    equipo: true,
+    clientes: true,
+    multiproyecto: true,
+    pagos: true,
+    usuarios: false,
+    sugerencias: true,
+    empresa: false,
+    reportes: true,
+    validar: true,
+    modoSimple: true,
+    productosTecnicos: true,
   },
 };
 
@@ -83,17 +127,31 @@ export function puede(tipo: TipoCuenta, cap: Capacidad): boolean {
   return MATRIZ[tipo]?.[cap] ?? false;
 }
 
-/** ¿Es una cuenta personal (contratista B2C o propietario) en modo simple? */
-export function esCuentaPersonal(tipo: TipoCuenta): boolean {
-  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO";
+/**
+ * La fila entera de la matriz para un perfil. Se devuelve una copia: la matriz
+ * gobierna guardas de API, así que no se presta la referencia viva.
+ */
+export function capacidadesDe(tipo: TipoCuenta): Readonly<Record<Capacidad, boolean>> {
+  return { ...MATRIZ[tipo] };
 }
+
+/**
+ * ¿Es una cuenta personal en modo simple? Lo son los tres perfiles B2C:
+ * contratista, propietario y arquitecto.
+ */
+export function esCuentaPersonal(tipo: TipoCuenta): tipo is TipoCuentaPersonal {
+  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO" || tipo === "ARQUITECTO";
+}
+
+/** Los tipos de cuenta B2C: negocio o vivienda propia, en modo simple. */
+export type TipoCuentaPersonal = Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO" | "ARQUITECTO">;
 
 /**
  * ¿El usuario puede crear y administrar obreros DIRECTOS (que cuelgan de él
  * mismo como `contratista_id`)? Cierto para:
  *   - CONTRATISTA (flujo de empresa de siempre).
- *   - ADMIN_GENERAL de una cuenta personal (contratista B2C/propietario): es su
- *     propio "dueño de obreros" y a la vez el aprobador.
+ *   - ADMIN_GENERAL de una cuenta personal (contratista B2C, propietario o
+ *     arquitecto): es su propio "dueño de obreros" y a la vez el aprobador.
  */
 export function puedeGestionarEquipoDirecto(nivel: string, tipo: TipoCuenta): boolean {
   if (nivel === "CONTRATISTA") return true;
@@ -111,10 +169,9 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
     // No se usa: la empresa delega en getPermissions(). Valor de respaldo.
     return ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"];
   }
-  if (tipo === "CONTRATISTA") {
-    return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
-  }
-  // PROPIETARIO
+  // Los tres perfiles personales (CONTRATISTA, PROPIETARIO, ARQUITECTO) ven la
+  // misma cáscara simple. Los productos técnicos del arquitecto viven DENTRO de
+  // la obra, igual que la gestión de equipo, así que no añaden ítem aquí.
   return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
 }
 
@@ -124,9 +181,66 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
  */
 export function limiteObrasActivas(plan: PlanTipo, tipo: TipoCuenta): number {
   if (plan !== "PERSONAL") return Infinity;
-  // Plan gratis: el propietario arranca con 1 obra; el contratista B2C con 2
-  // clientes para que pruebe el flujo real antes de pasar a un plan de pago.
-  return tipo === "CONTRATISTA" ? 2 : 1;
+  // Plan gratis: el propietario lleva UNA obra —la suya—, así que con 1 le basta.
+  // Contratista y arquitecto trabajan para varios clientes: con 2 prueban el
+  // flujo real de multi-obra antes de pasar a un plan de pago. No se sube a 3 a
+  // propósito — el tramo de entrada cubre 1–3, y regalarlo entero dejaría a
+  // nadie con motivo para pagarlo.
+  return tipo === "CONTRATISTA" || tipo === "ARQUITECTO" ? 2 : 1;
+}
+
+/**
+ * ─── Tramos de precio ────────────────────────────────────────────────────────
+ *
+ * El cobro va por obras ACTIVAS (`estado: ACTIVO`), no por obras totales: un
+ * maestro de pintura con veinte trabajitos al año pero tres abiertos a la vez
+ * paga por tres.
+ *
+ * El tramo del medio es el que se quiere vender; los otros dos existen para que
+ * se vea razonable. El de entrada se corta en 3 a propósito: si cubriera hasta
+ * 5, nadie subiría nunca de tramo.
+ *
+ * Ojo: «Objetivo» es como lo nombra el spec puertas adentro —es el tramo al que
+ * se quiere empujar—, no un nombre comercial. Quien monte la página de precios
+ * debe bautizarlo de cara al cliente antes de mostrarlo.
+ */
+export type TramoObrasKey = "ENTRADA" | "OBJETIVO" | "ESTUDIO" | "A_CONVENIR";
+
+export interface TramoObras {
+  key: TramoObrasKey;
+  nombre: string;
+  /** Primera obra activa que entra en el tramo (inclusive). */
+  min: number;
+  /** Última obra activa del tramo (inclusive). `Infinity` en el tramo abierto. */
+  max: number;
+}
+
+/** Los cuatro tramos, en orden y sin huecos entre uno y el siguiente. */
+export const TRAMOS_OBRAS_ACTIVAS: readonly TramoObras[] = [
+  { key: "ENTRADA", nombre: "Entrada", min: 1, max: 3 },
+  { key: "OBJETIVO", nombre: "Objetivo", min: 4, max: 10 },
+  { key: "ESTUDIO", nombre: "Estudio", min: 11, max: 25 },
+  { key: "A_CONVENIR", nombre: "A convenir", min: 26, max: Infinity },
+];
+
+/**
+ * Tramo que le corresponde a una cuenta por su número de obras activas. Una
+ * cuenta sin obras activas cae en el tramo de entrada: estar quieto no se cobra
+ * más caro.
+ *
+ * Lanza si el número no es un entero >= 0. Un conteo inválido llegando a una
+ * función de precio es un defecto que hay que ver, no algo que deba tarifarse
+ * en silencio.
+ */
+export function tramoPorObrasActivas(obrasActivas: number): TramoObras {
+  if (!Number.isInteger(obrasActivas) || obrasActivas < 0) {
+    throw new Error(`obrasActivas debe ser un entero >= 0, llegó: ${obrasActivas}`);
+  }
+  // El último tramo es abierto (max = Infinity), así que la búsqueda no falla.
+  return (
+    TRAMOS_OBRAS_ACTIVAS.find((t) => obrasActivas <= t.max) ??
+    TRAMOS_OBRAS_ACTIVAS[TRAMOS_OBRAS_ACTIVAS.length - 1]
+  );
 }
 
 /**
@@ -145,7 +259,10 @@ export interface TonoPerfil {
 }
 
 export function tonoPerfil(tipo: TipoCuenta): TonoPerfil {
-  if (tipo === "CONTRATISTA") {
+  // El arquitecto comparte el tono del contratista: los dos trabajan varias
+  // obras de varios clientes y coordinan a quien ejecuta. Lo que los distingue
+  // son los productos técnicos, no cómo se les nombra la obra ni el equipo.
+  if (tipo === "CONTRATISTA" || tipo === "ARQUITECTO") {
     return {
       equipoLabel: "Mis contratistas",
       equipoSingular: "contratista",

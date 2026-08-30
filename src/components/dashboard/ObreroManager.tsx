@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus, Copy, Check, Loader2, UserPlus, X, ToggleLeft, ToggleRight,
-  Calendar, Trash2, Users, Star, Award, Pencil,
+  Calendar, Trash2, Users, Star, Award, Pencil, MapPin, ShieldAlert,
 } from "lucide-react";
 import { ESPECIALIDADES, ESPECIALIDAD_LABEL, TIPOS_SANGRE } from "@/lib/obrero";
 
@@ -21,6 +21,14 @@ interface Obrero {
   eps?: string | null;
   arl?: string | null;
   anos_experiencia?: number | null;
+  // Opcionales: GET /api/obreros (la lista) SÍ los trae — la ficha los pinta
+  // sin abrir «Editar». `openEdit()` los reconcilia igualmente con la ficha
+  // completa de GET /api/obreros/[id], que es la fuente de verdad.
+  fecha_nacimiento?: string | null;
+  direccion?: string | null;
+  contacto_emergencia?: string | null;
+  contacto_emergencia_telefono?: string | null;
+  tipo_sangre?: string | null;
   score_total?: number;
   score_calidad?: number;
   evidencias_aprobadas?: number;
@@ -119,13 +127,18 @@ export default function ObreroManager() {
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Id del registro cuya ficha completa se está pidiendo en openEdit(), para
+  // descartar la respuesta si mientras tanto se cerró el modal o se abrió
+  // otro registro (evita pisar el formulario con datos de un edit anterior).
+  const editingRequestId = useRef<string | null>(null);
+
   useEffect(() => { fetchObreros(); }, []);
 
   async function fetchObreros() {
     setLoading(true);
     try {
       const res = await fetch("/api/obreros");
-      if (!res.ok) throw new Error("Error cargando obreros");
+      if (!res.ok) throw new Error("Error cargando personal de campo");
       setObreros(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -135,13 +148,15 @@ export default function ObreroManager() {
   }
 
   function openCreate() {
+    editingRequestId.current = null;
     setEditingId(null);
     setForm(EMPTY_FORM);
     setError("");
     setShowForm(true);
   }
 
-  function openEdit(o: Obrero) {
+  async function openEdit(o: Obrero) {
+    editingRequestId.current = o.id;
     setEditingId(o.id);
     setForm({
       nombre: o.nombre,
@@ -152,15 +167,37 @@ export default function ObreroManager() {
       arl: o.arl ?? "",
       fecha_inicio: o.fecha_inicio.slice(0, 10),
       fecha_expiracion: o.fecha_expiracion.slice(0, 10),
-      fecha_nacimiento: "",
-      direccion: "",
-      contacto_emergencia: "",
-      contacto_emergencia_telefono: "",
-      tipo_sangre: "",
+      fecha_nacimiento: o.fecha_nacimiento ? String(o.fecha_nacimiento).slice(0, 10) : "",
+      direccion: o.direccion ?? "",
+      contacto_emergencia: o.contacto_emergencia ?? "",
+      contacto_emergencia_telefono: o.contacto_emergencia_telefono ?? "",
+      tipo_sangre: o.tipo_sangre ?? "",
       anos_experiencia: o.anos_experiencia != null ? String(o.anos_experiencia) : "",
     });
     setError("");
     setShowForm(true);
+
+    // El formulario ya quedó prellenado con lo que trae la lista; esta llamada
+    // reconcilia con la ficha completa por si la lista se cargó antes de un
+    // cambio hecho en otra pestaña.
+    try {
+      const res = await fetch(`/api/obreros/${o.id}`);
+      if (editingRequestId.current !== o.id) return; // se cerró o se abrió otro edit mientras cargaba
+      if (!res.ok) return;
+      const full = await res.json();
+      if (editingRequestId.current !== o.id) return;
+      setForm((prev) => ({
+        ...prev,
+        fecha_nacimiento: full.fecha_nacimiento ? String(full.fecha_nacimiento).slice(0, 10) : "",
+        direccion: full.direccion ?? "",
+        contacto_emergencia: full.contacto_emergencia ?? "",
+        contacto_emergencia_telefono: full.contacto_emergencia_telefono ?? "",
+        tipo_sangre: full.tipo_sangre ?? "",
+      }));
+    } catch {
+      // Si falla, esos campos quedan como estaban (vacíos o de la lista) y el
+      // usuario puede reescribirlos sin perder el resto del formulario.
+    }
   }
 
   async function handleSave() {
@@ -235,7 +272,7 @@ export default function ObreroManager() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("¿Eliminar este obrero?")) return;
+    if (!confirm("¿Eliminar a esta persona de campo?")) return;
     try {
       const res = await fetch(`/api/obreros/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -278,7 +315,7 @@ export default function ObreroManager() {
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-slate-500" />
           <span className="text-sm text-slate-500">
-            {obreros.length} obrero{obreros.length !== 1 ? "s" : ""}
+            {obreros.length} {obreros.length === 1 ? "persona de campo" : "personas de campo"}
           </span>
         </div>
         <button
@@ -286,7 +323,7 @@ export default function ObreroManager() {
           className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
-          Agregar obrero
+          Agregar personal de campo
         </button>
       </div>
 
@@ -294,7 +331,7 @@ export default function ObreroManager() {
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
           <UserPlus className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-sm text-slate-500">
-            No tienes obreros registrados. Agrega uno para darle acceso a tus tareas.
+            No tienes personal de campo registrado. Agrega el primero para darle acceso a tus tareas.
           </p>
         </div>
       ) : (
@@ -321,6 +358,17 @@ export default function ObreroManager() {
                     <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
                       {o.cedula && <span>CC {o.cedula}</span>}
                       {o.telefono && <span>📞 {o.telefono}</span>}
+                      {o.direccion && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="w-3 h-3" /> {o.direccion}
+                        </span>
+                      )}
+                      {(o.contacto_emergencia || o.contacto_emergencia_telefono) && (
+                        <span className="inline-flex items-center gap-1">
+                          <ShieldAlert className="w-3 h-3" />
+                          {[o.contacto_emergencia, o.contacto_emergencia_telefono].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
                       <span>
                         Expira:{" "}
                         {new Date(o.fecha_expiracion).toLocaleDateString("es-CO", {
@@ -378,7 +426,7 @@ export default function ObreroManager() {
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingId ? "Editar obrero" : "Agregar obrero"}
+                {editingId ? "Editar personal de campo" : "Agregar personal de campo"}
               </h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -460,7 +508,7 @@ export default function ObreroManager() {
               className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear obrero"}
+              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear personal de campo"}
             </button>
           </div>
         </div>
@@ -471,13 +519,13 @@ export default function ObreroManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">Obrero creado</h3>
+              <h3 className="text-lg font-bold text-slate-900">Personal de campo creado</h3>
               <button onClick={() => setShowLink(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-slate-600 mb-4">
-              Comparte este enlace con el obrero para que pueda acceder a sus tareas:
+              Comparte este enlace con la persona de campo para que pueda acceder a sus tareas:
             </p>
             <div className="bg-slate-50 rounded-xl p-3 mb-4 break-all text-sm text-slate-700 font-mono">
               {generatedLink}

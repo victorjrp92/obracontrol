@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { normalizarFolio, esFolioDeFamilia, PATRON_HUELLA, type PrefijoFolio } from "@/lib/documentos";
 import { verificarDocumento } from "@/lib/juntos/registro-documento";
 import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
 
@@ -17,26 +18,14 @@ import { claveDesdeHeaders, permitirPeticion } from "@/lib/rate-limit";
  * bytes, así que probar folios al azar solo diría si existe un documento de esa
  * fecha, sin revelar de quién ni de qué. Aun así lleva rate limit, porque un
  * escaneo masivo permitiría estimar volúmenes y no hay razón para regalar eso.
+ *
+ * Esta ruta responde SOLO por los folios de Juntos. El formato y la
+ * normalización los pone el módulo compartido de documentos; los prefijos, esta
+ * línea.
  */
 
 const MAX_POR_MINUTO_POR_IP = 20;
-const FOLIO_RE = /^(JT|DP)-\d{8}-[0-9a-f]{6}$/;
-const HUELLA_RE = /^[0-9a-f]{8,64}$/;
-
-/**
- * Deja el folio exactamente como lo guarda `generarFolio()`: prefijo en
- * MAYÚSCULA y la parte aleatoria en minúscula (`randomBytes(3).toString("hex")`).
- *
- * Hace falta porque la persona lo copia a mano del pie de un PDF y puede
- * escribirlo como sea. La primera versión pasaba todo a mayúsculas y así NINGÚN
- * folio válido pasaba el filtro — el hex quedaba en mayúscula y la expresión
- * regular solo acepta minúscula. Lo cazó la primera prueba contra el servidor.
- */
-function normalizarFolio(crudo: string): string {
-  const partes = crudo.trim().split("-");
-  if (partes.length !== 3) return crudo.trim();
-  return `${partes[0].toUpperCase()}-${partes[1]}-${partes[2].toLowerCase()}`;
-}
+const PREFIJOS_JUNTOS: readonly PrefijoFolio[] = ["JT", "DP"];
 
 export async function GET(req: NextRequest) {
   try {
@@ -51,7 +40,7 @@ export async function GET(req: NextRequest) {
     const folio = normalizarFolio(searchParams.get("folio") ?? "");
     const huellaCruda = (searchParams.get("huella") ?? "").trim().toLowerCase();
 
-    if (!FOLIO_RE.test(folio)) {
+    if (!esFolioDeFamilia(folio, PREFIJOS_JUNTOS)) {
       return NextResponse.json(
         { error: "El folio no tiene el formato esperado. Cópialo del pie de tu documento." },
         { status: 400 }
@@ -59,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
     // Una huella con formato raro se ignora en vez de rechazar la consulta: el
     // folio por sí solo ya es una verificación válida.
-    const huella = HUELLA_RE.test(huellaCruda) ? huellaCruda : null;
+    const huella = PATRON_HUELLA.test(huellaCruda) ? huellaCruda : null;
 
     const resultado = await verificarDocumento(folio, huella);
     return NextResponse.json(resultado);

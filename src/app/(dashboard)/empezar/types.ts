@@ -59,6 +59,16 @@ export interface EspacioInput {
 export interface PisoInput {
   numero: number;
   espacios: EspacioInput[];
+  /**
+   * Uso de este piso, opcional y editable por el usuario (p.ej. un LOCAL con
+   * "Farmacia" en el primer piso y "Peluquería" en el segundo). Sin campo
+   * propio en `Piso` (no se puede tocar el schema): se persiste en
+   * `Unidad.nombre_personalizado`, que existe y no lo usa ningún otro flujo
+   * de la obra personal CASA/LOCAL/APARTAMENTO (1 unidad por piso en ese
+   * modo) — ver `crearObraPersonal`/`editarObraPersonal`/`cargarObraParaEditar`
+   * en actions.ts.
+   */
+  usoNombre?: string;
 }
 
 /** Un tipo de apartamento dentro de un Edificio. */

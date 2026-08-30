@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -117,23 +117,88 @@ export async function triggerInstall(): Promise<"accepted" | "dismissed" | "unav
   return outcome;
 }
 
-export function usePwaInstall() {
-  const [canInstall, setCanInstall] = useState(false);
-  const [standalone, setStandalone] = useState(false);
-  const [ios, setIos] = useState(false);
+/**
+ * Suscripción al store singleton de arriba. Es la firma que pide
+ * `useSyncExternalStore`: devuelve la baja.
+ */
+function suscribir(alCambiar: () => void): () => void {
+  listeners.add(alCambiar);
+  return () => {
+    listeners.delete(alCambiar);
+  };
+}
 
-  useEffect(() => {
-    setCanInstall(savedEvent !== null);
-    setStandalone(isStandalone());
-    setIos(isIOS());
-    function handler() {
-      setCanInstall(savedEvent !== null);
-    }
-    listeners.add(handler);
-    return () => {
-      listeners.delete(handler);
-    };
-  }, []);
+/** El estado del navegador en el servidor: no hay navegador. */
+const enServidor = () => false;
+
+/**
+ * Estado de instalación de la PWA.
+ *
+ * Se lee con `useSyncExternalStore` y no con `useState` + efecto porque esto YA
+ * es un store externo (el `savedEvent` singleton con su `Set` de oyentes, arriba
+ * en este mismo fichero). La versión anterior sembraba los tres booleanos con
+ * `setState` dentro de un efecto de montaje —lo que dispara un render en
+ * cascada y es lo que marca `react-hooks/set-state-in-effect`— y además dejaba
+ * `standalone` e `ios` congelados en el valor del montaje.
+ *
+ * Cada `useSyncExternalStore` devuelve un BOOLEANO, no un objeto: React compara
+ * la instantánea por identidad y un objeto nuevo en cada llamada sería un bucle
+ * de renders. El objeto se compone al devolver, que es inocuo.
+ */
+export function usePwaInstall() {
+  const canInstall = useSyncExternalStore(suscribir, () => savedEvent !== null, enServidor);
+  const standalone = useSyncExternalStore(suscribir, isStandalone, enServidor);
+  const ios = useSyncExternalStore(suscribir, isIOS, enServidor);
 
   return { canInstall, standalone, ios };
+}
+
+// ─── Descarte de los banners de instalación ────────────────────────────────
+// Mismo patrón: `localStorage` es un store externo, así que se lee con
+// `useSyncExternalStore` en vez de copiarlo a estado dentro de un efecto.
+
+const oyentesDescarte = new Set<() => void>();
+
+function leerDescartado(clave: string): boolean {
+  try {
+    return window.localStorage.getItem(clave) !== null;
+  } catch {
+    // Safari en navegación privada lanza al tocar localStorage. Sin dato
+    // guardado, el banner se muestra: es el estado por defecto, no un fallo.
+    return false;
+  }
+}
+
+/** Marca el banner `clave` como descartado y avisa a todas sus instancias. */
+export function marcarDescartado(clave: string): void {
+  try {
+    window.localStorage.setItem(clave, "1");
+  } catch {
+    // Sin persistencia, el descarte dura lo que la pestaña. Mejor que reventar.
+  }
+  oyentesDescarte.forEach((fn) => fn());
+}
+
+/**
+ * ¿Descartó el usuario el banner `clave`?
+ *
+ * @param enHidratacion valor que se sirve mientras no hay `localStorage`
+ *   (servidor e hidratación). El banner del Topbar arranca en `true` para no
+ *   parpadear; el prompt flotante en `false` porque de todos modos depende de
+ *   `canInstall`, que en el servidor es falso.
+ */
+export function useBannerDescartado(clave: string, enHidratacion: boolean): boolean {
+  return useSyncExternalStore(
+    (alCambiar) => {
+      oyentesDescarte.add(alCambiar);
+      // `storage` sincroniza pestañas: descartar en una lo descarta en todas.
+      window.addEventListener("storage", alCambiar);
+      return () => {
+        oyentesDescarte.delete(alCambiar);
+        window.removeEventListener("storage", alCambiar);
+      };
+    },
+    () => leerDescartado(clave),
+    () => enHidratacion,
+  );
 }

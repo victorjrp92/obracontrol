@@ -138,7 +138,7 @@ export async function provisionarUsuario(
       constructora_id: constructora.id,
       nombre: "Proyecto Olivo",
       subtipo: "APARTAMENTOS",
-      dias_habiles_semana: 5,
+      dias_habiles_semana: 6,
       checklists_habilitados: false,
       fecha_inicio: new Date("2026-01-15"),
       fecha_fin_estimada: new Date("2026-12-15"),
@@ -318,7 +318,7 @@ export async function provisionarUsuario(
 export async function provisionarPersonal(
   email: string,
   nombre: string,
-  tipoCuenta: Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO">,
+  tipoCuenta: Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO" | "ARQUITECTO">,
   opts?: {
     /** Nombre del negocio/taller (contratista B2C). Si falta, se usa el nombre de la persona. */
     estudioNombre?: string;
@@ -329,7 +329,10 @@ export async function provisionarPersonal(
   const existing = await prisma.usuario.findUnique({ where: { email } });
   if (existing) return;
 
-  const esContratista = tipoCuenta === "CONTRATISTA";
+  // El arquitecto se provisiona como el contratista: tiene negocio propio y
+  // varios clientes, no una obra suya. Lo único que los separa son los
+  // productos técnicos, y eso vive en la matriz de capacidades.
+  const esContratista = tipoCuenta === "CONTRATISTA" || tipoCuenta === "ARQUITECTO";
   const nombreCuenta =
     (opts?.estudioNombre?.trim() || "") ||
     (esContratista ? `Negocio de ${nombre}` : `Obra de ${nombre}`);

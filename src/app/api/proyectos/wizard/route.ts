@@ -5,6 +5,15 @@ import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { isGeneralAdmin } from "@/lib/access";
 import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
 import { aprenderTareas } from "@/lib/learning";
+import {
+  clavePrediccion,
+  construirPreRegistro,
+  flushPreRegistrosDuracion,
+  predecirDuracionesMotor,
+  type PrediccionTarea,
+  type PreRegistroDuracion,
+} from "@/lib/duraciones-mercado";
+import type { EspacioEstim } from "@/lib/estimar-presupuesto";
 
 interface WizardPayload {
   // Paso 1
@@ -68,6 +77,93 @@ interface WizardPayload {
     tarea_nombre?: string | null;
     contratista_id: string;
   }[];
+}
+
+// ── Duration engine prediction (Fase 0: measure the ALGORITHM, not the user) ──
+// `tiempo_acordado_dias` is the USER'S PLAN (the wizard splits the deadline
+// across tasks). To be able to compute the engine's error we store what
+// `estimarDuracion` predicted at creation time into `RegistroDuracion.dias_motor`
+// as a PRE-REGISTERED row, which the task's approval later completes with the
+// real days. Never blocks project creation: it is telemetry.
+
+/** Default m² per espacio. Mirrored by `createEspaciosYTareas` below. */
+const METRAJE_ESPACIO_DEFECTO = 15;
+
+/**
+ * Cap on accumulated pre-registro rows. A tower (200 floors × 200 units) can
+ * generate tens of thousands of tasks; the flywheel does not need every row and
+ * an unbounded array would blow up memory before the batch insert.
+ */
+const MAX_PREREGISTROS_DURACION = 5000;
+
+/** Synthetic key of an espacio inside the payload (group + index). */
+function claveEspacioWizard(grupo: string, indice: number): string {
+  return `${grupo}#${indice}`;
+}
+
+type TipoUnidadPayload = NonNullable<WizardPayload["tipos_unidad"]>[number];
+
+/**
+ * Runs the deterministic engine over the payload and returns its prediction per
+ * espacio+tarea. One pass per unidad type: every unit of the same type shares
+ * espacios and metrajes, so the per-task prediction is identical.
+ * NEVER throws — if the engine fails the project is created anyway and only the
+ * telemetry is lost (`dias_motor` stays null).
+ */
+function predecirDuracionesWizard(body: WizardPayload): Map<string, PrediccionTarea> {
+  const predicciones = new Map<string, PrediccionTarea>();
+  try {
+    // Mirrors the tipoMap fallback inside the transaction (legacy payloads send
+    // a flat `espacios` list and no `tipos_unidad`).
+    const tipos: TipoUnidadPayload[] =
+      body.tipos_unidad && body.tipos_unidad.length > 0
+        ? body.tipos_unidad
+        : [{ nombre: "Tipo estándar", espacios: body.espacios ?? [] }];
+
+    for (const tipo of tipos) {
+      const espacios: EspacioEstim[] = (tipo.espacios ?? []).map((nombreEspacio, i) => ({
+        id: claveEspacioWizard(tipo.nombre, i),
+        nombre: nombreEspacio,
+        metraje: tipo.metrajes_espacios?.[nombreEspacio] ?? METRAJE_ESPACIO_DEFECTO,
+        tareas: (body.tareas ?? [])
+          .filter(
+            (t) =>
+              t.espacio === nombreEspacio &&
+              (!t.tipo_unidad_id || t.tipo_unidad_id === tipo.nombre),
+          )
+          .map((t) => ({
+            nombre: t.nombre,
+            dias: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
+            on: true,
+            fase: t.fase,
+          })),
+      }));
+      for (const [k, v] of predecirDuracionesMotor(espacios)) predicciones.set(k, v);
+    }
+
+    // Zonas comunes: one espacio per zona, tasks from the shared template.
+    const zonas = body.zonas_comunes ?? [];
+    if (zonas.length > 0) {
+      const espaciosZC: EspacioEstim[] = zonas.map((nombreZona, i) => {
+        const metraje = body.zonas_comunes_metrajes?.[nombreZona];
+        return {
+          id: claveEspacioWizard("zc", i),
+          nombre: nombreZona,
+          ...(metraje != null ? { metraje } : {}),
+          tareas: (TASK_TEMPLATES["Zonas Comunes"]?.[nombreZona] ?? []).map((t) => ({
+            nombre: t.nombre,
+            dias: Math.max(1, Math.round(t.tiempo_acordado_dias || 1)),
+            on: true,
+          })),
+        };
+      });
+      for (const [k, v] of predecirDuracionesMotor(espaciosZC)) predicciones.set(k, v);
+    }
+  } catch (err) {
+    // Not critical: the duration flywheel is telemetry, not part of the flow.
+    console.warn("predecirDuracionesWizard failed (non-critical):", err);
+  }
+  return predicciones;
 }
 
 function resolveContratista(
@@ -333,6 +429,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Engine prediction per espacio+tarea (pure, outside the transaction) plus
+    // the accumulator of pre-registro rows (persisted AFTER the transaction).
+    const prediccionesDuracion = predecirDuracionesWizard(body);
+    const preRegistrosDuracion: PreRegistroDuracion[] = [];
+    const acumularPreRegistro = (
+      clave: string,
+      args: { nombre: string; fase: string; dias: number; metraje: number | null },
+    ) => {
+      if (preRegistrosDuracion.length >= MAX_PREREGISTROS_DURACION) return;
+      const pre = construirPreRegistro({
+        nombreTarea: args.nombre,
+        faseProyecto: args.fase,
+        diasAcordados: args.dias,
+        metraje: args.metraje,
+        // El wizard B2B no captura ciudad del proyecto (queda null en Proyecto).
+        ciudad: null,
+        cuadrillas: 1, // los dos call sites del motor fijan 1 hoy
+        prediccion: prediccionesDuracion.get(clavePrediccion(clave, args.nombre)),
+      });
+      if (pre) preRegistrosDuracion.push(pre);
+    };
+
     // Crear todo en una transacción
     const proyectoCreado = await prisma.$transaction(async (tx) => {
       // 1. Proyecto
@@ -344,7 +462,7 @@ export async function POST(req: NextRequest) {
           cliente_id: body.cliente_id || null,
           nombre: body.nombre,
           subtipo: body.subtipo,
-          dias_habiles_semana: body.dias_habiles_semana ?? 5,
+          dias_habiles_semana: body.dias_habiles_semana ?? 6,
           fecha_inicio: body.fecha_inicio ? new Date(body.fecha_inicio) : null,
           fecha_fin_estimada: body.fecha_fin_estimada ? new Date(body.fecha_fin_estimada) : null,
           ubicacion_lat: typeof body.ubicacion_lat === "number" ? body.ubicacion_lat : null,
@@ -517,8 +635,12 @@ export async function POST(req: NextRequest) {
           torreNombre: string,
           unidadNombre: string,
         ) {
-          for (const nombreEspacio of tipoInfo.espacios) {
-            const espacioMetraje = tipoInfo.metrajes_espacios?.[nombreEspacio] ?? 15;
+          for (let idxEspacio = 0; idxEspacio < tipoInfo.espacios.length; idxEspacio++) {
+            const nombreEspacio = tipoInfo.espacios[idxEspacio];
+            const espacioMetraje =
+              tipoInfo.metrajes_espacios?.[nombreEspacio] ?? METRAJE_ESPACIO_DEFECTO;
+            // Same key the prediction pass used for this (tipo, espacio).
+            const claveEsp = claveEspacioWizard(tipoNombre, idxEspacio);
             const espacio = await tx.espacio.create({
               data: { unidad_id: unidadId, nombre: nombreEspacio, metraje: espacioMetraje },
             });
@@ -557,6 +679,12 @@ export async function POST(req: NextRequest) {
                   estado: "PENDIENTE",
                 },
               });
+              acumularPreRegistro(claveEsp, {
+                nombre: t.nombre,
+                fase: t.fase,
+                dias: diasInstalacion,
+                metraje: espacioMetraje,
+              });
 
               // Detallado y lustro (Madera only, unless excluded)
               if (isMadera && !t.lustro_excluido) {
@@ -581,6 +709,15 @@ export async function POST(req: NextRequest) {
                     tiene_cartera: t.tiene_cartera ?? false,
                     estado: "PENDIENTE",
                   },
+                });
+                // Instalación y lustro comparten nombre: el motor no distingue
+                // subfases, así que ambas filas llevan la misma predicción. Cada
+                // aprobación consume una y el multiset queda intacto.
+                acumularPreRegistro(claveEsp, {
+                  nombre: t.nombre,
+                  fase: t.fase,
+                  dias: diasLustro,
+                  metraje: espacioMetraje,
                 });
               }
             }
@@ -620,7 +757,9 @@ export async function POST(req: NextRequest) {
         });
 
         // Una unidad por zona
-        for (const nombreZona of zonasComunes) {
+        for (let idxZona = 0; idxZona < zonasComunes.length; idxZona++) {
+          const nombreZona = zonasComunes[idxZona];
+          const claveZona = claveEspacioWizard("zc", idxZona);
           const unidadZC = await tx.unidad.create({
             data: { piso_id: pisoZC.id, nombre: nombreZona },
           });
@@ -650,6 +789,12 @@ export async function POST(req: NextRequest) {
                 estado: "PENDIENTE",
               },
             });
+            acumularPreRegistro(claveZona, {
+              nombre: t.nombre,
+              fase: "Zonas Comunes",
+              dias: t.tiempo_acordado_dias,
+              metraje: zcMetraje ?? null,
+            });
           }
         }
       }
@@ -672,6 +817,27 @@ export async function POST(req: NextRequest) {
 
       return proyecto;
     }, { timeout: 60000 });
+
+    // Tripwire: if the engine predicted something and NOT ONE pre-registro came
+    // out, the prediction pass and the creation pass stopped walking the same
+    // indices. That is the only way this fails silently, so shout about it.
+    if (
+      preRegistrosDuracion.length === 0 &&
+      [...prediccionesDuracion.values()].some((p) => p.diasMotor != null)
+    ) {
+      console.warn(
+        "wizard: the engine predicted tasks but no pre-registro was produced. " +
+          "Check the espacio/tarea key alignment (claveEspacioWizard).",
+      );
+    }
+
+    // Duration pre-registros with the engine's prediction (outside the tx,
+    // never critical: a failure here cannot break project creation).
+    await flushPreRegistrosDuracion(
+      preRegistrosDuracion,
+      proyectoCreado.id,
+      currentUser.constructora_id,
+    );
 
     // Learn tasks for this constructora (fire-and-forget, don't block response)
     if (body.tareas && body.tareas.length > 0) {

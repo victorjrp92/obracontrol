@@ -3,7 +3,9 @@ import {
   getClienteAvance,
   type ClienteAvance,
 } from "@/lib/data-cliente";
+import { documentosDelCliente, type DocumentoParaCliente } from "@/lib/documentos";
 import ClienteGaleriaFotos from "@/components/cliente/ClienteGaleriaFotos";
+import ListaDocumentosCliente from "@/components/documentos/ListaDocumentosCliente";
 import { CheckCircle2, Clock, Hourglass, XCircle, MapPin } from "lucide-react";
 
 export const metadata = {
@@ -102,6 +104,22 @@ function EnlaceNoDisponible() {
   );
 }
 
+/**
+ * Los documentos firmados de la obra, si los hay.
+ *
+ * Nunca tumba esta pantalla. El avance de la obra es lo que el cliente vino a
+ * ver, y no puede desaparecer porque el registro de documentos tenga un mal
+ * minuto o porque la migración no esté aplicada todavía en este entorno.
+ */
+async function documentosSeguros(proyectoId: string): Promise<DocumentoParaCliente[]> {
+  try {
+    return await documentosDelCliente(proyectoId);
+  } catch {
+    console.error("ClienteAvancePage: no se pudieron listar los documentos de la obra");
+    return [];
+  }
+}
+
 export default async function ClienteAvancePage({
   params,
 }: {
@@ -117,6 +135,7 @@ export default async function ClienteAvancePage({
 
   const semaforo = SEMAFORO_INFO[avance.semaforo];
   const { progreso } = avance;
+  const documentos = await documentosSeguros(valido.proyectoId);
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -190,6 +209,13 @@ export default async function ClienteAvancePage({
             </span>
           </div>
         </section>
+
+        {/* Documentos firmados de la obra (solo si hay) */}
+        {documentos.length > 0 && (
+          <div className="mb-6">
+            <ListaDocumentosCliente token={token} documentos={documentos} />
+          </div>
+        )}
 
         {/* Espacios → tareas */}
         <div className="flex flex-col gap-4">

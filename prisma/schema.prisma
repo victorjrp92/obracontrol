@@ -36,6 +36,7 @@ model Constructora {
   perfil_onboarding  PerfilOnboarding?
 
   @@map("constructoras")
+  documentos_firmables DocumentoFirmable[]
 }
 
 // ─── PERFIL ONBOARDING ───────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ model Proyecto {
   ubicacion_lat           Float?
   ubicacion_lng           Float?
   subtipo                 SubtipoProyecto
-  dias_habiles_semana     Float          @default(5)
+  dias_habiles_semana     Float          @default(6)
   checklists_habilitados  Boolean        @default(false)
   dependencias_habilitadas Boolean       @default(false)
   whatsapp_habilitado     Boolean        @default(false)
@@ -119,12 +120,28 @@ model Proyecto {
   presupuesto_mano_obra   Int?           // COP, opcional (modo "separado": bolsa de mano de obra)
   presupuesto_materiales  Int?           // COP, opcional (modo "separado": bolsa de materiales)
   metraje_total           Float?         // m² de toda la obra (alternativa a metraje por espacio)
+  // ── Datos del inmueble ───────────────────────────────────────────────────
+  // Los pide el acta de estado inicial y cualquier informe técnico. La
+  // matrícula inmobiliaria es el identificador legal del predio en Colombia y
+  // es lo que pide una aseguradora o una alcaldía.
+  matricula_inmobiliaria  String?        // ej. "370-7596"
+  direccion_inmueble      String?
+  conjunto_edificio       String?        // "Conjunto Prados del Naranjo"
+  unidad_inmueble         String?        // "Apto 904B"
+  // Dice bajo qué norma sísmica se construyó: <1984 sin código, CCCSR-84,
+  // NSR-98, NSR-10. Es el contexto que un profesional escribe a mano hoy.
+  anio_construccion       Int?
+  altura_libre_m          Float?         // gobierna el 47% del trabajo (estuco + pintura)
+  habitada_durante_obra   Boolean?       // ×1.15–1.30 en duración
+  solicitante             String?        // quién pide la inspección, si no es el dueño
   created_at              DateTime       @default(now())
   updated_at              DateTime       @updatedAt
 
   constructora            Constructora   @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
   cliente                 Cliente?       @relation(fields: [cliente_id], references: [id], onDelete: SetNull)
   cliente_acceso_tokens   ClienteAccesoToken[]
+  productos_tecnicos      ProductoTecnico[]
+  documentos_firmables    DocumentoFirmable[]
   edificios               Edificio[]
   fases                   Fase[]
   tipos_unidad            TipoUnidad[]
@@ -191,6 +208,7 @@ model Piso {
   unidades    Unidad[]
 
   @@map("pisos")
+  productos_tecnicos  ProductoTecnico[]
 }
 
 model Unidad {
@@ -208,6 +226,7 @@ model Unidad {
   espacios         Espacio[]
 
   @@map("unidades")
+  productos_tecnicos  ProductoTecnico[]
 }
 
 model TipoUnidad {
@@ -555,6 +574,8 @@ model Usuario {
   anticipos_registrados      Anticipo[]            @relation("AnticiposRegistrados")
 
   @@map("usuarios")
+  productos_tecnicos  ProductoTecnico[]
+  documentos_firmados DocumentoFirmable[]
 }
 
 model Contratista {
@@ -834,6 +855,10 @@ model PersonaExternaProyecto {
   cargo        String?
   telefono     String?
   email        String?
+  /// Mismos campos que el personal de campo: quien está en obra debe ser
+  /// localizable y tener a quién avisar si le pasa algo.
+  direccion            String?
+  contacto_emergencia  String?
   created_at   DateTime @default(now())
 
   proyecto     Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
@@ -860,6 +885,10 @@ enum TipoCuenta {
   CONSTRUCTORA
   CONTRATISTA
   PROPIETARIO
+  /// Profesional que emite productos técnicos (planos, renders, actas firmadas).
+  /// La interfaz lo llama «Arquitecto»; el valor abarca también a proyectistas
+  /// e ingenieros que hacen el mismo trabajo.
+  ARQUITECTO
 }
 
 enum SubtipoProyecto {
@@ -963,8 +992,21 @@ model RegistroDuracion {
   fase              String   // fase curada (faseDeTarea) o, si no matchea, la fase de la obra
   ciudad            String?
   metraje           Float?   // m² del espacio de la tarea, si existía
-  dias_estimados    Float    // tiempo_acordado_dias vigente al aprobar
+  dias_estimados    Float    // tiempo_acordado_dias vigente al aprobar (= el PLAN del usuario)
   dias_reales       Float    // fecha_inicio → fecha_fin_real (días calendario, mín 0.5)
+  /// Lo que predijo `estimarDuracion` al crear el proyecto. `dias_estimados` NO
+  /// sirve para evaluar el motor: `repartirGlobal()` lo sobrescribe con el
+  /// reparto del plazo que puso el usuario, así que mide al usuario, no al
+  /// algoritmo. Sin esta columna no se puede calcular el error del motor.
+  dias_motor        Float?
+  /// Días HÁBILES según el calendario del proyecto. `dias_reales` es calendario
+  /// y mezclarlos produce un error del 20–33%.
+  dias_reales_habiles Float?
+  /// Sin cantidad, un registro de pintura de 12 m² y otro de 120 m² no son
+  /// comparables y su mediana no significa nada.
+  cantidad          Float?
+  unidad            String?  // "m2" | "ml" | "un"
+  cuadrillas        Int?
   proyecto_id       String?
   constructora_id   String?
   created_at        DateTime @default(now())
@@ -1058,4 +1100,124 @@ model ContactoJuntos {
   created_at      DateTime @default(now())
 
   @@map("contacto_juntos")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// PRODUCTOS TÉCNICOS — Arquitecto y Constructora
+// ════════════════════════════════════════════════════════════════════════════
+
+enum TipoProductoTecnico {
+  /// Foto del estado previo, tomada SIEMPRE desde la app con fecha, hora y GPS
+  /// quemados. Una foto subida desde la galería no prueba fecha, y sin fecha el
+  /// registro no sirve para la discusión que existe para ganar.
+  REGISTRO_INICIAL
+  PLANO
+  RENDER
+}
+
+model ProductoTecnico {
+  id          String              @id @default(cuid())
+  proyecto_id String
+  /// Un plano puede ser de toda la obra, de un piso o de una unidad concreta.
+  /// Siempre pertenece a una obra; los otros dos niveles son opcionales.
+  piso_id     String?
+  unidad_id   String?
+  tipo        TipoProductoTecnico
+  nombre      String
+  descripcion String?
+
+  /// Ruta en el bucket de Supabase Storage. El archivo NO viaja por la base.
+  storage_path String
+  mime         String
+  bytes        Int
+
+  /// Versionado de planos: el desastre clásico de obra es alguien construyendo
+  /// sobre un plano viejo, así que solo una versión puede estar vigente y las
+  /// anteriores nunca se borran.
+  version     Int      @default(1)
+  vigente     Boolean  @default(true)
+  reemplaza_a String?
+
+  subido_por_id String
+  created_at    DateTime @default(now())
+
+  proyecto   Proyecto          @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  piso       Piso?             @relation(fields: [piso_id], references: [id], onDelete: SetNull)
+  unidad     Unidad?           @relation(fields: [unidad_id], references: [id], onDelete: SetNull)
+  subido_por Usuario           @relation(fields: [subido_por_id], references: [id], onDelete: Restrict)
+  anterior   ProductoTecnico?  @relation("VersionProducto", fields: [reemplaza_a], references: [id], onDelete: SetNull)
+  siguientes ProductoTecnico[] @relation("VersionProducto")
+
+  @@index([proyecto_id, tipo])
+  @@index([proyecto_id, vigente])
+  @@map("productos_tecnicos")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// DOCUMENTOS FIRMABLES — infraestructura compartida
+// ════════════════════════════════════════════════════════════════════════════
+//
+// Generaliza lo que hoy vive dentro de Juntos (`documentos_juntos`). El folio y
+// la huella dejan de ser una pieza de esa línea para volverse un servicio: el
+// acta de estado inicial del arquitecto usa exactamente el mismo mecanismo.
+//
+// Ley 527 de 1999 y Decreto 2364 de 2012: una firma electrónica simple es
+// válida si se puede probar QUIÉN firmó, CUÁNDO, y que el documento NO cambió.
+// La huella cubre lo tercero; `firmado_por_id` y `firmado_el` cubren los dos
+// primeros. Por eso un documento firmado es inmutable: corregirlo emite una
+// versión nueva con folio nuevo, y la anterior queda marcada como reemplazada.
+
+enum TipoDocumentoFirmable {
+  ACTA_ESTADO_INICIAL
+  INFORME_TECNICO
+  ACTA_DANOS
+  INFORME_GRIETAS
+  DERECHO_PETICION
+}
+
+model DocumentoFirmable {
+  id    String                @id @default(cuid())
+  folio String                @unique
+  /// SHA-256 del contenido validado + folio.
+  hash  String
+  tipo  TipoDocumentoFirmable
+
+  /// Nulos en la línea Juntos, que no tiene tenant ni proyecto.
+  proyecto_id     String?
+  constructora_id String?
+
+  /// Firma del profesional: la sesión autenticada ES la identidad.
+  firmado_por_id String?
+  firmado_el     DateTime?
+  /// Matrícula profesional impresa en el documento, congelada al firmar: si el
+  /// usuario la cambia después, el documento ya emitido no debe alterarse.
+  matricula      String?
+
+  /// «Recibido conforme» del cliente: constancia de ENTREGA, nunca aprobación
+  /// del contenido. Esa distinción es la que evita que alguien firme conforme y
+  /// después discuta el dictamen.
+  recibido_por String?
+  recibido_el  DateTime?
+
+  /// Inmutabilidad: nunca se edita, se reemplaza.
+  version     Int     @default(1)
+  reemplaza_a String?
+
+  /// Agregados sin identificar a nadie (los usa Juntos para el censo por ciudad).
+  ciudad String?
+  nivel  String?
+  piezas Int?
+
+  created_at DateTime @default(now())
+
+  proyecto     Proyecto?           @relation(fields: [proyecto_id], references: [id], onDelete: SetNull)
+  constructora Constructora?       @relation(fields: [constructora_id], references: [id], onDelete: Cascade)
+  firmado_por  Usuario?            @relation(fields: [firmado_por_id], references: [id], onDelete: SetNull)
+  anterior     DocumentoFirmable?  @relation("VersionDocumento", fields: [reemplaza_a], references: [id], onDelete: SetNull)
+  siguientes   DocumentoFirmable[] @relation("VersionDocumento")
+
+  @@index([created_at])
+  @@index([ciudad, nivel])
+  @@index([proyecto_id])
+  @@map("documentos_firmables")
 }

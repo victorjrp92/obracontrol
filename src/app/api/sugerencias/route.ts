@@ -66,6 +66,21 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * Tope de unidades por sugerencia. Una torre grande no llega a 500 unidades en
+ * un solo edificio, y el formulario manda las de UNO. El tope está para que un
+ * cuerpo fabricado a mano no meta un `in:` de decenas de miles de ids ni un
+ * blob de megabytes en la columna Json.
+ */
+const MAX_UNIDADES_POR_SUGERENCIA = 500;
+
+/**
+ * Forma de la ruta que devuelve `POST /api/sugerencias/upload`:
+ * `sugerencias/<usuarioId>/<timestamp>.<ext>`. Se exige literalmente porque el
+ * panel del administrador pinta ese valor en un `<img src>`.
+ */
+const RUTA_FOTO_SUGERENCIA = /^sugerencias\/[A-Za-z0-9_-]{1,64}\/[A-Za-z0-9_.-]{1,120}$/;
+
 // POST /api/sugerencias
 // CONTRATISTA: create a suggestion
 export async function POST(req: NextRequest) {
@@ -110,6 +125,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // `unidades` llega como Json: puede traer cualquier cosa. Antes de usarlo en
+    // un `in:` de Prisma tiene que ser una lista de ids, sin repetidos y acotada
+    // — el formulario manda las unidades de UN edificio, nunca decenas de miles.
+    if (unidades.length > MAX_UNIDADES_POR_SUGERENCIA) {
+      return NextResponse.json(
+        { error: `No se pueden sugerir más de ${MAX_UNIDADES_POR_SUGERENCIA} unidades a la vez` },
+        { status: 400 }
+      );
+    }
+    if (!unidades.every((u): u is string => typeof u === "string" && u.trim().length > 0)) {
+      return NextResponse.json(
+        { error: "unidades debe ser una lista de identificadores" },
+        { status: 400 }
+      );
+    }
+    const unidadesIds = [...new Set(unidades.map((u) => u.trim()))];
+
+    // El proyecto tiene que ser del MISMO tenant, y además el contratista tiene
+    // que tener tareas en él. Lo primero no se deducía de lo segundo: el conteo
+    // de tareas no mira la constructora en ningún punto de la cadena.
+    const proyectoDelTenant = await prisma.proyecto.count({
+      where: { id: proyecto_id, constructora_id: contratista.constructora_id },
+    });
+    if (proyectoDelTenant === 0) {
+      return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+    }
+
     // Validate contratista has tasks in the selected proyecto
     const tareasEnProyecto = await prisma.tarea.count({
       where: {
@@ -131,15 +173,64 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // El edificio se persistía CRUDO: un id de otra obra —o de otra
+    // constructora— quedaba guardado sin que nada lo mirase, porque la columna
+    // no tiene clave foránea. Hoy no la lee nadie, y por eso justamente hay que
+    // cerrarlo aquí: la primera consulta que la use heredaría el agujero.
+    const edificioId = typeof edificio_id === "string" && edificio_id.trim() ? edificio_id.trim() : null;
+    if (edificioId) {
+      const edificioDeLaObra = await prisma.edificio.count({
+        where: { id: edificioId, proyecto_id },
+      });
+      if (edificioDeLaObra === 0) {
+        return NextResponse.json(
+          { error: "El edificio no pertenece a este proyecto" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Las unidades tienen que colgar de ESTA obra —y del edificio, si se
+    // declaró uno—. La ruta de aprobación ya lo comprobaba, pero solo al
+    // aprobar: hasta entonces la fila guardaba ids ajenos y el administrador se
+    // encontraba el error semanas después, sobre una sugerencia que ya no podía
+    // corregir. Se rechaza en el origen, que es donde se sabe.
+    const unidadesDeLaObra = await prisma.unidad.count({
+      where: {
+        id: { in: unidadesIds },
+        piso: {
+          edificio: {
+            proyecto_id,
+            ...(edificioId ? { id: edificioId } : {}),
+          },
+        },
+      },
+    });
+    if (unidadesDeLaObra !== unidadesIds.length) {
+      return NextResponse.json(
+        { error: "Algunas unidades no pertenecen a este proyecto" },
+        { status: 400 }
+      );
+    }
+
+    // `foto_url` se guarda y después se pinta en el panel del administrador. Lo
+    // que se acepta es la ruta que devuelve `POST /api/sugerencias/upload`, no
+    // una cadena cualquiera: una URL absoluta metida aquí haría que el navegador
+    // del administrador fuera a buscarla a un servidor de terceros.
+    const fotoUrl = typeof foto_url === "string" && foto_url.trim() ? foto_url.trim() : null;
+    if (fotoUrl && !RUTA_FOTO_SUGERENCIA.test(fotoUrl)) {
+      return NextResponse.json({ error: "foto_url inválida" }, { status: 400 });
+    }
+
     const sugerencia = await prisma.tareaSugerida.create({
       data: {
         contratista_id: contratista.id,
         proyecto_id,
-        edificio_id: edificio_id ?? null,
-        unidades,
+        edificio_id: edificioId,
+        unidades: unidadesIds,
         nombre,
         descripcion: descripcion ?? null,
-        foto_url: foto_url ?? null,
+        foto_url: fotoUrl,
         precio: precio === null || precio === undefined ? null : Number(precio),
       },
       include: {

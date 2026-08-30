@@ -48,7 +48,7 @@ export default function ObrerosClient({ obreros, constructoras }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-600">Obrero</th>
+                <th className="px-4 py-3 font-semibold text-slate-600">Personal de campo</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Cédula</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Especialidad</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Contratista</th>
@@ -87,7 +87,7 @@ export default function ObrerosClient({ obreros, constructoras }: Props) {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
-                    No hay obreros registrados.
+                    No hay personal de campo registrado.
                   </td>
                 </tr>
               )}

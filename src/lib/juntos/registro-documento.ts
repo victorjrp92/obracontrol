@@ -1,24 +1,46 @@
-import { prisma } from "@/lib/prisma";
-import type { TipoDocumentoJuntos } from "@/generated/prisma";
+import type { TipoDocumentoFirmable, TipoDocumentoJuntos } from "@/generated/prisma";
+import {
+  registrarDocumento as registrarDocumentoVerificable,
+  verificarDocumento as verificarDocumentoVerificable,
+} from "@/lib/documentos";
 
 /**
  * Registro de verificación de los documentos de «Juntos».
  *
- * Cada PDF imprime «Verificación: <folio> · <hash-corto>» en el pie. Este módulo
- * es lo que hace que ese sello signifique algo: guarda el folio y la huella para
- * poder confirmar después que un documento salió de aquí.
+ * Capa fina sobre `@/lib/documentos`, que es donde vive de verdad el folio, la
+ * huella, el registro y la consulta. Aquí solo queda lo que es propio de esta
+ * línea: cómo llama Juntos a sus tres documentos. La API pública de este
+ * archivo no cambió — sus llamadores (las rutas de PDF y la de verificación)
+ * siguen hablando en `TipoDocumentoJuntos` sin enterarse del cambio.
  *
- * REGLA DURA, la misma de siempre: aquí NO entra nada que identifique a una
- * persona. Ni nombre, ni cédula, ni dirección, ni teléfono, ni fotos. Solo el
- * folio, la huella, el tipo, la ciudad y el nivel del semáforo. Si alguna vez se
- * quiere guardar más, necesita consentimiento aparte con su finalidad y su
- * plazo — no se cuela por aquí.
+ * La regla dura sigue siendo la misma y ahora la impone el módulo compartido:
+ * aquí NO entra nada que identifique a una persona. Ni nombre, ni cédula, ni
+ * dirección, ni teléfono, ni fotos. Solo folio, huella, tipo, ciudad, nivel y
+ * número de piezas.
  *
- * El registro es BEST-EFFORT: si falla, el documento se entrega igual. Nadie que
- * acaba de documentar los daños de su casa después de un sismo debe quedarse sin
- * su PDF porque nuestra base de datos tuvo un mal minuto. Se pierde la
- * verificación de ese documento, que es un costo mucho menor.
+ * El registro es BEST-EFFORT: si falla, el documento se entrega igual.
  */
+
+/**
+ * Cómo se llama cada documento de Juntos en el registro compartido.
+ * Exportado para que `scripts/verificar-documentos.ts` pueda congelarlo: si
+ * alguien cambia una correspondencia, deja de verificar todo lo ya emitido.
+ */
+export const TIPO_FIRMABLE: Record<TipoDocumentoJuntos, TipoDocumentoFirmable> = {
+  ACTA: "ACTA_DANOS",
+  INFORME: "INFORME_GRIETAS",
+  PETICION: "DERECHO_PETICION",
+};
+
+/**
+ * La vuelta. Es parcial a propósito: el registro compartido también guarda
+ * documentos de otras líneas, y esta pantalla no debe responder por ellos.
+ */
+export const TIPO_JUNTOS: Partial<Record<TipoDocumentoFirmable, TipoDocumentoJuntos>> = {
+  ACTA_DANOS: "ACTA",
+  INFORME_GRIETAS: "INFORME",
+  DERECHO_PETICION: "PETICION",
+};
 
 export interface RegistroDocumento {
   folio: string;
@@ -32,33 +54,19 @@ export interface RegistroDocumento {
   piezas?: number | null;
 }
 
-/** Normaliza la ciudad para que el agregado por ciudad no se parta en variantes. */
-function normalizarCiudad(ciudad: string | null | undefined): string | null {
-  if (!ciudad) return null;
-  const limpia = ciudad.trim().slice(0, 60);
-  return limpia.length >= 2 ? limpia : null;
-}
-
 /**
  * Deja constancia de un documento emitido. Nunca lanza: quien la llama ya
  * generó el PDF y debe entregarlo pase lo que pase.
  */
 export async function registrarDocumento(datos: RegistroDocumento): Promise<void> {
-  try {
-    await prisma.documentoJuntos.create({
-      data: {
-        folio: datos.folio,
-        hash: datos.hash,
-        tipo: datos.tipo,
-        ciudad: normalizarCiudad(datos.ciudad),
-        nivel: datos.nivel ?? null,
-        piezas: datos.piezas ?? null,
-      },
-    });
-  } catch {
-    // Sin serializar nada: por estas rutas viajan cédula y fotos.
-    console.error("registrarDocumento: no se pudo dejar constancia del documento");
-  }
+  await registrarDocumentoVerificable({
+    folio: datos.folio,
+    hash: datos.hash,
+    tipo: TIPO_FIRMABLE[datos.tipo],
+    ciudad: datos.ciudad,
+    nivel: datos.nivel,
+    piezas: datos.piezas,
+  });
 }
 
 export type ResultadoVerificacion =
@@ -73,59 +81,37 @@ export type ResultadoVerificacion =
     };
 
 /**
- * ¿El error viene de que la tabla todavía no existe?
+ * Comprueba un folio de Juntos y, si se aporta, su huella.
  *
- * Importa distinguirlo: si la migración `20260815180000_documentos_juntos` aún
- * no se aplicó, decirle a alguien «no encontramos este folio» sería mentir —
- * su documento puede ser perfectamente auténtico. Postgres devuelve 42P01 para
- * «relation does not exist»; Prisma lo pasa como P2021 («table does not exist»).
- */
-function esTablaInexistente(err: unknown): boolean {
-  const codigo = (err as { code?: string })?.code;
-  return codigo === "P2021" || codigo === "42P01";
-}
-
-/**
- * Comprueba un folio y, si se aporta, su huella.
+ * Devuelve DELIBERADAMENTE poco: que el documento existe, de qué tipo es,
+ * cuándo se emitió y si la huella coincide. Nada más. Quien consulta suele ser
+ * una aseguradora con el PDF en la mano y le basta con saber que es auténtico —
+ * no necesita, ni debe recibir, el contenido.
  *
- * Devuelve DELIBERADAMENTE poco: que el documento existe, de qué tipo es, cuándo
- * se emitió y si la huella coincide. Nada más. Quien consulta suele ser una
- * aseguradora con el PDF en la mano, y le basta con saber que es auténtico — no
- * necesita, ni debe recibir, el contenido. Como el folio viaja impreso en el
- * documento, cualquiera que lo tenga podría consultarlo: por eso la respuesta no
- * puede revelar nada que el PDF no muestre ya.
+ * Bajo el capó se buscan tanto los documentos nuevos como los emitidos antes de
+ * que esto se sacara a un módulo común: un acta descargada la semana pasada
+ * sigue verificando igual.
  */
 export async function verificarDocumento(
   folio: string,
   huella?: string | null
 ): Promise<ResultadoVerificacion> {
-  let doc: { tipo: TipoDocumentoJuntos; hash: string; created_at: Date } | null;
-  try {
-    doc = await prisma.documentoJuntos.findUnique({
-      where: { folio },
-      select: { tipo: true, hash: true, created_at: true },
-    });
-  } catch (err) {
-    // Sin la migración aplicada NO se puede decir «no encontramos este folio»:
-    // el documento podría ser auténtico y estaríamos sembrando una duda falsa
-    // sobre algo que la persona va a presentarle a su aseguradora.
-    if (esTablaInexistente(err)) return { indisponible: true };
-    throw err;
-  }
+  const resultado = await verificarDocumentoVerificable(folio, huella);
 
-  if (!doc) return { existe: false };
+  if ("indisponible" in resultado) return resultado;
+  if (!resultado.existe) return { existe: false };
 
-  let huellaCoincide: boolean | null = null;
-  if (huella) {
-    const limpia = huella.trim().toLowerCase();
-    // Se acepta la huella corta (la que se imprime) o la completa.
-    huellaCoincide = doc.hash.toLowerCase().startsWith(limpia) && limpia.length >= 8;
-  }
+  const tipo = TIPO_JUNTOS[resultado.tipo];
+  // Un documento de otra línea no es un documento de Juntos: para esta pantalla
+  // no existe. Traducirlo a un tipo de Juntos sería mentir sobre su origen, y
+  // devolverlo tal cual filtraría a esta consulta pública documentos de un
+  // producto que no le corresponde.
+  if (!tipo) return { existe: false };
 
   return {
     existe: true,
-    tipo: doc.tipo,
-    emitido: doc.created_at.toISOString().slice(0, 10),
-    huellaCoincide,
+    tipo,
+    emitido: resultado.emitido,
+    huellaCoincide: resultado.huellaCoincide,
   };
 }

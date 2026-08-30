@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
-import { triggerInstall, usePwaInstall } from "@/lib/pwa-install";
+import {
+  marcarDescartado,
+  triggerInstall,
+  useBannerDescartado,
+  usePwaInstall,
+} from "@/lib/pwa-install";
 
 const DISMISS_KEY = "pwa-install-dismissed";
 
@@ -14,26 +18,21 @@ const DISMISS_KEY = "pwa-install-dismissed";
  */
 export default function InstallPrompt() {
   const { canInstall, standalone } = usePwaInstall();
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (localStorage.getItem(DISMISS_KEY)) setDismissed(true);
-  }, []);
+  // `false` en hidratación: da igual, en el servidor `canInstall` ya es falso
+  // y el componente no pinta nada.
+  const dismissed = useBannerDescartado(DISMISS_KEY, false);
 
   if (standalone || dismissed || !canInstall) return null;
 
   async function handleInstall() {
     const result = await triggerInstall();
     if (result === "dismissed") {
-      localStorage.setItem(DISMISS_KEY, "1");
-      setDismissed(true);
+      marcarDescartado(DISMISS_KEY);
     }
   }
 
   function handleClose() {
-    localStorage.setItem(DISMISS_KEY, "1");
-    setDismissed(true);
+    marcarDescartado(DISMISS_KEY);
   }
 
   return (
