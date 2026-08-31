@@ -22,6 +22,20 @@
  * `--purgar-duraciones-viejas` tira además los registros de duración anteriores
  * al arreglo de la medición. Ver `CORTE_MEDICION_DURACION`.
  *
+ * LAS FIRMAS SE RESCATAN. `documentos_firmables.constructora_id` es Cascade, así
+ * que borrar la cuenta se llevaría por delante actas y planos ya FIRMADOS. Antes
+ * de borrar se les suelta ese vínculo: siguen verificando por folio, porque el
+ * folio, la huella y la matrícula viven en la propia fila y en el contenido
+ * congelado en Storage. Los borradores sin firmar sí se van — no le prometieron
+ * nada a nadie.
+ *
+ * Lo que no se puede salvar desde aquí: la IMAGEN de la firma en reimpresiones.
+ * El PDF la estampa al imprimir leyéndola del perfil de quien firmó, y
+ * `firmado_por_id` queda a NULL al borrar a esa persona. El documento sigue
+ * siendo válido y comprobable —la matrícula está congelada en la fila— pero el
+ * PDF sale sin la firma escaneada. Salvarla exigiría meterla en el contenido
+ * congelado, que es un cambio del módulo de documentos, no de este script.
+ *
  * Diferencias deliberadas con `demo-clean.ts`, que hace algo parecido:
  *   - La lista de supervivientes NO está escrita en el código. Ahí estaba, con
  *     seis correos `@obracontrol.local` fijos, y en una base real eso borra al
@@ -130,7 +144,8 @@ async function main() {
       juntos,
       docsJuntosLegado,
       docsSinTenant,
-      docsConTenant,
+      docsFirmadosConTenant,
+      docsBorradoresConTenant,
     ] = await Promise.all([
       prisma.registroPrecio.count(),
       prisma.registroDuracion.count(),
@@ -142,9 +157,14 @@ async function main() {
       // Los de Juntos: `registrarDocumento` de la línea pública no pasa
       // `constructoraId`, así que quedan con NULL y la cascada no los alcanza.
       prisma.documentoFirmable.count({ where: { constructora_id: null } }),
-      // Estos SÍ mueren con su cuenta: son documentos firmados por un
-      // arquitecto o una constructora para su cliente.
-      prisma.documentoFirmable.count({ where: { constructora_id: { not: null } } }),
+      // Firmados con cuenta: se rescatan soltándoles el vínculo antes de borrar.
+      prisma.documentoFirmable.count({
+        where: { constructora_id: { not: null }, firmado_el: { not: null } },
+      }),
+      // Borradores sin firmar: se van con su cuenta. No le prometieron nada a nadie.
+      prisma.documentoFirmable.count({
+        where: { constructora_id: { not: null }, firmado_el: null },
+      }),
     ]);
 
     console.log("\n─── Alcance ──────────────────────────────────────────────");
@@ -166,14 +186,23 @@ async function main() {
     console.log(`                     ${docsSinTenant} documentos verificables sin cuenta`);
     console.log("──────────────────────────────────────────────────────────");
 
-    if (docsConTenant > 0) {
+    if (docsFirmadosConTenant > 0) {
       console.log("");
-      console.log(`  ⚠️  ${docsConTenant} documentos firmables SÍ tienen cuenta asociada y mueren`);
-      console.log("      con ella (la clave foránea es Cascade). No son de Juntos: son");
-      console.log("      actas y planos que un arquitecto o una constructora firmó para");
-      console.log("      su cliente. El producto promete que un documento firmado sigue");
-      console.log("      verificando siempre; borrar la cuenta rompe esa promesa para");
-      console.log("      quien tenga el PDF en la mano.");
+      console.log(`  ✅ ${docsFirmadosConTenant} documentos FIRMADOS se rescatan de la cascada: se les`);
+      console.log("      suelta el vínculo con la cuenta y siguen verificando por folio.");
+      console.log("      Folio, huella y matrícula viven en la fila y en el contenido");
+      console.log("      congelado, así que no se pierde nada de lo que se comprueba.");
+      console.log("");
+      console.log("      LO QUE SÍ SE PIERDE: la imagen de la firma en las reimpresiones.");
+      console.log("      El PDF la estampa al imprimir leyéndola del perfil de quien firmó,");
+      console.log("      y `firmado_por_id` queda a NULL al borrar a esa persona. El");
+      console.log("      documento sigue siendo válido y verificable — la matrícula está");
+      console.log("      congelada — pero el PDF sale sin la firma escaneada.");
+    }
+    if (docsBorradoresConTenant > 0) {
+      console.log("");
+      console.log(`  ⚠️  ${docsBorradoresConTenant} documentos SIN FIRMAR se van con su cuenta.`);
+      console.log("      Un borrador no le prometió nada a nadie.");
     }
 
     if (duracionesViejas > 0) {
@@ -208,6 +237,26 @@ async function main() {
         // van antes que los usuarios.
         const obreros = await tx.obrero.deleteMany({});
 
+        // ── Rescate de los documentos FIRMADOS ───────────────────────────────
+        // `documentos_firmables.constructora_id` es Cascade: al borrar la cuenta
+        // se llevaría por delante actas y planos ya firmados. El producto
+        // promete que un documento firmado sigue verificando siempre, y quien
+        // tiene el PDF en la mano no es la cuenta que se borra: es su cliente.
+        //
+        // Soltarles el vínculo con la cuenta los salva de la cascada sin tocar
+        // nada de lo que se verifica: folio, huella y matrícula viven en la
+        // propia fila y en el contenido congelado en Storage.
+        //
+        // Los NO firmados se van con su cuenta. Un borrador no le prometió nada
+        // a nadie.
+        const firmasRescatadas = await tx.documentoFirmable.updateMany({
+          where: {
+            firmado_el: { not: null },
+            constructora_id: { not: null, notIn: idsConstructorasVivas },
+          },
+          data: { constructora_id: null },
+        });
+
         // Las cuentas se llevan en cascada sus usuarios, roles, clientes y demás.
         const cuentas = await tx.constructora.deleteMany({
           where: { id: { notIn: idsConstructorasVivas } },
@@ -239,20 +288,25 @@ async function main() {
           legado: await tx.documentoJuntos.count(),
           verificables: await tx.documentoFirmable.count({ where: { constructora_id: null } }),
         };
+        // Los verificables sin cuenta SUBEN, y eso está previsto: son los de
+        // Juntos (que ya estaban a NULL) más los firmados que acabamos de
+        // rescatar soltándoles el vínculo. Comparar contra el número de antes,
+        // a secas, haría saltar el cerrojo por un cambio que sí esperábamos.
+        const verificablesEsperados = docsSinTenant + firmasRescatadas.count;
         if (
           juntosDespues.contactos !== juntos ||
           juntosDespues.legado !== docsJuntosLegado ||
-          juntosDespues.verificables !== docsSinTenant
+          juntosDespues.verificables !== verificablesEsperados
         ) {
           throw new Error(
-            "El borrado tocó datos de Seiricon Juntos. Se deshace todo.\n" +
+            "El borrado tocó datos que debían sobrevivir. Se deshace todo.\n" +
               `  contactos     ${juntos} → ${juntosDespues.contactos}\n` +
               `  legado        ${docsJuntosLegado} → ${juntosDespues.legado}\n` +
-              `  verificables  ${docsSinTenant} → ${juntosDespues.verificables}`,
+              `  verificables  esperaba ${verificablesEsperados}, hay ${juntosDespues.verificables}`,
           );
         }
 
-        return { sugeridas, pagos, proyectos, obreros, cuentas, usuarios, duracionesViejas };
+        return { sugeridas, pagos, proyectos, obreros, cuentas, usuarios, duracionesViejas, firmasRescatadas };
       },
       { timeout: 300_000, maxWait: 20_000 },
     );
@@ -266,6 +320,7 @@ async function main() {
     if (purgarDuraciones) {
       console.log(`  duraciones viejas  ${r.duracionesViejas.count}`);
     }
+    console.log(`  firmas rescatadas  ${r.firmasRescatadas.count} (documentos firmados que sobreviven)`);
 
     // ── 5. Los logins de Supabase ───────────────────────────────────────────
     // Va DESPUÉS de que la transacción haya confirmado: si el borrado falla, no
