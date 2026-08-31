@@ -28,6 +28,7 @@ import {
   TRAMOS_OBRAS_ACTIVAS,
   type TramoObrasKey,
 } from "@/lib/plan";
+import { PLANES } from "@/lib/suscripcion";
 
 let total = 0;
 let fallos = 0;
@@ -145,10 +146,21 @@ verificar(
 );
 verificar('PROPIETARIO gratis se queda en 1 obra', limiteObrasActivas("PERSONAL", "PROPIETARIO") === 1);
 verificar('CONTRATISTA gratis llega a 2 obras', limiteObrasActivas("PERSONAL", "CONTRATISTA") === 2);
+// Los planes de pago SÍ tienen tope, uno por plan. Este aserto esperaba
+// `Infinity` porque se escribió antes de que aterrizara el trabajo de
+// suscripciones: entonces el plan era «un enum decorativo» y no topaba nada.
+// Ahora el tope es la definición comercial del plan, y el arquitecto se rige
+// por ella como cualquier otra cuenta — su diferencia está en las capacidades,
+// no en cuántas obras puede abrir.
 for (const plan of PLANES_DE_PAGO) {
+  const tope = limiteObrasActivas(plan, "ARQUITECTO");
   verificar(
-    `el plan ${plan} no le pone tope al ARQUITECTO`,
-    limiteObrasActivas(plan, "ARQUITECTO") === Infinity
+    `el plan ${plan} le pone al ARQUITECTO el tope de su plan (${PLANES[plan].limiteObras})`,
+    tope === PLANES[plan].limiteObras
+  );
+  verificar(
+    `el plan ${plan} da el mismo tope al ARQUITECTO que al CONTRATISTA`,
+    tope === limiteObrasActivas(plan, "CONTRATISTA")
   );
 }
 

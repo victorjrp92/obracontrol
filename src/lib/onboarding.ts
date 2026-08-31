@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { generarTokenAcceso } from "@/lib/tokens";
+import { finDePrueba } from "@/lib/suscripcion";
 import type { TipoCuenta } from "@/generated/prisma";
 
 /**
@@ -31,7 +32,14 @@ export async function provisionarUsuario(
       ciudad: empresaData?.ciudad ?? null,
       telefono: empresaData?.telefono ?? null,
       sitio_web: empresaData?.sitio_web ?? null,
+      // Antes nacía en PROYECTO —el plan de $1.500.000/mes— sin fecha de
+      // vencimiento y sin que nadie lo verificara: producto completo, gratis y
+      // para siempre. Ahora entra en PRUEBA con los 14 días que promete la
+      // landing. Al vencer, `estadoDeAcceso()` corta y hay que pagar o bajar al
+      // plan gratuito.
       plan_suscripcion: "PROYECTO",
+      estado_suscripcion: "PRUEBA",
+      suscripcion_vence_el: finDePrueba(),
     },
   });
 

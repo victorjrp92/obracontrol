@@ -176,72 +176,26 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
 }
 
 /**
- * Tope de obras ACTIVAS del plan gratis (freemium). `Infinity` = sin tope.
- * El tope se aplica solo a planes PERSONAL; los planes de pago no tienen límite.
+ * Tope de obras ACTIVAS según el plan.
+ *
+ * Vive ahora en `src/lib/suscripcion.ts`, junto a los precios: el tope y lo que
+ * cuesta cada plan son la misma decisión comercial y no deben poder divergir.
+ *
+ * La versión anterior devolvía `Infinity` para todo lo que no fuera PERSONAL,
+ * así que los tres planes de pago no tenían tope — y como el registro creaba
+ * cada cuenta en PROYECTO, en la práctica todo el mundo tenía obras ilimitadas
+ * gratis. Se reexporta para no romper a quien ya la importaba de aquí.
  */
-export function limiteObrasActivas(plan: PlanTipo, tipo: TipoCuenta): number {
-  if (plan !== "PERSONAL") return Infinity;
-  // Plan gratis: el propietario lleva UNA obra —la suya—, así que con 1 le basta.
-  // Contratista y arquitecto trabajan para varios clientes: con 2 prueban el
-  // flujo real de multi-obra antes de pasar a un plan de pago. No se sube a 3 a
-  // propósito — el tramo de entrada cubre 1–3, y regalarlo entero dejaría a
-  // nadie con motivo para pagarlo.
-  return tipo === "CONTRATISTA" || tipo === "ARQUITECTO" ? 2 : 1;
-}
-
-/**
- * ─── Tramos de precio ────────────────────────────────────────────────────────
- *
- * El cobro va por obras ACTIVAS (`estado: ACTIVO`), no por obras totales: un
- * maestro de pintura con veinte trabajitos al año pero tres abiertos a la vez
- * paga por tres.
- *
- * El tramo del medio es el que se quiere vender; los otros dos existen para que
- * se vea razonable. El de entrada se corta en 3 a propósito: si cubriera hasta
- * 5, nadie subiría nunca de tramo.
- *
- * Ojo: «Objetivo» es como lo nombra el spec puertas adentro —es el tramo al que
- * se quiere empujar—, no un nombre comercial. Quien monte la página de precios
- * debe bautizarlo de cara al cliente antes de mostrarlo.
- */
-export type TramoObrasKey = "ENTRADA" | "OBJETIVO" | "ESTUDIO" | "A_CONVENIR";
-
-export interface TramoObras {
-  key: TramoObrasKey;
-  nombre: string;
-  /** Primera obra activa que entra en el tramo (inclusive). */
-  min: number;
-  /** Última obra activa del tramo (inclusive). `Infinity` en el tramo abierto. */
-  max: number;
-}
-
-/** Los cuatro tramos, en orden y sin huecos entre uno y el siguiente. */
-export const TRAMOS_OBRAS_ACTIVAS: readonly TramoObras[] = [
-  { key: "ENTRADA", nombre: "Entrada", min: 1, max: 3 },
-  { key: "OBJETIVO", nombre: "Objetivo", min: 4, max: 10 },
-  { key: "ESTUDIO", nombre: "Estudio", min: 11, max: 25 },
-  { key: "A_CONVENIR", nombre: "A convenir", min: 26, max: Infinity },
-];
-
-/**
- * Tramo que le corresponde a una cuenta por su número de obras activas. Una
- * cuenta sin obras activas cae en el tramo de entrada: estar quieto no se cobra
- * más caro.
- *
- * Lanza si el número no es un entero >= 0. Un conteo inválido llegando a una
- * función de precio es un defecto que hay que ver, no algo que deba tarifarse
- * en silencio.
- */
-export function tramoPorObrasActivas(obrasActivas: number): TramoObras {
-  if (!Number.isInteger(obrasActivas) || obrasActivas < 0) {
-    throw new Error(`obrasActivas debe ser un entero >= 0, llegó: ${obrasActivas}`);
-  }
-  // El último tramo es abierto (max = Infinity), así que la búsqueda no falla.
-  return (
-    TRAMOS_OBRAS_ACTIVAS.find((t) => obrasActivas <= t.max) ??
-    TRAMOS_OBRAS_ACTIVAS[TRAMOS_OBRAS_ACTIVAS.length - 1]
-  );
-}
+// El tope de obras y los tramos de precio viven en `suscripcion.ts`, junto a lo
+// que cuesta cada plan: son la misma decisión comercial y no deben divergir. Se
+// reexportan aquí para no romper a quien ya los importaba de `plan.ts`.
+export {
+  limiteObrasActivas,
+  tramoPorObrasActivas,
+  TRAMOS_OBRAS_ACTIVAS,
+  type TramoObras,
+  type TramoObrasKey,
+} from "@/lib/suscripcion";
 
 /**
  * Copys/labels dependientes del perfil. Centralizar el tono aquí evita
