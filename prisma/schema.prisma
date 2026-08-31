@@ -167,6 +167,7 @@ model Proyecto {
   personas_externas        PersonaExternaProyecto[]
   reasignaciones           ReasignacionTarea[]
   gastos                   Gasto[]
+  fotos_levantamiento      FotoLevantamiento[]
   anticipos                Anticipo[]
 
   @@unique([constructora_id, numero_registro])
@@ -263,6 +264,7 @@ model Espacio {
 
   unidad     Unidad   @relation(fields: [unidad_id], references: [id], onDelete: Cascade)
   tareas     Tarea[]
+  fotos_levantamiento FotoLevantamiento[]
   gastos     Gasto[]
 
   @@map("espacios")
@@ -565,6 +567,7 @@ model Usuario {
   rol_ref                Rol               @relation(fields: [rol_id], references: [id])
   tareas_asignadas       Tarea[]           @relation("TareasAsignadas")
   evidencias_tomadas     Evidencia[]
+  levantamientos_tomados FotoLevantamiento[]
   aprobaciones           Aprobacion[]
   extensiones_autorizo   ExtensionTiempo[]
   contratista_perfil     Contratista?
@@ -965,6 +968,11 @@ enum SubtipoProyecto {
 }
 
 enum EstadoProyecto {
+  /// Trato aún no cerrado: existe para cotizar. Lleva el levantamiento
+  /// fotográfico y la cotización, pero NO cuenta como obra activa —el cobro
+  /// mira `ACTIVO`, así que cotizar no consume cupo del plan—. Pasa a `ACTIVO`
+  /// cuando el cliente firma la cotización.
+  PREPROYECTO
   ACTIVO
   PAUSADO
   COMPLETADO
@@ -1234,7 +1242,54 @@ model ProductoTecnico {
 // primeros. Por eso un documento firmado es inmutable: corregirlo emite una
 // versión nueva con folio nuevo, y la anterior queda marcada como reemplazada.
 
+/// Foto del LEVANTAMIENTO: el estado del inmueble ANTES de que exista obra.
+///
+/// No es una `Evidencia` y no debe serlo. `Evidencia` cuelga obligatoriamente
+/// de una `Tarea` porque es la cadena que respalda las aprobaciones y, con
+/// ellas, los pagos; aflojar ese `tarea_id` a opcional metería un caso nulo en
+/// toda consulta que decide si una tarea se puede aprobar. Y son dos cosas
+/// distintas: una evidencia prueba que algo se HIZO, un levantamiento documenta
+/// cómo estaba ANTES. Sobreviven a cosas distintas, además: si se borra una
+/// tarea su evidencia se va con ella; el levantamiento no.
+///
+/// `espacio_id` es opcional a propósito: en obra se disparan cuarenta fotos
+/// seguidas y ponerse a elegir espacio en cada una mata el flujo. Se asocian
+/// después, desde el escritorio, y ese id es lo que da el ANTES/DESPUÉS gratis
+/// (levantamiento del espacio X contra evidencia final del espacio X).
+model FotoLevantamiento {
+  id          String  @id @default(cuid())
+  proyecto_id String
+  espacio_id  String?
+  url_storage String
+  /// Nota del arquitecto: "grieta en muro norte", "estado del piso".
+  descripcion String?
+
+  /// La marca la pone el DISPOSITIVO al capturar, no el servidor ni el usuario.
+  /// Una foto subida desde la galería trae la fecha del archivo, que es
+  /// falsificable, y entonces no sirve para documentar un estado inicial.
+  gps_lat           Float?
+  gps_lng           Float?
+  timestamp_captura DateTime
+
+  tomada_por String?
+  created_at DateTime @default(now())
+
+  proyecto Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
+  espacio  Espacio? @relation(fields: [espacio_id], references: [id], onDelete: SetNull)
+  usuario  Usuario? @relation(fields: [tomada_por], references: [id])
+
+  @@index([proyecto_id])
+  @@index([espacio_id])
+  @@map("fotos_levantamiento")
+}
+
 enum TipoDocumentoFirmable {
+  /// Cotización formal de un preproyecto. Su FIRMA por parte del cliente es lo
+  /// que cierra el trato: es el acto que convierte el preproyecto en obra. Se
+  /// versiona en vez de editarse (`version` / `reemplaza_a`) porque una
+  /// cotización firmada es contra la que después se compara el gasto real; si
+  /// se pudiera editar, la varianza no significaría nada.
+  COTIZACION
   ACTA_ESTADO_INICIAL
   INFORME_TECNICO
   ACTA_DANOS

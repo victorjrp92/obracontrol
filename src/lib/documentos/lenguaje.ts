@@ -45,6 +45,7 @@ export const TERMINO_CONCEPTO = "concepto técnico";
  * rebautizarlos sería tan falso como rebautizar este.
  */
 export const ETIQUETA_TIPO: Record<TipoDocumentoFirmable, string> = {
+  COTIZACION: "Cotización",
   ACTA_ESTADO_INICIAL: "Acta de estado inicial",
   INFORME_TECNICO: "Concepto técnico",
   ACTA_DANOS: "Acta de daños",

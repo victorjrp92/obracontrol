@@ -14,19 +14,21 @@ import type { PlanTipo, TipoCuenta } from "@/generated/prisma";
  */
 
 export type Capacidad =
-  | "contratistas"   // gestionar contratistas (sub-equipos que reportan)
-  | "obreros"        // gestionar obreros directos
-  | "equipo"         // gestionar su propio equipo (obreros) en modo simple
-  | "clientes"       // manejar clientes/terceros dueños de la obra
-  | "multiproyecto"  // varias obras a la vez
-  | "pagos"          // pagos, retegarantía, cortes
-  | "usuarios"       // invitar usuarios y administrar roles
-  | "sugerencias"    // bandeja de tareas sugeridas
-  | "empresa"        // ficha/pestaña de empresa
-  | "reportes"       // reportes y exportables
-  | "validar"        // aprobar/rechazar lo reportado
-  | "modoSimple"     // usa la cáscara simple + módulo de intención (/empezar)
-  | "productosTecnicos"; // planos, renders, registro inicial y actas firmadas
+  | "contratistas" // gestionar contratistas (sub-equipos que reportan)
+  | "obreros" // gestionar obreros directos
+  | "equipo" // gestionar su propio equipo (obreros) en modo simple
+  | "clientes" // manejar clientes/terceros dueños de la obra
+  | "multiproyecto" // varias obras a la vez
+  | "pagos" // pagos, retegarantía, cortes
+  | "usuarios" // invitar usuarios y administrar roles
+  | "sugerencias" // bandeja de tareas sugeridas
+  | "empresa" // ficha/pestaña de empresa
+  | "reportes" // reportes y exportables
+  | "validar" // aprobar/rechazar lo reportado
+  | "modoSimple" // usa la cáscara simple + módulo de intención (/empezar)
+  | "productosTecnicos" // planos, renders, registro inicial y actas firmadas
+  | "preproyectos" // abrir obras en estado PREPROYECTO (levantamiento previo)
+  | "cotizacionFormal"; // emitir la cotización firmable que cierra el trato
 
 /**
  * Todas las capacidades, en orden estable. Existe para poder recorrer la matriz
@@ -46,6 +48,8 @@ export const CAPACIDADES: readonly Capacidad[] = [
   "validar",
   "modoSimple",
   "productosTecnicos",
+  "preproyectos",
+  "cotizacionFormal",
 ];
 
 /** Matriz de capacidades por tipo de cuenta. */
@@ -65,6 +69,8 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     validar: true,
     modoSimple: false,
     productosTecnicos: true,
+    preproyectos: true,
+    cotizacionFormal: true,
   },
   // Contratista B2C: emprendedor de oficio; maneja varias obras de varios
   // clientes, arma su propio equipo/personal que le reporta, y valida lo reportado.
@@ -82,6 +88,8 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     validar: true,
     modoSimple: true,
     productosTecnicos: false,
+    preproyectos: true,
+    cotizacionFormal: true,
   },
   // Propietario (persona natural): lleva su propia obra y contrata obreros
   // directos que le reportan para validar. Sin contratistas, clientes ni pagos.
@@ -99,6 +107,8 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     validar: true,
     modoSimple: true,
     productosTecnicos: false,
+    preproyectos: true,
+    cotizacionFormal: false,
   },
   // Arquitecto: profesional que diseña y supervisa. Como el contratista, maneja
   // varias obras de varios clientes y valida lo reportado — pero su entregable
@@ -119,6 +129,8 @@ const MATRIZ: Record<TipoCuenta, Record<Capacidad, boolean>> = {
     validar: true,
     modoSimple: true,
     productosTecnicos: true,
+    preproyectos: true,
+    cotizacionFormal: true,
   },
 };
 
@@ -131,7 +143,9 @@ export function puede(tipo: TipoCuenta, cap: Capacidad): boolean {
  * La fila entera de la matriz para un perfil. Se devuelve una copia: la matriz
  * gobierna guardas de API, así que no se presta la referencia viva.
  */
-export function capacidadesDe(tipo: TipoCuenta): Readonly<Record<Capacidad, boolean>> {
+export function capacidadesDe(
+  tipo: TipoCuenta,
+): Readonly<Record<Capacidad, boolean>> {
   return { ...MATRIZ[tipo] };
 }
 
@@ -140,11 +154,16 @@ export function capacidadesDe(tipo: TipoCuenta): Readonly<Record<Capacidad, bool
  * contratista, propietario y arquitecto.
  */
 export function esCuentaPersonal(tipo: TipoCuenta): tipo is TipoCuentaPersonal {
-  return tipo === "CONTRATISTA" || tipo === "PROPIETARIO" || tipo === "ARQUITECTO";
+  return (
+    tipo === "CONTRATISTA" || tipo === "PROPIETARIO" || tipo === "ARQUITECTO"
+  );
 }
 
 /** Los tipos de cuenta B2C: negocio o vivienda propia, en modo simple. */
-export type TipoCuentaPersonal = Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARIO" | "ARQUITECTO">;
+export type TipoCuentaPersonal = Extract<
+  TipoCuenta,
+  "CONTRATISTA" | "PROPIETARIO" | "ARQUITECTO"
+>;
 
 /**
  * ¿El usuario puede crear y administrar obreros DIRECTOS (que cuelgan de él
@@ -153,7 +172,10 @@ export type TipoCuentaPersonal = Extract<TipoCuenta, "CONTRATISTA" | "PROPIETARI
  *   - ADMIN_GENERAL de una cuenta personal (contratista B2C, propietario o
  *     arquitecto): es su propio "dueño de obreros" y a la vez el aprobador.
  */
-export function puedeGestionarEquipoDirecto(nivel: string, tipo: TipoCuenta): boolean {
+export function puedeGestionarEquipoDirecto(
+  nivel: string,
+  tipo: TipoCuenta,
+): boolean {
   if (nivel === "CONTRATISTA") return true;
   if (nivel === "ADMIN_GENERAL" && esCuentaPersonal(tipo)) return true;
   return false;
@@ -167,12 +189,28 @@ export function puedeGestionarEquipoDirecto(nivel: string, tipo: TipoCuenta): bo
 export function modulosVisibles(tipo: TipoCuenta): string[] {
   if (tipo === "CONSTRUCTORA") {
     // No se usa: la empresa delega en getPermissions(). Valor de respaldo.
-    return ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"];
+    return [
+      "dashboard",
+      "empresa",
+      "proyectos",
+      "tareas",
+      "sugerencias",
+      "reportes",
+      "usuarios",
+      "configuracion",
+    ];
   }
   // Los tres perfiles personales (CONTRATISTA, PROPIETARIO, ARQUITECTO) ven la
   // misma cáscara simple. Los productos técnicos del arquitecto viven DENTRO de
   // la obra, igual que la gestión de equipo, así que no añaden ítem aquí.
-  return ["dashboard", "proyectos", "tareas", "equipo", "reportes", "configuracion"];
+  return [
+    "dashboard",
+    "proyectos",
+    "tareas",
+    "equipo",
+    "reportes",
+    "configuracion",
+  ];
 }
 
 /**
@@ -191,6 +229,7 @@ export function modulosVisibles(tipo: TipoCuenta): string[] {
 // reexportan aquí para no romper a quien ya los importaba de `plan.ts`.
 export {
   limiteObrasActivas,
+  limitePreproyectos,
   tramoPorObrasActivas,
   TRAMOS_OBRAS_ACTIVAS,
   type TramoObras,
@@ -203,10 +242,10 @@ export {
  */
 export interface TonoPerfil {
   /** A quién contrata y reporta: define etiquetas del equipo. */
-  equipoLabel: string;        // "Mis obreros" | "Mis contratistas"
-  equipoSingular: string;     // "obrero" | "contratista"
-  obraLabel: string;          // "Mi obra" | "Las obras"
-  obraSingular: string;       // "obra" | "proyecto"
+  equipoLabel: string; // "Mis obreros" | "Mis contratistas"
+  equipoSingular: string; // "obrero" | "contratista"
+  obraLabel: string; // "Mi obra" | "Las obras"
+  obraSingular: string; // "obra" | "proyecto"
   /** Saludo/encabezado del módulo de intención. */
   intencionTitulo: string;
   intencionSubtitulo: string;
@@ -233,7 +272,8 @@ export function tonoPerfil(tipo: TipoCuenta): TonoPerfil {
       obraLabel: "Mi obra",
       obraSingular: "obra",
       intencionTitulo: "Empecemos con tu obra",
-      intencionSubtitulo: "Cuéntame qué quieres hacer y la armamos juntos, sin enredos.",
+      intencionSubtitulo:
+        "Cuéntame qué quieres hacer y la armamos juntos, sin enredos.",
     };
   }
   // CONSTRUCTORA (no usa el módulo de intención, pero damos valores razonables)

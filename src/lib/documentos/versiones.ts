@@ -29,6 +29,7 @@ import { generarFolio, hashContenido, prefijoDeFolio, type PrefijoFolio } from "
  * su prefijo es `CT`.
  */
 export const PREFIJO_POR_TIPO: Record<TipoDocumentoFirmable, PrefijoFolio> = {
+  COTIZACION: "CZ",
   ACTA_ESTADO_INICIAL: "AE",
   INFORME_TECNICO: "CT",
   ACTA_DANOS: "JT",

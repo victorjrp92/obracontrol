@@ -24,16 +24,17 @@ import { createHash, randomBytes } from "crypto";
  *   DP — derecho de petición                 (línea Juntos)
  *   AE — acta de estado inicial              (línea Arquitecto)
  *   CT — concepto técnico                    (línea Arquitecto)
+ *   CZ — cotización                          (línea Arquitecto)
  *
  * `CT` no es un capricho de dos letras: el documento se llama «concepto
  * técnico» en cada pantalla y en cada pie de página, y el folio impreso lo dice
  * también. La base guarda el valor `INFORME_TECNICO` porque así lo fijó la
  * migración, pero nadie fuera del esquema lee ese nombre.
  */
-export type PrefijoFolio = "JT" | "DP" | "AE" | "CT";
+export type PrefijoFolio = "JT" | "DP" | "AE" | "CT" | "CZ";
 
 /** Todos los prefijos declarados. Sirve para reconocer un folio propio. */
-export const PREFIJOS: readonly PrefijoFolio[] = ["JT", "DP", "AE", "CT"];
+export const PREFIJOS: readonly PrefijoFolio[] = ["JT", "DP", "AE", "CT", "CZ"];
 
 /** Forma de todo folio: `<2 mayúsculas>-<AAAAMMDD>-<6 hex en minúscula>`. */
 export const PATRON_FOLIO = /^[A-Z]{2}-\d{8}-[0-9a-f]{6}$/;
