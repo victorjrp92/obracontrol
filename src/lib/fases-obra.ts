@@ -68,19 +68,55 @@ export function normalizarFase(texto: string): FaseObra | null {
     if (limpiar(fase) === t) return fase;
   }
 
-  // 2) Variantes por inclusión; gana la keyword más larga (más específica).
-  let mejor: FaseObra | null = null;
-  let mejorLargo = 0;
+  // 2) Variantes por inclusión. Se recorren TODAS las fases y se guarda el
+  //    mejor puntaje de cada una, para poder detectar empates: si dos fases
+  //    empatan, el término es ambiguo y adivinar sería peor que no responder.
+  const puntajes = new Map<FaseObra, number>();
   for (const fase of FASES_OBRA) {
+    let mejorDeEstaFase = 0;
     for (const v of VARIANTES_FASE[fase]) {
       const vv = limpiar(v);
-      if ((t.includes(vv) || vv.includes(t)) && vv.length > mejorLargo) {
-        mejor = fase;
-        mejorLargo = vv.length;
+
+      // (a) El texto del usuario CONTIENE la variante: señal fuerte. Cuanto más
+      //     larga la variante, más específico el match («acabados de piso» pesa
+      //     más que «piso»).
+      if (t.includes(vv)) {
+        if (vv.length > mejorDeEstaFase) mejorDeEstaFase = vv.length;
+        continue;
+      }
+
+      // (b) La variante contiene al texto: solo vale para diferencias menores
+      //     de sufijo o número («electrica» ⊂ «electricas», «piso» ⊂ «pisos»).
+      //
+      //     Antes esta rama aceptaba cualquier fragmento, y como puntuaba por
+      //     el largo de la VARIANTE, un término genérico y corto ganaba con la
+      //     variante más larga que lo contuviera. Efecto real: «ACABADOS»
+      //     resolvía a «Pintura», porque «acabados de pintura» (19) le ganaba a
+      //     «acabados de piso» (16) — mandando repello, estuco, pisos, enchapes
+      //     y grifería a la fase equivocada en la importación de un presupuesto.
+      //
+      //     El umbral del 80% deja pasar plurales y sufijos, y corta los
+      //     fragmentos genéricos.
+      if (vv.includes(t) && t.length >= vv.length * 0.8) {
+        if (t.length > mejorDeEstaFase) mejorDeEstaFase = t.length;
       }
     }
+    if (mejorDeEstaFase > 0) puntajes.set(fase, mejorDeEstaFase);
   }
-  return mejor;
+
+  if (puntajes.size === 0) return null;
+
+  const maximo = Math.max(...puntajes.values());
+  const ganadoras = [...puntajes.entries()].filter(([, p]) => p === maximo);
+
+  // Empate = término de CAPÍTULO, no de fase («Acabados» agrupa repello,
+  // pintura, pisos y grifería; «Instalaciones» puede ser eléctrica o
+  // hidrosanitaria). Devolver `null` lo manda al mapeo manual, que es
+  // justamente el camino que este módulo declara en su cabecera. En un
+  // presupuesto adivinar mal no es un detalle: mueve dinero de capítulo.
+  if (ganadoras.length > 1) return null;
+
+  return ganadoras[0][0];
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -138,14 +174,32 @@ export const FASE_POR_KEY: Record<string, FaseObra> = {
 };
 
 // Heurística por keywords. COMPITE con el match de la semilla de precios (no
-// va después de él): gana el término más largo de los dos. Es la vía por la
-// que se clasifican las claves sin precio semilla (demolición, drywall…).
+// va después de él): gana el término más largo de los dos.
+//
+// Qué entra aquí: la ACCIÓN («demoler», «estucar», «pintar»), no el ELEMENTO
+// sobre el que se ejecuta («muros», «cielos», «pisos»). Un muro se demuele, se
+// construye, se repella, se estuca y se pinta: la palabra «muro» sola no dice
+// en qué fase estás. La tabla de precios empareja por elemento —está afinada
+// para encontrar un precio comparable, no una fase—, así que las acciones de
+// acabado se listan aquí para que puedan ganarle cuando son más específicas.
 const KEYWORDS_FASE: [string, FaseObra][] = [
   ["demolicion", "Preliminares/Demolición"],
   ["demoler", "Preliminares/Demolición"],
   ["desmonte", "Preliminares/Demolición"],
   ["desmantelamiento", "Preliminares/Demolición"],
+  ["retiro de escombro", "Preliminares/Demolición"],
   ["retiro", "Preliminares/Demolición"],
+  // Acciones de acabado. Faltaban, y su ausencia dejaba «Estuco sobre muros» a
+  // merced de la tabla de precios, que empareja «muros» con mampostería e
+  // ignora el «estuco» — mandándolo a Estructura.
+  ["repello", "Repello/Estuco"],
+  ["estuco", "Repello/Estuco"],
+  ["panete", "Repello/Estuco"],
+  ["pañete", "Repello/Estuco"],
+  ["revoque", "Repello/Estuco"],
+  ["resane", "Repello/Estuco"],
+  ["pintura", "Pintura"],
+  ["pintar", "Pintura"],
   ["cielo raso", "Obra gris/Estructura"],
   ["drywall", "Obra gris/Estructura"],
   ["superboard", "Obra gris/Estructura"],
@@ -182,6 +236,10 @@ const KEYWORDS_FASE: [string, FaseObra][] = [
  * podría estimarse como demolición y agendarse en la fase de estuco.
  */
 export function faseDeTarea(nombre: string): FaseObra | null {
+  // Dos de las veintiuna partidas de un presupuesto real caían en la fase
+  // equivocada («Estuco sobre muros» y «Demolición de muros», ambas a Obra
+  // gris por la palabra «muros»), y con ellas su cronograma y su corte. Por eso
+  // las acciones compiten por largo contra la clave de precio.
   const n = limpiar(nombre);
   if (!n) return null;
 
