@@ -33,6 +33,7 @@ export default async function ConstructorasPage() {
             {constructoras.length} cuentas ·{" "}
             {constructoras.filter((c) => c.tipo_cuenta === "CONSTRUCTORA").length} empresas ·{" "}
             {constructoras.filter((c) => c.tipo_cuenta === "CONTRATISTA").length} contratistas ·{" "}
+            {constructoras.filter((c) => c.tipo_cuenta === "ARQUITECTO").length} arquitectos ·{" "}
             {constructoras.filter((c) => c.tipo_cuenta === "PROPIETARIO").length} propietarios
           </p>
           <Link

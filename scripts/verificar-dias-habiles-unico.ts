@@ -26,7 +26,7 @@
  * los 18 festivos». Las tres fixtures del control positivo de abajo la prueban.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 
 const CANONICO = "src/lib/calendario-colombia.ts";
 const RAICES = ["src", "scripts"];
@@ -111,7 +111,10 @@ function analizar(archivo: string, fuente: string): Hallazgo[] {
 
 function recorrer(dir: string): string[] {
   return readdirSync(dir).flatMap((e) => {
-    const p = join(dir, e);
+    // Normalizado a `/`: en Windows `join` devuelve `scripts\x.ts` y las
+    // comparaciones contra CANONICO y ESTE —escritas con `/`— no casaban nunca,
+    // así que la guardia se marcaba a sí misma.
+    const p = join(dir, e).split(sep).join("/");
     if (statSync(p).isDirectory()) return recorrer(p);
     return /\.(ts|tsx)$/.test(p) ? [p] : [];
   });

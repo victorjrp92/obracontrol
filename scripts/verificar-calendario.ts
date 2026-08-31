@@ -31,7 +31,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import {
   addWorkingDays,
   claveDia,
@@ -442,8 +442,12 @@ function fuentes(dir: string, acc: string[] = []): string[] {
 }
 const ARCHIVOS = fuentes(join(RAIZ, "src"));
 const RE_DEFINICION = /function\s+(diasHabilesEntre|calcularDiasHabiles|esHabil)\b/;
+// El `.slice` deja la ruta relativa, pero en Windows con `\` — y todo lo que
+// se compara abajo (CANONICO, DEUDA_CONOCIDA) está escrito con `/`. Sin
+// normalizar, ninguna comparación casa y la sección 6 falla entera en Windows
+// mientras pasa en Linux.
 const definidores = ARCHIVOS.filter((f) => RE_DEFINICION.test(readFileSync(f, "utf8")))
-  .map((f) => f.slice(RAIZ.length))
+  .map((f) => f.slice(RAIZ.length).split(sep).join("/"))
   .sort();
 
 const CANONICO = "src/lib/calendario-colombia.ts";
