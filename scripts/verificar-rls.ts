@@ -183,15 +183,69 @@ verificar(
   sinRls.length === 0,
 );
 
-// Las dos tablas de esta tanda, nombradas: si alguien renombra la migración o
+// Las tablas de estas tandas, nombradas: si alguien renombra la migración o
 // borra la línea, esto lo dice con el nombre de la tabla y no con un conteo.
 const SQL_TODAS = MIGRACIONES.map((m) => m.sql).join("\n");
-for (const tabla of ["productos_tecnicos", "documentos_firmables"]) {
+for (const tabla of ["productos_tecnicos", "documentos_firmables", "fotos_levantamiento"]) {
   verificar(
     `${tabla} se crea y se cierra con RLS en la misma tanda`,
     tablasCreadas(SQL_TODAS).includes(tabla) && tablasConRlsExplicito(SQL_TODAS).includes(tabla),
   );
 }
+
+/**
+ * El REVOKE, que hasta ahora no se comprobaba.
+ *
+ * Con RLS activo y sin políticas nadie lee filas, así que quitarle el GRANT a
+ * `anon` es cinturón sobre tirantes — pero es el cinturón que faltaba cuando
+ * 39 tablas quedaron expuestas, y en Supabase toda tabla nueva de `public`
+ * nace con privilegios por defecto para `anon` y `authenticated`. El barrido
+ * 20260830120000 revocó en bloque lo que existía ENTONCES; una tabla creada
+ * después vuelve a nacer con el grant puesto y nadie se entera.
+ */
+function tablasSinRevoke(migraciones: { nombre: string; sql: string }[]): string[] {
+  // OJO: la línea de corte NO es `esBarridoDeRls`. Hay dos barridos distintos y
+  // hacen cosas distintas: uno recorre `pg_tables` en un LOOP y ACTIVA RLS; el
+  // otro (20260830120000) REVOCA los privilegios en bloque. Tomar el primero
+  // como referencia acusaba a tres tablas que el segundo ya había cerrado.
+  // Aquí interesa el de revocación, y el ÚLTIMO de ellos.
+  const esBarridoDeRevoke = (sql: string) =>
+    /REVOKE\s+ALL\s+ON\s+ALL\s+TABLES\s+IN\s+SCHEMA\s+public\s+FROM\s+anon/i.test(sql);
+
+  let indiceBarrido = -1;
+  for (let i = migraciones.length - 1; i >= 0; i--) {
+    if (esBarridoDeRevoke(migraciones[i].sql)) {
+      indiceBarrido = i;
+      break;
+    }
+  }
+  if (indiceBarrido < 0) return [];
+  const posteriores = migraciones.slice(indiceBarrido + 1);
+  const sqlPosterior = posteriores.map((m) => m.sql).join("\n");
+
+  const revocada = (tabla: string, rol: string) =>
+    new RegExp(
+      `REVOKE\\s+ALL\\s+ON\\s+(?:TABLE\\s+)?"?${tabla}"?\\s+FROM\\s+${rol}\\b`,
+      "i",
+    ).test(sqlPosterior);
+
+  const infractoras: string[] = [];
+  for (const m of posteriores) {
+    for (const tabla of tablasCreadas(m.sql)) {
+      const faltan = ["anon", "authenticated"].filter((rol) => !revocada(tabla, rol));
+      if (faltan.length > 0) infractoras.push(`${tabla} (falta REVOKE a ${faltan.join(" y ")})`);
+    }
+  }
+  return infractoras;
+}
+
+const sinRevoke = tablasSinRevoke(MIGRACIONES);
+verificar(
+  sinRevoke.length === 0
+    ? "toda tabla creada tras el barrido revoca los privilegios de anon y authenticated"
+    : `tablas nuevas con privilegios sin revocar: ${sinRevoke.join(", ")}`,
+  sinRevoke.length === 0,
+);
 
 /** Los nombres de tabla del esquema (`@@map("…")`). */
 export function tablasDelEsquema(schema: string): string[] {
