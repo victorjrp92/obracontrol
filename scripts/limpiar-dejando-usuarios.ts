@@ -121,15 +121,31 @@ async function main() {
     // sueltas, sin clave foránea. Sobreviven al vaciado con los ids apuntando a
     // filas que ya no existen. No rompe nada —no hay FK que violar— pero deja
     // de poder cruzarse con nada.
-    const [precios, duraciones, duracionesViejas, listaEspera, mensajes, juntos] =
-      await Promise.all([
-        prisma.registroPrecio.count(),
-        prisma.registroDuracion.count(),
-        prisma.registroDuracion.count({ where: { created_at: { lt: CORTE_MEDICION_DURACION } } }),
-        prisma.listaEsperaGo.count(),
-        prisma.mensajeContacto.count(),
-        prisma.contactoJuntos.count(),
-      ]);
+    const [
+      precios,
+      duraciones,
+      duracionesViejas,
+      listaEspera,
+      mensajes,
+      juntos,
+      docsJuntosLegado,
+      docsSinTenant,
+      docsConTenant,
+    ] = await Promise.all([
+      prisma.registroPrecio.count(),
+      prisma.registroDuracion.count(),
+      prisma.registroDuracion.count({ where: { created_at: { lt: CORTE_MEDICION_DURACION } } }),
+      prisma.listaEsperaGo.count(),
+      prisma.mensajeContacto.count(),
+      prisma.contactoJuntos.count(),
+      prisma.documentoJuntos.count(),
+      // Los de Juntos: `registrarDocumento` de la línea pública no pasa
+      // `constructoraId`, así que quedan con NULL y la cascada no los alcanza.
+      prisma.documentoFirmable.count({ where: { constructora_id: null } }),
+      // Estos SÍ mueren con su cuenta: son documentos firmados por un
+      // arquitecto o una constructora para su cliente.
+      prisma.documentoFirmable.count({ where: { constructora_id: { not: null } } }),
+    ]);
 
     console.log("\n─── Alcance ──────────────────────────────────────────────");
     console.log(`  Se conservan       ${conservados.length} usuarios (${superAdmins.length} super admin)`);
@@ -144,8 +160,21 @@ async function main() {
     console.log(`                     ${duraciones} registros de duración (aprendizaje)`);
     console.log(`                     ${listaEspera} de lista de espera`);
     console.log(`                     ${mensajes} mensajes de contacto`);
-    console.log(`                     ${juntos} contactos de Juntos (datos personales)`);
+    console.log("");
+    console.log(`  SEIRICON JUNTOS    ${juntos} contactos`);
+    console.log(`                     ${docsJuntosLegado} documentos en la tabla legada`);
+    console.log(`                     ${docsSinTenant} documentos verificables sin cuenta`);
     console.log("──────────────────────────────────────────────────────────");
+
+    if (docsConTenant > 0) {
+      console.log("");
+      console.log(`  ⚠️  ${docsConTenant} documentos firmables SÍ tienen cuenta asociada y mueren`);
+      console.log("      con ella (la clave foránea es Cascade). No son de Juntos: son");
+      console.log("      actas y planos que un arquitecto o una constructora firmó para");
+      console.log("      su cliente. El producto promete que un documento firmado sigue");
+      console.log("      verificando siempre; borrar la cuenta rompe esa promesa para");
+      console.log("      quien tenga el PDF en la mano.");
+    }
 
     if (duracionesViejas > 0) {
       console.log("");
@@ -198,6 +227,30 @@ async function main() {
               where: { created_at: { lt: CORTE_MEDICION_DURACION } },
             })
           : { count: 0 };
+
+        // ── Cerrojo de Juntos ────────────────────────────────────────────────
+        // Que los documentos de la línea pública sobrevivan no depende de que
+        // yo haya leído bien el esquema: se cuenta antes y después, y si el
+        // número cambió se lanza y la transacción entera se deshace. Un acta
+        // con su folio impreso en el PDF de una aseguradora no se puede perder
+        // porque una cascada hiciera algo que no esperábamos.
+        const juntosDespues = {
+          contactos: await tx.contactoJuntos.count(),
+          legado: await tx.documentoJuntos.count(),
+          verificables: await tx.documentoFirmable.count({ where: { constructora_id: null } }),
+        };
+        if (
+          juntosDespues.contactos !== juntos ||
+          juntosDespues.legado !== docsJuntosLegado ||
+          juntosDespues.verificables !== docsSinTenant
+        ) {
+          throw new Error(
+            "El borrado tocó datos de Seiricon Juntos. Se deshace todo.\n" +
+              `  contactos     ${juntos} → ${juntosDespues.contactos}\n` +
+              `  legado        ${docsJuntosLegado} → ${juntosDespues.legado}\n` +
+              `  verificables  ${docsSinTenant} → ${juntosDespues.verificables}`,
+          );
+        }
 
         return { sugeridas, pagos, proyectos, obreros, cuentas, usuarios, duracionesViejas };
       },
