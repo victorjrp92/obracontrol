@@ -674,6 +674,8 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 - Lo que ves es una **fecha, no un número de días**: *"lo más probable es que termines el 14 de octubre; en 8 de cada 10 obras parecidas, se termina antes del 3 de noviembre"*. También te decimos la fecha que casi nunca se pasa, por si necesitas comprometerte con alguien.
 - Si pusiste fecha de entrega, te da un **contra-pronóstico que solo guía**: te dice **cuántas veces de cada 10** se cumple una fecha así en obras parecidas. Nunca te bloquea.
 - En el resumen y en el detalle de la obra ves una **línea de tiempo por fases**, con las fechas de cada fase, las actividades que pueden avanzar **en paralelo** (por ejemplo, instalaciones eléctricas e hidráulicas a la vez) y los tiempos de secado señalados.
+- La línea de tiempo se lee sobre un **calendario**: arriba van los meses, y las barras caen donde les corresponde en el mes real, ya descontados domingos y festivos (por eso un mes con dos festivos se ve más angosto que uno sin ninguno). Dos verticales te ubican sin hacer cuentas: **hoy** (gris, solo si la obra ya arrancó) y la **fecha de entrega** con la que conviene comprometerse (azul punteada). Lo que queda a la derecha de la punteada es el margen de riesgo: si algo se atrasa, ahí es donde se va.
+- Arriba de las barras hay una **leyenda** que dice qué significa cada color: ámbar es lo que no tiene holgura (si se atrasa, se atrasa la entrega), azul es lo que se puede mover sin mover la fecha, violeta es otro oficio corriendo en paralelo y gris es el arranque y la entrega.
 - Con cada obra que se completa, Seiricon aprende de las duraciones reales para afinar sus estimados.
 
 ### Cómo defines el presupuesto (3 modos)

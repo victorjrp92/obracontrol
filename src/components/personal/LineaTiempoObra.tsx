@@ -29,7 +29,14 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, CalendarClock, GitBranch, Zap } from "lucide-react";
-import { addWorkingDays, DIAS_HABILES_SEMANA_DEFECTO } from "@/lib/calendario-colombia";
+import {
+  addWorkingDays,
+  DIAS_HABILES_SEMANA_DEFECTO,
+} from "@/lib/calendario-colombia";
+import { ejeDeMeses, posicionDeFecha } from "@/lib/cronograma/eje-meses";
+import EjeCalendario from "./EjeCalendario";
+import LeyendaCronograma from "./LeyendaCronograma";
+import MarcasCronograma from "./MarcasCronograma";
 import {
   estimarDuracion,
   fechaCorta,
@@ -92,7 +99,8 @@ function FilaFase({
   enFecha: (dia: number) => string;
 }) {
   const tramos = tramosDeFase(fase.tareas);
-  const pct = (x: number) => (escala > 0 ? Math.min(100, Math.max(0, (x / escala) * 100)) : 0);
+  const pct = (x: number) =>
+    escala > 0 ? Math.min(100, Math.max(0, (x / escala) * 100)) : 0;
 
   return (
     <li className="py-2">
@@ -197,21 +205,54 @@ export default function LineaTiempoObra({
     const indice = new Map(resultado.fases.map((f, i) => [f.fase, i]));
     return [...resultado.fases].sort(
       (a, b) =>
-        a.inicioDias - b.inicioDias || (indice.get(a.fase) ?? 0) - (indice.get(b.fase) ?? 0),
+        a.inicioDias - b.inicioDias ||
+        (indice.get(a.fase) ?? 0) - (indice.get(b.fase) ?? 0),
     );
   }, [resultado.fases]);
+
+  // El eje va en un `useMemo` aquí arriba, antes del early return, porque un
+  // hook no puede quedar detrás de un `return`. De paso fija la ESCALA.
+  //
+  // La escala llega hasta la P95, no hasta el fin de las barras. Con la P80 el
+  // marco terminaba justo en la línea de entrega y esa línea dejaba de decir
+  // nada: coincidía con el borde. Estirando hasta la P95 quedan tres cosas
+  // legibles de un vistazo —el trabajo (barras), la fecha con la que uno se
+  // compromete (línea) y la cola de riesgo (el aire a su derecha)— que es
+  // exactamente lo que el texto de abajo venía diciendo en prosa.
+  const eje = useMemo(() => {
+    const arranque = fechaUTCDesde(fechaInicio) ?? fechaUTCDesde(hoy)!;
+    const escala = Math.max(
+      resultado.probabilidad.p95,
+      ...resultado.fases.map((f) => f.finDias),
+    );
+    return {
+      arranque,
+      escala,
+      calendario: ejeDeMeses(arranque, escala, diasHabilesSemana),
+    };
+  }, [fechaInicio, hoy, resultado, diasHabilesSemana]);
 
   if (resultado.fases.length === 0) return null;
 
   const dist = resultado.probabilidad;
-  const inicio = fechaUTCDesde(fechaInicio) ?? fechaUTCDesde(hoy)!;
+  const inicio = eje.arranque;
   const arrancaHoy = fechaUTCDesde(fechaInicio) === null;
   const pron = pronosticoFechas(dist, { inicio, diasHabilesSemana });
   /** Día de obra (en días hábiles desde el arranque) → «18 sep». */
   const enFecha = (dia: number): string =>
-    fechaCorta(addWorkingDays(inicio, Math.max(0, Math.round(dia)), diasHabilesSemana));
+    fechaCorta(
+      addWorkingDays(inicio, Math.max(0, Math.round(dia)), diasHabilesSemana),
+    );
 
-  const escala = Math.max(dist.p50, ...resultado.fases.map((f) => f.finDias));
+  const escala = eje.escala;
+
+  // «Hoy» solo si la obra ya arrancó de verdad: en una obra que empieza hoy la
+  // línea caería sobre el 0% y no diría nada. Y se esconde pegada a los bordes
+  // para no chocar con el rótulo del primer mes ni con el de entrega.
+  const posHoy = arrancaHoy ? null : posicionDeFecha(eje.calendario, hoy);
+  const hoyPct = posHoy !== null && posHoy > 1 && posHoy < 99 ? posHoy : null;
+  const entregaPct =
+    escala > 0 ? Math.min(100, (dist.p80 / escala) * 100) : null;
   // La segunda fase de cada pareja paralela se dibuja como rama (violeta).
   const ramas = new Set<string>();
   for (const f of resultado.fases) {
@@ -229,55 +270,86 @@ export default function LineaTiempoObra({
   const cuerpo = (
     <div className="mt-1">
       <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-3.5 py-2.5 mb-3 text-sm text-slate-700">
-        {arrancaHoy ? "Si arrancas hoy, lo" : "Lo"} más probable es que termines el{" "}
-        <strong className="text-slate-900">{fechaLarga(pron.fechaP50, inicio)}</strong>. En 8 de
-        cada 10 obras parecidas, se termina antes del{" "}
-        <strong className="text-slate-900">{fechaLarga(pron.fechaP80, inicio)}</strong>.
+        {arrancaHoy ? "Si arrancas hoy, lo" : "Lo"} más probable es que termines
+        el{" "}
+        <strong className="text-slate-900">
+          {fechaLarga(pron.fechaP50, inicio)}
+        </strong>
+        . En 8 de cada 10 obras parecidas, se termina antes del{" "}
+        <strong className="text-slate-900">
+          {fechaLarga(pron.fechaP80, inicio)}
+        </strong>
+        .
       </div>
 
-      {/* El overhead: la franja que abre y cierra la obra. Se dibuja porque el
-          total la incluye — si no, las barras no darían la cifra de arriba. */}
-      {resultado.overheadDias > 0 && (
-        <div className="mb-1.5">
-          <div className="flex items-baseline justify-between gap-2 flex-wrap">
-            <p className="font-semibold text-slate-600 text-sm">Arranque y entrega</p>
-            <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
-              ~{dias(resultado.overheadDias)} {plural(dias(resultado.overheadDias))}
-            </span>
-          </div>
-          <div className="relative mt-1.5 h-3 rounded-full bg-slate-100 overflow-hidden">
-            <span
-              className="absolute inset-y-0 left-0 rounded-full bg-slate-400 border border-slate-500"
-              style={{
-                width: `${escala > 0 ? Math.max(1.2, (resultado.overheadDias / escala) * 100) : 0}%`,
-              }}
-            />
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Movilización, compras, replanteo y entrega final. No es trabajo de ninguna fase.
-          </p>
-        </div>
-      )}
+      <LeyendaCronograma
+        hayRamas={ramas.size > 0}
+        hayOverhead={resultado.overheadDias > 0}
+      />
 
-      <ul className="divide-y divide-slate-100">
-        {orden.map((f) => (
-          <FilaFase
-            key={f.fase}
-            fase={f}
-            esRama={ramas.has(f.fase)}
-            escala={escala}
-            enFecha={enFecha}
-          />
-        ))}
-      </ul>
+      {/* La zona de barras. Tres capas en orden de pintado: la rejilla de meses
+          al fondo, el contenido encima, y las verticales de hoy/entrega arriba
+          de todo. El `pt-5` reserva la banda donde van los rótulos del eje. */}
+      <div className="relative pt-5 pb-4">
+        <EjeCalendario meses={eje.calendario.meses} />
+
+        <div className="relative">
+          {/* El overhead: la franja que abre y cierra la obra. Se dibuja porque el
+          total la incluye — si no, las barras no darían la cifra de arriba. */}
+          {resultado.overheadDias > 0 && (
+            <div className="mb-1.5">
+              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                <p className="font-semibold text-slate-600 text-sm">
+                  Arranque y entrega
+                </p>
+                <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+                  ~{dias(resultado.overheadDias)}{" "}
+                  {plural(dias(resultado.overheadDias))}
+                </span>
+              </div>
+              <div className="relative mt-1.5 h-3 rounded-full bg-slate-100 overflow-hidden">
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full bg-slate-400 border border-slate-500"
+                  style={{
+                    width: `${escala > 0 ? Math.max(1.2, (resultado.overheadDias / escala) * 100) : 0}%`,
+                  }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Movilización, compras, replanteo y entrega final. No es trabajo
+                de ninguna fase.
+              </p>
+            </div>
+          )}
+
+          <ul className="divide-y divide-slate-100">
+            {orden.map((f) => (
+              <FilaFase
+                key={f.fase}
+                fase={f}
+                esRama={ramas.has(f.fase)}
+                escala={escala}
+                enFecha={enFecha}
+              />
+            ))}
+          </ul>
+        </div>
+
+        <MarcasCronograma
+          hoyPct={hoyPct}
+          entregaPct={entregaPct}
+          etiquetaEntrega={`entrega ${fechaCorta(pron.fechaP80)}`}
+        />
+      </div>
 
       <div className="mt-2.5 flex items-start gap-2 rounded-xl bg-amber-50/70 border border-amber-100 px-3 py-2">
         <Zap className="w-3.5 h-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
         <p className="text-[11px] text-slate-600 leading-relaxed">
-          Lo marcado en <span className="font-semibold text-amber-700">ámbar</span> es la ruta
-          crítica: {criticas} {criticas === 1 ? "tarea que no tiene" : "tareas que no tienen"}{" "}
-          holgura, así que un día de retraso ahí es un día de retraso en la entrega. Las demás
-          pueden moverse sin mover la fecha.
+          {criticas} {criticas === 1 ? "tarea está" : "tareas están"} en la{" "}
+          <span className="font-semibold text-amber-700">ruta crítica</span>: un
+          día de retraso ahí es un día de retraso en la entrega. La línea
+          punteada azul es la fecha con la que conviene comprometerse, y lo que
+          queda entre la última barra y esa línea es el colchón.
         </p>
       </div>
 
@@ -314,7 +386,9 @@ export default function LineaTiempoObra({
         </span>
         <span className="flex items-center gap-2 text-xs text-slate-500">
           {fechaLarga(pron.fechaP50, inicio)}
-          <ChevronDown className={`w-4 h-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${abierto ? "rotate-180" : ""}`}
+          />
         </span>
       </button>
       {abierto && <div className="px-4 pb-4">{cuerpo}</div>}
