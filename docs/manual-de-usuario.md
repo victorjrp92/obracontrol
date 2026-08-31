@@ -4,7 +4,7 @@
 
 > **Alcance de este manual:** cubre el producto **B2B** de Seiricon — las cuentas de **constructora** y sus roles (Super Administrador, Administrador General, Administrador de Proyecto, Directivo, Contratista y Obrero). Las cuentas personales (Propietario / Arquitecto) tienen un flujo propio simplificado que se documenta aparte.
 
-_Última actualización: junio 2026._
+_Última actualización: agosto 2026._
 
 ---
 
@@ -27,9 +27,10 @@ _Última actualización: junio 2026._
 15. [Sistema de puntuación](#15-sistema-de-puntuacion)
 16. [Notificaciones](#16-notificaciones)
 17. [Instalar la app (PWA)](#17-instalar-la-app-pwa)
-18. [Cuentas personales (B2C): Propietario y Arquitecto](#18-cuentas-personales-b2c-propietario-y-arquitecto)
-19. [Juntos: línea pública post-sismo](#19-juntos-linea-publica-post-sismo)
-20. [Preguntas frecuentes](#20-preguntas-frecuentes)
+18. [Plan, suscripción y pagos](#18-plan-suscripcion-y-pagos)
+19. [Cuentas personales (B2C): Propietario y Contratista](#19-cuentas-personales-b2c-propietario-y-contratista)
+20. [Juntos: línea pública post-sismo](#20-juntos-linea-publica-post-sismo)
+21. [Preguntas frecuentes](#21-preguntas-frecuentes)
 
 ---
 
@@ -499,7 +500,65 @@ Seiricon es una **app instalable** (PWA): funciona en el navegador y puedes inst
 
 ---
 
-## 18. Cuentas personales (B2C): Propietario y Contratista
+## 18. Plan, suscripción y pagos
+
+> Aplica a **todas** las cuentas: constructoras (B2B) y cuentas personales (B2C). Se administra desde **Configuración › Suscripción y facturación**.
+
+### Dónde se ve
+
+En **Configuración** hay una tarjeta con tu plan actual y la fecha de renovación. Al entrar (**Configuración › Plan**) verás:
+
+- **Tu plan**: nombre, si está en *Prueba gratis*, *Activo* o *Vencido*, y la fecha de vencimiento.
+- Un contador de **días restantes**. En los **últimos 3 días** se pone en ámbar con un aviso.
+- El **historial de pagos** de la cuenta.
+
+### Los planes
+
+| Plan | Precio mensual | Obras activas |
+|---|---|---|
+| **Personal** | Gratis | 1 (Propietario) · 2 (Contratista / Arquitecto) |
+| **Obra** | $650.000 | 1 |
+| **Proyecto** | $1.500.000 | 5 |
+| **Empresa** | $3.500.000 | 15 |
+
+El tope es de obras **activas** al mismo tiempo, no de obras totales: si archivas una obra terminada, liberas el cupo. El plan **Personal** es gratuito y **no vence** — su único límite es la cantidad de obras.
+
+Puedes pagar **mensual, 6 meses o 12 meses**. Al renovar antes de tiempo, el período nuevo **se encadena** al final del actual: no pierdes los días que te quedaban.
+
+### La prueba gratis
+
+Una cuenta nueva de pago arranca con **14 días de prueba**. Antes de que se acabe verás el aviso en Configuración para elegir plan.
+
+### Cómo se paga
+
+El pago se hace con **Wompi** (tarjeta, PSE, Nequi y demás medios de la pasarela):
+
+1. Eliges plan y período, y pulsas pagar.
+2. Seiricon te lleva al checkout de Wompi.
+3. Al terminar vuelves a Configuración con el mensaje **"Tu pago está en proceso"**.
+4. Cuando Wompi confirma el pago, la suscripción se extiende sola y aparece **"Listo, tu pago quedó registrado"**.
+
+El monto lo calcula siempre el servidor a partir del plan y va sellado con firma de integridad: no se puede alterar desde el navegador. La suscripción **solo** se acredita cuando Wompi confirma el pago, nunca al iniciarlo.
+
+Cada cobro queda en el historial con su estado: **Pendiente**, **Aprobado**, **Rechazado**, **Anulado** o **Error**.
+
+### Quién puede comprar o cambiar de plan
+
+Solo **Super Administrador**, **Administrador General** y **Directivo**. Es el mismo nivel que se exige para gestionar usuarios. Un Administrador de Proyecto, Contratista u Obrero no puede tocar la suscripción.
+
+### Qué pasa cuando se vence
+
+**No se pierde nada y no te sacan de la cuenta.** Puedes seguir entrando y consultando todo lo registrado —obras, tareas, evidencias, gastos, reportes—, pero **no puedes crear obras nuevas** hasta renovar. Al intentarlo, el mensaje te manda a *Configuración › Plan*.
+
+Si **cancelas**, la suscripción **sigue valiendo hasta la fecha que ya pagaste**; solo después deja de permitir obras nuevas.
+
+### Si llegas al tope de obras del plan
+
+Cuando intentas crear una obra por encima del límite, Seiricon te dice cuántas permite tu plan y te da dos salidas: **archivar una obra terminada** o **subir de plan**.
+
+---
+
+## 19. Cuentas personales (B2C): Propietario y Contratista
 
 > Además de las constructoras, Seiricon tiene un flujo simplificado para quien gestiona **su propia obra**:
 > - **Propietario** — dueño de una casa o apartamento que remodela o construye lo suyo.
@@ -562,7 +621,7 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 
 ---
 
-## 19. Juntos: línea pública post-sismo
+## 20. Juntos: línea pública post-sismo
 
 **Ruta:** `/go/juntos` · **No requiere cuenta ni pago.**
 
@@ -610,7 +669,7 @@ Cada PDF imprime folio y huella. En `/go/juntos/verificar` una aseguradora o alc
 
 ---
 
-## 20. Preguntas frecuentes
+## 21. Preguntas frecuentes
 
 ### ¿Puedo editar un proyecto después de crearlo?
 
