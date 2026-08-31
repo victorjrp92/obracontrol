@@ -12,6 +12,16 @@
  * SIN `--ejecutar` no toca nada: cuenta lo que se llevaría y lo imprime. Esa es
  * la forma correcta de usarlo la primera vez.
  *
+ * QUÉ SOBREVIVE, y no por descuido: `registros_precio`, `registros_duracion`,
+ * `lista_espera_go`, `mensajes_contacto` y las tablas de Juntos no cuelgan de
+ * `constructoras` ni de `proyectos`. En los dos `registros_*`, `constructora_id`
+ * y `proyecto_id` son columnas sueltas SIN clave foránea, así que las filas
+ * quedan con ids apuntando a nada. Es aprendizaje acumulado y se conserva a
+ * propósito; el resumen lo enseña para que no sea una sorpresa.
+ *
+ * `--purgar-duraciones-viejas` tira además los registros de duración anteriores
+ * al arreglo de la medición. Ver `CORTE_MEDICION_DURACION`.
+ *
  * Diferencias deliberadas con `demo-clean.ts`, que hace algo parecido:
  *   - La lista de supervivientes NO está escrita en el código. Ahí estaba, con
  *     seis correos `@obracontrol.local` fijos, y en una base real eso borra al
@@ -29,14 +39,24 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config({ path: ".env" });
 
+/**
+ * Fecha de la migración `20260830110000_arquitecto_productos_documentos`, que
+ * arregló la medición de duración. Antes de este momento `fecha_inicio` se
+ * escribía al reportar la tarea TERMINADA, no al empezarla: `dias_reales` no
+ * medía cuánto duró el trabajo, medía cuánto tardó el supervisor en aprobarlo.
+ * Las filas anteriores son ruido con forma de dato.
+ */
+const CORTE_MEDICION_DURACION = new Date("2026-08-30T11:00:00.000Z");
+
 async function main() {
   const args = process.argv.slice(2);
   const ejecutar = args.includes("--ejecutar");
+  const purgarDuraciones = args.includes("--purgar-duraciones-viejas");
   const correos = args.filter((a) => !a.startsWith("--")).map((c) => c.trim().toLowerCase());
 
   if (correos.length === 0) {
     console.error("Falta indicar al menos un correo a conservar.");
-    console.error("Uso: npx tsx scripts/limpiar-dejando-usuarios.ts [--ejecutar] correo1 correo2 …");
+    console.error("Uso: npx tsx scripts/limpiar-dejando-usuarios.ts [--ejecutar] [--purgar-duraciones-viejas] correo1 correo2 …");
     process.exit(1);
   }
 
@@ -95,6 +115,22 @@ async function main() {
       prisma.usuario.count({ where: { email: { notIn: correos } } }),
     ]);
 
+    // ── 3b. Lo que NO se toca ───────────────────────────────────────────────
+    // Estas tablas no cuelgan de `constructoras` ni de `proyectos`: en el caso
+    // de los dos `registros_*`, `constructora_id` y `proyecto_id` son columnas
+    // sueltas, sin clave foránea. Sobreviven al vaciado con los ids apuntando a
+    // filas que ya no existen. No rompe nada —no hay FK que violar— pero deja
+    // de poder cruzarse con nada.
+    const [precios, duraciones, duracionesViejas, listaEspera, mensajes, juntos] =
+      await Promise.all([
+        prisma.registroPrecio.count(),
+        prisma.registroDuracion.count(),
+        prisma.registroDuracion.count({ where: { created_at: { lt: CORTE_MEDICION_DURACION } } }),
+        prisma.listaEsperaGo.count(),
+        prisma.mensajeContacto.count(),
+        prisma.contactoJuntos.count(),
+      ]);
+
     console.log("\n─── Alcance ──────────────────────────────────────────────");
     console.log(`  Se conservan       ${conservados.length} usuarios (${superAdmins.length} super admin)`);
     console.log(`  Cuentas vivas      ${idsConstructorasVivas.length} de ${totalConstructoras}`);
@@ -103,7 +139,23 @@ async function main() {
     console.log(`                     ${constructorasABorrar} de ${totalConstructoras} cuentas`);
     console.log(`                     ${totalProyectos} proyectos (todos)`);
     console.log(`                     ${totalTareas} tareas (todas, en cascada)`);
-    console.log("──────────────────────────────────────────────────────────\n");
+    console.log("");
+    console.log(`  SE CONSERVAN       ${precios} registros de precio (aprendizaje)`);
+    console.log(`                     ${duraciones} registros de duración (aprendizaje)`);
+    console.log(`                     ${listaEspera} de lista de espera`);
+    console.log(`                     ${mensajes} mensajes de contacto`);
+    console.log(`                     ${juntos} contactos de Juntos (datos personales)`);
+    console.log("──────────────────────────────────────────────────────────");
+
+    if (duracionesViejas > 0) {
+      console.log("");
+      console.log(`  ⚠️  ${duracionesViejas} de esos ${duraciones} registros de duración son`);
+      console.log(`      anteriores al ${CORTE_MEDICION_DURACION.toISOString().slice(0, 10)}, cuando \`fecha_inicio\` se escribía al`);
+      console.log("      reportar terminado. Miden latencia de aprobación, no duración.");
+      console.log("      Si el motor sigue aprendiendo de ellos, sigue equivocándose.");
+      console.log("      Para tirarlos: añade --purgar-duraciones-viejas");
+    }
+    console.log("");
 
     if (!ejecutar) {
       console.log("Simulación. No se ha tocado nada.");
@@ -138,7 +190,16 @@ async function main() {
           where: { email: { notIn: correos } },
         });
 
-        return { sugeridas, pagos, proyectos, obreros, cuentas, usuarios };
+        // Solo si se pide: el aprendizaje de duración anterior al arreglo de la
+        // medición. No se borra por defecto — es un dato del negocio, no del
+        // vaciado, y la decisión de tirarlo debe ser explícita.
+        const duracionesViejas = purgarDuraciones
+          ? await tx.registroDuracion.deleteMany({
+              where: { created_at: { lt: CORTE_MEDICION_DURACION } },
+            })
+          : { count: 0 };
+
+        return { sugeridas, pagos, proyectos, obreros, cuentas, usuarios, duracionesViejas };
       },
       { timeout: 300_000, maxWait: 20_000 },
     );
@@ -149,6 +210,9 @@ async function main() {
     console.log(`  obreros            ${r.obreros.count}`);
     console.log(`  cuentas            ${r.cuentas.count}`);
     console.log(`  usuarios           ${r.usuarios.count}`);
+    if (purgarDuraciones) {
+      console.log(`  duraciones viejas  ${r.duracionesViejas.count}`);
+    }
 
     // ── 5. Los logins de Supabase ───────────────────────────────────────────
     // Va DESPUÉS de que la transacción haya confirmado: si el borrado falla, no
