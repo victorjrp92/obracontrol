@@ -23,18 +23,22 @@
  *     (`configuracion/clientes`, `NotificacionesContext`) → el fetch va dentro
  *     de una función async, así que el setState ya no cae en el render.
  *
- * EL QUE QUEDA, y por qué no se tocó:
- *   · `src/components/tour/TourProvider.tsx:58` — `recompute()` mide el
- *     `DOMRect` del objetivo del tour y lo guarda con `setRect`. Es estado
- *     DERIVADO del layout, así que el arreglo no es envolverlo (probado:
- *     `useLayoutEffect` recibe exactamente el mismo error) sino rehacer el
- *     posicionamiento del foco con un ref callback o un store externo. Eso es
- *     un rediseño con riesgo visual y en este repo no se puede levantar
- *     `next dev` para comprobarlo. Queda anotado, no escondido.
+ * EL ÚLTIMO, ya reparado:
+ *   · `src/components/tour/TourProvider.tsx` — `recompute()` mide el `DOMRect`
+ *     del objetivo del tour y lo guarda con `setRect`. Esta nota decía que
+ *     envolverlo no servía, «probado: `useLayoutEffect` recibe exactamente el
+ *     mismo error». No es así: con `useLayoutEffect` (a través de un envoltorio
+ *     isomorfo, porque avisa en SSR) eslint da limpio. Y además era lo correcto
+ *     de por sí — medir el DOM para posicionar un recuadro no es un efecto
+ *     secundario, y con `useEffect` el navegador alcanzaba a pintar el foco en
+ *     la posición del paso anterior antes de corregirlo.
+ *
+ * LINEA_BASE queda en 0: ya no hay deuda que tolerar, así que cualquier error
+ * nuevo hace fallar esta verificación.
  */
 import { execSync } from "node:child_process";
 
-const LINEA_BASE = 1;
+const LINEA_BASE = 0;
 
 const salida = (() => {
   try {

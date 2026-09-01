@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useLayoutEffect,
 } from "react";
 import { X, ArrowRight, ArrowLeft } from "lucide-react";
 import type { TourDef, TourStep } from "./tours";
@@ -33,6 +34,13 @@ function findTarget(target: string): HTMLElement | null {
   return els.find((e) => e.getBoundingClientRect().width > 0) ?? null;
 }
 
+/**
+ * `useLayoutEffect` avisa cuando corre en el servidor, y Next renderiza también
+ * los componentes de cliente. En SSR no hay nada que medir, así que allí cae a
+ * `useEffect`, que no llega a ejecutarse.
+ */
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const [tour, setTour] = useState<TourDef | null>(null);
   const [index, setIndex] = useState(0);
@@ -54,7 +62,13 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [step]);
 
-  useEffect(() => {
+  // Medir y posicionar ANTES de pintar. Con `useEffect` el navegador alcanzaba
+  // a pintar el paso con el recuadro en la posición del paso anterior y lo
+  // corregía al frame siguiente: un salto visible en cada «Siguiente». Además
+  // era lo que disparaba el aviso de `setState` síncrono dentro de un efecto —
+  // aquí no es un efecto secundario, es una medición del DOM, que es
+  // exactamente para lo que existe `useLayoutEffect`.
+  useIsomorphicLayoutEffect(() => {
     recompute();
   }, [recompute]);
 
