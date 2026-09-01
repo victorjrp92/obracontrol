@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { aplicarResultado, SELECCION_PAGO } from "@/lib/pagos/conciliacion";
 import {
   consultarTransaccion,
   eventoEsAutentico,
-  traducirEstado,
   type EventoWompi,
 } from "@/lib/pagos/wompi";
-import { extenderVigencia } from "@/lib/suscripcion";
 
 /**
  * POST /api/pagos/wompi/webhook — Wompi avisa que una transacción cambió de estado.
@@ -83,75 +82,23 @@ export async function POST(req: NextRequest) {
 
     const pago = await prisma.pagoSuscripcion.findUnique({
       where: { referencia },
-      include: { constructora: { select: { id: true, suscripcion_vence_el: true } } },
+      select: SELECCION_PAGO,
     });
     if (!pago) {
       return NextResponse.json({ ok: true, ignorado: "referencia desconocida" });
     }
 
-    // ── Candado 3: idempotencia ───────────────────────────────────────────
-    if (pago.estado !== "PENDIENTE") {
-      return NextResponse.json({ ok: true, ignorado: "pago ya resuelto" });
-    }
+    // ── Candado 3: idempotencia, y el resto de las reglas ─────────────────
+    // La decisión vive en `@/lib/pagos/conciliacion` porque el conciliador de
+    // pagos huérfanos tiene que aplicar EXACTAMENTE las mismas: un pago que se
+    // resuelve por webhook y otro que se resuelve por conciliación no pueden
+    // acabar distintos.
+    const resultado = await aplicarResultado(pago, confirmada);
 
-    const nuevoEstado = traducirEstado(confirmada.status);
-    if (nuevoEstado === "PENDIENTE") {
-      return NextResponse.json({ ok: true, pendiente: true });
-    }
-
-    // El monto cobrado tiene que ser el que registramos al crear el cobro.
-    if (nuevoEstado === "APROBADO" && confirmada.amount_in_cents !== pago.monto_centavos) {
+    if (resultado.accion === "monto_no_coincide") {
       console.error("webhook wompi: el monto cobrado no coincide con el registrado");
-      await prisma.pagoSuscripcion.update({
-        where: { id: pago.id },
-        data: {
-          estado: "ERROR",
-          wompi_transaccion_id: confirmada.id,
-          metodo: confirmada.payment_method_type ?? null,
-        },
-      });
       return NextResponse.json({ ok: true, ignorado: "monto inconsistente" });
     }
-
-    if (nuevoEstado !== "APROBADO") {
-      await prisma.pagoSuscripcion.update({
-        where: { id: pago.id },
-        data: {
-          estado: nuevoEstado,
-          wompi_transaccion_id: confirmada.id,
-          metodo: confirmada.payment_method_type ?? null,
-        },
-      });
-      return NextResponse.json({ ok: true });
-    }
-
-    // ── Aprobado: se acredita el período ──────────────────────────────────
-    const ahora = new Date();
-    const desde = pago.constructora.suscripcion_vence_el;
-    const nuevoVence = extenderVigencia(desde, pago.periodo_meses, ahora);
-
-    // En una transacción: o se registra el pago Y se extiende la vigencia, o no
-    // pasa nada. Nunca cobrar sin acreditar.
-    await prisma.$transaction([
-      prisma.pagoSuscripcion.update({
-        where: { id: pago.id },
-        data: {
-          estado: "APROBADO",
-          wompi_transaccion_id: confirmada.id,
-          metodo: confirmada.payment_method_type ?? null,
-          cubre_desde: desde && desde > ahora ? desde : ahora,
-          cubre_hasta: nuevoVence,
-        },
-      }),
-      prisma.constructora.update({
-        where: { id: pago.constructora_id },
-        data: {
-          plan_suscripcion: pago.plan,
-          estado_suscripcion: "ACTIVA",
-          suscripcion_vence_el: nuevoVence,
-        },
-      }),
-    ]);
 
     return NextResponse.json({ ok: true });
   } catch {

@@ -1,0 +1,56 @@
+name: Avisos de vencimiento
+
+# Le recuerda a quien está por vencer que renueve, ANTES de que se quede sin
+# poder crear obras.
+#
+# Hace falta porque la renovación en este producto es manual por diseño: en
+# Colombia una empresa paga por PSE, y PSE no admite cobro recurrente — cada
+# pago lo autoriza la persona en su banco. Sin este correo, el flujo real es
+# «se vence → no puede crear obras → se enoja → escribe».
+#
+# UNA VEZ AL DÍA, y eso importa: los avisos se disparan en umbrales exactos de
+# días restantes (7, 3, 1, 0), así que la idempotencia sale de la aritmética en
+# vez de una columna en la base. Correrlo dos veces el mismo día manda el correo
+# dos veces. No lo pongas más seguido.
+
+on:
+  schedule:
+    # 13:00 UTC = 8:00 en Colombia. A media mañana, no de madrugada: es un
+    # correo que alguien tiene que leer y actuar, no una alerta de sistema.
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar los avisos
+        env:
+          SITIO: ${{ vars.SITIO || 'https://seiricon.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::Falta el secreto CRON_SECRET. La ruta lo exige y sin él responde 401."
+            exit 1
+          fi
+
+          codigo=$(curl -sS -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -o respuesta.json -w "%{http_code}" \
+            "$SITIO/api/cron/avisos-vencimiento" || echo "000")
+
+          echo "HTTP $codigo"
+          cat respuesta.json
+
+          if [ "$codigo" != "200" ]; then
+            echo "::error::Los avisos no se enviaron (HTTP $codigo)"
+            exit 1
+          fi
+
+          # Un fallo de envío no tumba el job —el resto de correos sí salió—
+          # pero tiene que verse en el resumen y no enterrado en el log.
+          fallos=$(grep -o '"fallos":[0-9]*' respuesta.json | cut -d: -f2)
+          if [ -n "$fallos" ] && [ "$fallos" -gt 0 ]; then
+            echo "::warning::$fallos correo(s) no se pudieron enviar."
+          fi
