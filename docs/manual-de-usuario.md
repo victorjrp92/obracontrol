@@ -28,9 +28,10 @@ _Última actualización: agosto 2026._
 16. [Notificaciones](#16-notificaciones)
 17. [Instalar la app (PWA)](#17-instalar-la-app-pwa)
 18. [Plan, suscripción y pagos](#18-plan-suscripcion-y-pagos)
-19. [Cuentas personales (B2C): Propietario y Contratista](#19-cuentas-personales-b2c-propietario-y-contratista)
-20. [Juntos: línea pública post-sismo](#20-juntos-linea-publica-post-sismo)
-21. [Preguntas frecuentes](#21-preguntas-frecuentes)
+19. [Productos técnicos: registro, planos y actas firmadas](#19-productos-tecnicos-registro-planos-y-actas-firmadas)
+20. [Cuentas personales (B2C): Propietario y Contratista](#20-cuentas-personales-b2c-propietario-y-contratista)
+21. [Juntos: línea pública post-sismo](#21-juntos-linea-publica-post-sismo)
+22. [Preguntas frecuentes](#22-preguntas-frecuentes)
 
 ---
 
@@ -58,6 +59,16 @@ _Última actualización: agosto 2026._
 | Directivo | Director de obra, coordinador senior | Ve todos los proyectos, aprueba tareas y gastos |
 | Contratista | Empresa o persona que ejecuta tareas | Reporta avance, gestiona sus obreros, propone tareas |
 | Obrero | Trabajador en campo | Ejecuta tareas individuales y sube evidencia |
+
+---
+
+### La guía interactiva
+
+La primera vez que entras, Seiricon abre una **guía paso a paso** que te muestra para qué sirve cada parte del menú. Puedes saltarla cuando quieras.
+
+Para volver a verla, el botón **«¿Cómo funciona?»** abajo a la derecha, en cualquier momento.
+
+La guía **cambia según tu perfil**: una constructora ve proyectos, sugerencias y usuarios; un propietario o contratista ve su obra y su personal de campo; y un **arquitecto** tiene la suya, que además recorre el registro fotográfico inicial, la firma con matrícula, el acta y los planos versionados.
 
 ---
 
@@ -552,13 +563,74 @@ Solo **Super Administrador**, **Administrador General** y **Directivo**. Es el m
 
 Si **cancelas**, la suscripción **sigue valiendo hasta la fecha que ya pagaste**; solo después deja de permitir obras nuevas.
 
+### Te avisamos antes de que se venza
+
+No tienes que estar pendiente de la fecha. Seiricon manda un correo a quien puede renovar —Super Administrador, Administrador General y Directivo— cuando faltan **7 días, 3 días, 1 día** y el mismo **día del vencimiento**.
+
+El correo trae el enlace directo para renovar y recuerda lo importante: aunque se venza, no se pierde nada; solo se dejan de poder crear obras nuevas.
+
+Se avisa a quien puede pagar, no a todo el equipo. Un obrero no recibe estos correos.
+
 ### Si llegas al tope de obras del plan
 
 Cuando intentas crear una obra por encima del límite, Seiricon te dice cuántas permite tu plan y te da dos salidas: **archivar una obra terminada** o **subir de plan**.
 
 ---
 
-## 19. Cuentas personales (B2C): Propietario y Contratista
+## 19. Productos técnicos: registro, planos y actas firmadas
+
+> Disponible para **Arquitecto** y **Constructora**. Un Propietario o un Contratista B2C no ven este módulo.
+>
+> Vive **dentro de cada obra**, en la pestaña **Técnicos** — no es una opción del menú lateral.
+
+### Registro fotográfico inicial
+
+Antes de tocar nada, fotografías el estado en que recibes el inmueble. Cada foto lleva **fecha, hora y ubicación grabadas encima de la imagen**.
+
+**Solo se toman con la cámara, ahí mismo.** No hay botón para subir desde la galería, y no es un descuido: una foto guardada no prueba en qué fecha se tomó, y esa fecha es todo el valor del registro.
+
+### Planos y renders
+
+Subes los planos y renders de la obra. Cada vez que reemplazas uno, **se guarda como versión nueva sin borrar la anterior**, así que siempre puedes volver a lo que se entregó antes.
+
+**Cupo: 1 GB por obra.** Cuando se llena, Seiricon te avisa antes de que falle una subida.
+
+### Tu firma y tu matrícula
+
+Se suben **una sola vez** y quedan para todo lo que emitas:
+
+| | |
+|---|---|
+| Imagen de la firma | PNG, JPG o WEBP · máximo 2 MB |
+| Matrícula profesional | entre 3 y 40 caracteres |
+
+Sin cualquiera de las dos no se puede firmar, y Seiricon te lo dice antes de dejarte intentarlo.
+
+Al firmar, **la matrícula se congela en el documento**. Si más adelante la actualizas, lo que ya emitiste no cambia — la matrícula impresa en un papel que está en manos de un cliente tiene que seguir siendo la que se imprimió.
+
+### El acta de estado inicial
+
+Con las fotos y tu firma, emites el acta. Necesitas tener registrada la **matrícula inmobiliaria** del inmueble: sin ella el acta no se emite.
+
+Cada acta queda sellada con un **folio** y una **huella digital** de su contenido. A partir de ahí **nadie puede modificarla, ni tú**.
+
+Si algo salió mal, no se edita: **se emite una corrección**, que es una versión nueva con folio nuevo. La anterior sigue existiendo y sigue verificando. Eso es justamente lo que la hace defendible.
+
+El acta declara también, de forma expresa, **lo que NO incluye** —ensayos de laboratorio, cálculo estructural, elementos ocultos, juicio de habitabilidad—. Delimitar la responsabilidad es lo que la vuelve un documento serio.
+
+### La constancia de tu cliente
+
+Le compartes un **enlace** y tu cliente deja constancia de que recibió el documento. **No necesita crear cuenta ni descargar nada.** Queda registrado con fecha, y es tu respaldo de que entregaste.
+
+### Verificar un documento
+
+Cualquiera con el folio puede comprobar que un documento es auténtico. La verificación responde poco a propósito: que existe, de qué tipo es, cuándo se emitió y si la huella coincide. Nada del contenido — quien consulta suele ser una aseguradora que ya tiene el PDF en la mano.
+
+> **No es firma digital certificada.** Es firma electrónica simple (Ley 527 de 1999 y Decreto 2364 de 2012): vale porque se puede probar quién firmó, cuándo, y que el documento no cambió. Una firma digital certificada exige una entidad de certificación acreditada, y Seiricon no la tiene.
+
+---
+
+## 20. Cuentas personales (B2C): Propietario y Contratista
 
 > Además de las constructoras, Seiricon tiene un flujo simplificado para quien gestiona **su propia obra**:
 > - **Propietario** — dueño de una casa o apartamento que remodela o construye lo suyo.
@@ -621,7 +693,7 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 
 ---
 
-## 20. Juntos: línea pública post-sismo
+## 21. Juntos: línea pública post-sismo
 
 **Ruta:** `/go/juntos` · **No requiere cuenta ni pago.**
 
@@ -669,7 +741,7 @@ Cada PDF imprime folio y huella. En `/go/juntos/verificar` una aseguradora o alc
 
 ---
 
-## 21. Preguntas frecuentes
+## 22. Preguntas frecuentes
 
 ### ¿Puedo editar un proyecto después de crearlo?
 
