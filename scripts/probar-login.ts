@@ -7,8 +7,8 @@
  * que es la otra mitad y la que suele faltar.
  *
  * Uso:
- *   npx tsx scripts/verificar-login.ts correo:clave [correo:clave …]
- *   npx tsx scripts/verificar-login.ts --seeds        (los @obracontrol.local)
+ *   npx tsx scripts/probar-login.ts correo:clave [correo:clave …]
+ *   npx tsx scripts/probar-login.ts --seeds        (los @obracontrol.local)
  *
  * LAS CONTRASEÑAS NO SE PUEDEN AVERIGUAR. Supabase guarda un hash bcrypt en
  * `auth.users.encrypted_password`; no hay consulta que las devuelva. Este script
@@ -59,8 +59,8 @@ async function main() {
         });
 
   if (pares.length === 0) {
-    console.error("Uso: npx tsx scripts/verificar-login.ts correo:clave [correo:clave …]");
-    console.error("     npx tsx scripts/verificar-login.ts --seeds");
+    console.error("Uso: npx tsx scripts/probar-login.ts correo:clave [correo:clave …]");
+    console.error("     npx tsx scripts/probar-login.ts --seeds");
     process.exit(1);
   }
 
