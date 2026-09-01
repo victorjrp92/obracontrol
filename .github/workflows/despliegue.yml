@@ -1,0 +1,97 @@
+name: Despliegue y salud
+
+# Existe por una caída real: se desplegó `main` con el código de suscripciones
+# sin haber aplicado su migración. La base no tenía cuatro columnas que el
+# cliente de Prisma pedía, y TODO el dashboard devolvía 500 — el layout llama a
+# `getUsuarioActual()`, que lee la constructora entera. Estuvo caído hasta que
+# una persona intentó entrar y avisó.
+#
+# Las dos cosas que lo habrían evitado, y que son este workflow:
+#   1. Avisar de que hay migraciones en el repo sin aplicar en la base.
+#   2. Golpear producción cada media hora y gritar cuando no responde.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Cada 30 minutos. Una caída se descubre sola, no porque un cliente escriba.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+# Un despliegue nuevo deja obsoleta la comprobación del anterior.
+concurrency:
+  group: despliegue-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migraciones:
+    name: ¿La base va al día con el repo?
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `prisma migrate status` sale con código distinto de 0 cuando hay
+      # migraciones en `prisma/migrations/` que no están en `_prisma_migrations`.
+      # Es exactamente la pregunta que nadie hizo antes de desplegar.
+      #
+      # Si el secreto no está puesto no se finge que pasó: se avisa y se sale con
+      # error. Un check verde que en realidad no comprobó nada es peor que no
+      # tener check, porque además te deja tranquila.
+      - name: Migraciones sin aplicar
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Falta el secreto DIRECT_URL. Sin él no se puede saber si la base está al día."
+            echo "Ponlo en Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+          npx prisma migrate status
+
+  salud:
+    name: ¿Producción responde?
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # `/api/salud` no es un `SELECT 1`: lee una constructora pidiendo las
+      # columnas que el código espera, así que se cae cuando la base va por
+      # detrás de una migración. La misma caída que el dashboard, pero aquí
+      # primero.
+      - name: Sonda de salud
+        env:
+          SITIO: ${{ vars.SITIO || 'https://seiricon.com' }}
+        run: |
+          # En un push hay que dar tiempo a que el despliegue termine antes de
+          # juzgarlo. Se reintenta en vez de dormir un rato fijo: si ya está
+          # listo, sale al primer intento.
+          for intento in 1 2 3 4 5 6 7 8 9 10; do
+            codigo=$(curl -sS -o cuerpo.json -w "%{http_code}" "$SITIO/api/salud" || echo "000")
+            echo "intento $intento → HTTP $codigo"
+
+            if [ "$codigo" = "200" ]; then
+              echo "OK: $(cat cuerpo.json)"
+              exit 0
+            fi
+
+            if [ "$codigo" = "503" ]; then
+              # 503 es la sonda diciendo qué está mal, no un error de red.
+              # No tiene sentido reintentar: no se va a arreglar sola.
+              echo "::error::Producción responde pero NO está sana: $(cat cuerpo.json)"
+              echo "Si \`esquema\` es false, falta aplicar una migración: npm run db:migrate-deploy"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "::error::$SITIO/api/salud no respondió 200 tras 10 intentos (último: HTTP $codigo)"
+          [ -s cuerpo.json ] && head -c 500 cuerpo.json
+          exit 1

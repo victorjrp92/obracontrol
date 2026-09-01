@@ -37,18 +37,13 @@ jobs:
       - name: Tipos
         run: npx tsc --noEmit -p tsconfig.json
 
-      # Lint y audit NO bloquean todavía, a propósito. Al añadir este workflow el
-      # repo ya arrastraba 21 errores de lint (react-hooks/set-state-in-effect,
-      # no-unescaped-entities, el require de Serwist) y 10 vulnerabilidades altas.
-      # Un check que nace en rojo enseña al equipo a ignorarlo en una semana, que
-      # es justo lo contrario de lo que busca tenerlo.
-      #
-      # Quedan visibles en el resumen del job para poder bajarlos. Cuando el
-      # contador llegue a cero, quitar `continue-on-error` y volverlos bloqueantes
-      # — ese es el momento en que empiezan a servir de verdad.
-      - name: Lint (informativo — ver nota en el workflow)
+      # El lint YA bloquea. Nació informativo porque el repo arrastraba 21
+      # errores y un check que nace en rojo enseña al equipo a ignorarlo. Ese
+      # contador llegó a cero, que era la condición que la nota anterior ponía
+      # para volverlo bloqueante. `verificar-lint-linea-base.ts` guarda el mismo
+      # cero y falla si alguien lo sube.
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       - name: Vulnerabilidades conocidas (informativo)
         run: npm audit --audit-level=high
@@ -78,6 +73,40 @@ jobs:
 
       - name: Reglas y triage (43/43 y 37/37)
         run: npm run verify:alerta
+
+  suites:
+    # Las 26 suites de `scripts/verificar-*.ts`. Son lo más parecido a tests que
+    # hay aquí y ninguna necesita base de datos ni red, así que no hay excusa
+    # para no correrlas en cada push. Antes solo corría la de grietas.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Suites de verificación
+        run: |
+          fallos=0
+          for f in scripts/verificar-*.ts; do
+            if npx tsx "$f" > salida.txt 2>&1; then
+              echo "OK    $(basename "$f")"
+            else
+              fallos=$((fallos + 1))
+              echo "::error::FALLA $(basename "$f")"
+              tail -20 salida.txt
+            fi
+          done
+          echo "---"
+          [ "$fallos" -eq 0 ] || { echo "::error::$fallos suite(s) fallaron"; exit 1; }
+          echo "Todas las suites pasan.
 
       - name: Pagos y suscripciones (firmas de Wompi + vigencia)
         run: npm run verify:pagos
