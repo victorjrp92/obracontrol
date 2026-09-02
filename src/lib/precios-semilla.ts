@@ -2,7 +2,8 @@
 // Base de datos SEMILLA de precios de construcción Colombia (2025–2026).
 // Fuente: investigación con triangulación de fuentes (Construdata/Presucosto,
 // CYPE Generador de Precios, ICCU 2025 gov.co, Comfort Design, Incormaderas,
-// MAE Ingeniería). Ver docs/ventas/.. o el commit de investigación.
+// MAE Ingeniería). La investigación de respaldo vive fuera del repo, en la
+// carpeta del proyecto; en git queda el commit que la introdujo.
 //
 // USO: semilla para el estimador "Sugerir presupuesto" (B2C: propietario y
 // contratista). Cada obra que pasa por la app corrige/afina estos números
