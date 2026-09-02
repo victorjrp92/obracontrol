@@ -64,3 +64,10 @@ docs/ventas/build/
 # la máquina). El ledger (.unlazy/<scope>/) SÍ se versiona: es la evidencia.
 .unlazy-hook-state.json
 .claude/settings.local.json
+
+# Capturas sueltas en la raíz: se generan al verificar pantallas y no son
+# parte del producto. Las que SÍ se usan (el deck de ventas) viven en
+# docs/ventas/assets/ junto al script que las consume.
+/*.png
+/*.jpg
+/*.jpeg
