@@ -3,7 +3,13 @@ import { getUsuarioActual } from "@/lib/data";
 import { canManageUsers } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
-import { estadoDeAcceso, PLANES } from "@/lib/suscripcion";
+import {
+  estadoDeAcceso,
+  PLANES,
+  precioMensualCentavos,
+  preciosDePruebaActivos,
+  TOPE_PRUEBA_CENTAVOS,
+} from "@/lib/suscripcion";
 import { wompiConfigurado } from "@/lib/pagos/wompi";
 import PlanCliente from "./PlanCliente";
 
@@ -92,12 +98,22 @@ export default async function PlanPage({
           // Si faltan las credenciales, la UI lo dice en vez de mostrar un botón
           // que devolvería 503.
           pagosHabilitados={wompiConfigurado()}
+          // El precio que se PINTA sale de la misma función que usa el checkout
+          // para COBRAR. Si esta página mostrara `PLANES` a secas, con precios
+          // de prueba activos la persona vería $650.000 y se le cobrarían
+          // $1.000: la pantalla y el cobro no pueden divergir nunca.
           planes={Object.fromEntries(
             Object.entries(PLANES).map(([k, v]) => [
               k,
-              { precioCentavos: v.precioCentavos, limiteObras: v.limiteObras, nombre: v.nombre },
+              {
+                precioCentavos: precioMensualCentavos(k as keyof typeof PLANES, usuario.email),
+                limiteObras: v.limiteObras,
+                nombre: v.nombre,
+              },
             ])
           )}
+          preciosDePrueba={preciosDePruebaActivos(usuario.email)}
+          topeCentavos={TOPE_PRUEBA_CENTAVOS}
         />
       </main>
     </>

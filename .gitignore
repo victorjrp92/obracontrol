@@ -38,6 +38,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...salvo la plantilla sin secretos: es la lista de lo que hay que
+# configurar, y no sirve de nada si no viaja con el repo.
+!.env.example
 
 # vercel
 .vercel

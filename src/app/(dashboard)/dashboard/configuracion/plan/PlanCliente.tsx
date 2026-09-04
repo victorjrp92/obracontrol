@@ -37,6 +37,10 @@ interface Props {
   pagoDeVuelta: { referencia: string; estado: string } | null;
   pagosHabilitados: boolean;
   planes: Record<string, DefPlan>;
+  /** Precios de prueba activos para ESTA cuenta: se cobran montos simbólicos. */
+  preciosDePrueba: boolean;
+  /** Techo del cobro cuando hay precios de prueba. El servidor aplica el mismo. */
+  topeCentavos: number;
 }
 
 const ORDEN_PLANES = ["OBRA", "PROYECTO", "EMPRESA"];
@@ -84,6 +88,8 @@ export default function PlanCliente({
   pagoDeVuelta,
   pagosHabilitados,
   planes,
+  preciosDePrueba,
+  topeCentavos,
 }: Props) {
   const [periodoMeses, setPeriodoMeses] = useState(1);
   const [comprando, setComprando] = useState<string | null>(null);
@@ -223,6 +229,21 @@ export default function PlanCliente({
           </div>
         </div>
 
+        {/* Si esto queda encendido por descuido, se vende el plan Empresa por
+            mil pesos. Que se vea, y que se vea aquí: es la pantalla donde se
+            compra. */}
+        {preciosDePrueba && (
+          <div className="mb-3 rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-900">
+            <p className="font-semibold flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" /> Precios de prueba activos
+            </p>
+            <p className="mt-1">
+              Los montos de abajo no son los precios reales: son cobros simbólicos para verificar la
+              pasarela de pagos. El cobro es real y se debita de verdad.
+            </p>
+          </div>
+        )}
+
         {!pagosHabilitados && (
           <div className="mb-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm text-slate-700">
             El pago en línea todavía no está habilitado en este entorno. Escríbenos y activamos tu plan a mano.
@@ -234,7 +255,10 @@ export default function PlanCliente({
             const def = planes[clave];
             if (!def) return null;
             const esActual = clave === planActual && acceso.permite && acceso.motivo !== "prueba";
-            const total = def.precioCentavos * periodoMeses;
+            // Mismo cálculo que `precioTotalCentavos` en el servidor, tope
+            // incluido: lo que se muestra es exactamente lo que se va a cobrar.
+            const bruto = def.precioCentavos * periodoMeses;
+            const total = preciosDePrueba ? Math.min(bruto, topeCentavos) : bruto;
             const destacado = clave === "PROYECTO";
 
             return (

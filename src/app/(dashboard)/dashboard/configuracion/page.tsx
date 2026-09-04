@@ -2,7 +2,7 @@ import Link from "next/link";
 import Topbar from "@/components/dashboard/Topbar";
 import RolesManager from "@/components/dashboard/RolesManager";
 import { getUsuarioActual } from "@/lib/data";
-import { estadoDeAcceso, PLANES } from "@/lib/suscripcion";
+import { estadoDeAcceso, PLANES, precioMensualCentavos } from "@/lib/suscripcion";
 import { Building2, Bell, Briefcase, Shield, CreditCard, Users, Wrench } from "lucide-react";
 
 const sections = [
@@ -88,7 +88,15 @@ export default async function ConfiguracionPage() {
       })
     : null;
 
-  const def = c ? PLANES[c.plan_suscripcion] : null;
+  // El precio sale de la misma función que cobra, no de `PLANES` a secas: con
+  // precios de prueba activos esta tarjeta y la pantalla de plan mostrarían
+  // cifras distintas del mismo plan.
+  const def = c
+    ? {
+        ...PLANES[c.plan_suscripcion],
+        precioCentavos: precioMensualCentavos(c.plan_suscripcion, usuario?.email),
+      }
+    : null;
   const vencido = acceso !== null && !acceso.permite;
 
   return (

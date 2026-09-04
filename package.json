@@ -27,7 +27,9 @@
     "verify:fases": "npx tsx scripts/verificar-fases.ts",
     "verify:storage": "npx tsx scripts/verificar-storage.ts",
     "verify:pagos": "npx tsx scripts/verificar-pagos.ts",
-    "verify:avisos": "npx tsx scripts/verificar-avisos.ts"
+    "verify:avisos": "npx tsx scripts/verificar-avisos.ts",
+    "pagos:conciliar": "npx tsx scripts/conciliar-pagos.ts",
+    "verify:pasarela": "npx tsx scripts/verificar-pasarela.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

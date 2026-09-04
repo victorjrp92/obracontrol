@@ -546,7 +546,7 @@ El pago se hace con **Wompi** (tarjeta, PSE, Nequi y demás medios de la pasarel
 
 1. Eliges plan y período, y pulsas pagar.
 2. Seiricon te lleva al checkout de Wompi.
-3. Al terminar vuelves a Configuración con el mensaje **"Tu pago está en proceso"**.
+3. Al terminar vuelves a **Configuración › Plan** con el mensaje **"Tu pago está en proceso"**.
 4. Cuando Wompi confirma el pago, la suscripción se extiende sola y aparece **"Listo, tu pago quedó registrado"**.
 
 El monto lo calcula siempre el servidor a partir del plan y va sellado con firma de integridad: no se puede alterar desde el navegador. La suscripción **solo** se acredita cuando Wompi confirma el pago, nunca al iniciarlo.

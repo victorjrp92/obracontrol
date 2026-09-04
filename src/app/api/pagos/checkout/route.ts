@@ -62,8 +62,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Período no válido" }, { status: 400 });
     }
 
-    // El monto SIEMPRE lo calcula el servidor.
-    const montoCentavos = precioTotalCentavos(plan, periodoMeses);
+    // El monto SIEMPRE lo calcula el servidor. El correo va solo para decidir si
+    // a esta cuenta le tocan precios de prueba (ver `preciosDePruebaActivos`):
+    // el navegador no puede pedir un precio, ni el suyo ni el de otro.
+    const montoCentavos = precioTotalCentavos(plan, periodoMeses, usuario.email);
     const referencia = generarReferencia(constructoraId);
 
     await prisma.pagoSuscripcion.create({
@@ -81,7 +83,11 @@ export async function POST(req: NextRequest) {
     const url = urlCheckout({
       referencia,
       montoCentavos,
-      urlRedireccion: `${sitio}/dashboard/configuracion?pago=${encodeURIComponent(referencia)}`,
+      // A /configuracion/PLAN, no a /configuracion: la página que lee `?pago=` y
+      // le dice a la persona cómo quedó su cobro es la de plan. Devolverla a la
+      // otra la deja mirando ajustes generales sin saber si pagó o no —
+      // justo después de haber pagado, que es cuando peor sienta la duda.
+      urlRedireccion: `${sitio}/dashboard/configuracion/plan?pago=${encodeURIComponent(referencia)}`,
       correoCliente: usuario.email,
     });
 

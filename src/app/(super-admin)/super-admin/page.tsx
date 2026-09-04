@@ -4,7 +4,9 @@ import { getProyectosMapaGlobal } from "@/lib/data";
 import Topbar from "@/components/dashboard/Topbar";
 import StatCard from "@/components/dashboard/StatCard";
 import MapaProyectos from "@/components/mapa/MapaProyectos";
-import { Building2, Users, FolderOpen, ClipboardList, ChevronRight, Plus, MapPin } from "lucide-react";
+import { Building2, Users, FolderOpen, ClipboardList, ChevronRight, Plus, MapPin, CreditCard } from "lucide-react";
+import { estadoPreciosPrueba } from "@/lib/suscripcion";
+import { wompiConfigurado, enProduccion } from "@/lib/pagos/wompi";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +35,10 @@ export default async function SuperAdminDashboard() {
     }),
   ]);
 
+  const preciosPrueba = estadoPreciosPrueba();
+  const cobroConfigurado = wompiConfigurado();
+  const cobroEnProduccion = enProduccion();
+
   // Mapa global: TODAS las obras activas de la plataforma.
   const mapaGlobal = await getProyectosMapaGlobal();
 
@@ -48,6 +54,63 @@ export default async function SuperAdminDashboard() {
       <Topbar title="Vista global del sistema" subtitle="Panel de Super Admin · Seiricon" />
 
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* Estado del cobro. Es la única pantalla donde se puede ver si los
+            precios de prueba están encendidos: la de plan solo avisa a quien le
+            afecta, así que con una lista de correos acotada nadie más se
+            enteraría de que siguen activos. */}
+        <div
+          className={`mb-6 rounded-2xl border p-4 sm:p-5 ${
+            preciosPrueba.activo
+              ? "border-amber-300 bg-amber-50"
+              : "border-slate-200 bg-white"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <CreditCard
+              className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                preciosPrueba.activo ? "text-amber-600" : "text-slate-400"
+              }`}
+            />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-slate-900 text-sm">Estado del cobro</h3>
+              <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                <li>
+                  Pasarela:{" "}
+                  <strong>{cobroConfigurado ? "configurada" : "SIN configurar"}</strong>
+                  {cobroConfigurado && (
+                    <>
+                      {" · "}
+                      ambiente <strong>{cobroEnProduccion ? "producción (dinero real)" : "pruebas (sandbox)"}</strong>
+                    </>
+                  )}
+                </li>
+                <li>
+                  Precios:{" "}
+                  {preciosPrueba.activo ? (
+                    <>
+                      <strong className="text-amber-800">DE PRUEBA</strong>
+                      {preciosPrueba.correos.length > 0 ? (
+                        <> · solo para {preciosPrueba.correos.join(", ")}</>
+                      ) : (
+                        <> · <strong className="text-amber-800">para TODAS las cuentas</strong></>
+                      )}
+                    </>
+                  ) : (
+                    <strong>reales</strong>
+                  )}
+                </li>
+              </ul>
+              {preciosPrueba.activo && (
+                <p className="mt-2 text-xs text-amber-900">
+                  {preciosPrueba.correos.length === 0
+                    ? "Cualquier cliente puede comprar el plan Empresa por $3.000. Acota PRECIOS_PRUEBA_CORREOS o apaga PRECIOS_PRUEBA."
+                    : "Recuerda apagar PRECIOS_PRUEBA cuando termines de probar."}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           {stats.map((s) => (
             <StatCard key={s.label} {...s} />

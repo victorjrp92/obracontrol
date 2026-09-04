@@ -49,6 +49,77 @@ export const PLANES: Record<PlanTipo, DefinicionPlan> = {
   EMPRESA: { precioCentavos: 3_500_000_00, limiteObras: 15, nombre: "Empresa" },
 };
 
+/**
+ * ─── Precios de prueba ──────────────────────────────────────────────────────
+ *
+ * Para probar el cobro REAL de punta a punta sin gastar $650.000. Un pago de
+ * prueba tiene que ser un pago de verdad —PSE, el banco, el webhook, la
+ * acreditación— porque el sandbox de Wompi no reproduce ni los tiempos de PSE ni
+ * la dispersión. Lo único que sobra de esa prueba es el monto.
+ *
+ * NO se tocan los precios de `PLANES`: son la fuente comercial y el verificador
+ * `scripts/verificar-pagos.ts` los afirma. Machacarlos dejaría precios de
+ * juguete publicados en la pantalla de plan de todos tus clientes, y bastaría
+ * con olvidarse de revertir para vender el plan Empresa por mil pesos.
+ *
+ * Se activan con `PRECIOS_PRUEBA=true`, y conviene acotarlos con
+ * `PRECIOS_PRUEBA_CORREOS` a las cuentas que van a hacer la prueba: mientras la
+ * lista tenga a alguien, el resto de clientes sigue viendo y pagando el precio
+ * real. Con la lista vacía aplica a TODA la cuenta, que es justo lo que no
+ * quieres olvidado en producción — por eso la UI lo anuncia con un aviso.
+ */
+export const PRECIOS_PRUEBA_CENTAVOS: Record<PlanTipo, number> = {
+  PERSONAL: 0,
+  OBRA: 1_000_00,
+  PROYECTO: 2_000_00,
+  EMPRESA: 3_000_00,
+};
+
+/**
+ * Ningún cobro de prueba puede pasar de aquí, pase lo que pase. Es una red, no
+ * un precio: sin ella, 12 meses del plan Empresa serían $36.000 por descuido.
+ */
+export const TOPE_PRUEBA_CENTAVOS = 5_000_00;
+
+/**
+ * ¿Esta cuenta paga precios de prueba ahora mismo?
+ *
+ * Server-only: `PRECIOS_PRUEBA` no lleva `NEXT_PUBLIC_`, así que el navegador
+ * no puede activarla. Quien decide el monto es el servidor, siempre.
+ */
+export function preciosDePruebaActivos(correo?: string | null): boolean {
+  const { activo, correos } = estadoPreciosPrueba();
+  if (!activo) return false;
+  if (correos.length === 0) return true;
+  return Boolean(correo && correos.includes(correo.toLowerCase()));
+}
+
+/**
+ * El estado crudo del modo prueba, para poder MOSTRARLO.
+ *
+ * `preciosDePruebaActivos` responde «¿a esta persona?», que es lo que hace
+ * falta para cobrar. Pero quien opera el producto necesita la otra pregunta:
+ * «¿está encendido, y para quién?» — y esa no se puede contestar desde la
+ * pantalla de plan, porque si la lista no te incluye no ves ningún aviso.
+ * Sin esto, el modo prueba puede quedarse encendido y no notarse.
+ */
+export function estadoPreciosPrueba(): { activo: boolean; correos: string[] } {
+  return {
+    activo: process.env.PRECIOS_PRUEBA === "true",
+    correos: (process.env.PRECIOS_PRUEBA_CORREOS ?? "")
+      .split(",")
+      .map((c) => c.trim().toLowerCase())
+      .filter(Boolean),
+  };
+}
+
+/** Precio mensual que le corresponde a esta cuenta: el real, o el de prueba. */
+export function precioMensualCentavos(plan: PlanTipo, correo?: string | null): number {
+  return preciosDePruebaActivos(correo)
+    ? PRECIOS_PRUEBA_CENTAVOS[plan]
+    : PLANES[plan].precioCentavos;
+}
+
 /** Planes que se pueden comprar. PERSONAL es el gratuito: no se cobra. */
 export const PLANES_DE_PAGO: PlanTipo[] = ["OBRA", "PROYECTO", "EMPRESA"];
 
@@ -299,10 +370,19 @@ export function extenderVigencia(
   return base;
 }
 
-/** Precio total de un plan por N meses, en centavos. */
+/**
+ * Precio total de un plan por N meses, en centavos.
+ *
+ * `correo` solo sirve para decidir si a esta cuenta le tocan precios de prueba;
+ * sin él (o con el modo apagado) devuelve el precio real de siempre. El tope de
+ * prueba se aplica DESPUÉS de multiplicar por los meses, que es donde un
+ * descuido se convertiría en un cobro de cinco cifras.
+ */
 export function precioTotalCentavos(
   plan: PlanTipo,
   periodoMeses: number,
+  correo?: string | null
 ): number {
-  return PLANES[plan].precioCentavos * periodoMeses;
+  const total = precioMensualCentavos(plan, correo) * periodoMeses;
+  return preciosDePruebaActivos(correo) ? Math.min(total, TOPE_PRUEBA_CENTAVOS) : total;
 }

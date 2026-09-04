@@ -20,6 +20,8 @@ import {
   finDePrueba,
   limiteObrasActivas,
   precioTotalCentavos,
+  preciosDePruebaActivos,
+  TOPE_PRUEBA_CENTAVOS,
   PLANES,
 } from "../src/lib/suscripcion";
 // `firmaIntegridad` y `eventoEsAutentico` leen process.env en cada LLAMADA, no
@@ -185,6 +187,57 @@ comprobar(
 );
 
 comprobar("12 meses de PROYECTO = 12 veces el mensual", precioTotalCentavos("PROYECTO", 12) === 1_500_000_00 * 12);
+
+// ─── 3b. Precios de prueba ──────────────────────────────────────────────────
+// Sirven para verificar el cobro real con montos simbólicos. Lo que se prueba
+// aquí es sobre todo que estén APAGADOS por defecto y que no puedan quedarse
+// encendidos sin que se note: mientras lo estén, alguien puede comprar el plan
+// Empresa por mil pesos.
+seccion("3b) Precios de prueba");
+
+const pruebaGuardada = process.env.PRECIOS_PRUEBA;
+const correosGuardados = process.env.PRECIOS_PRUEBA_CORREOS;
+delete process.env.PRECIOS_PRUEBA;
+delete process.env.PRECIOS_PRUEBA_CORREOS;
+
+comprobar("apagados por defecto", !preciosDePruebaActivos("quien@sea.com"));
+comprobar(
+  "apagados, se cobra el precio real",
+  precioTotalCentavos("EMPRESA", 1, "quien@sea.com") === 3_500_000_00
+);
+
+process.env.PRECIOS_PRUEBA = "true";
+comprobar("OBRA de prueba cuesta $1.000", precioTotalCentavos("OBRA", 1) === 1_000_00);
+comprobar("PROYECTO de prueba cuesta $2.000", precioTotalCentavos("PROYECTO", 1) === 2_000_00);
+comprobar("EMPRESA de prueba cuesta $3.000", precioTotalCentavos("EMPRESA", 1) === 3_000_00);
+comprobar(
+  "el tope de $5.000 corta los períodos largos",
+  precioTotalCentavos("EMPRESA", 12) === TOPE_PRUEBA_CENTAVOS
+);
+comprobar(
+  "ningún cobro de prueba supera el tope",
+  (["OBRA", "PROYECTO", "EMPRESA"] as const).every((plan) =>
+    [1, 6, 12].every((meses) => precioTotalCentavos(plan, meses) <= TOPE_PRUEBA_CENTAVOS)
+  )
+);
+
+// Acotados por correo: es la diferencia entre una prueba y una liquidación.
+process.env.PRECIOS_PRUEBA_CORREOS = "yo@seiricon.com, otro@seiricon.com";
+comprobar("con lista, el correo listado paga precio de prueba", precioTotalCentavos("EMPRESA", 1, "yo@seiricon.com") === 3_000_00);
+comprobar("la lista no distingue mayúsculas", preciosDePruebaActivos("YO@SEIRICON.COM"));
+comprobar(
+  "con lista, un cliente cualquiera sigue pagando el precio REAL",
+  precioTotalCentavos("EMPRESA", 1, "cliente@constructora.com") === 3_500_000_00
+);
+comprobar("con lista, sin correo no hay precio de prueba", !preciosDePruebaActivos(null));
+
+// Los precios reales no se tocan nunca: el modo prueba los sustituye al vuelo.
+comprobar("los precios de PLANES siguen intactos", PLANES.EMPRESA.precioCentavos === 3_500_000_00);
+
+if (pruebaGuardada === undefined) delete process.env.PRECIOS_PRUEBA;
+else process.env.PRECIOS_PRUEBA = pruebaGuardada;
+if (correosGuardados === undefined) delete process.env.PRECIOS_PRUEBA_CORREOS;
+else process.env.PRECIOS_PRUEBA_CORREOS = correosGuardados;
 
 // ─── 4. Vigencia ────────────────────────────────────────────────────────────
 seccion("4) Vigencia de la suscripción");
