@@ -21,6 +21,7 @@ import {
   limiteObrasActivas,
   precioTotalCentavos,
   preciosDePruebaActivos,
+  PRECIOS_PRUEBA_FORZADOS,
   TOPE_PRUEBA_CENTAVOS,
   PLANES,
 } from "../src/lib/suscripcion";
@@ -186,7 +187,12 @@ comprobar(
   )
 );
 
-comprobar("12 meses de PROYECTO = 12 veces el mensual", precioTotalCentavos("PROYECTO", 12) === 1_500_000_00 * 12);
+// Con la bandera temporal encendida el total va topado a $5.000, así que esta
+// multiplicación deja de aplicar. Su equivalente para el modo prueba —que el
+// tope corta— se comprueba en 3b.
+if (!PRECIOS_PRUEBA_FORZADOS) {
+  comprobar("12 meses de PROYECTO = 12 veces el mensual", precioTotalCentavos("PROYECTO", 12) === 1_500_000_00 * 12);
+}
 
 // ─── 3b. Precios de prueba ──────────────────────────────────────────────────
 // Sirven para verificar el cobro real con montos simbólicos. Lo que se prueba
@@ -200,11 +206,19 @@ const correosGuardados = process.env.PRECIOS_PRUEBA_CORREOS;
 delete process.env.PRECIOS_PRUEBA;
 delete process.env.PRECIOS_PRUEBA_CORREOS;
 
-comprobar("apagados por defecto", !preciosDePruebaActivos("quien@sea.com"));
-comprobar(
-  "apagados, se cobra el precio real",
-  precioTotalCentavos("EMPRESA", 1, "quien@sea.com") === 3_500_000_00
-);
+// ⚠️ Con la bandera temporal encendida, las comprobaciones de «apagado» no
+// aplican: el modo está forzado a propósito. Se anuncian en vez de callarlas,
+// porque una bandera que cambia lo que se cobra no puede pasar desapercibida.
+if (PRECIOS_PRUEBA_FORZADOS) {
+  console.log("  AVISO PRECIOS_PRUEBA_FORZADOS=true — se omiten las pruebas de «apagado»");
+  console.log("        Se cobra $1.000 / $2.000 / $3.000 a TODAS las cuentas.");
+} else {
+  comprobar("apagados por defecto", !preciosDePruebaActivos("quien@sea.com"));
+  comprobar(
+    "apagados, se cobra el precio real",
+    precioTotalCentavos("EMPRESA", 1, "quien@sea.com") === 3_500_000_00
+  );
+}
 
 process.env.PRECIOS_PRUEBA = "true";
 comprobar("OBRA de prueba cuesta $1.000", precioTotalCentavos("OBRA", 1) === 1_000_00);
@@ -225,11 +239,13 @@ comprobar(
 process.env.PRECIOS_PRUEBA_CORREOS = "yo@seiricon.com, otro@seiricon.com";
 comprobar("con lista, el correo listado paga precio de prueba", precioTotalCentavos("EMPRESA", 1, "yo@seiricon.com") === 3_000_00);
 comprobar("la lista no distingue mayúsculas", preciosDePruebaActivos("YO@SEIRICON.COM"));
-comprobar(
-  "con lista, un cliente cualquiera sigue pagando el precio REAL",
-  precioTotalCentavos("EMPRESA", 1, "cliente@constructora.com") === 3_500_000_00
-);
-comprobar("con lista, sin correo no hay precio de prueba", !preciosDePruebaActivos(null));
+if (!PRECIOS_PRUEBA_FORZADOS) {
+  comprobar(
+    "con lista, un cliente cualquiera sigue pagando el precio REAL",
+    precioTotalCentavos("EMPRESA", 1, "cliente@constructora.com") === 3_500_000_00
+  );
+  comprobar("con lista, sin correo no hay precio de prueba", !preciosDePruebaActivos(null));
+}
 
 // Los precios reales no se tocan nunca: el modo prueba los sustituye al vuelo.
 comprobar("los precios de PLANES siguen intactos", PLANES.EMPRESA.precioCentavos === 3_500_000_00);

@@ -87,6 +87,24 @@ export const TOPE_PRUEBA_CENTAVOS = 5_000_00;
  * Server-only: `PRECIOS_PRUEBA` no lleva `NEXT_PUBLIC_`, así que el navegador
  * no puede activarla. Quien decide el monto es el servidor, siempre.
  */
+/**
+ * ⚠️ TEMPORAL — 5 de septiembre de 2026. PRUEBA DE COBRO EN PRODUCCIÓN.
+ *
+ * Fuerza los precios de prueba para TODAS las cuentas, sin depender de las
+ * variables de entorno. Está aquí porque `PRECIOS_PRUEBA` no llegó al entorno
+ * Production de Vercel y hacía falta poder probar el cobro real hoy.
+ *
+ * Mientras valga `true`:
+ *   - Obra $1.000 · Proyecto $2.000 · Empresa $3.000, tope $5.000.
+ *   - CUALQUIER cliente puede comprar a esos precios.
+ *   - La pantalla de plan muestra el aviso ámbar y `/super-admin` lo declara.
+ *
+ * PARA REVERTIR: pon `false` aquí (o `git revert` del commit que lo introdujo)
+ * y redespliega. Los precios reales de `PLANES` no se han tocado: siguen siendo
+ * $650.000 / $1.500.000 / $3.500.000 y vuelven solos.
+ */
+export const PRECIOS_PRUEBA_FORZADOS = true;
+
 export function preciosDePruebaActivos(correo?: string | null): boolean {
   const { activo, correos } = estadoPreciosPrueba();
   if (!activo) return false;
@@ -104,6 +122,11 @@ export function preciosDePruebaActivos(correo?: string | null): boolean {
  * Sin esto, el modo prueba puede quedarse encendido y no notarse.
  */
 export function estadoPreciosPrueba(): { activo: boolean; correos: string[] } {
+  // La bandera temporal manda sobre el entorno. Sin esto, el panel de Super
+  // Admin diría «precios reales» mientras se cobra $1.000: la señal que existe
+  // para no dejarlo encendido sin querer estaría mintiendo.
+  if (PRECIOS_PRUEBA_FORZADOS) return { activo: true, correos: [] };
+
   return {
     activo: process.env.PRECIOS_PRUEBA === "true",
     correos: (process.env.PRECIOS_PRUEBA_CORREOS ?? "")
