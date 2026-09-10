@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { firmarEvidencias } from "@/lib/storage";
 import { notFound, redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
@@ -53,6 +54,10 @@ export default async function ReportarTareaDetallePage({
     ultimoRechazo && typeof ultimoRechazo.justificacion_por_item === "object" && ultimoRechazo.justificacion_por_item !== null
       ? (ultimoRechazo.justificacion_por_item as Record<string, string>).motivo ?? null
       : null;
+
+  // El bucket es privado: la ruta cruda en un <img> da 404. Se firman una sola
+  // vez y las usan las dos galerías de esta pantalla.
+  const urlsFirmadas = await firmarEvidencias(tarea.evidencias.map((e) => e.url_storage));
 
   return (
     <>
@@ -158,7 +163,7 @@ export default async function ReportarTareaDetallePage({
                 evidencias={tarea.evidencias.map((e) => ({
                   id: e.id,
                   tipo: e.tipo,
-                  url_storage: e.url_storage,
+                  url_storage: urlsFirmadas.get(e.url_storage) ?? "",
                   gps_lat: e.gps_lat,
                   gps_lng: e.gps_lng,
                   timestamp_captura: e.timestamp_captura.toISOString(),
@@ -182,7 +187,7 @@ export default async function ReportarTareaDetallePage({
                 evidencias={tarea.evidencias.map((e) => ({
                   id: e.id,
                   tipo: e.tipo,
-                  url_storage: e.url_storage,
+                  url_storage: urlsFirmadas.get(e.url_storage) ?? "",
                   gps_lat: e.gps_lat,
                   gps_lng: e.gps_lng,
                   timestamp_captura: e.timestamp_captura.toISOString(),

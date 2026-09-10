@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import { firmarEvidencias } from "@/lib/storage";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
 import { getAccessibleProjectIds, canManageTaskPrice } from "@/lib/access";
@@ -76,6 +77,10 @@ export default async function TareaDetallePage({
   const puedeEditarPrecio =
     canManageTaskPrice(nivel) &&
     (nivel !== "CONTRATISTA" || esContratistaAsignado);
+
+  // El bucket es privado: la ruta cruda en un <img> da 404. Se firman todas
+  // las evidencias de la tarea en un solo viaje antes de renderizar.
+  const urlsFirmadas = await firmarEvidencias(tarea.evidencias.map((e) => e.url_storage));
 
   return (
     <>
@@ -190,7 +195,7 @@ export default async function TareaDetallePage({
               <EvidenceGallery evidencias={tarea.evidencias.map((e) => ({
                 id: e.id,
                 tipo: e.tipo,
-                url_storage: e.url_storage,
+                url_storage: urlsFirmadas.get(e.url_storage) ?? "",
                 gps_lat: e.gps_lat,
                 gps_lng: e.gps_lng,
                 timestamp_captura: e.timestamp_captura.toISOString(),

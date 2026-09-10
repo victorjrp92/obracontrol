@@ -1,4 +1,5 @@
 import { redirect, notFound } from "next/navigation";
+import { firmarEvidencias } from "@/lib/storage";
 import Link from "next/link";
 import { ChevronLeft, MapPin, Calendar, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { getUsuarioActual } from "@/lib/data";
@@ -30,10 +31,12 @@ export default async function ContratistaTareaDetallePage({
   if (tarea.proyecto.constructora_id !== usuario.constructora_id) notFound();
   if (tarea.asignado_a !== usuario.id) redirect("/contratista");
 
+  // El bucket es privado: sin firmar, el <img> recibe una ruta y da 404.
+  const urlsFirmadas = await firmarEvidencias(tarea.evidencias.map((e) => e.url_storage));
   const evidenciasView = tarea.evidencias.map((e) => ({
     id: e.id,
     tipo: e.tipo,
-    url_storage: e.url_storage,
+    url_storage: urlsFirmadas.get(e.url_storage) ?? "",
     gps_lat: e.gps_lat,
     gps_lng: e.gps_lng,
     timestamp_captura:

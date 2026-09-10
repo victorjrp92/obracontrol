@@ -98,6 +98,61 @@ export async function getSignedEvidenciaUrl(path: string, expiresInSeconds = 360
   return data.signedUrl;
 }
 
+/**
+ * Firma un LOTE de rutas de evidencia y devuelve `ruta → URL mostrable`.
+ *
+ * ══ POR QUÉ EXISTE ═════════════════════════════════════════════════════════
+ *
+ * `uploadEvidencia` guarda solo la RUTA dentro del bucket, y el bucket es
+ * PRIVADO. Las pantallas pasaban esa ruta cruda al `<img src>`, y el navegador
+ * la resolvía relativa a la página: `/dashboard/tareas/{ruta}` → 404. Las
+ * fotos de evidencia no se veían en ninguna parte de la app, que es
+ * exactamente lo que el producto promete probar. `getSignedEvidenciaUrl`
+ * existía desde el principio pero no la llamaba nadie.
+ *
+ * Va por lotes y no de a una porque una tarea puede traer varias fotos y una
+ * pantalla, varias tareas: firmar de a una son N viajes a Supabase dentro del
+ * render de un server component.
+ *
+ * Tolera dos formas en `url_storage`:
+ *   · ruta dentro del bucket  → se firma
+ *   · URL absoluta (legado)   → se devuelve tal cual
+ *
+ * Una ruta que no se pueda firmar sale como cadena vacía en vez de reventar:
+ * una foto que no carga es un hueco en la galería, no una pantalla caída.
+ */
+export async function firmarEvidencias(
+  rutas: string[],
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const mapa = new Map<string, string>();
+  const porFirmar = [...new Set(rutas.filter((r) => r && !/^https?:\/\//i.test(r)))];
+
+  for (const r of rutas) {
+    if (r && /^https?:\/\//i.test(r)) mapa.set(r, r);
+  }
+  if (porFirmar.length === 0) return mapa;
+
+  try {
+    const supabase = storageAdmin();
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrls(porFirmar, expiresInSeconds);
+    if (error) {
+      console.error("firmarEvidencias:", error.message);
+      return mapa;
+    }
+    for (const item of data ?? []) {
+      // `path` viene de Supabase; si falta, se cae al orden del arreglo.
+      const ruta = item.path ?? "";
+      if (ruta && item.signedUrl) mapa.set(ruta, item.signedUrl);
+    }
+  } catch (e) {
+    console.error("firmarEvidencias:", e instanceof Error ? e.message : e);
+  }
+  return mapa;
+}
+
 // ─── Borrado ────────────────────────────────────────────────────────────────
 
 /**
