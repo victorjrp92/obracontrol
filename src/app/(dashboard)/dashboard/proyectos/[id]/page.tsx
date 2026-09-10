@@ -10,6 +10,8 @@ import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, FileText, Layers, 
 import EditProyecto from "./EditProyecto";
 import CompartirAvanceCliente from "@/components/dashboard/CompartirAvanceCliente";
 import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
+import AvanceFases from "@/components/dashboard/AvanceFases";
+import { avancePorFase } from "@/lib/fases-avance";
 import type { EspacioEstim } from "@/lib/estimar-presupuesto";
 
 type SemaforoLevel = "verde-intenso" | "verde" | "amarillo" | "rojo" | "vinotinto";
@@ -315,6 +317,10 @@ export default async function ProyectoDetallePage({
     progresoByTipo.push({ nombre: group.nombre, aprobadas: prog.aprobadas, total: prog.total, porcentaje: prog.porcentajeAprobado });
   }
 
+  // Avance por fase. Sale del árbol que la página YA cargó —cada tarea trae su
+  // fase y su estado—, así que no cuesta un viaje más a la base.
+  const resumenFases = avancePorFase(proyecto.fases, proyecto.edificios);
+
   // Espacios en el formato del motor de duración para la línea de tiempo
   // estimada (solo cuentas personales; para B2B no se muestra).
   const espaciosTimeline: EspacioEstim[] = personal
@@ -455,7 +461,7 @@ export default async function ProyectoDetallePage({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-100 text-sm">
             <div className="flex items-center gap-2 text-slate-600">
               <Calendar className="w-4 h-4 text-slate-400" />
               Inicio: {formatDate(proyecto.fecha_inicio)}
@@ -465,15 +471,31 @@ export default async function ProyectoDetallePage({
               Fin estimado: {formatDate(proyecto.fecha_fin_estimada)}
             </div>
             <div className="flex items-center gap-2 text-slate-600">
-              <Layers className="w-4 h-4 text-slate-400" />
-              Fases: {proyecto.fases.map((f) => f.nombre).join(", ")}
-            </div>
-            <div className="flex items-center gap-2 text-slate-600">
               <Clock className="w-4 h-4 text-slate-400" />
               {proyecto.dias_habiles_semana} días hábiles/semana
             </div>
           </div>
         </div>
+
+        {resumenFases.fases.length > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
+            <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-600" />
+                Fases de la obra
+              </h2>
+              {resumenFases.totalReportadas > 0 && (
+                <p className="text-xs text-slate-500">
+                  <strong className="text-slate-800">{resumenFases.totalReportadas}</strong> tareas esperando aprobación
+                  {resumenFases.totalDevueltas > 0 && (
+                    <> · <strong className="text-red-600">{resumenFases.totalDevueltas}</strong> devueltas</>
+                  )}
+                </p>
+              )}
+            </div>
+            <AvanceFases resumen={resumenFases} />
+          </div>
+        )}
 
         {/* Cronograma estimado con ramas (solo cuentas personales; no rompe B2B). */}
         {personal && espaciosTimeline.some((e) => e.tareas.length > 0) && (

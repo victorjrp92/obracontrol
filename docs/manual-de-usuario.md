@@ -686,6 +686,14 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 
 En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es **trabajo** (lo que pagas a tus trabajadores) y cuánto **materiales** — y eso se conecta con el módulo de gastos y anticipos. Todo es editable.
 
+### Fases de la obra: en qué va cada una
+
+- En el detalle del proyecto, las fases ya no son una lista de nombres: cada una trae **su propia barra de avance**, con el porcentaje aprobado y el conteo de tareas.
+- La barra distingue tres cosas que antes se confundían: **azul oscuro** lo aprobado, **azul claro** lo que está reportado y esperando que alguien lo revise, y **rojo** lo devuelto con motivo. Esa franja azul clara es trabajo terminado que todavía no se ha pagado.
+- Una fase lleva la marca **«más por revisar»**: es donde se está acumulando trabajo hecho sin aprobar, o sea dónde hay cuadrilla trabajando hoy y a dónde conviene ir.
+- **Toca una fase y se abre el reparto por torre.** Es lo más útil de la vista: el porcentaje de una fase es un promedio entre torres que van en frentes distintos, y ese promedio no describe a ninguna. Una fase al 49% puede ser una torre terminada, otra a la mitad y una tercera sin empezar.
+- Arriba a la derecha de la sección se ve, para toda la obra, cuántas tareas están esperando aprobación y cuántas fueron devueltas.
+
 ### Gestión de la obra
 
 - **Edición total**: después puedes editar toda la obra (espacios, tareas, costos, fechas, ubicación) sin perder el historial de lo ya reportado. En edición, puedes **guardar desde cualquier paso**, sin recorrer todo el asistente.
