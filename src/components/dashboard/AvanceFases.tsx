@@ -15,10 +15,20 @@
 // torres que van en frentes distintos, y ese promedio no describe a ninguna:
 // «Enchapes y pisos» al 49% resultó ser torre 1 al 100%, torre 2 al 46% y
 // torre 3 sin empezar. El promedio ordena la lista; la verdad está adentro.
+//
+// Y la SECCIÓN ENTERA colapsa, cerrada por defecto: diez filas abiertas se
+// comen la pantalla y empujan las torres —que son lo que el usuario vino a
+// ver— por debajo del pliegue. Cerrada tiene que seguir diciendo algo, así
+// que el encabezado lleva en qué fase está el frente y cuánto hay esperando
+// aprobación: si eso ya contesta la pregunta, no hace falta abrir.
+//
+// Mismo patrón colapsable que `LineaTiempoObra`, a propósito: una pantalla
+// con dos formas distintas de plegar una sección se siente como dos
+// productos.
 // ─────────────────────────────────────────────────────────────────────────
 
 import { useState } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Layers } from "lucide-react";
 import type { ResumenFases } from "@/lib/fases-avance";
 
 /** Ancho mínimo visible de un tramo: un solo día de trabajo en una fase de
@@ -27,12 +37,57 @@ import type { ResumenFases } from "@/lib/fases-avance";
 const MINIMO = 1.2;
 const ancho = (x: number, t: number) => (t > 0 && x > 0 ? Math.max(MINIMO, (x / t) * 100) : 0);
 
-export default function AvanceFases({ resumen }: { resumen: ResumenFases }) {
+export default function AvanceFases({
+  resumen,
+  defaultAbierto = false,
+}: {
+  resumen: ResumenFases;
+  /** Cerrada por defecto: las torres van debajo y son lo que se vino a ver. */
+  defaultAbierto?: boolean;
+}) {
   const [abierta, setAbierta] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(defaultAbierto);
   if (resumen.fases.length === 0) return null;
 
+  const frente = resumen.frente >= 0 ? resumen.fases[resumen.frente] : null;
+
   return (
-    <div>
+    <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        aria-expanded={abierto}
+        className="w-full flex items-center justify-between gap-3 px-5 sm:px-6 py-4 text-left cursor-pointer hover:bg-slate-50 transition-colors"
+      >
+        <span className="min-w-0">
+          <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            Fases de la obra
+          </span>
+          <span className="block text-xs text-slate-500 mt-0.5 truncate">
+            {resumen.fases.length} fases
+            {frente && <> · ahora en <strong className="text-slate-700 font-semibold">{frente.nombre}</strong></>}
+          </span>
+        </span>
+        <span className="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
+          {/* «por revisar» es el número que justifica abrir la sección, así que
+              se muestra siempre. Las devueltas ceden en pantalla angosta. */}
+          {resumen.totalReportadas > 0 && (
+            <span>
+              <strong className="text-slate-800">{resumen.totalReportadas}</strong> por revisar
+            </span>
+          )}
+          {resumen.totalDevueltas > 0 && (
+            <span className="hidden sm:inline text-red-600">
+              <strong>{resumen.totalDevueltas}</strong> devueltas
+            </span>
+          )}
+          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+
+      {abierto && (
+      <div className="px-5 sm:px-6 pb-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-[11px] font-semibold text-slate-500">
         <span className="flex items-center gap-1.5">
           <i className="w-3.5 h-2 rounded-sm bg-blue-600" /> Aprobado
@@ -151,6 +206,8 @@ export default function AvanceFases({ resumen }: { resumen: ResumenFases }) {
           );
         })}
       </ul>
+      </div>
+      )}
     </div>
   );
 }

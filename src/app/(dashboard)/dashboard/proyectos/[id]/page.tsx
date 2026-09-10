@@ -6,7 +6,7 @@ import { esCuentaPersonal, puede } from "@/lib/plan";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
-import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, FileText, Layers, Trees, Settings2, Users, Wallet } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Clock, FileText, Trees, Settings2, Users, Wallet } from "lucide-react";
 import EditProyecto from "./EditProyecto";
 import CompartirAvanceCliente from "@/components/dashboard/CompartirAvanceCliente";
 import LineaTiempoObra from "@/components/personal/LineaTiempoObra";
@@ -477,25 +477,10 @@ export default async function ProyectoDetallePage({
           </div>
         </div>
 
-        {resumenFases.fases.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
-            <div className="flex items-baseline justify-between gap-3 flex-wrap mb-4">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-blue-600" />
-                Fases de la obra
-              </h2>
-              {resumenFases.totalReportadas > 0 && (
-                <p className="text-xs text-slate-500">
-                  <strong className="text-slate-800">{resumenFases.totalReportadas}</strong> tareas esperando aprobación
-                  {resumenFases.totalDevueltas > 0 && (
-                    <> · <strong className="text-red-600">{resumenFases.totalDevueltas}</strong> devueltas</>
-                  )}
-                </p>
-              )}
-            </div>
-            <AvanceFases resumen={resumenFases} />
-          </div>
-        )}
+        {/* El componente trae su propio encabezado plegable. */}
+        <div className="mb-6">
+          <AvanceFases resumen={resumenFases} />
+        </div>
 
         {/* Cronograma estimado con ramas (solo cuentas personales; no rompe B2B). */}
         {personal && espaciosTimeline.some((e) => e.tareas.length > 0) && (
