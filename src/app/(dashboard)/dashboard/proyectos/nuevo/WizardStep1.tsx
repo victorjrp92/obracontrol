@@ -6,6 +6,7 @@ import {
   ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
+import { excesoMetraje, excesosMetraje, formatearM2, mensajeExceso, sumaEspacios } from "@/lib/metraje";
 import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista, UbicacionInput } from "./wizard-types";
 import LocationPicker from "@/components/mapa/LocationPicker";
 
@@ -643,6 +644,26 @@ export default function WizardStep1({
                       ))}
                     </div>
                   )}
+                  {/* Contador de reparto: se ve SIEMPRE que hay total, no solo al
+                      fallar — repartir m² a ciegas es donde se comete el error,
+                      y ver cuánto queda evita llegar al bloqueo del wizard. */}
+                  {metrosEnabled && tipo.espacios.length > 0 && tipo.metraje_total != null && Number.isFinite(tipo.metraje_total) && tipo.metraje_total > 0 && (() => {
+                    const total = tipo.metraje_total!;
+                    const suma = sumaEspacios(tipo);
+                    const exceso = excesoMetraje(tipo);
+                    if (!exceso) {
+                      return (
+                        <p className="text-[11px] text-slate-400 mt-1.5">
+                          {formatearM2(suma)} de {formatearM2(total)} m² repartidos
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-[11px] font-semibold text-red-600 mt-1.5">
+                        {formatearM2(suma)} de {formatearM2(total)} m² repartidos — se pasa por {formatearM2(suma - total)} m²
+                      </p>
+                    );
+                  })()}
                   {/* Custom space input */}
                   <div className="flex gap-2 mt-2">
                     <input
@@ -1039,6 +1060,8 @@ export default function WizardStep1({
           // contratistaDefaultId is optional
           const tiposSinEspacios = tiposUnidad.filter((t) => t.espacios.length === 0).map((t) => t.nombre || "Tipo sin nombre");
           if (tiposSinEspacios.length > 0) missing.push(`Espacios para: ${tiposSinEspacios.join(", ")}`);
+          const excesos = excesosMetraje(tiposUnidad);
+          if (excesos.length > 0) missing.push(`Los m² de los espacios se pasan del total en: ${excesos.map(mensajeExceso).join("; ")}`);
           if (subtipo === "ZONAS_COMUNES") {
             if (zonasSeleccionadas.length === 0) missing.push("Selecciona al menos una zona común");
           } else {

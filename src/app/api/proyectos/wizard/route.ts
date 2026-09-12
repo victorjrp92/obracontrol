@@ -5,6 +5,7 @@ import { TASK_TEMPLATES } from "@/lib/task-templates";
 import { isGeneralAdmin } from "@/lib/access";
 import { validarNumeroProyecto, generarNumeroTarea } from "@/lib/numero-registro";
 import { aprenderTareas } from "@/lib/learning";
+import { excesosMetraje, mensajeExceso } from "@/lib/metraje";
 import {
   clavePrediccion,
   construirPreRegistro,
@@ -271,6 +272,18 @@ export async function POST(req: NextRequest) {
       if (!body.edificios?.length || !body.espacios?.length || !body.fases?.length) {
         return NextResponse.json({ error: "Faltan datos requeridos" }, { status: 400 });
       }
+    }
+
+    // El wizard ya bloquea esto en la interfaz, pero se repite aquí porque el
+    // servidor recibe payloads que nunca pasaron por esa interfaz (import de
+    // Excel, ediciones posteriores vía API): sin este check un tipo con los
+    // espacios inflados por encima de su m² total se cuela igual.
+    const excesos = excesosMetraje(body.tipos_unidad ?? []);
+    if (excesos.length > 0) {
+      return NextResponse.json(
+        { error: `Los m² de los espacios se pasan del total en: ${excesos.map(mensajeExceso).join("; ")}` },
+        { status: 400 },
+      );
     }
 
     // Normalize fases: accept string[] or { nombre, tiempo_estimado_dias }[]

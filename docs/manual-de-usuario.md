@@ -305,7 +305,13 @@ El obrero entra mediante un **enlace único (token)** que le comparte su contrat
 - **Torres / edificios**: nombre, número de pisos, y si es zona común.
 - **Tipos de unidad** (ej. "Tipo A - 65m²", "Penthouse") con los **espacios** que contienen (cocina, baño, habitación, sala…).
 - **Distribución**: cuántas unidades de cada tipo hay por piso.
-- **Metraje por espacio** (opcional).
+- **Metraje por espacio** (opcional). Al activar **«Incluir m²»** cada tipo de unidad lleva sus m² totales y, además, los m² de cada espacio.
+
+**Los m² de los espacios no pueden pasarse del total del tipo.** Debajo de los espacios verás siempre cuánto llevas repartido —«48 de 65 m² repartidos»—, y si te pasas, el aviso se pone en rojo, dice por cuánto y **el paso no deja continuar** hasta que cuadre.
+
+- Que los espacios sumen **menos** que el total es lo normal y no da error: los muros, las circulaciones y los clósets no se listan como espacio, y se suelen llevar entre el 10% y el 20% del área construida. Una ocupación entre el 80% y el 90% es lo habitual.
+- Que sumen **más** es imposible en obra, y además distorsiona el plan: los m² del espacio son los que el sistema usa para estimar la duración y el presupuesto de cada tarea, así que un reparto inflado infla la obra entera.
+- La regla se aplica igual **al crear y al editar** un proyecto, y también a lo que entra por la API o por importación, no solo a lo que se escribe en pantalla.
 
 ### Paso 3: Tareas
 

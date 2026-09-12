@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
 import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride, UbicacionInput } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
+import { excesosMetraje } from "@/lib/metraje";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
 import WizardStep3 from "./WizardStep3";
@@ -102,7 +103,8 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           return distSum === e.pisos * upiso;
         })
         && tiposUnidad.every((t) => t.espacios.length > 0)
-  );
+    )
+    && excesosMetraje(tiposUnidad).length === 0;
   const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
 
   const [pendingOverrides, setPendingOverrides] = useState<AsignacionOverride[] | undefined>(undefined);
