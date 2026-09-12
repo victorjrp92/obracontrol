@@ -3,8 +3,15 @@ import { getUsuarioActual, getProyectosConProgreso } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import { BarChart3, FileCheck, Download, FileText } from "lucide-react";
+import { getTareasVelocidad } from "@/lib/data-velocidad";
+import ReporteVelocidad from "@/components/dashboard/ReporteVelocidad";
+import SelectorObraReporte from "@/components/dashboard/SelectorObraReporte";
 
-export default async function ReportesPage() {
+export default async function ReportesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ proyecto?: string }>;
+}) {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
 
@@ -15,10 +22,31 @@ export default async function ReportesPage() {
   );
   const proyectos = await getProyectosConProgreso(usuario.constructora_id, accessible);
 
+  // La obra del reporte de velocidad. El id que llega por URL se valida contra
+  // las obras a las que el usuario tiene acceso: sin eso, cambiarlo a mano
+  // serviria el reporte de otra constructora.
+  const { proyecto: pedido } = await searchParams;
+  const elegida = proyectos.find((p) => p.id === pedido) ?? proyectos[0];
+  const tareasVelocidad = elegida
+    ? await getTareasVelocidad(elegida.id, usuario.constructora_id)
+    : [];
+
   return (
     <>
       <Topbar title="Reportes" subtitle="Generación y descarga de reportes" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {elegida && (
+          <>
+            <div className="flex items-center justify-end mb-3">
+              <SelectorObraReporte
+                proyectos={proyectos.map((p) => ({ id: p.id, nombre: p.nombre }))}
+                activo={elegida.id}
+              />
+            </div>
+            <ReporteVelocidad tareas={tareasVelocidad} />
+          </>
+        )}
+
         {/* Progreso por proyecto */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
           <div className="flex items-start gap-4 mb-5">

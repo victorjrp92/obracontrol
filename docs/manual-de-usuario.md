@@ -686,6 +686,16 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 
 En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es **trabajo** (lo que pagas a tus trabajadores) y cuánto **materiales** — y eso se conecta con el módulo de gastos y anticipos. Todo es editable.
 
+### Reportes: ¿el equipo va más rápido o más lento?
+
+En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período se cambia entre semana, quincena, mes y trimestre.
+
+- **Tareas que cerraron a tiempo.** De las tareas que se cerraron en el período, cuántas terminaron dentro de los días acordados. Es una por una: cada tarea se compara contra **su propio** plazo, así que no importa que pintar no sea lo mismo que levantar una columna. La línea punteada es la meta.
+- **Cuánto se pasaron del plazo, en días.** Lo mismo, pero en tamaño. Van juntas porque dicen cosas distintas: la primera dice **cuántas** incumplieron y la segunda **por cuánto**. Un mes con la mitad de las tareas pasadas por medio día y otro con la mitad pasadas por tres días dan el mismo porcentaje y son problemas muy diferentes. Arriba de la línea es terminar antes; abajo, tarde. Cuando la obra cruza de un lado al otro, la gráfica marca el período exacto.
+- **Días que toma cada fase en una unidad.** Cuántos días pasan desde que arranca una fase en un apartamento hasta que se cierra su última tarea, comparado entre **torres, pisos, tipologías o responsables**. Aquí se compara el mismo trabajo consigo mismo —mampostería contra mampostería— así que es la única de las tres que no se distorsiona porque una fase sea más pesada que otra.
+- **Cuidado al leer la matriz:** solo cuentan las unidades que terminaron la fase completa. Una torre a medio camino aporta nada más lo que alcanzó a cerrar —casi siempre lo más fácil— y puede verse más rápida de lo que es. Por eso cada celda muestra cuántas unidades la respaldan, y las que se apoyan en menos de cinco salen atenuadas.
+- El tiempo de una tarea se mide **desde su fecha de inicio registrada hasta que se aprueba**, así que incluye la espera de revisión. Sirve para comparar períodos entre sí, no para afirmar cuántos días de mano de obra costó una tarea.
+
 ### Fases de la obra: en qué va cada una
 
 - En el detalle del proyecto, las fases ya no son una lista de nombres: cada una trae **su propia barra de avance**, con el porcentaje aprobado y el conteo de tareas.
