@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Trash2, Save, X, Building2, FolderOpen, Users } from "lucide-react";
+import { Pencil, Trash2, Save, X, Building2, FolderOpen, Users, Download } from "lucide-react";
 import type { PlanTipo } from "@/generated/prisma";
 
 interface Constructora {
@@ -199,17 +199,33 @@ export default function ConstructoraDetalleClient({ constructora, proyectos, usu
         )}
       </Section>
 
-      {/* Sección 3 — Usuarios */}
+      {/* Sección 3 — Usuarios.
+          El ranking de contratistas vive aqui y no en el dashboard de la
+          constructora: es informacion sobre el desempeno de personas, y dentro
+          de la empresa la veia cualquiera con sesion —incluidos los propios
+          contratistas—. El endpoint tambien quedo cerrado a SUPER_ADMIN. */}
       <Section
         title={`Usuarios (${usuarios.length})`}
         icon={Users}
         action={
-          <Link
-            href={`/super-admin/admins-generales?constructora=${constructora.id}`}
-            className="inline-flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
-          >
-            + Admin General
-          </Link>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/reportes/contratistas?constructora=${constructora.id}`}
+              download
+              rel="noopener"
+              title="Descargar el ranking de contratistas en PDF"
+              className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Score
+            </a>
+            <Link
+              href={`/super-admin/admins-generales?constructora=${constructora.id}`}
+              className="inline-flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+            >
+              + Admin General
+            </Link>
+          </div>
         }
       >
         {usuarios.length === 0 ? (

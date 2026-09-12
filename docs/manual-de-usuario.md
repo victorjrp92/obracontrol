@@ -686,6 +686,12 @@ Las tareas quedan creadas en su espacio con su presupuesto. Los nombres de espac
 
 En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es **trabajo** (lo que pagas a tus trabajadores) y cuánto **materiales** — y eso se conecta con el módulo de gastos y anticipos. Todo es editable.
 
+### Reportes: descargar el avance
+
+- En **Reportes** eliges **una obra o varias** de la lista desplegable y las descargas en PDF con el botón de descarga. Si tienes más de seis obras aparece un buscador, y «Marcar todas» solo marca lo que estés viendo tras buscar.
+- Cada PDF trae el estado de avance con el detalle por edificio.
+- **El ranking de contratistas ya no está aquí.** Es información sobre el desempeño de personas y no la debe ver cualquiera dentro de la empresa; ahora vive solo en el perfil de Super Admin, en la ficha de cada constructora.
+
 ### Reportes: ¿el equipo va más rápido o más lento?
 
 En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período se cambia entre semana, quincena, mes y trimestre.
