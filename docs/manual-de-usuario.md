@@ -694,7 +694,9 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 
 ### Reportes: ¿el equipo va más rápido o más lento?
 
-En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período se cambia entre semana, quincena, mes y trimestre.
+En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período en la lista desplegable **Período**: semana, quincena, mes, trimestre, semestre o año.
+
+- **Algunos períodos aparecen deshabilitados, con la nota «sin datos suficientes».** Es a propósito: un período solo se puede elegir si la obra da al menos tres puntos en él. Una obra de nueve meses no tiene un semestre anterior contra el cual compararse, y la gráfica saldría con dos puntos y una raya entre ellos, que parece rota y no dice nada. A medida que la obra avanza, los períodos largos se van habilitando solos.
 
 - **Tareas que cerraron a tiempo.** De las tareas que se cerraron en el período, cuántas terminaron dentro de los días acordados. Es una por una: cada tarea se compara contra **su propio** plazo, así que no importa que pintar no sea lo mismo que levantar una columna. La línea punteada es la meta.
 - **Cuánto se pasaron del plazo, en días.** Lo mismo, pero en tamaño. Van juntas porque dicen cosas distintas: la primera dice **cuántas** incumplieron y la segunda **por cuánto**. Un mes con la mitad de las tareas pasadas por medio día y otro con la mitad pasadas por tres días dan el mismo porcentaje y son problemas muy diferentes. Arriba de la línea es terminar antes; abajo, tarde. Cuando la obra cruza de un lado al otro, la gráfica marca el período exacto.

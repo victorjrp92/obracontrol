@@ -20,6 +20,7 @@ import { TrendingUp, CalendarClock } from "lucide-react";
 import {
   serieVelocidad,
   matrizCiclo,
+  periodosDisponibles,
   PERIODOS,
   type Dimension,
   type Periodo,
@@ -57,7 +58,26 @@ export default function ReporteVelocidad({
     [tareas],
   );
 
-  const serie = useMemo(() => serieVelocidad(datos, periodo), [datos, periodo]);
+  const disponibles = useMemo(() => periodosDisponibles(datos), [datos]);
+
+  /**
+   * El periodo que de verdad se dibuja.
+   *
+   * El elegido puede no tener datos suficientes: al abrir una obra joven, o al
+   * cambiar a otra con menos historia. Se DERIVA en vez de corregir el estado,
+   * por dos razones. Corrigiendo estado -en un efecto o durante el render- el
+   * arreglo no corre en el PRIMER render, que es justo cuando una obra nueva
+   * abre en "mes" sin tener tres meses; y ademas deriva en el error de lint
+   * `set-state-in-effect`. Derivado no hay nada que sincronizar: si el elegido
+   * sirve se usa, y si no se cae al de grano mas grueso que si tenga datos.
+   */
+  const periodoEfectivo = useMemo<Periodo>(() => {
+    if (disponibles.has(periodo)) return periodo;
+    const validos = PERIODOS.filter((p) => disponibles.has(p.clave));
+    return validos.length > 0 ? validos[validos.length - 1].clave : periodo;
+  }, [disponibles, periodo]);
+
+  const serie = useMemo(() => serieVelocidad(datos, periodoEfectivo), [datos, periodoEfectivo]);
 
   // Las cuatro matrices se calculan de una: cambiar de dimension es instantaneo
   // y son recorridos baratos sobre la misma lista.
@@ -86,7 +106,7 @@ export default function ReporteVelocidad({
     );
   }
 
-  const nombrePeriodo = PERIODOS.find((p) => p.clave === periodo)!.nombre.toLowerCase();
+  const nombrePeriodo = PERIODOS.find((p) => p.clave === periodoEfectivo)!.nombre.toLowerCase();
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
@@ -99,23 +119,20 @@ export default function ReporteVelocidad({
             Que tan rapido cerraron las tareas contra el plazo que se habia acordado para cada una.
           </p>
         </div>
-        <div className="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 gap-0.5">
-          {PERIODOS.map((p) => (
-            <button
-              key={p.clave}
-              type="button"
-              onClick={() => setPeriodo(p.clave)}
-              aria-pressed={periodo === p.clave}
-              className={`text-xs font-bold px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                periodo === p.clave
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {p.nombre}
-            </button>
-          ))}
-        </div>
+        <label className="flex items-center gap-2">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Período</span>
+          <select
+            value={periodoEfectivo}
+            onChange={(e) => setPeriodo(e.target.value as Periodo)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
+          >
+            {PERIODOS.map((p) => (
+              <option key={p.clave} value={p.clave} disabled={!disponibles.has(p.clave)}>
+                {disponibles.has(p.clave) ? p.nombre : `${p.nombre} (sin datos suficientes)`}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {ultimo && (
@@ -163,12 +180,19 @@ export default function ReporteVelocidad({
       )}
 
       <div className="mb-2 text-[13px] font-bold text-slate-700">Tareas que cerraron a tiempo</div>
-      <GraficaATiempo serie={serie} meta={meta} />
+      {/* Mas alla de unos 1000px la linea se aplana y la grafica deja de
+          leerse: no es un limite estetico, es donde la pendiente se pierde. */}
+      <div className="max-w-[1000px]">
+        <GraficaATiempo serie={serie} meta={meta} />
+      </div>
 
       <div className="mt-7 mb-2 text-[13px] font-bold text-slate-700">
         Cuanto se pasaron del plazo, en dias
       </div>
-      <GraficaDiasDeMas serie={serie} />
+      {/* Mismo limite que la grafica de arriba, y por la misma razon. */}
+      <div className="max-w-[1000px]">
+        <GraficaDiasDeMas serie={serie} />
+      </div>
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <div className="flex items-center gap-2 mb-1">

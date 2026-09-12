@@ -498,16 +498,18 @@ export default async function ProyectoDetallePage({
         )}
 
         {/* Progress by unit type */}
+        {/* El detalle de obra se recorre de arriba abajo: cada pixel de alto
+            aqui empuja las torres -que es lo que se vino a ver- bajo el pliegue. */}
         {progresoByTipo.length > 1 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
             {progresoByTipo.map((tipo) => (
-              <div key={tipo.nombre} className="bg-white rounded-xl border border-slate-100 p-4">
-                <div className="text-xs text-slate-500 mb-1">{tipo.nombre}</div>
-                <div className="text-xl font-bold text-slate-900">{tipo.porcentaje}%</div>
-                <div className="relative h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2">
+              <div key={tipo.nombre} className="bg-white rounded-xl border border-slate-100 p-3.5">
+                <div className="text-[11px] text-slate-500 mb-1">{tipo.nombre}</div>
+                <div className="text-lg font-bold text-slate-900">{tipo.porcentaje}%</div>
+                <div className="relative h-1 rounded-full bg-slate-100 overflow-hidden mt-1.5">
                   <div className="absolute inset-y-0 left-0 rounded-full bg-blue-600" style={{ width: `${tipo.porcentaje}%` }} />
                 </div>
-                <div className="text-[10px] text-slate-400 mt-1">{tipo.aprobadas}/{tipo.total} tareas</div>
+                <div className="text-[10px] text-slate-400 mt-1.5">{tipo.aprobadas}/{tipo.total} tareas</div>
               </div>
             ))}
           </div>
@@ -544,10 +546,12 @@ export default async function ProyectoDetallePage({
                             const etiqueta = etiquetaUnidad(unidad);
 
                             return (
+                              // El detalle de obra se recorre de arriba abajo: cada pixel de
+                              // alto aqui empuja las torres -que es lo que se vino a ver- bajo el pliegue.
                               <Link
                                 key={unidad.id}
                                 href={`/dashboard/proyectos/${proyecto.id}?unidad=${unidad.id}`}
-                                className={`w-14 h-12 sm:w-20 sm:h-16 rounded-lg sm:rounded-xl flex flex-col items-center justify-center text-[10px] sm:text-xs font-medium hover:shadow-md transition-all flex-shrink-0 ${colorClass}`}
+                                className={`w-[52px] h-11 sm:w-[68px] sm:h-14 rounded-lg sm:rounded-xl flex flex-col items-center justify-center text-[10px] sm:text-[11px] font-medium hover:shadow-md transition-all flex-shrink-0 ${colorClass}`}
                                 title={`${personal ? "" : "Apto "}${etiqueta}: ${progreso.porcentajeAprobado}% aprobado (${progreso.aprobadas}/${progreso.total})`}
                               >
                                 <span className="font-bold text-center leading-tight px-0.5 truncate max-w-full">{etiqueta}</span>

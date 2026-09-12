@@ -19,6 +19,10 @@ import {
   medible,
   diasReales,
   MAX_COLUMNAS,
+  periodosDisponibles,
+  MINIMO_CUBOS,
+  PERIODOS,
+  type Periodo,
   type TareaVelocidad,
 } from "@/lib/velocidad";
 
@@ -278,6 +282,94 @@ console.log("\n7. Bordes");
   ).columnas;
   verificar(`las columnas ordenan por numero, no alfabeticamente (${orden.join(", ")})`,
     String(orden) === "Torre 2,Torre 10");
+}
+
+// ---------------------------------------------------------------------------
+// Periodos largos y disponibilidad
+//
+// El selector ofrece de semana a ano, pero una obra joven no tiene un semestre
+// anterior contra el cual compararse: ofrecerlo produce una grafica de dos
+// puntos que parece rota. `periodosDisponibles` es lo que apaga esas opciones,
+// asi que lo que hay que fijar es el UMBRAL -no que "devuelva algo"-.
+// ---------------------------------------------------------------------------
+{
+  console.log("\nPeriodos largos y disponibilidad");
+
+  // Nueve meses de obra: es el caso de Rosas Cali y el que el selector tiene
+  // que resolver bien -trimestre si, semestre no-.
+  const nueveMeses = [
+    "2026-01-15", "2026-02-15", "2026-03-15", "2026-04-15", "2026-05-15",
+    "2026-06-15", "2026-07-15", "2026-08-15", "2026-09-15",
+  ].map((fin, i) => t({ plan: 2, real: 2, fin, unidadId: `u${i}` }));
+
+  verificar("el semestre agrupa en dos cubos (ene-jun, jul-sep)",
+    serieVelocidad(nueveMeses, "sms").length === 2);
+  verificar("el ano agrupa los nueve meses en un solo cubo",
+    serieVelocidad(nueveMeses, "ano").length === 1);
+  verificar("el trimestre da tres cubos",
+    serieVelocidad(nueveMeses, "tri").length === 3);
+
+  const etqSms = serieVelocidad(nueveMeses, "sms").map((p) => p.etiqueta);
+  verificar(`el semestre se etiqueta S1/S2 (${etqSms.join(", ")})`,
+    String(etqSms) === "S1,S2");
+  verificar(`el ano se etiqueta con el numero del ano (${serieVelocidad(nueveMeses, "ano")[0].etiqueta})`,
+    serieVelocidad(nueveMeses, "ano")[0].etiqueta === "2026");
+
+  // Dos semestres distintos NO pueden caer en el mismo cubo aunque compartan
+  // el numero de mes: el `orden` tiene que incluir el ano.
+  const cruzaAno = [
+    t({ plan: 2, real: 2, fin: "2026-08-15", unidadId: "a" }),
+    t({ plan: 2, real: 2, fin: "2027-08-15", unidadId: "b" }),
+  ];
+  verificar("dos agostos de anos distintos son dos semestres, no uno",
+    serieVelocidad(cruzaAno, "sms").length === 2);
+
+  const disp = periodosDisponibles(nueveMeses);
+  verificar("con nueve meses se habilitan semana, quincena, mes y trimestre",
+    disp.has("sem") && disp.has("qui") && disp.has("mes") && disp.has("tri"));
+  verificar("con nueve meses se deshabilitan semestre y ano",
+    !disp.has("sms") && !disp.has("ano"));
+
+  // CONTROL POSITIVO: si el umbral se rompiera, esto lo cazaria. Con dos anos
+  // y medio de obra el semestre SI da cinco cubos y tiene que habilitarse.
+  const dosAnosYMedio = Array.from({ length: 30 }, (_, i) =>
+    t({ plan: 2, real: 2, fin: `${2026 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}-15`, unidadId: `v${i}` }),
+  );
+  const dispLarga = periodosDisponibles(dosAnosYMedio);
+  verificar("control positivo: con dos anos y medio el semestre SI se habilita",
+    dispLarga.has("sms"));
+  verificar("control positivo: con dos anos y medio el ano SI se habilita",
+    dispLarga.has("ano"));
+
+  // El umbral es exactamente MINIMO_CUBOS, no "mas de dos" ni "al menos uno".
+  const justoTres = ["2026-01-15", "2026-02-15", "2026-03-15"].map((fin, i) =>
+    t({ plan: 2, real: 2, fin, unidadId: `w${i}` }));
+  const justoDos = ["2026-01-15", "2026-02-15"].map((fin, i) =>
+    t({ plan: 2, real: 2, fin, unidadId: `x${i}` }));
+  verificar(`con exactamente ${MINIMO_CUBOS} cubos el mes se habilita`,
+    periodosDisponibles(justoTres).has("mes"));
+  verificar(`con ${MINIMO_CUBOS - 1} cubos el mes NO se habilita`,
+    !periodosDisponibles(justoDos).has("mes"));
+
+  // Sin tareas medibles no se habilita nada: el componente cae a "mes" y
+  // muestra el vacio explicado, que es mejor que un selector mentiroso.
+  verificar("sin tareas no se habilita ningun periodo",
+    periodosDisponibles([]).size === 0);
+
+  // El orden de PERIODOS importa: el componente cae al ULTIMO disponible, o
+  // sea al de grano mas grueso. Si el array se desordena, cae al equivocado.
+  const claves = PERIODOS.map((p) => p.clave).join(",");
+  verificar(`PERIODOS va de grano fino a grueso (${claves})`,
+    claves === "sem,qui,mes,tri,sms,ano");
+
+  // Cada periodo declarado tiene que saber agrupar: un `cubo()` sin su rama
+  // devolveria el cubo de semana y nadie lo notaria en la interfaz.
+  const todosAgrupan = PERIODOS.every((p) => {
+    const n = serieVelocidad(nueveMeses, p.clave as Periodo).length;
+    return n > 0 && n <= nueveMeses.length;
+  });
+  verificar("los seis periodos de PERIODOS agrupan sin caer al de semana",
+    todosAgrupan && serieVelocidad(nueveMeses, "ano").length === 1);
 }
 
 console.log(`\n${total - fallos}/${total} verificaciones OK`);
