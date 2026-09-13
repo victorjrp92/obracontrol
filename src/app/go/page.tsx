@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "@/components/landing-go/landing-go.css";
 
-import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";
+// import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";  // ver "Juntos OCULTO" mas abajo
 import PromoBarGo from "@/components/landing-go/PromoBarGo";
 import NavBarGo from "@/components/landing-go/NavBarGo";
 import HeroGo from "@/components/landing-go/HeroGo";
@@ -56,7 +56,14 @@ export const metadata: Metadata = {
 export default function SeiriconGoPage() {
   return (
     <div className="lgo">
-      <AvisoEmergencia />
+      {/* Juntos OCULTO (2026-09-13). La linea post-sismo fue una respuesta
+          puntual a la emergencia y ya paso; la franja era su unica puerta de
+          entrada desde el landing. Se oculta, NO se borra: la ruta /go/juntos
+          sigue viva porque su URL va impresa en las actas y los informes de
+          grietas ya entregados, y romperla dejaria a esa gente sin su
+          documento. Para reactivarla, descomentar. Para cerrar tambien la
+          herramienta, JUNTOS_PAUSADO=true en Vercel. */}
+      {/* <AvisoEmergencia /> */}
       <PromoBarGo />
       <NavBarGo />
       <HeroGo />

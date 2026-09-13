@@ -6,7 +6,7 @@ import { getHomePathForRole } from "@/lib/access";
 import PwaLaunchRedirect from "@/components/pwa/PwaLaunchRedirect";
 import "@/components/landing-v2/landing-v2.css";
 
-import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";
+// import AvisoEmergencia from "@/components/juntos/AvisoEmergencia";  // ver "Juntos OCULTO" mas abajo
 import NavBar from "@/components/landing-v2/NavBar";
 import Hero from "@/components/landing-v2/Hero";
 import Pasos from "@/components/landing-v2/Pasos";
@@ -54,7 +54,14 @@ export default async function LandingPage() {
       <Suspense fallback={null}>
         <PwaLaunchRedirect />
       </Suspense>
-      <AvisoEmergencia />
+      {/* Juntos OCULTO (2026-09-13). La linea post-sismo fue una respuesta
+          puntual a la emergencia y ya paso; la franja era su unica puerta de
+          entrada desde el landing. Se oculta, NO se borra: la ruta /go/juntos
+          sigue viva porque su URL va impresa en las actas y los informes de
+          grietas ya entregados, y romperla dejaria a esa gente sin su
+          documento. Para reactivarla, descomentar. Para cerrar tambien la
+          herramienta, JUNTOS_PAUSADO=true en Vercel. */}
+      {/* <AvisoEmergencia /> */}
       <NavBar />
       <Hero />
       <Pasos />
