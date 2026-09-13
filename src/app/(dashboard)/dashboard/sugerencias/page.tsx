@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleProjectIds } from "@/lib/access";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import Topbar from "@/components/dashboard/Topbar";
 import SugerenciasPanel from "@/components/dashboard/SugerenciasPanel";
 
@@ -16,6 +17,10 @@ export default async function SugerenciasPage({
   if (!["ADMIN_GENERAL", "ADMIN_PROYECTO", "DIRECTIVO"].includes(usuario.rol_ref.nivel_acceso)) {
     redirect("/dashboard");
   }
+
+  // Se decide por TIPO DE CUENTA, no por rol ni por nivel de acceso, y se baja
+  // por props al panel: el componente cliente no adivina nada.
+  const muestraEconomia = muestraEconomiaDeObra(usuario.constructora.tipo_cuenta);
 
   const accessible = await getAccessibleProjectIds(usuario.id, usuario.constructora_id, usuario.rol_ref.nivel_acceso);
 
@@ -85,6 +90,7 @@ export default async function SugerenciasPage({
           sugerencias={sugerencias}
           fasesMap={fasesMap}
           initialTab={estadoActivo}
+          muestraEconomia={muestraEconomia}
         />
       </main>
     </>

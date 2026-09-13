@@ -4,6 +4,7 @@ import { getUsuarioActual } from "@/lib/data";
 import { getAccessibleProjectIds, canAccessProject, isGeneralAdmin, isSuperAdmin } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { getSignedEvidenciaUrl } from "@/lib/storage";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import Topbar from "@/components/dashboard/Topbar";
 import { ArrowLeft } from "lucide-react";
 import GastosClient from "./client";
@@ -18,6 +19,20 @@ export default async function GastosProyectoPage({
 }) {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
+
+  // B2B no maneja dinero de obra. Quitar el boton del detalle de proyecto NO
+  // basta: la ruta seguia siendo alcanzable desde el historial del navegador,
+  // un marcador o un enlace pegado en un chat, y servia el modulo entero
+  // -presupuesto, alta de gastos, aprobacion y anticipos- a una constructora.
+  // La puerta se cierra aqui, en el servidor.
+  //
+  // `notFound()` y no `redirect()`: para esta cuenta la pantalla no existe, y
+  // un redirect delataria que hay algo detras. Para B2C sigue intacta: es la
+  // alarma de "entregaste esto y te sustentaron esto otro", que es la razon
+  // por la que un propietario compra el producto.
+  if (!muestraEconomiaDeObra(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA")) {
+    notFound();
+  }
 
   const { id } = await params;
   const accessible = await getAccessibleProjectIds(

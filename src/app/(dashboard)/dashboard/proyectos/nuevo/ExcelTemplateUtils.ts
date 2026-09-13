@@ -3,11 +3,18 @@ import type { TareaInput } from "./wizard-types";
 /**
  * Generate a single .xlsx template for ALL phases.
  * 13 columns: Fase | Tipo unidad | Subfase | Espacio | Nombre | Días | Valor Instalación | Valor Lustro | Estructura | Nave | Chapa | Cartera | Marca/Línea
+ *
+ * `muestraEconomia` (B2C true / B2B false) solo decide si las dos columnas de
+ * precio se ven. SIEMPRE se escriben las 13: ver la nota de abajo.
  */
 export async function generateTemplate(
   fases: string[],
   espacios: string[],
   tiposUnidad?: string[],
+  // Sin defecto no se puede: va detras de un parametro opcional. `false`
+  // (ocultar) es el defecto seguro —este asistente es B2B— y el unico que lo
+  // llama pasa el valor explicito.
+  muestraEconomia: boolean = false,
 ): Promise<void> {
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
@@ -15,6 +22,17 @@ export async function generateTemplate(
 
   const ws = wb.addWorksheet("Tareas");
 
+  // ---------------------------------------------------------------------
+  // NO BORRES LAS COLUMNAS 7 Y 8 (Valor Instalación / Valor Lustro).
+  //
+  // En B2B el dinero de la obra no se enseña, pero estas dos columnas se
+  // OCULTAN (`hidden`), no se quitan. El parser de mas abajo lee por INDICE de
+  // celda —getCell(7) y getCell(8)—, asi que sacarlas correria una posicion a
+  // Estructura/Nave/Chapa/Cartera/Marca: cualquier plantilla que un cliente ya
+  // tenga descargada se importaria mal, metiendo el contenido de una columna en
+  // otra, y en silencio. Ocultas, los indices no se mueven, el parser sigue
+  // funcionando con plantillas viejas Y nuevas, y el usuario no las ve.
+  // ---------------------------------------------------------------------
   ws.columns = [
     { header: "Fase", key: "fase", width: 18 },
     { header: "Tipo unidad (Madera)", key: "tipo_unidad", width: 22 },
@@ -22,8 +40,8 @@ export async function generateTemplate(
     { header: "Espacio", key: "espacio", width: 22 },
     { header: "Nombre de la tarea", key: "nombre", width: 35 },
     { header: "Dias acordados", key: "dias", width: 16 },
-    { header: "Valor Instalación (COP)", key: "valor_instalacion", width: 22 },
-    { header: "Valor Lustro y Detallado (COP)", key: "valor_lustro", width: 28 },
+    { header: "Valor Instalación (COP)", key: "valor_instalacion", width: 22, hidden: !muestraEconomia },
+    { header: "Valor Lustro y Detallado (COP)", key: "valor_lustro", width: 28, hidden: !muestraEconomia },
     { header: "Estructura", key: "estructura", width: 12 },
     { header: "Nave", key: "nave", width: 10 },
     { header: "Chapa", key: "chapa", width: 10 },
@@ -93,20 +111,31 @@ export async function generateTemplate(
   const instrWs = wb.addWorksheet("Instrucciones");
   instrWs.getColumn(1).width = 70;
 
+  // Los pasos se numeran sobre la marcha porque los dos de precio desaparecen
+  // en B2B: una lista fija dejaria huecos ("...6, 9, 10") y se leeria como si
+  // faltara texto. En B2C sale la lista completa, igual que siempre.
+  const pasos = [
+    "'Fase' es obligatorio: selecciona del dropdown.",
+    "'Tipo unidad' solo para Madera: indica a qué tipo de apartamento aplica la tarea.",
+    "'Subfase' es opcional (no se usa para Madera, se genera automáticamente).",
+    "'Espacio' es obligatorio: selecciona del dropdown.",
+    "'Nombre de la tarea' es obligatorio.",
+    "'Dias acordados' es obligatorio y debe ser mayor a 0.",
+    ...(muestraEconomia
+      ? [
+          "'Valor Instalación (COP)' es opcional: precio de instalación en pesos colombianos.",
+          "'Valor Lustro y Detallado (COP)' es opcional: precio de lustro (solo Madera).",
+        ]
+      : []),
+    "Estructura/Nave/Chapa/Cartera: componentes del mueble (solo Madera). Sí o No.",
+    "'Marca/Linea' es opcional.",
+  ];
+
   const instrucciones = [
     "Plantilla de tareas - Todas las fases",
     "",
     "Como llenar esta plantilla:",
-    "1. 'Fase' es obligatorio: selecciona del dropdown.",
-    "2. 'Tipo unidad' solo para Madera: indica a qué tipo de apartamento aplica la tarea.",
-    "3. 'Subfase' es opcional (no se usa para Madera, se genera automáticamente).",
-    "4. 'Espacio' es obligatorio: selecciona del dropdown.",
-    "5. 'Nombre de la tarea' es obligatorio.",
-    "6. 'Dias acordados' es obligatorio y debe ser mayor a 0.",
-    "7. 'Valor Instalación (COP)' es opcional: precio de instalación en pesos colombianos.",
-    "8. 'Valor Lustro y Detallado (COP)' es opcional: precio de lustro (solo Madera).",
-    "9. Estructura/Nave/Chapa/Cartera: componentes del mueble (solo Madera). Sí o No.",
-    "10. 'Marca/Linea' es opcional.",
+    ...pasos.map((p, i) => `${i + 1}. ${p}`),
     "",
     "Fases validas:",
     ...fases.map((f) => `  - ${f}`),
@@ -161,6 +190,11 @@ export async function generateTemplate(
  * 11: Chapa (Sí/No)
  * 12: Cartera (Sí/No)
  * 13: Marca/Línea (optional)
+ *
+ * El parser NO cambia con B2B/B2C: sigue leyendo las 13 columnas por indice.
+ * En B2B las de precio llegan vacias porque estan ocultas en la plantilla, pero
+ * una plantilla vieja rellenada a mano se sigue importando con sus precios, y
+ * lo que ya esta guardado se conserva.
  */
 export async function parseTemplate(
   file: File,
@@ -197,6 +231,8 @@ export async function parseTemplate(
     const espacio = String(row.getCell(4).value ?? "").trim();
     const nombre = String(row.getCell(5).value ?? "").trim();
     const dias = Number(row.getCell(6).value);
+    // Celdas 7 y 8: ocultas en la plantilla B2B, NUNCA quitadas. Si alguien las
+    // borra de `generateTemplate`, estos indices dejan de apuntar donde creen.
     const valorInstalacionRaw = row.getCell(7).value;
     const precio = valorInstalacionRaw != null && String(valorInstalacionRaw).trim() !== "" ? Number(valorInstalacionRaw) : undefined;
     const valorLustroRaw = row.getCell(8).value;

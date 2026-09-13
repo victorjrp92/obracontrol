@@ -1,5 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import { isGeneralAdmin } from "@/lib/access";
 import { esCuentaPersonal, tonoPerfil } from "@/lib/plan";
 import { getProyectoForEdit } from "@/lib/data-edit";
@@ -59,7 +60,12 @@ export default async function EditarProyectoPage({
   return (
     <>
       <Topbar title="Editar proyecto" subtitle={editData.nombre} />
-      <WizardClient contratistas={contratistas} initialData={editData} tareasAprendidas={tareasAprendidas} />
+      <WizardClient
+      contratistas={contratistas}
+      initialData={editData}
+      tareasAprendidas={tareasAprendidas}
+      muestraEconomia={muestraEconomiaDeObra(usuario.constructora?.tipo_cuenta ?? "CONSTRUCTORA")}
+    />
     </>
   );
 }

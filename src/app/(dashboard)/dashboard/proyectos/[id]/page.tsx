@@ -3,6 +3,7 @@ import { getUsuarioActual } from "@/lib/data";
 import { getProyectoDetalle } from "@/lib/data-detail";
 import { getAccessibleProjectIds } from "@/lib/access";
 import { esCuentaPersonal, puede } from "@/lib/plan";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import { calcularProgreso } from "@/lib/scoring";
 import Topbar from "@/components/dashboard/Topbar";
 import Link from "next/link";
@@ -243,6 +244,18 @@ export default async function ProyectoDetallePage({
   // de empresa (torres/pisos/distribución): para ellas la obra es simple.
   const personal = esCuentaPersonal(tipoCuenta);
 
+  // Quien ve el dinero DE LA OBRA. Se pregunta a `@/lib/economia` y NO se
+  // reutiliza `personal`: hoy responden lo mismo, pero son dos preguntas
+  // distintas —«es cuenta personal» vs «ve dinero de obra»— y el dia que se
+  // separen, colgarse de la variable equivocada reenciende el modulo economico
+  // en B2B sin que nadie se entere.
+  const muestraEconomia = muestraEconomiaDeObra(tipoCuenta);
+
+  // Planos y renders (`puede(tipo, "productosTecnicos")`, src/lib/plan.ts).
+  // Se saca a variable porque el contenedor de accesos necesita saber si le
+  // queda algun hijo antes de pintarse.
+  const muestraTecnicos = puede(tipoCuenta, "productosTecnicos");
+
   const { id } = await params;
 
   const accessible = await getAccessibleProjectIds(
@@ -357,31 +370,44 @@ export default async function ProyectoDetallePage({
           Volver a proyectos
         </Link>
 
-        {/* Gastos y materiales — visible para todos los que ven la obra
-            (el dueño aprueba; el obrero/contratista registra). */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Link
-            href={`/dashboard/proyectos/${id}/gastos`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            <Wallet className="w-3.5 h-3.5" />
-            Gastos y materiales
-          </Link>
+        {/* Accesos del proyecto. El contenedor entero se condiciona a que le
+            quede algun hijo: es un flex con `mb-4` y, vacio, seguiria
+            empujando 16px de hueco sobre el resto de la pantalla. */}
+        {(muestraEconomia || muestraTecnicos) && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {/* Gastos y materiales — en B2C es lo que sostiene el producto:
+                el dueño aprueba y el obrero/contratista registra. En B2B
+                (constructora) NO se anuncia: Seiricon se especializa en
+                reporting de avance y el dinero de la obra sale de la interfaz.
+                Este Link es la UNICA puerta de entrada al modulo economico en
+                toda la app, asi que ocultarlo basta para apagarlo. OJO: no es
+                codigo muerto — la pantalla `/gastos`, su API y los datos siguen
+                vivos; se deja de ofrecer, no se borra. */}
+            {muestraEconomia && (
+              <Link
+                href={`/dashboard/proyectos/${id}/gastos`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-white border border-emerald-200 hover:border-emerald-300 hover:bg-emerald-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Wallet className="w-3.5 h-3.5" />
+                Gastos y materiales
+              </Link>
+            )}
 
-          {/* Planos y renders — solo ARQUITECTO y CONSTRUCTORA
-              (`puede(tipo, "productosTecnicos")`, src/lib/plan.ts). La ruta
-              ya valida el 403; esto es la mitad de "no ofrecer lo que no se
-              puede usar". */}
-          {puede(tipoCuenta, "productosTecnicos") && (
-            <Link
-              href={`/dashboard/proyectos/${id}/tecnicos`}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Planos y renders
-            </Link>
-          )}
-        </div>
+            {/* Planos y renders — solo ARQUITECTO y CONSTRUCTORA
+                (`puede(tipo, "productosTecnicos")`, src/lib/plan.ts). La ruta
+                ya valida el 403; esto es la mitad de "no ofrecer lo que no se
+                puede usar". */}
+            {muestraTecnicos && (
+              <Link
+                href={`/dashboard/proyectos/${id}/tecnicos`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Planos y renders
+              </Link>
+            )}
+          </div>
+        )}
 
         {/* Compartir avance con el cliente — solo cuentas personales
             (Contratista B2C / Propietario) y solo el dueño de la cuenta.

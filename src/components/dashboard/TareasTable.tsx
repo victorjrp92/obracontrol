@@ -25,6 +25,14 @@ interface TareaRow {
 
 interface TareasTableProps {
   tareas: TareaRow[];
+  /**
+   * Si se pinta el dinero de la obra (columna «Valor» y su chip en movil).
+   * Lo decide el TIPO DE CUENTA arriba, en el server component, y baja como
+   * prop: un componente cliente no debe averiguarlo por su cuenta. En B2B se
+   * apaga —Seiricon se queda con el reporting— y en B2C sigue encendido. Es
+   * apagado, no borrado: `precio` sigue llegando en cada fila.
+   */
+  muestraEconomia: boolean;
 }
 
 interface SubfaseGroup {
@@ -121,7 +129,7 @@ function groupBySubfase(tareas: TareaRow[]): SubfaseGroup[] {
   return groups;
 }
 
-export default function TareasTable({ tareas }: TareasTableProps) {
+export default function TareasTable({ tareas, muestraEconomia }: TareasTableProps) {
   const groups = groupByPhase(tareas);
 
   if (tareas.length === 0) {
@@ -148,9 +156,12 @@ export default function TareasTable({ tareas }: TareasTableProps) {
               <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
                 Dias est.
               </th>
-              <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
-                Valor
-              </th>
+              {/* Valor: oculto en B2B, vivo en B2C. No es codigo muerto. */}
+              {muestraEconomia && (
+                <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
+                  Valor
+                </th>
+              )}
               <th className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">
                 Plazo
               </th>
@@ -161,7 +172,11 @@ export default function TareasTable({ tareas }: TareasTableProps) {
           </thead>
           <tbody>
             {groups.map((group) => (
-              <PhaseGroup key={group.faseNombre} group={group} />
+              <PhaseGroup
+                key={group.faseNombre}
+                group={group}
+                muestraEconomia={muestraEconomia}
+              />
             ))}
           </tbody>
         </table>
@@ -193,7 +208,7 @@ export default function TareasTable({ tareas }: TareasTableProps) {
                       </div>
                     )}
                     {sg.tareas.map((t) => (
-                      <MobileCard key={t.id} tarea={t} />
+                      <MobileCard key={t.id} tarea={t} muestraEconomia={muestraEconomia} />
                     ))}
                   </div>
                 ))}
@@ -208,18 +223,25 @@ export default function TareasTable({ tareas }: TareasTableProps) {
 
 function PhaseGroup({
   group,
+  muestraEconomia,
 }: {
   group: { faseNombre: string; faseOrden: number; tareas: TareaRow[] };
+  muestraEconomia: boolean;
 }) {
   const subfaseGroups = groupBySubfase(group.tareas);
   const hasSubfases = subfaseGroups.some((sg) => sg.subfase !== null);
+
+  // Las filas de titulo (fase y subfase) ocupan el ancho completo. Al apagar
+  // «Valor» la tabla pasa de 6 a 5 columnas; con el colSpan fijo en 6 el
+  // encabezado sobresaldria y descuadraria la tabla.
+  const columnas = muestraEconomia ? 6 : 5;
 
   return (
     <>
       {/* Phase header row */}
       <tr>
         <td
-          colSpan={6}
+          colSpan={columnas}
           className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 border-b border-slate-100"
         >
           {group.faseNombre}{" "}
@@ -233,7 +255,7 @@ function PhaseGroup({
         <Fragment key={sg.subfase ?? "__none__"}>
           {hasSubfases && sg.subfase && (
             <tr>
-              <td colSpan={6} className="bg-slate-50/50 px-6 py-1.5 text-xs font-medium text-slate-600 border-b border-slate-50">
+              <td colSpan={columnas} className="bg-slate-50/50 px-6 py-1.5 text-xs font-medium text-slate-600 border-b border-slate-50">
                 {sg.subfase}
               </td>
             </tr>
@@ -264,11 +286,13 @@ function PhaseGroup({
                   {t.diasEstimados} Días
                 </span>
               </td>
-              <td className="px-4 py-2.5 text-right">
-                <span className="text-sm text-slate-600 tabular-nums">
-                  {t.precio != null && t.precio > 0 ? formatCOP(t.precio) : "—"}
-                </span>
-              </td>
+              {muestraEconomia && (
+                <td className="px-4 py-2.5 text-right">
+                  <span className="text-sm text-slate-600 tabular-nums">
+                    {t.precio != null && t.precio > 0 ? formatCOP(t.precio) : "—"}
+                  </span>
+                </td>
+              )}
               <td className="px-4 py-2.5 text-right">
                 <PlazoCell plazo={t.plazo} estado={t.estado} />
               </td>
@@ -283,7 +307,13 @@ function PhaseGroup({
   );
 }
 
-function MobileCard({ tarea: t }: { tarea: TareaRow }) {
+function MobileCard({
+  tarea: t,
+  muestraEconomia,
+}: {
+  tarea: TareaRow;
+  muestraEconomia: boolean;
+}) {
   return (
     <div className="bg-white rounded-xl border border-slate-100 p-3 mx-2 my-1.5">
       {t.numeroRegistro && (
@@ -302,7 +332,9 @@ function MobileCard({ tarea: t }: { tarea: TareaRow }) {
         <span className="text-slate-500">{t.contratista ?? "—"}</span>
         <span className="text-slate-400">·</span>
         <span className="text-slate-600 tabular-nums">{t.diasEstimados} Días est.</span>
-        {t.precio != null && t.precio > 0 && (
+        {/* El chip del precio se va con su separador: dejarlo pintaria un
+            «·» huerfano en la fila. Oculto en B2B, vivo en B2C. */}
+        {muestraEconomia && t.precio != null && t.precio > 0 && (
           <>
             <span className="text-slate-400">·</span>
             <span className="text-emerald-600 tabular-nums">{formatCOP(t.precio)}</span>

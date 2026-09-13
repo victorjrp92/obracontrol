@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, X, Loader2, Clock, Building2, User } from "lucide-react";
 
+// Solo se usa en el chip de precio, que hoy solo se pinta en B2C. Se queda:
+// el dia que el dinero de obra vuelva a B2B se enciende sin reescribir nada.
 function formatCOP(n: number | null | undefined): string {
   if (n == null) return "—";
   return new Intl.NumberFormat("es-CO", {
@@ -283,12 +285,20 @@ interface SugerenciasPanelProps {
   sugerencias: Sugerencia[];
   fasesMap: Record<string, Fase[]>; // keyed by proyecto_id
   initialTab: string;
+  /**
+   * Si esta cuenta ve el dinero de la obra. La calcula el server component que
+   * ya resolvio el usuario y baja por props. Obligatoria y sin valor por
+   * defecto: un defecto taparia precisamente la pantalla que se olvido de
+   * pasarla.
+   */
+  muestraEconomia: boolean;
 }
 
 export default function SugerenciasPanel({
   sugerencias,
   fasesMap,
   initialTab,
+  muestraEconomia,
 }: SugerenciasPanelProps) {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [aprobarTarget, setAprobarTarget] = useState<Sugerencia | null>(null);
@@ -394,7 +404,13 @@ export default function SugerenciasPanel({
                     <span className="text-slate-400">
                       {s.unidades.length} unidad{s.unidades.length !== 1 ? "es" : ""}
                     </span>
-                    {s.precio != null && (
+                    {/* Precio propuesto por el contratista — solo B2C. En B2B se
+                        oculta (el administrador ya no aprueba plata aqui), pero el
+                        dato sigue guardado y sigue llegando en `s.precio`: es
+                        render apagado, no campo borrado. El resto de la fila
+                        (proyecto, contratista, fecha, unidades) siempre se pinta,
+                        asi que el contenedor no queda vacio. */}
+                    {muestraEconomia && s.precio != null && (
                       <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">
                         💲 {formatCOP(s.precio)}
                       </span>

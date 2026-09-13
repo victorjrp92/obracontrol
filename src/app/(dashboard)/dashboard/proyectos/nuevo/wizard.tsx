@@ -11,7 +11,34 @@ import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
 import WizardStep3 from "./WizardStep3";
 
-export default function WizardClient({ contratistas, initialData, tareasAprendidas }: { contratistas: Contratista[]; initialData?: EditModeData; tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>> }) {
+// `muestraEconomia` decide si el asistente ENSEÑA el dinero de la obra (precios
+// por tarea). Se recibe como prop desde el server component que conoce el tipo
+// de cuenta -nunca se lee de contexto ni de cookies- para que se vea de un
+// vistazo quien toma la decision. Se oculta en B2B y sigue vivo en B2C.
+//
+// Es opcional por una razon concreta: este wizard lo montan dos paginas
+// (`nuevo/page.tsx` y `[id]/editar/page.tsx`) y ambas mandan a las cuentas
+// personales a otro flujo antes de llegar aqui, asi que el asistente de empresa
+// es B2B puro. Por eso el defecto es `false`: apagar es lo correcto donde no
+// llega B2C, y un defecto `true` dejaria los precios encendidos en la pagina
+// que todavia no pasa la prop.
+export default function WizardClient({
+  contratistas,
+  initialData,
+  tareasAprendidas,
+  muestraEconomia,
+}: {
+  contratistas: Contratista[];
+  initialData?: EditModeData;
+  tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
+  /**
+   * Si el asistente ensena el dinero de la obra. SIN DEFECTO a proposito: un
+   * defecto convierte "se me olvido pasarla" en un numero plausible y nadie lo
+   * nota. Sin el, cualquier pantalla nueva que monte el asistente no compila
+   * hasta decidir que hace con el dinero.
+   */
+  muestraEconomia: boolean;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -306,6 +333,7 @@ export default function WizardClient({ contratistas, initialData, tareasAprendid
           onBack={() => setStep(1)}
           tareasAprendidas={tareasAprendidas}
           tiposUnidad={tiposUnidad}
+          muestraEconomia={muestraEconomia}
         />
       )}
 

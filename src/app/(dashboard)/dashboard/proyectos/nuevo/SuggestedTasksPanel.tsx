@@ -18,6 +18,9 @@ interface SuggestedTasksPanelProps {
   onClose: () => void;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
   tipoUnidadId?: string;
+  // Obligatoria a proposito: sin defecto no hay forma de olvidarse de pasarla
+  // y dejar el precio sugerido a la vista de una constructora.
+  muestraEconomia: boolean;
 }
 
 export default function SuggestedTasksPanel({
@@ -28,6 +31,7 @@ export default function SuggestedTasksPanel({
   onClose,
   tareasAprendidas,
   tipoUnidadId,
+  muestraEconomia,
 }: SuggestedTasksPanelProps) {
   // Build grouped suggestions merging static templates + learned tasks
   const grouped = useMemo(() => {
@@ -206,7 +210,11 @@ export default function SuggestedTasksPanel({
                         <span className="text-[10px] font-medium text-violet-600 bg-violet-100 px-1.5 py-0.5 rounded flex-shrink-0">{t.subfase}</span>
                       )}
                       <span className="text-xs text-slate-700 flex-1">{t.nombre}</span>
-                      {t.precio != null && t.precio > 0 && (
+                      {/* Precio sugerido: se deja de ENSEÑAR en B2B, se sigue
+                          GUARDANDO (`precio: s.precio` en handleConfirm). Ese
+                          dato es el flywheel de la empresa; apagar el render no
+                          puede apagar la captura. En B2C se ve igual que antes. */}
+                      {muestraEconomia && t.precio != null && t.precio > 0 && (
                         <span className="text-[10px] text-emerald-600 flex-shrink-0">
                           {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(t.precio)}
                         </span>

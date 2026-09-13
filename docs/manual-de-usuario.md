@@ -398,6 +398,10 @@ PENDIENTE → [contratista/obrero reporta] → REPORTADA → [supervisor revisa]
 
 ## 12. Gastos y anticipos
 
+> ⚠️ **Solo cuentas personales** (Propietario, Contratista independiente, Arquitecto). Desde septiembre de 2026 las **constructoras no manejan dinero de obra en Seiricon**: el producto B2B se especializa en reporting —qué avanzó, quién lo hizo, cuándo, dónde, quién aprobó y quién rechazó— y todo lo económico quedó fuera de su interfaz. Si tu cuenta es de constructora, esta sección no aplica: no verás el acceso a Gastos, ni el precio de las tareas, ni los campos de precio al crear o editar una obra.
+>
+> Nada se borró: los datos que ya estaban cargados siguen guardados, y el día que el producto vuelva a ese terreno se encienden otra vez.
+
 > El módulo de control del dinero del proyecto. Accede desde **Proyecto → Gastos**.
 > Registran: Administrador General, Administrador de Proyecto y Directivo. Aprueban gastos: Administrador General, Directivo y Admin de Proyecto con permiso de aprobación.
 
@@ -701,6 +705,8 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 ### Reportes: ¿el equipo va más rápido o más lento?
 
 En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período en la lista desplegable **Período**: semana, quincena, mes, trimestre, semestre o año.
+
+- **Los días se cuentan HÁBILES, no de almanaque.** Una tarea de dos días que empieza el sábado y se entrega el lunes cumplió: el domingo no se trabajó. Se descuentan el descanso semanal que declaraste para la obra (los días hábiles por semana del Paso 1) y los **18 festivos colombianos**. Es la misma cuenta que usa el semáforo de la lista de Tareas, así que las dos pantallas dicen lo mismo sobre la misma tarea.
 
 - **Algunos períodos aparecen deshabilitados, con la nota «sin datos suficientes».** Es a propósito: un período solo se puede elegir si la obra da al menos tres puntos en él. Una obra de nueve meses no tiene un semestre anterior contra el cual compararse, y la gráfica saldría con dos puntos y una raya entre ellos, que parece rota y no dice nada. A medida que la obra avanza, los períodos largos se van habilitando solos.
 

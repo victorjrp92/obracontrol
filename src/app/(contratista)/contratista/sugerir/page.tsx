@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
 import { getContratistaProyectos } from "@/lib/data-contratista";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import SugerirTareaForm from "@/components/dashboard/SugerirTareaForm";
@@ -8,6 +9,11 @@ import SugerirTareaForm from "@/components/dashboard/SugerirTareaForm";
 export default async function SugerirPage() {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
+
+  // El dinero de la obra se decide aqui, donde ya esta resuelto el tipo de
+  // cuenta, y baja por props hasta el formulario. Nunca dentro del componente
+  // cliente: asi se lee de un vistazo quien lo decide.
+  const muestraEconomia = muestraEconomiaDeObra(usuario.constructora.tipo_cuenta);
 
   // Get projects where the contratista has tasks
   const proyectosBase = await getContratistaProyectos(usuario.id);
@@ -55,7 +61,7 @@ export default async function SugerirPage() {
           <p className="text-sm text-slate-500 mb-5">
             Si identificas trabajo adicional que no está en tu lista de tareas, puedes sugerirlo aquí. El equipo lo revisará y lo aprobará o rechazará.
           </p>
-          <SugerirTareaForm proyectos={proyectos} />
+          <SugerirTareaForm proyectos={proyectos} muestraEconomia={muestraEconomia} />
         </div>
       </main>
     </>

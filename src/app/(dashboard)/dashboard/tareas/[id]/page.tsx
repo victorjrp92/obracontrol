@@ -3,6 +3,7 @@ import { firmarEvidencias } from "@/lib/storage";
 import { getUsuarioActual } from "@/lib/data";
 import { getTareaDetalle } from "@/lib/data-detail";
 import { getAccessibleProjectIds, canManageTaskPrice } from "@/lib/access";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import Topbar from "@/components/dashboard/Topbar";
 import ReportarButton from "@/components/dashboard/ReportarButton";
 import AprobarButtons from "@/components/dashboard/AprobarButtons";
@@ -68,6 +69,10 @@ export default async function TareaDetallePage({
 
   const puedeReportar = tarea.estado === "PENDIENTE" || tarea.estado === "NO_APROBADA";
   const puedeAprobar = tarea.estado === "REPORTADA";
+
+  // Antes que el permiso: si esta cuenta ve el dinero de la obra. Se decide por
+  // TIPO DE CUENTA, no por rol — en B2B no hay rol que lo encienda.
+  const muestraEconomia = muestraEconomiaDeObra(usuario.constructora.tipo_cuenta);
 
   // Permisos de precio: solo Admin/Directivo y el contratista asignado pueden editarlo.
   // Obrero no llega a este page (vive en otro layout).
@@ -167,12 +172,17 @@ export default async function TareaDetallePage({
               )}
             </div>
 
-            {/* Precio de la tarea */}
-            <PrecioEditor
-              tareaId={tarea.id}
-              precioInicial={tarea.precio ?? null}
-              canEdit={puedeEditarPrecio}
-            />
+            {/* Precio de la tarea: oculto en B2B, vivo en B2C. `puedeEditarPrecio`
+                solo gobierna el boton de editar, no si el precio se VE — por eso
+                el filtro va aqui fuera y no dentro del editor, que sigue siendo
+                el componente que usa B2C tal cual. */}
+            {muestraEconomia && (
+              <PrecioEditor
+                tareaId={tarea.id}
+                precioInicial={tarea.precio ?? null}
+                canEdit={puedeEditarPrecio}
+              />
+            )}
 
             {/* Foto de referencia */}
             {tarea.fotoReferenciaSignedUrl && (

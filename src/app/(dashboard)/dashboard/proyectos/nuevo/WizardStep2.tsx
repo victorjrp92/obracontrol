@@ -36,6 +36,9 @@ interface WizardStep2Props {
   onBack: () => void;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
   tiposUnidad?: TipoUnidadInput[];
+  // Obligatoria a proposito: si fuera opcional, olvidarse de pasarla desde una
+  // pantalla nueva dejaria los precios encendidos sin que nadie se entere.
+  muestraEconomia: boolean;
 }
 
 export default function WizardStep2({
@@ -51,6 +54,7 @@ export default function WizardStep2({
   onBack,
   tareasAprendidas,
   tiposUnidad,
+  muestraEconomia,
 }: WizardStep2Props) {
   // Collapsed state per fase
   const [collapsedFases, setCollapsedFases] = useState<Record<string, boolean>>({});
@@ -221,7 +225,10 @@ export default function WizardStep2({
 
   async function handleExcelDownload() {
     const tipoNames = tiposUnidad?.map((t) => t.nombre);
-    await generateTemplate(fasesSeleccionadas, allEspacios, tipoNames);
+    // En B2B la plantilla sale con las dos columnas de precio OCULTAS, no
+    // borradas: el parser lee por indice de celda y correrlas romperia las
+    // plantillas que los clientes ya tienen descargadas.
+    await generateTemplate(fasesSeleccionadas, allEspacios, tipoNames, muestraEconomia);
   }
 
   async function handleExcelUpload(file: File) {
@@ -450,6 +457,7 @@ export default function WizardStep2({
                     onClose={() => setSuggestionsOpenFase(null)}
                     tareasAprendidas={tareasAprendidas}
                     tipoUnidadId={selectedTipoId}
+                    muestraEconomia={muestraEconomia}
                   />
                 )}
 
@@ -506,18 +514,24 @@ export default function WizardStep2({
                           className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
                         />
                       </div>
-                      <div>
-                        <label className="text-xs text-slate-500 mb-1 block">Precio (COP, opcional)</label>
-                        <input
-                          type="number"
-                          step="1000"
-                          min="0"
-                          value={newTaskPrecio ?? ""}
-                          onChange={(e) => setNewTaskPrecio(e.target.value ? Number(e.target.value) : undefined)}
-                          placeholder="Ej: 250000"
-                          className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
-                        />
-                      </div>
+                      {/* Precio de la tarea: oculto en B2B, vivo en B2C. El
+                          estado `newTaskPrecio` se sigue mandando en la tarea
+                          (queda undefined si nadie lo escribe) y la API lo
+                          sigue aceptando igual. */}
+                      {muestraEconomia && (
+                        <div>
+                          <label className="text-xs text-slate-500 mb-1 block">Precio (COP, opcional)</label>
+                          <input
+                            type="number"
+                            step="1000"
+                            min="0"
+                            value={newTaskPrecio ?? ""}
+                            onChange={(e) => setNewTaskPrecio(e.target.value ? Number(e.target.value) : undefined)}
+                            placeholder="Ej: 250000"
+                            className="w-full px-2.5 py-2 rounded-lg border border-slate-200 text-sm"
+                          />
+                        </div>
+                      )}
                     </div>
                     {/* Component checkboxes for Madera */}
                     {isMadera && (
@@ -564,7 +578,8 @@ export default function WizardStep2({
                         {!isMadera && <input value={editSubfase} onChange={(e) => setEditSubfase(e.target.value)} placeholder="Subfase" className="text-[10px] w-20 px-1 py-1 rounded border border-blue-300 bg-white flex-shrink-0" />}
                         <input value={editNombre} onChange={(e) => setEditNombre(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveEdit(t.id); } if (e.key === "Escape") setEditingId(null); }} className="text-xs flex-1 px-2 py-1 rounded border border-blue-300 bg-white" autoFocus />
                         <input type="number" min="1" value={editDias} onChange={(e) => setEditDias(Number(e.target.value) || 1)} className="w-12 text-xs text-center px-1 py-1 rounded border border-blue-300 bg-white flex-shrink-0" />
-                        <input type="number" min="0" value={editPrecio ?? ""} onChange={(e) => setEditPrecio(e.target.value ? Number(e.target.value) : undefined)} placeholder="COP" className="w-20 text-xs text-right px-1 py-1 rounded border border-blue-300 bg-white flex-shrink-0" />
+                        {/* Precio en edicion inline: oculto en B2B, vivo en B2C. `saveEdit` sigue escribiendo `precio` con lo que ya traia la tarea. */}
+                        {muestraEconomia && <input type="number" min="0" value={editPrecio ?? ""} onChange={(e) => setEditPrecio(e.target.value ? Number(e.target.value) : undefined)} placeholder="COP" className="w-20 text-xs text-right px-1 py-1 rounded border border-blue-300 bg-white flex-shrink-0" />}
                         <button onClick={() => saveEdit(t.id)} className="p-1 text-green-600 hover:bg-green-50 rounded cursor-pointer"><Check className="w-3.5 h-3.5" /></button>
                         <button onClick={() => setEditingId(null)} className="p-1 text-slate-400 hover:bg-slate-100 rounded cursor-pointer"><X className="w-3.5 h-3.5" /></button>
                       </div>
@@ -585,7 +600,8 @@ export default function WizardStep2({
                           </div>
                         )}
                         <span className="text-[10px] text-slate-500 flex-shrink-0">{t.tiempo_acordado_dias}d</span>
-                        <input type="number" min="0" value={t.precio ?? ""} onChange={(e) => updatePrecio(t.id, e.target.value ? Number(e.target.value) : undefined)} placeholder="COP" className="w-20 text-xs text-right px-1.5 py-1 rounded border border-slate-200 bg-white flex-shrink-0 focus:outline-none focus:ring-1 focus:ring-blue-500/30" />
+                        {/* Precio en la fila de la tabla: oculto en B2B, vivo en B2C. `updatePrecio` sigue existiendo y el valor ya guardado se conserva. */}
+                        {muestraEconomia && <input type="number" min="0" value={t.precio ?? ""} onChange={(e) => updatePrecio(t.id, e.target.value ? Number(e.target.value) : undefined)} placeholder="COP" className="w-20 text-xs text-right px-1.5 py-1 rounded border border-slate-200 bg-white flex-shrink-0 focus:outline-none focus:ring-1 focus:ring-blue-500/30" />}
                         <button onClick={() => startEdit(t)} className="p-0.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded cursor-pointer"><Pencil className="w-3 h-3" /></button>
                         <button onClick={() => removeTarea(t.id)} className="p-0.5 text-red-500 hover:bg-red-50 rounded cursor-pointer"><Trash2 className="w-3 h-3" /></button>
                       </div>
@@ -645,14 +661,19 @@ export default function WizardStep2({
                                     className="w-12 text-xs text-center px-1 py-1 rounded border border-slate-200 bg-white flex-shrink-0 disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
                                   />
                                   <span className="text-[10px] text-slate-400 flex-shrink-0">d</span>
-                                  <input
-                                    type="number" min="0"
-                                    value={t.lustro_precio ?? ""}
-                                    onChange={(e) => updateLustroPrecio(t.id, e.target.value ? Number(e.target.value) : undefined)}
-                                    disabled={excluded}
-                                    placeholder="COP"
-                                    className="w-20 text-xs text-right px-1.5 py-1 rounded border border-slate-200 bg-white flex-shrink-0 disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
-                                  />
+                                  {/* Precio del «Detallado y lustro» (`lustro_precio`):
+                                      oculto en B2B, vivo en B2C. Los dias de lustro
+                                      siguen visibles —eso es cronograma, no dinero—. */}
+                                  {muestraEconomia && (
+                                    <input
+                                      type="number" min="0"
+                                      value={t.lustro_precio ?? ""}
+                                      onChange={(e) => updateLustroPrecio(t.id, e.target.value ? Number(e.target.value) : undefined)}
+                                      disabled={excluded}
+                                      placeholder="COP"
+                                      className="w-20 text-xs text-right px-1.5 py-1 rounded border border-slate-200 bg-white flex-shrink-0 disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-amber-500/30"
+                                    />
+                                  )}
                                   <button
                                     onClick={() => toggleLustroExcluido(t.id)}
                                     title={excluded ? "Incluir en lustro" : "Excluir de lustro"}

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTareasFiltradas, getUsuarioActual, getProyectosActivos } from "@/lib/data";
 import { getAccessibleProjectIds } from "@/lib/access";
+import { muestraEconomiaDeObra } from "@/lib/economia";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import TareasTable from "@/components/dashboard/TareasTable";
@@ -23,6 +24,11 @@ export default async function TareasPage({
 }) {
   const usuario = await getUsuarioActual();
   if (!usuario?.constructora_id) redirect("/login");
+
+  // Quien ve el dinero de la obra se decide aqui, en el unico sitio que ya
+  // conoce al usuario, y baja como prop a la tabla. `getUsuarioActual()` ya
+  // trae la constructora entera, asi que no hace falta tocar la consulta.
+  const muestraEconomia = muestraEconomiaDeObra(usuario.constructora.tipo_cuenta);
 
   const { estado, proyecto, fase } = await searchParams;
   const activeFilter = estado ?? "REPORTADA";
@@ -129,6 +135,7 @@ export default async function TareasPage({
               faseNombre: t.faseNombre,
               faseOrden: t.faseOrden,
             }))}
+            muestraEconomia={muestraEconomia}
           />
         </div>
       </main>

@@ -23,9 +23,16 @@ interface Proyecto {
 
 interface SugerirTareaFormProps {
   proyectos: Proyecto[];
+  /**
+   * Si esta cuenta ve el dinero de la obra. Llega del server component que ya
+   * resolvio el usuario. Obligatoria a proposito y sin valor por defecto: un
+   * defecto silencia justo el caso que importa, la pantalla que se olvido de
+   * pasarla.
+   */
+  muestraEconomia: boolean;
 }
 
-export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
+export default function SugerirTareaForm({ proyectos, muestraEconomia }: SugerirTareaFormProps) {
   const [proyectoId, setProyectoId] = useState("");
   const [edificioId, setEdificioId] = useState("");
   const [unidadesSeleccionadas, setUnidadesSeleccionadas] = useState<string[]>([]);
@@ -116,6 +123,9 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
           nombre,
           descripcion: descripcion || undefined,
           foto_url: foto_url ?? undefined,
+          // En B2B el campo no se pinta, asi que `precio` se queda vacio y
+          // viaja como null. El envio no se toca: en B2C sigue mandando lo que
+          // el contratista escribio, y la ruta acepta lo mismo de siempre.
           precio: precio.trim() === "" ? null : Number(precio),
         }),
       });
@@ -284,24 +294,30 @@ export default function SugerirTareaForm({ proyectos }: SugerirTareaFormProps) {
           />
         </div>
 
-        {/* Precio sugerido */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Precio sugerido (COP) <span className="text-slate-400 font-normal">(opcional)</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1000"
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value)}
-            placeholder="Ej: 250000"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-          />
-          <p className="text-[11px] text-slate-400 mt-1">
-            Si lo dejas vacío, el administrador asignará el precio al aprobar.
-          </p>
-        </div>
+        {/* Precio sugerido — solo B2C. Se oculta en B2B, no se borra: la
+            constructora ya no negocia precios dentro de Seiricon, y el texto de
+            ayuda prometia un "el administrador asignara el precio al aprobar"
+            que dejo de pasar. Se oculta el bloque entero (campo + ayuda) para
+            no dejar el hueco del `gap-5` del form. */}
+        {muestraEconomia && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Precio sugerido (COP) <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value)}
+              placeholder="Ej: 250000"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Si lo dejas vacío, el administrador asignará el precio al aprobar.
+            </p>
+          </div>
+        )}
 
         {/* Photo */}
         <div>
