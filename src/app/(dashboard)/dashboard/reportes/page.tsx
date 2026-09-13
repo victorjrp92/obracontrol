@@ -28,9 +28,9 @@ export default async function ReportesPage({
   // serviria el reporte de otra constructora.
   const { proyecto: pedido } = await searchParams;
   const elegida = proyectos.find((p) => p.id === pedido) ?? proyectos[0];
-  const tareasVelocidad = elegida
+  const velocidad = elegida
     ? await getTareasVelocidad(elegida.id, usuario.constructora_id)
-    : [];
+    : null;
 
   return (
     <>
@@ -44,7 +44,12 @@ export default async function ReportesPage({
                 activo={elegida.id}
               />
             </div>
-            <ReporteVelocidad tareas={tareasVelocidad} />
+            {velocidad && (
+              <ReporteVelocidad
+                tareas={velocidad.tareas}
+                diasHabilesSemana={velocidad.diasHabilesSemana}
+              />
+            )}
           </>
         )}
 

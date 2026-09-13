@@ -40,10 +40,18 @@ interface Cruda extends Omit<TareaVelocidad, "fecha_inicio" | "fecha_fin_real"> 
 
 export default function ReporteVelocidad({
   tareas,
+  diasHabilesSemana,
   meta = 80,
 }: {
   /** Fechas en ISO: un server component no puede pasar `Date` sin serializar. */
   tareas: Cruda[];
+  /**
+   * Jornada de la obra (`Proyecto.dias_habiles_semana`). OBLIGATORIA a
+   * proposito: con un valor por defecto, una pantalla que se olvidara de
+   * pasarla mediria con la jornada de otra obra y nadie lo notaria — el numero
+   * sale igual de plausible.
+   */
+  diasHabilesSemana: number;
   meta?: number;
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
@@ -77,17 +85,19 @@ export default function ReporteVelocidad({
     return validos.length > 0 ? validos[validos.length - 1].clave : periodo;
   }, [disponibles, periodo]);
 
-  const serie = useMemo(() => serieVelocidad(datos, periodoEfectivo), [datos, periodoEfectivo]);
+  const serie = useMemo(
+    () => serieVelocidad(datos, periodoEfectivo, diasHabilesSemana),
+    [datos, periodoEfectivo, diasHabilesSemana],
+  );
 
   // Las cuatro matrices se calculan de una: cambiar de dimension es instantaneo
   // y son recorridos baratos sobre la misma lista.
   const porDimension = useMemo(() => {
     const dims: Dimension[] = ["torre", "piso", "tipologia", "responsable"];
-    return Object.fromEntries(dims.map((d) => [d, matrizCiclo(datos, d)])) as Record<
-      Dimension,
-      ReturnType<typeof matrizCiclo>
-    >;
-  }, [datos]);
+    return Object.fromEntries(
+      dims.map((d) => [d, matrizCiclo(datos, d, diasHabilesSemana)]),
+    ) as Record<Dimension, ReturnType<typeof matrizCiclo>>;
+  }, [datos, diasHabilesSemana]);
 
   const ultimo = serie.length >= MINIMO_PUNTOS ? serie[serie.length - 1] : null;
   const previo = serie.length >= MINIMO_PUNTOS + 1 ? serie[serie.length - 2] : null;

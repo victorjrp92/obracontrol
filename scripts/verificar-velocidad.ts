@@ -39,6 +39,18 @@ function verificar(d: string, c: boolean) {
 }
 
 const DIA = 86_400_000;
+
+/**
+ * Semana de SIETE dias para los casos que no van del calendario.
+ *
+ * La mayoria de esta suite afirma cosas sobre las METRICAS -que el porcentaje
+ * y los dias de mas son independientes, que el ciclo va del primer inicio al
+ * ultimo fin- que son ciertas con cualquier calendario. Medirlas con la
+ * jornada real de obra meteria domingos y festivos en el resultado y el caso
+ * dejaria de probar lo que dice probar. El calendario tiene sus propios casos
+ * mas abajo, con la jornada de verdad.
+ */
+const SEMANA_7 = 7;
 const d = (iso: string) => new Date(`${iso}T12:00:00.000Z`);
 
 /** Una tarea con lo justo; el resto se completa con valores neutros. */
@@ -73,8 +85,8 @@ console.log("1. Las dos metricas son INDEPENDIENTES (la razon de que sean dos)")
     ...Array(5).fill(0).map(() => t({ plan: 2, real: 2, fin: "2026-03-10" })),
     ...Array(5).fill(0).map(() => t({ plan: 2, real: 6, fin: "2026-03-10" })),
   ];
-  const a = serieVelocidad(roce, "mes")[0];
-  const b = serieVelocidad(desastre, "mes")[0];
+  const a = serieVelocidad(roce, "mes", SEMANA_7)[0];
+  const b = serieVelocidad(desastre, "mes", SEMANA_7)[0];
 
   verificar(`ambas dan 50% a tiempo (${a.pctATiempo}% y ${b.pctATiempo}%)`,
     a.pctATiempo === 50 && b.pctATiempo === 50);
@@ -88,7 +100,7 @@ console.log("1. Las dos metricas son INDEPENDIENTES (la razon de que sean dos)")
     ...Array(9).fill(0).map(() => t({ plan: 2, real: 2, fin: "2026-03-10" })),
     t({ plan: 2, real: 12, fin: "2026-03-10" }),
   ];
-  const e = serieVelocidad(escondido, "mes")[0];
+  const e = serieVelocidad(escondido, "mes", SEMANA_7)[0];
   verificar(`90% a tiempo con +${e.diasDeMas.toFixed(1)} dias: el promedio delata lo que el % esconde`,
     e.pctATiempo === 90 && Math.abs(e.diasDeMas - 1) < 1e-9);
 }
@@ -96,14 +108,14 @@ console.log("1. Las dos metricas son INDEPENDIENTES (la razon de que sean dos)")
 // ---------------------------------------------------------------------------
 console.log("\n2. Que cuenta como 'a tiempo'");
 {
-  const justo = serieVelocidad([t({ plan: 2, real: 2, fin: "2026-03-10" })], "mes")[0];
+  const justo = serieVelocidad([t({ plan: 2, real: 2, fin: "2026-03-10" })], "mes", SEMANA_7)[0];
   verificar(`terminar exacto en el plazo cuenta a tiempo`, justo.pctATiempo === 100);
 
-  const antes = serieVelocidad([t({ plan: 3, real: 1, fin: "2026-03-10" })], "mes")[0];
+  const antes = serieVelocidad([t({ plan: 3, real: 1, fin: "2026-03-10" })], "mes", SEMANA_7)[0];
   verificar(`terminar antes cuenta a tiempo y da dias NEGATIVOS (${antes.diasDeMas})`,
     antes.pctATiempo === 100 && antes.diasDeMas === -2);
 
-  const tarde = serieVelocidad([t({ plan: 2, real: 2.5, fin: "2026-03-10" })], "mes")[0];
+  const tarde = serieVelocidad([t({ plan: 2, real: 2.5, fin: "2026-03-10" })], "mes", SEMANA_7)[0];
   verificar(`CONTROL: medio dia de mas SI cuenta como incumplida`, tarde.pctATiempo === 0);
 
   // La tolerancia existe para que un plazo cumplido no se vuelva incumplido
@@ -115,11 +127,11 @@ console.log("\n2. Que cuenta como 'a tiempo'");
     fecha_inicio: new Date(fin.getTime() - 2 * DIA - 1),
   };
   verificar(`una tarea que cierra un milisegundo tarde sigue contando a tiempo`,
-    serieVelocidad([unMs], "mes")[0].pctATiempo === 100);
+    serieVelocidad([unMs], "mes", SEMANA_7)[0].pctATiempo === 100);
   verificar(`CONTROL: con comparacion estricta esa misma tarea seria incumplida`,
-    diasReales(unMs) > 2);
+    diasReales(unMs, SEMANA_7) > 2);
 
-  const piso = diasReales(t({ plan: 1, real: 0.1, fin: "2026-03-10" }));
+  const piso = diasReales(t({ plan: 1, real: 0.1, fin: "2026-03-10" }), SEMANA_7);
   verificar(`una tarea instantanea se cuenta como medio dia, no como cero (${piso})`, piso === 0.5);
 }
 
@@ -140,8 +152,7 @@ console.log("\n3. Que tareas entran y cuales no");
 
   const mezcla = serieVelocidad(
     [base, { ...base, estado: "PENDIENTE" }, { ...base, fecha_inicio: null }],
-    "mes",
-  );
+    "mes", SEMANA_7,);
   verificar(`la serie ignora las no medibles y no las cuenta`, mezcla[0].cerradas === 1);
 }
 
@@ -154,26 +165,25 @@ console.log("\n4. Agrupacion por periodo");
     t({ plan: 2, real: 2, fin: "2026-02-10" }),
     t({ plan: 2, real: 2, fin: "2026-04-10" }),
   ];
-  verificar(`por mes: 3 cubos (ene, feb, abr)`, serieVelocidad(tareas, "mes").length === 3);
-  verificar(`por trimestre: 2 cubos (T1, T2)`, serieVelocidad(tareas, "tri").length === 2);
+  verificar(`por mes: 3 cubos (ene, feb, abr)`, serieVelocidad(tareas, "mes", SEMANA_7).length === 3);
+  verificar(`por trimestre: 2 cubos (T1, T2)`, serieVelocidad(tareas, "tri", SEMANA_7).length === 2);
   verificar(`por quincena: 4 cubos (dos de enero son quincenas distintas)`,
-    serieVelocidad(tareas, "qui").length === 4);
+    serieVelocidad(tareas, "qui", SEMANA_7).length === 4);
 
-  const et = serieVelocidad(tareas, "mes").map((p) => p.etiqueta);
+  const et = serieVelocidad(tareas, "mes", SEMANA_7).map((p) => p.etiqueta);
   verificar(`las etiquetas de mes salen en orden (${et.join(", ")})`, String(et) === "ene,feb,abr");
 
   // Semana: dos fechas de la misma semana ISO caen en el mismo cubo aunque
   // sean de meses distintos.
   const cruzando = [t({ plan: 1, real: 1, fin: "2026-04-30" }), t({ plan: 1, real: 1, fin: "2026-05-01" })];
   verificar(`por semana: jueves y viernes de la misma semana van al mismo cubo`,
-    serieVelocidad(cruzando, "sem").length === 1);
+    serieVelocidad(cruzando, "sem", SEMANA_7).length === 1);
   verificar(`CONTROL: por mes esas mismas dos caen en cubos distintos`,
-    serieVelocidad(cruzando, "mes").length === 2);
+    serieVelocidad(cruzando, "mes", SEMANA_7).length === 2);
 
   const orden = serieVelocidad(
     [t({ plan: 1, real: 1, fin: "2026-12-10" }), t({ plan: 1, real: 1, fin: "2026-02-10" })],
-    "mes",
-  ).map((p) => p.etiqueta);
+    "mes", SEMANA_7,).map((p) => p.etiqueta);
   verificar(`la serie sale ordenada en el tiempo aunque la entrada no lo este (${orden.join(",")})`,
     String(orden) === "feb,dic");
 }
@@ -201,7 +211,7 @@ console.log("\n5. Matriz de ciclo");
   // Torre 2, apto A: del 1 al 31 -> 30 dias.
   add("Torre 2", "t2a", "Mamposteria", 1, "2026-01-01", "2026-01-31");
 
-  const m = matrizCiclo(obra, "torre");
+  const m = matrizCiclo(obra, "torre", SEMANA_7);
   verificar(`la matriz tiene 1 fase y 2 columnas`, m.fases.length === 1 && m.columnas.length === 2);
   const c1 = m.celdas.get("Mamposteria")!.get("Torre 1")!;
   const c2 = m.celdas.get("Mamposteria")!.get("Torre 2")!;
@@ -219,7 +229,7 @@ console.log("\n5. Matriz de ciclo");
     fase: "Mamposteria", faseOrden: 1, unidadId: "t2b",
     torre: "Torre 2", piso: "Piso 1", tipologia: "Tipo A", responsable: "Ana",
   });
-  const m2 = matrizCiclo(conPendiente, "torre");
+  const m2 = matrizCiclo(conPendiente, "torre", SEMANA_7);
   verificar(`CONTROL: un apartamento con la fase a medias no entra al promedio`,
     m2.celdas.get("Mamposteria")!.get("Torre 2")!.unidades === 1);
 
@@ -244,7 +254,7 @@ console.log("\n6. La matriz cambia de dimension sin cambiar los datos");
     },
   ];
   for (const dim of ["torre", "piso", "tipologia", "responsable"] as const) {
-    const m = matrizCiclo(obra, dim);
+    const m = matrizCiclo(obra, dim, SEMANA_7);
     verificar(`por ${dim}: 2 columnas y ambas con dato`,
       m.columnas.length === 2 && m.fases.length === 1 &&
       [...m.celdas.get("Pintura")!.values()].every((c) => c.dias !== null));
@@ -254,23 +264,22 @@ console.log("\n6. La matriz cambia de dimension sin cambiar los datos");
 // ---------------------------------------------------------------------------
 console.log("\n7. Bordes");
 {
-  verificar(`sin tareas: serie vacia`, serieVelocidad([], "mes").length === 0);
-  const vacia = matrizCiclo([], "torre");
+  verificar(`sin tareas: serie vacia`, serieVelocidad([], "mes", SEMANA_7).length === 0);
+  const vacia = matrizCiclo([], "torre", SEMANA_7);
   verificar(`sin tareas: matriz vacia y sin NaN en min/max`,
     vacia.fases.length === 0 && vacia.columnas.length === 0 &&
     vacia.minDias === 0 && vacia.maxDias === 0);
 
   const sinDim = matrizCiclo(
     [{ ...t({ plan: 2, real: 2, fin: "2026-03-10" }), torre: "" }],
-    "torre",
-  );
+    "torre", SEMANA_7,);
   verificar(`una tarea sin valor en la dimension se ignora`, sinDim.columnas.length === 0);
 
   // Muchas columnas: la matriz se corta antes de volverse ilegible.
   const muchas = Array.from({ length: 20 }, (_, i) =>
     t({ plan: 2, real: 2, fin: "2026-03-10", torre: `Torre ${i + 1}`, unidadId: `u${i}` }));
   verificar(`con 20 columnas se recorta a ${MAX_COLUMNAS}`,
-    matrizCiclo(muchas, "torre").columnas.length === MAX_COLUMNAS);
+    matrizCiclo(muchas, "torre", SEMANA_7).columnas.length === MAX_COLUMNAS);
 
   // Orden natural: Torre 10 va despues de Torre 2, no antes.
   const orden = matrizCiclo(
@@ -278,8 +287,7 @@ console.log("\n7. Bordes");
       t({ plan: 2, real: 2, fin: "2026-03-10", torre: "Torre 10", unidadId: "a" }),
       t({ plan: 2, real: 2, fin: "2026-03-10", torre: "Torre 2", unidadId: "b" }),
     ],
-    "torre",
-  ).columnas;
+    "torre", SEMANA_7,).columnas;
   verificar(`las columnas ordenan por numero, no alfabeticamente (${orden.join(", ")})`,
     String(orden) === "Torre 2,Torre 10");
 }
@@ -303,17 +311,17 @@ console.log("\n7. Bordes");
   ].map((fin, i) => t({ plan: 2, real: 2, fin, unidadId: `u${i}` }));
 
   verificar("el semestre agrupa en dos cubos (ene-jun, jul-sep)",
-    serieVelocidad(nueveMeses, "sms").length === 2);
+    serieVelocidad(nueveMeses, "sms", SEMANA_7).length === 2);
   verificar("el ano agrupa los nueve meses en un solo cubo",
-    serieVelocidad(nueveMeses, "ano").length === 1);
+    serieVelocidad(nueveMeses, "ano", SEMANA_7).length === 1);
   verificar("el trimestre da tres cubos",
-    serieVelocidad(nueveMeses, "tri").length === 3);
+    serieVelocidad(nueveMeses, "tri", SEMANA_7).length === 3);
 
-  const etqSms = serieVelocidad(nueveMeses, "sms").map((p) => p.etiqueta);
+  const etqSms = serieVelocidad(nueveMeses, "sms", SEMANA_7).map((p) => p.etiqueta);
   verificar(`el semestre se etiqueta S1/S2 (${etqSms.join(", ")})`,
     String(etqSms) === "S1,S2");
-  verificar(`el ano se etiqueta con el numero del ano (${serieVelocidad(nueveMeses, "ano")[0].etiqueta})`,
-    serieVelocidad(nueveMeses, "ano")[0].etiqueta === "2026");
+  verificar(`el ano se etiqueta con el numero del ano (${serieVelocidad(nueveMeses, "ano", SEMANA_7)[0].etiqueta})`,
+    serieVelocidad(nueveMeses, "ano", SEMANA_7)[0].etiqueta === "2026");
 
   // Dos semestres distintos NO pueden caer en el mismo cubo aunque compartan
   // el numero de mes: el `orden` tiene que incluir el ano.
@@ -322,7 +330,7 @@ console.log("\n7. Bordes");
     t({ plan: 2, real: 2, fin: "2027-08-15", unidadId: "b" }),
   ];
   verificar("dos agostos de anos distintos son dos semestres, no uno",
-    serieVelocidad(cruzaAno, "sms").length === 2);
+    serieVelocidad(cruzaAno, "sms", SEMANA_7).length === 2);
 
   const disp = periodosDisponibles(nueveMeses);
   verificar("con nueve meses se habilitan semana, quincena, mes y trimestre",
@@ -365,11 +373,72 @@ console.log("\n7. Bordes");
   // Cada periodo declarado tiene que saber agrupar: un `cubo()` sin su rama
   // devolveria el cubo de semana y nadie lo notaria en la interfaz.
   const todosAgrupan = PERIODOS.every((p) => {
-    const n = serieVelocidad(nueveMeses, p.clave as Periodo).length;
+    const n = serieVelocidad(nueveMeses, p.clave as Periodo, SEMANA_7).length;
     return n > 0 && n <= nueveMeses.length;
   });
   verificar("los seis periodos de PERIODOS agrupan sin caer al de semana",
-    todosAgrupan && serieVelocidad(nueveMeses, "ano").length === 1);
+    todosAgrupan && serieVelocidad(nueveMeses, "ano", SEMANA_7).length === 1);
+}
+
+// ---------------------------------------------------------------------------
+// El CALENDARIO: dias habiles, no dias de almanaque
+//
+// Este bloque es el unico que usa la jornada de verdad. Existe porque hasta
+// ahora el modulo media en dias calendario mientras `scoring.ts` medía el
+// MISMO campo (`tiempo_acordado_dias`) en dias habiles: el semaforo de la
+// lista de Tareas y esta grafica le daban al mismo usuario dos verdades
+// distintas sobre la misma tarea.
+// ---------------------------------------------------------------------------
+{
+  console.log("\nCalendario: dias habiles");
+
+  /** Tarea con inicio y fin explicitos, para poder colocarla en el calendario. */
+  const entre = (inicio: string, fin: string, plan: number): TareaVelocidad => ({
+    ...t({ plan, real: 1, fin }),
+    fecha_inicio: d(inicio),
+    fecha_fin_real: d(fin),
+  });
+
+  // El 8 de marzo de 2026 es domingo. Cuatro dias de almanaque, tres de obra.
+  const conDomingo = diasReales(entre("2026-03-06", "2026-03-10", 3), 6);
+  verificar(`cruzar un domingo: 4 dias de almanaque cuentan ${conDomingo} habiles`,
+    conDomingo === 3);
+
+  // CONTROL POSITIVO: la MISMA duracion de almanaque, sin domingo en medio,
+  // tiene que seguir contando cuatro. Sin esto, un bug que restara siempre un
+  // dia pasaria por bueno.
+  const sinDomingo = diasReales(entre("2026-03-09", "2026-03-13", 3), 6);
+  verificar(`control: lunes a viernes, sin domingo, cuenta ${sinDomingo} (los 4)`,
+    sinDomingo === 4);
+
+  // Los festivos pesan igual que el domingo: el 1 de enero no se trabaja.
+  const conFestivo = diasReales(entre("2025-12-30", "2026-01-03", 3), 6);
+  verificar(`cruzar el 1 de enero: 4 de almanaque cuentan ${conFestivo} habiles`,
+    conFestivo === 3);
+
+  // La jornada de la OBRA cambia el resultado. Si esto fallara, el parametro
+  // seria decorativo: estariamos midiendo toda obra con el mismo calendario.
+  const quincena = (sem: number) => diasReales(entre("2026-03-02", "2026-03-16", 10), sem);
+  verificar(`la jornada importa: semana de 5 da ${quincena(5)}, de 6 da ${quincena(6)}`,
+    quincena(5) === 10 && quincena(6) === 12);
+
+  // Una obra de siete dias mide almanaque puro. Queda fijado porque NO es
+  // obvio: `duraciones-mercado.diasHabilesEntre` hace cortocircuito con semana
+  // de 7 y se salta los festivos, al reves de lo que declara `esHabil` en
+  // `calendario-colombia`. Si algun dia se unifican, este caso avisa.
+  verificar(`semana de 7: mide almanaque completo (${quincena(7)})`, quincena(7) === 14);
+
+  // La serie completa, no solo el helper: una tarea de 2 dias acordados que
+  // cruza domingo y tarda 3 de almanaque cumple, porque son 2 habiles.
+  const serie = serieVelocidad([entre("2026-03-06", "2026-03-09", 2)], "mes", 6);
+  verificar(`en la serie: 3 de almanaque sobre plazo de 2 sale a tiempo (${serie[0].pctATiempo}%)`,
+    serie[0].pctATiempo === 100);
+
+  // CONTROL POSITIVO del anterior: la misma tarea sin domingo en medio SI
+  // incumple. Si los dos dieran 100%, el descuento no estaria aplicandose.
+  const serie2 = serieVelocidad([entre("2026-03-09", "2026-03-12", 2)], "mes", 6);
+  verificar(`control: 3 sin domingo sobre plazo de 2 incumple (${serie2[0].pctATiempo}%)`,
+    serie2[0].pctATiempo === 0);
 }
 
 console.log(`\n${total - fallos}/${total} verificaciones OK`);

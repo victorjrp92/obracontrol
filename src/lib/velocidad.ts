@@ -31,6 +31,20 @@
 // Puro y sin Prisma: recibe las tareas ya cargadas por la pagina.
 // ---------------------------------------------------------------------------
 
+import {
+  DIAS_HABILES_SEMANA_DEFECTO,
+  diasHabilesFraccionarios,
+} from "@/lib/calendario-colombia";
+
+/**
+ * Un dia de CALENDARIO, en milisegundos.
+ *
+ * Se usa solo para agrupar en cubos -a que semana pertenece una fecha-, que es
+ * aritmetica de calendario: la semana del 9 de marzo es la misma se trabaje el
+ * domingo o no. Para MEDIR cuanto tardo una tarea NO se usa esto: eso va en
+ * dias habiles, con `diasHabilesEntre`. Mezclar las dos cosas es exactamente
+ * el error que este modulo acaba de corregir.
+ */
 const DIA = 86_400_000;
 
 /** Lo minimo de una tarea para poder medirle velocidad. */
@@ -88,9 +102,36 @@ export function medible(t: TareaVelocidad): boolean {
   );
 }
 
-/** Dias que tardo de verdad, en calendario. Minimo medio dia. */
-export function diasReales(t: TareaVelocidad): number {
-  const d = (t.fecha_fin_real!.getTime() - t.fecha_inicio!.getTime()) / DIA;
+/**
+ * Dias HABILES que tardo de verdad. Minimo medio dia.
+ *
+ * Habiles y no calendario porque `tiempo_acordado_dias` -contra lo que se
+ * compara- son dias de trabajo: nadie acuerda una tarea de dos dias contando
+ * el domingo. Esto no es una preferencia, es una CORRECCION: hasta ahora este
+ * modulo media en calendario mientras `scoring.ts` medía el MISMO campo en
+ * habiles, asi que el semaforo de la lista de Tareas y la grafica de Reportes
+ * le daban al mismo usuario dos verdades distintas sobre la misma tarea. Con
+ * los 18 festivos colombianos mas los domingos, la diferencia llega al 30%.
+ *
+ * == POR QUE LA VERSION FRACCIONARIA Y NO LA DE SCORING ====================
+ *
+ * El repo tiene dos `diasHabilesEntre`. La de `calendario-colombia` devuelve
+ * dias ENTEROS y es la que usa el semaforo, que solo necesita decidir
+ * cumplio/no cumplio. Aqui se usa la de `duraciones-mercado`, que devuelve
+ * FRACCIONES, porque este modulo no decide: MIDE POR CUANTO. Con dias enteros,
+ * cinco tareas de dos dias que se van a 2,2 se redondean a 2 y salen "a
+ * tiempo" — y distinguir ese roce de un desastre de cuatro dias es la razon
+ * entera de que esta metrica exista aparte del porcentaje.
+ *
+ * Las dos descuentan los mismos domingos y los mismos 18 festivos, asi que el
+ * semaforo y esta grafica ya no se contradicen: solo redondean distinto, cada
+ * una segun lo que tiene que contestar.
+ */
+export function diasReales(
+  t: TareaVelocidad,
+  diasHabilesSemana: number = DIAS_HABILES_SEMANA_DEFECTO,
+): number {
+  const d = diasHabilesFraccionarios(t.fecha_inicio!, t.fecha_fin_real!, diasHabilesSemana);
   return Math.max(0.5, d);
 }
 
@@ -129,7 +170,12 @@ function cubo(f: Date, p: Periodo): { orden: number; etiqueta: string } {
  * pregunta es "este mes como rindieron", y el mes de una tarea es el mes en
  * que quedo terminada.
  */
-export function serieVelocidad(tareas: TareaVelocidad[], periodo: Periodo): PuntoVelocidad[] {
+export function serieVelocidad(
+  tareas: TareaVelocidad[],
+  periodo: Periodo,
+  /** Jornada del proyecto (`Proyecto.dias_habiles_semana`). */
+  diasHabilesSemana: number = DIAS_HABILES_SEMANA_DEFECTO,
+): PuntoVelocidad[] {
   const mapa = new Map<number, PuntoVelocidad & { suma: number }>();
   for (const t of tareas) {
     if (!medible(t)) continue;
@@ -144,7 +190,7 @@ export function serieVelocidad(tareas: TareaVelocidad[], periodo: Periodo): Punt
       suma: 0,
     };
     p.cerradas++;
-    const exceso = diasReales(t) - t.tiempo_acordado_dias;
+    const exceso = diasReales(t, diasHabilesSemana) - t.tiempo_acordado_dias;
     // Tolerancia de una centesima: una tarea que cierra exactamente en su
     // plazo no puede contar como incumplida por un error de coma flotante.
     if (exceso <= 0.01) p.aTiempo++;
@@ -215,7 +261,7 @@ export const MAX_COLUMNAS = 8;
  * el nombre de una torre, un piso ni una persona: con un espacio, "Torre 1" en
  * la fase "Aseo" colisionaria con "Torre" en la fase "Aseo 1".
  */
-const SEP = " ";
+const SEP = "\u0000";
 
 /**
  * Dias de ciclo por unidad, cruzando fase contra la dimension pedida.
@@ -230,7 +276,12 @@ const SEP = " ";
  * mas rapida de lo que es. Por eso cada celda devuelve cuantas unidades la
  * respaldan.
  */
-export function matrizCiclo(tareas: TareaVelocidad[], dimension: Dimension): MatrizCiclo {
+export function matrizCiclo(
+  tareas: TareaVelocidad[],
+  dimension: Dimension,
+  /** Jornada del proyecto (`Proyecto.dias_habiles_semana`). */
+  diasHabilesSemana: number = DIAS_HABILES_SEMANA_DEFECTO,
+): MatrizCiclo {
   const acc = new Map<string, { ini: number; fin: number; cerradas: number; total: number }>();
   const ordenFase = new Map<string, number>();
 
@@ -257,7 +308,10 @@ export function matrizCiclo(tareas: TareaVelocidad[], dimension: Dimension): Mat
     const partes = k.split(SEP);
     const ck = partes[0] + SEP + partes[1];
     const c = porCelda.get(ck) ?? { suma: 0, n: 0 };
-    c.suma += Math.max(0.5, (a.fin - a.ini) / DIA);
+    // Habiles, igual que `diasReales`: si la matriz contara calendario y la
+    // grafica de arriba habiles, la misma obra tendria dos duraciones en la
+    // misma pantalla.
+    c.suma += Math.max(0.5, diasHabilesFraccionarios(new Date(a.ini), new Date(a.fin), diasHabilesSemana));
     c.n++;
     porCelda.set(ck, c);
   }

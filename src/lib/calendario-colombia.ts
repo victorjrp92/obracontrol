@@ -65,6 +65,13 @@ const MS_POR_DIA = 24 * 60 * 60 * 1000;
 /** Días hábiles/semana por defecto: la construcción colombiana trabaja Lu–Sá. */
 export const DIAS_HABILES_SEMANA_DEFECTO = 6;
 
+/**
+ * Tope de dias que se recorren al contar un intervalo. No es una regla de
+ * negocio: es un freno contra fechas absurdas -un reloj de movil mal puesto
+ * puede mandar una evidencia al ano 1970- que si no colgaria el bucle.
+ */
+const MAX_DIAS_REALES = 730; // mismo valor que `duraciones-mercado`, de donde viene la funcion
+
 /** Tope de iteración de los bucles de calendario: 20 años. Guarda de cordura. */
 const MAX_DIAS_ITERACION = 366 * 20;
 
@@ -440,4 +447,59 @@ export function rho(diasSemana: number = DIAS_HABILES_SEMANA_DEFECTO): number {
   const r = habiles / calendario;
   cacheRho.set(s, r);
   return r;
+}
+
+
+/**
+ * Días hábiles FRACCIONARIOS entre dos instantes: los días calendario menos
+ * los días no laborables COMPLETOS que caben dentro del intervalo.
+ *
+ * Convive con `diasHabilesEntre` —la de arriba, que devuelve enteros— porque
+ * contestan preguntas distintas. La entera decide CUMPLIÓ o NO CUMPLIÓ, que es
+ * lo que necesita el semáforo. Ésta mide POR CUÁNTO, y ahí redondear destruye
+ * el dato: cinco tareas de dos días que se van a 2,2 se redondearían a 2 y
+ * saldrían «a tiempo», borrando justo la diferencia entre un roce y un
+ * desastre.
+ *
+ * ⚠️ VIVE AQUÍ, Y NO EN `duraciones-mercado`, POR UNA RAZÓN DE EMPAQUETADO:
+ * aquel módulo importa Prisma, y `velocidad.ts` —que necesita esta función—
+ * se ejecuta en el NAVEGADOR. Importarla desde allí arrastraba `pg` al bundle
+ * del cliente y el build se caía con `module not found`. `tsc` no lo detecta:
+ * los tipos resuelven bien y solo revienta al empaquetar.
+ *
+ * ⚠️ CON SEMANA DE 7 DÍAS DEVUELVE CALENDARIO PURO, festivos incluidos. Es
+ * distinto de `esHabil`, que sí descuenta el festivo aunque la obra declare
+ * siete días. Se conserva el comportamiento original para no mover el
+ * flywheel de duraciones, que está calibrado contra él.
+ */
+export function diasHabilesFraccionarios(
+  inicio: Date,
+  fin: Date,
+  diasHabilesSemana: number,
+): number {
+  const ms = fin.getTime() - inicio.getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+
+  const descanso = diasDescansoSemana(diasHabilesSemana);
+  const diasCalendario = ms / MS_POR_DIA;
+  if (descanso.size === 0) return diasCalendario; // semana de 7 días
+
+  // Primera medianoche UTC en o después de `inicio`.
+  const cursor = new Date(inicio.getTime());
+  cursor.setUTCHours(0, 0, 0, 0);
+  if (cursor.getTime() < inicio.getTime()) cursor.setUTCDate(cursor.getUTCDate() + 1);
+
+  let noLaborables = 0;
+  const tope = MAX_DIAS_REALES + 2; // guarda contra intervalos absurdos
+  for (let i = 0; i < tope; i++) {
+    // Solo cuenta si el día CABE ENTERO dentro del intervalo.
+    if (cursor.getTime() + MS_POR_DIA > fin.getTime()) break;
+    // Los festivos cuentan como no laborables igual que el domingo. Sin esto,
+    // una tarea que abarca Semana Santa mide tres días más de los que se
+    // trabajaron — y este módulo existe justo para no medir de más.
+    if (descanso.has(cursor.getUTCDay()) || esFestivo(cursor)) noLaborables++;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return Math.max(0, diasCalendario - noLaborables);
 }
