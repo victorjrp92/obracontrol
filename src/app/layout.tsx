@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import CookieBanner from "@/components/CookieBanner";
+// Figtree se declara en globals.css (@font-face sobre /fonts/figtree); esto
+// sólo adelanta su descarga para que la primera pintura no salga con la
+// fuente de respaldo y luego reflúa.
+import PrecargaFuente from "@/components/ui/PrecargaFuente";
 // Analítica agregada de Vercel: sin cookies y sin identificar personas, por eso
 // no necesita consentimiento. Nos da el embudo (visitas, rutas, procedencia).
 import { Analytics } from "@vercel/analytics/next";
@@ -76,6 +80,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="h-full" dir="ltr">
       <body className="min-h-full flex flex-col antialiased">
+        <PrecargaFuente />
         {children}
         <CookieBanner />
         <Analytics />

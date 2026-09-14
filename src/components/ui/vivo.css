@@ -1,0 +1,301 @@
+/* ==========================================================================
+   Primitivos «Vivo/Aizome» del dashboard.
+
+   La fuente de verdad del sistema es src/components/juntos/landing-juntos.css;
+   aquí se reproducen sus gestos con los valores literales de allí. La landing
+   los tiene bajo `.ljt`, que no alcanza al dashboard, y duplicar el bloque
+   entero sería peor: esto es sólo la capa de gestos, sin maquetación.
+
+   LA REGLA QUE ORDENA TODO ESTE ARCHIVO: la sombra dura (4px sin difuminar)
+   se reserva para lo que SE PULSA. En una landing hay diez elementos y la
+   sombra es el sistema; en el dashboard hay cientos y una sombra de 4px en
+   cada tarjeta hace vibrar la pantalla. Botón y pastilla accionable la llevan;
+   la tarjeta —superficie de datos— va PLANA con línea fina.
+
+   Van en @layer components para que cualquier utilidad de Tailwind escrita en
+   el JSX (un `bg-white`, un `px-6`) siga ganando sin necesidad de `!`.
+   ========================================================================== */
+
+@layer components {
+  /* ────────────────────────────────────────────────────────────────────────
+     BOTÓN
+     Borde de tinta 2.5px, sombra dura, y el gesto: al pasar por encima sube
+     (la sombra crece 2px y el botón se desplaza hacia arriba-izquierda), al
+     pulsar se hunde (la sombra baja a 1px y el botón cae hacia abajo-derecha).
+     El desplazamiento y el crecimiento de la sombra son opuestos a propósito:
+     así la esquina inferior derecha queda quieta y sólo parece moverse el
+     botón, no su entorno.
+     ──────────────────────────────────────────────────────────────────────── */
+  .vv-boton {
+    /* --vv-s es el tamaño de la sombra en reposo; cada tamaño lo redefine y
+       hover/active derivan de él. Un solo número por variante. */
+    --vv-s: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    font-family: inherit;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    white-space: nowrap;
+    border-radius: var(--radio-pastilla);
+    border: var(--borde-tinta) solid var(--tinta);
+    background: #fff;
+    color: var(--tinta);
+    cursor: pointer;
+    box-shadow: var(--vv-s) var(--vv-s) 0 var(--tinta);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+
+  .vv-boton:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--vv-s) + 2px) calc(var(--vv-s) + 2px) 0 var(--tinta);
+  }
+
+  .vv-boton:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: var(--sombra-hundida);
+  }
+
+  .vv-boton:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--vv-s) var(--vv-s) 0 var(--tinta);
+  }
+
+  /* El foco de teclado tiene que verse por sí solo: la sombra dura NO sirve de
+     indicador porque está siempre, en reposo. Contorno real, separado del
+     borde por 2px para que no se lea como un borde más grueso. */
+  .vv-boton:focus-visible {
+    outline: 3px solid var(--azul);
+    outline-offset: 2px;
+  }
+
+  /* Tamaños. Los tres superan 44px de alto: objetivo táctil AAA (WCAG 2.5.5). */
+  .vv-boton--chico {
+    --vv-s: 3px;
+    min-height: 44px;
+    padding: 9px 18px;
+    font-size: 13.5px;
+  }
+  .vv-boton--medio {
+    --vv-s: 4px;
+    min-height: 48px;
+    padding: 12px 26px;
+    font-size: 15px;
+  }
+  .vv-boton--grande {
+    --vv-s: 4px;
+    min-height: 54px;
+    padding: 15px 32px;
+    font-size: 16.5px;
+  }
+
+  /* Variantes. El índigo es el color de acción del sistema; el rojo aquí NO es
+     decorativo: es el mismo rojo que significa RECHAZADO, y por eso la variante
+     se llama «peligro» y no «acento» —sólo para acciones destructivas—. */
+  .vv-boton--principal {
+    background: var(--azul);
+    color: #fff;
+  }
+  .vv-boton--secundario {
+    background: #fff;
+    color: var(--tinta);
+  }
+  .vv-boton--peligro {
+    background: var(--rojo);
+    color: #fff;
+  }
+
+  /* Sobre relleno oscuro, un contorno índigo se pierde contra el propio botón;
+     el de tinta cae fuera, sobre el papel (17.9:1). */
+  .vv-boton--principal:focus-visible,
+  .vv-boton--peligro:focus-visible {
+    outline-color: var(--tinta);
+  }
+
+  /* Fantasma: acción terciaria. Sin borde ni sombra —no compite con nada—,
+     pero conserva el objetivo táctil y el foco visible. */
+  .vv-boton--fantasma {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    color: var(--gris);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .vv-boton--fantasma:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+    color: var(--tinta);
+  }
+  .vv-boton--fantasma:active:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+  .vv-boton--fantasma:disabled {
+    box-shadow: none;
+  }
+
+  /* Botón que ocupa todo el ancho (CTA de móvil, pie de modal). */
+  .vv-boton--ancho {
+    width: 100%;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     PASTILLA / CHIP
+     Dos usos distintos con el mismo aspecto base y una diferencia deliberada:
+     - informativa (estado, etiqueta): borde fino del propio tono, SIN sombra.
+       No se pulsa, así que no debe parecer que se pulsa.
+     - accionable (filtro, quitar, alternar): borde de tinta + sombra dura y el
+       mismo hundimiento del botón. La sombra es el único aviso de que algo
+       pasa al tocarla.
+     ──────────────────────────────────────────────────────────────────────── */
+  .vv-pastilla {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radio-pastilla);
+    border: 2px solid var(--gris-bde);
+    background: #fff;
+    color: var(--tinta);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.005em;
+    padding: 5px 12px;
+    white-space: nowrap;
+  }
+
+  /* Tonos. Verde, rojo y ámbar están aquí porque en este producto ya son
+     código: APROBADO, RECHAZADO y ESPERANDO. No son paleta decorativa —esa es
+     la razón de que no existan como utilidades `bg-verde`—. */
+  .vv-pastilla--neutro {
+    background: #fff;
+    border-color: var(--gris-bde);
+    color: var(--gris);
+  }
+  .vv-pastilla--azul {
+    background: var(--azul-50);
+    border-color: var(--azul-bde);
+    color: #1e40af;
+  }
+  .vv-pastilla--ambar {
+    background: var(--ambar-50);
+    border-color: var(--ambar-bde);
+    color: var(--ambar-txt);
+  }
+  .vv-pastilla--verde {
+    background: var(--verde-50);
+    border-color: var(--verde-bde);
+    color: var(--verde-txt);
+  }
+  .vv-pastilla--rojo {
+    background: var(--rojo-50);
+    border-color: var(--rojo-bde);
+    color: var(--rojo-txt);
+  }
+
+  .vv-pastilla--accionable {
+    --vv-s: 3px;
+    /* 32px de alto: cumple el objetivo mínimo de WCAG 2.2 AA (2.5.8, 24px)
+       sin inflar filas de tabla a 44px, que es el nivel AAA del botón. */
+    min-height: 32px;
+    border-width: var(--borde-tinta);
+    border-color: var(--tinta);
+    cursor: pointer;
+    box-shadow: var(--vv-s) var(--vv-s) 0 var(--tinta);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .vv-pastilla--accionable:hover:not(:disabled) {
+    transform: translate(-2px, -2px);
+    box-shadow: calc(var(--vv-s) + 2px) calc(var(--vv-s) + 2px) 0 var(--tinta);
+  }
+  .vv-pastilla--accionable:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: var(--sombra-hundida);
+  }
+  .vv-pastilla--accionable:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: var(--vv-s) var(--vv-s) 0 var(--tinta);
+  }
+  .vv-pastilla--accionable:focus-visible {
+    outline: 3px solid var(--azul);
+    outline-offset: 2px;
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────
+     TARJETA — superficie de datos, PLANA.
+     Sin sombra dura, por decisión: una tabla, un panel o una tarjeta de
+     contenido no se pulsan, y multiplicar la sombra por cientos de elementos
+     rompe la legibilidad de la pantalla. La jerarquía la da la línea fina y,
+     cuando hace falta, el tono pastel del fondo.
+     ──────────────────────────────────────────────────────────────────────── */
+  .vv-tarjeta {
+    border-radius: var(--radio-tarjeta);
+    border: 1.5px solid var(--linea);
+    background: #fff;
+    color: var(--tinta);
+  }
+
+  .vv-tarjeta--blanca {
+    background: #fff;
+    border-color: var(--linea);
+  }
+  /* Papel sobre papel: separa por borde, no por contraste de fondo. Sirve para
+     bloques secundarios dentro de una tarjeta blanca. */
+  .vv-tarjeta--papel {
+    background: var(--papel);
+    border-color: var(--linea);
+  }
+  .vv-tarjeta--azul {
+    background: var(--azul-50);
+    border-color: var(--azul-bde);
+  }
+  .vv-tarjeta--ambar {
+    background: var(--ambar-50);
+    border-color: var(--ambar-bde);
+  }
+  .vv-tarjeta--gris {
+    background: var(--gris-50);
+    border-color: var(--gris-bde);
+  }
+
+  /* Tarjeta que ES un enlace o un botón: sigue plana, pero necesita decir que
+     responde. Se marca el borde, no se añade sombra. */
+  .vv-tarjeta--pulsable {
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .vv-tarjeta--pulsable:hover {
+    border-color: var(--tinta);
+  }
+  .vv-tarjeta--pulsable:focus-visible {
+    outline: 3px solid var(--azul);
+    outline-offset: 2px;
+  }
+}
+
+/* Movimiento reducido: se quita la TRANSICIÓN, no el estado. El hundimiento al
+   pulsar deja de animarse y pasa a ser instantáneo —sigue siendo la respuesta
+   táctil que el usuario necesita, y un cambio instantáneo no es movimiento—.
+   Lo que sí se retira es la elevación al pasar por encima: ese desplazamiento
+   no lo pide el usuario, ocurre solo, y el aviso de hover queda igual de claro
+   con la sombra creciendo sin que el elemento se mueva. */
+@media (prefers-reduced-motion: reduce) {
+  .vv-boton,
+  .vv-pastilla--accionable,
+  .vv-tarjeta--pulsable {
+    transition: none;
+  }
+  .vv-boton:hover:not(:disabled),
+  .vv-pastilla--accionable:hover:not(:disabled) {
+    transform: none;
+  }
+}

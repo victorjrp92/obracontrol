@@ -1,5 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 @import "tailwindcss";
+/* Primitivos Vivo/Aizome (botón, pastilla, tarjeta). Se importa aquí y no en
+   cada componente para que las clases existan en cualquier pantalla sin que
+   nadie tenga que acordarse de importarlas. */
+@import "../components/ui/vivo.css";
+
+/* Figtree variable, la misma fuente que ya sirve /go y /go/juntos. Antes esto
+   era un @import a Google Fonts (Plus Jakarta Sans): una petición bloqueante a
+   un tercero para una fuente que ya teníamos servida desde public/. El archivo
+   es un único woff2 variable (eje wght 300–900, subconjunto latino, 20 KB) y
+   cubre todo el español —tildes, ñ, ¿, ¡, comillas y guiones—.
+   OJO: este archivo NO trae itálica; la cursiva se sintetiza (oblicua falsa).
+   Son 12 usos de `italic` en todo src/. */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/figtree/figtree-latin.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --blue-950: #172554;
@@ -34,15 +52,140 @@
   --semaforo-amarillo:      #eab308;
   --semaforo-rojo:          #dc2626;
   --semaforo-vinotinto:     #7c2d12;
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Sistema «Vivo/Aizome» — los mismos valores literales que
+     src/components/juntos/landing-juntos.css, que es la fuente de verdad.
+     Se declaran aquí, sin prefijo, porque el dashboard entero cuelga de este
+     archivo; las clases .ljt/.lgo siguen teniendo los suyos y no se tocan.
+     ══════════════════════════════════════════════════════════════════════ */
+  --papel: #fbfaf7;
+  --tinta: #0b1220;
+  --navy: #0f172a;
+  --azul: #2563eb;
+  --azul-50: #eff4ff;
+  --azul-bde: #bfd3ff;
+  --ambar: #d97706;
+  --ambar-50: #fff6e8;
+  --ambar-bde: #f5d9a8;
+  --ambar-txt: #b45309;
+  --gris: #5b6b82;
+  --gris-50: #f5f7fb;
+  --gris-bde: #dde4ef;
+  --linea: #e6eaf1;
+
+  /* Niveles del semáforo, copiados de la landing. Viven como variables CSS
+     sueltas y NO como tokens de @theme a propósito: si generáramos utilidades
+     `bg-verde`/`text-verde`, el verde se usaría de adorno y en este producto
+     el verde ya significa APROBADO (y el rojo, RECHAZADO; el ámbar, ESPERA).
+     Quien las necesite las consume por var(), que obliga a pensarlo. */
+  --verde-app: #16a34a;
+  --verde-50: #e7f6ec;
+  --verde-bde: #b9e3c8;
+  /* #15803d daba 4.36:1 sobre --verde-50 y fallaba AA — justo en la pastilla
+     que dice APROBADO, que es la que mas se lee del producto. Se oscurece un
+     escalon: 6.20:1. El tono sigue siendo el verde del sistema, solo que
+     legible. El rojo y el ambar ya pasaban y no se tocan. */
+  --verde-txt: #166534;
+  --rojo: #dc2626;
+  --rojo-50: #fdecec;
+  --rojo-bde: #f3c2c2;
+  --rojo-txt: #b91c1c;
+
+  /* El gesto que define el sistema: sombra DURA, sin difuminar. Sube al pasar
+     por encima y baja al pulsar —el elemento se hunde—. Reservada a lo que se
+     pulsa (botones, pastillas accionables); las superficies de datos van
+     planas con línea fina. */
+  --sombra: 4px 4px 0 var(--tinta);
+  --sombra-chica: 3px 3px 0 var(--tinta);
+  --sombra-alta: 6px 6px 0 var(--tinta);
+  --sombra-hundida: 1px 1px 0 var(--tinta);
+  --borde-tinta: 2.5px;
+  --radio-pastilla: 99px;
+  --radio-tarjeta: 16px;
+
+  /* Pila real: si Figtree no carga, se ve la misma cascada que ya usa /go, no
+     una distinta. system-ui cubre macOS/iOS (SF) y Android (Roboto);
+     -apple-system es el alias viejo de Safari; Segoe UI, Windows. */
+  --fuente-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+/* TRAMPA DE TAILWIND v4: las variables de `@theme inline` NO se emiten en
+   :root —sólo se inlinean dentro de la utilidad—, así que `var(--font-sans)`
+   o `var(--color-text)` fuera de una utilidad quedarían sin definir. Por eso
+   cada token apunta a una variable de :root (arriba), que sí existe siempre.
+   Y por eso aquí se cambia el VALOR de las claves que ya había y no su
+   nombre: renombrar una clave borra la utilidad sin dar ningún error. */
 @theme inline {
-  --color-primary:   var(--blue-600);
-  --color-secondary: var(--blue-500);
-  --color-cta:       var(--orange-500);
-  --color-bg:        var(--slate-50);
-  --color-text:      var(--slate-800);
-  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --color-primary:   var(--azul);       /* mismo #2563eb que antes: el índigo del sistema ya era éste */
+  --color-secondary: var(--blue-500);   /* fuera de Aizome; 0 consumidores. Se deja el valor para no romper nada */
+  --color-cta:       var(--ambar);      /* era orange-500 #f97316; el acento del sistema es el ámbar y es escaso */
+  --color-bg:        var(--papel);      /* era slate-50 */
+  --color-text:      var(--tinta);      /* era slate-800 */
+  --font-sans: var(--fuente-sans);
+
+  /* Tokens nuevos: se AÑADEN, no reemplazan a nadie. Dan `bg-papel`,
+     `text-tinta`, `border-linea`, `shadow-dura`, `rounded-pastilla`… para las
+     pasadas de migración que vienen después de ésta. */
+  --color-papel:     var(--papel);
+  --color-tinta:     var(--tinta);
+  --color-navy:      var(--navy);
+  --color-azul:      var(--azul);
+  --color-azul-50:   var(--azul-50);
+  --color-azul-bde:  var(--azul-bde);
+  --color-ambar:     var(--ambar);
+  --color-ambar-50:  var(--ambar-50);
+  --color-ambar-bde: var(--ambar-bde);
+  --color-ambar-txt: var(--ambar-txt);
+  --color-gris:      var(--gris);
+  --color-gris-50:   var(--gris-50);
+  --color-gris-bde:  var(--gris-bde);
+  --color-linea:     var(--linea);
+
+  --shadow-dura:         var(--sombra);
+  --shadow-dura-chica:   var(--sombra-chica);
+  --shadow-dura-alta:    var(--sombra-alta);
+  --shadow-dura-hundida: var(--sombra-hundida);
+
+  --radius-pastilla: var(--radio-pastilla);
+  --radius-tarjeta:  var(--radio-tarjeta);
+}
+
+/* El suelo del producto. `bg-slate-50` aparece 199 veces en src/ pintando el
+   fondo de cada pantalla por encima del <body>, así que cambiar sólo el body
+   no se vería en ninguna parte: hay que retintar el token.
+   Es seguro porque slate-50 aquí es EXCLUSIVAMENTE superficie: 199 usos como
+   fondo, 19 como borde y CERO como color de texto (`text-slate-50`: 0
+   ocurrencias). No hay ninguna pareja texto/fondo que dependa de él.
+   Y el cambio es diminuto en luminancia (#f8fafc → #fbfaf7, L 0.9536 → 0.9560):
+   todos los contrastes suben, ninguno baja. Lo que cambia es el tono: el azul
+   deja de ser el canal dominante y pasa a serlo el amarillo. Eso es el papel.
+   El resto de la rampa slate NO se retinta porque ya coincide con Aizome:
+   slate-900 ES --navy (idénticos), slate-100 vs --gris-50 difieren (4,2,2),
+   slate-200 vs --gris-bde (5,4,1), slate-500 vs --gris (9,9,9). La única
+   divergencia real era el suelo. */
+@theme {
+  /* El suelo: de slate-50 frio al papel calido del sistema. Aqui slate-50 es
+     EXCLUSIVAMENTE superficie -199 fondos, 19 bordes, 0 usos como texto-, asi
+     que no hay ninguna pareja texto/fondo que dependa de el. */
+  --color-slate-50: #fbfaf7;
+
+  /* ── Los tres colores con significado, retintados al sistema ────────────
+     Tailwind v4 define su paleta en OKLCH y los hex de la v3 YA NO EXISTEN:
+     su blue-600 es #155dfc, no el #2563eb que usan las landings. El producto
+     tenia dos azules, dos rojos y dos verdes a un tono de distancia, y la
+     costura se veia al pasar del dashboard a /go.
+
+     Se retinta la clave -no se renombra- porque eso unifica de golpe las 326
+     ocurrencias de blue-600, las 109 de red-600 y las 64 de green-600 sin
+     tocar 122 ficheros. Es la misma palanca que el suelo.
+
+     Solo estos tres: el azul es el acento del sistema, y el rojo y el verde ya
+     significan RECHAZADO y APROBADO. El resto de la rampa slate se queda,
+     porque ya coincide con Aizome (slate-900 y --navy difieren en 1/255). */
+  --color-blue-600:  #2563eb;
+  --color-red-600:   #dc2626;
+  --color-green-600: #16a34a;
 }
 
 * {
@@ -54,12 +197,13 @@ html {
 }
 
 body {
-  background-color: var(--slate-50);
-  color: var(--slate-800);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background-color: var(--papel);
+  color: var(--tinta);
+  font-family: var(--fuente-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
 
 /* Scrollbar sutil */
 ::-webkit-scrollbar { width: 6px; }
@@ -104,12 +248,13 @@ body {
   box-shadow: 0 0 80px rgba(37, 99, 235, 0.3);
 }
 
-/* Hero gradient bg */
+/* Hero gradient bg. La base pasa de slate-50 a papel: es un suelo de página y
+   dejarlo frío abriría una costura visible justo donde arranca el <body>. */
 .hero-bg {
   background:
     radial-gradient(ellipse 80% 60% at 50% -10%, rgba(37,99,235,0.18) 0%, transparent 70%),
     radial-gradient(ellipse 40% 40% at 80% 20%, rgba(96,165,250,0.12) 0%, transparent 60%),
-    var(--slate-50);
+    var(--papel);
 }
 
 /* Grid dot pattern */
