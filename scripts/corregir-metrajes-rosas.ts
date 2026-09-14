@@ -30,6 +30,18 @@ const NOMBRE_PROYECTO = "Rosas Cali";
  * espacio. 86% es el punto medio de ese rango.
  */
 const OCUPACION_OBJETIVO = 0.86;
+
+/**
+ * Por encima de esto, el reparto se corrige aunque NO rompa la regla.
+ *
+ * La regla de la app solo prohibe PASARSE del total, y con razon: sumar menos
+ * es lo normal. Pero un apartamento donde los cuartos ocupan el 96% del area
+ * construida es fisicamente imposible -solo los muros se llevan entre el 10% y
+ * el 20%-, y este proyecto se le ensena a constructoras: un arquitecto lo nota
+ * en dos segundos. Asi que aqui, que es el demo y no la app, el liston esta
+ * mas alto que la regla.
+ */
+const OCUPACION_MAXIMA_CREIBLE = 0.90;
 const PASO_REDONDEO = 0.5;
 /** Un baño no puede quedar en 0,5 m² tras escalar: mínimo razonable. */
 const MINIMO_ESPACIO_M2 = 1.5;
@@ -76,10 +88,14 @@ async function main() {
       ),
     };
     const sumaAntes = sumaEspacios(forma);
+    // `excesoMetraje` marca lo que ROMPE la regla; aqui ademas se corrige lo
+    // que la cumple pero no se sostiene en pie. Lo primero es un subconjunto
+    // de lo segundo: pasarse del 100% es pasarse del 90%.
+    const inverosimil = sumaAntes > total * OCUPACION_MAXIMA_CREIBLE;
     const exceso = excesoMetraje(forma);
 
     let sumaDespues = sumaAntes;
-    if (exceso) {
+    if (exceso || inverosimil) {
       // Escalar proporcionalmente (no poner números a mano) preserva las
       // proporciones que ya tiene el demo: la alcoba principal sigue siendo
       // mayor que la secundaria, el baño social más chico que el principal.

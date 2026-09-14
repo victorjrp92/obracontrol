@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
-import { ArrowLeft, FolderOpen, Users, ClipboardList, Building2 } from "lucide-react";
+import { ArrowLeft, FolderOpen, Users, ClipboardList, Building2, HardHat, UserRound } from "lucide-react";
+import { nivelesConObrasAsignadas } from "@/lib/niveles-acceso";
 import EquipoClient from "./equipo-client";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function ProyectoSuperAdminDetallePage({
               id: true,
               nombre: true,
               email: true,
-              rol_ref: { select: { nombre: true } },
+              rol_ref: { select: { nombre: true, nivel_acceso: true } },
             },
           },
         },
@@ -58,7 +59,8 @@ export default async function ProyectoSuperAdminDetallePage({
     },
   });
 
-  // Personal de campo activo de la constructora cuyo contratista trabaja en este proyecto
+  // Maestros activos de la constructora cuyo contratista trabaja en este proyecto.
+  // Ojo: `Obrero` es el maestro que reporta por token, NO el rol PERSONAL_CAMPO.
   const contratistaIds = contratistas.map((c) => c.id);
   const obreros =
     contratistaIds.length > 0
@@ -83,12 +85,23 @@ export default async function ProyectoSuperAdminDetallePage({
     },
   });
 
+  // AdminProyectoAccess mezcla dos niveles: el admin junior que administra la
+  // obra y el personal de campo que solo reporta. Contarlos juntos leía como si
+  // la obra tuviera más administradores de los que tiene.
+  const adminsJuniors = proyecto.admins_proyecto.filter(
+    (a) => a.usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO",
+  ).length;
+  const personalCampo = proyecto.admins_proyecto.length - adminsJuniors;
+
+  // «Maestros activos» y no «Personal de campo activo»: este KPI cuenta filas de
+  // `Obrero` (el maestro), y «personal de campo» ya nombra al rol PERSONAL_CAMPO.
   const stats = [
     { icon: Building2, color: "blue", label: "Edificios", value: proyecto._count.edificios },
     { icon: ClipboardList, color: "violet", label: "Tareas", value: tareasCount },
-    { icon: Users, color: "yellow", label: "Admin Juniors", value: proyecto.admins_proyecto.length },
+    { icon: Users, color: "yellow", label: "Admin Juniors", value: adminsJuniors },
+    { icon: UserRound, color: "teal", label: "Personal de campo", value: personalCampo },
     { icon: Users, color: "green", label: "Contratistas", value: contratistas.length },
-    { icon: Users, color: "orange", label: "Personal de campo activo", value: obreros.length },
+    { icon: HardHat, color: "orange", label: "Maestros activos", value: obreros.length },
   ];
 
   // Listas para hijo
@@ -100,17 +113,27 @@ export default async function ProyectoSuperAdminDetallePage({
     rol: a.usuario.rol_ref.nombre,
   }));
 
-  // Lista de Admin Juniors disponibles para asignar (de la misma constructora, no asignados aún)
+  // Disponibles para vincular a la obra: admins juniors Y personal de campo.
+  // Las dos clases comparten AdminProyectoAccess, y filtrando por ADMIN_PROYECTO
+  // el super admin nunca podía asignarle una obra a un residente.
   const adminsAsignadosIds = new Set(adminsAsignados.map((a) => a.usuario_id));
-  const adminsDisponibles = await prisma.usuario.findMany({
+  const asignablesDisponibles = await prisma.usuario.findMany({
     where: {
       constructora_id: proyecto.constructora_id,
-      rol_ref: { nivel_acceso: "ADMIN_PROYECTO" },
+      rol_ref: { nivel_acceso: { in: nivelesConObrasAsignadas() } },
       id: { notIn: Array.from(adminsAsignadosIds) },
     },
-    select: { id: true, nombre: true, email: true },
+    select: { id: true, nombre: true, email: true, rol_ref: { select: { nombre: true } } },
     orderBy: { nombre: "asc" },
   });
+
+  // El desplegable del hijo solo pinta nombre y email: sin el rol dentro del
+  // nombre, un admin junior y un residente se ven idénticos en la lista.
+  const opcionesAsignables = asignablesDisponibles.map((a) => ({
+    id: a.id,
+    nombre: `${a.nombre} · ${a.rol_ref.nombre}`,
+    email: a.email,
+  }));
 
   return (
     <>
@@ -127,7 +150,7 @@ export default async function ProyectoSuperAdminDetallePage({
           <ArrowLeft className="w-4 h-4" /> Volver a proyectos
         </Link>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {stats.map((s) => {
             const Icon = s.icon;
             const colorMap: Record<string, string> = {
@@ -136,6 +159,7 @@ export default async function ProyectoSuperAdminDetallePage({
               yellow: "bg-yellow-50 text-yellow-600",
               green: "bg-green-50 text-green-600",
               orange: "bg-orange-50 text-orange-600",
+              teal: "bg-teal-50 text-teal-600",
             };
             return (
               <div key={s.label} className="bg-white rounded-xl border border-slate-100 p-3">
@@ -152,7 +176,7 @@ export default async function ProyectoSuperAdminDetallePage({
         <EquipoClient
           proyectoId={proyecto.id}
           adminsAsignados={adminsAsignados}
-          adminsDisponibles={adminsDisponibles}
+          adminsDisponibles={opcionesAsignables}
           contratistas={contratistas.map((c) => ({
             id: c.id,
             nombre: c.nombre,

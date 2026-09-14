@@ -159,7 +159,7 @@ export default function EquipoClient({
                       {c.tareas} tareas
                     </span>
                     <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-semibold">
-                      {c.obreros} obreros
+                      {c.obreros} maestros
                     </span>
                   </div>
                 }
@@ -169,10 +169,10 @@ export default function EquipoClient({
         )}
       </Section>
 
-      {/* Obreros */}
-      <Section title={`Obreros activos (${obreros.length})`} icon={HardHat}>
+      {/* Maestros — la prop sigue llamándose `obreros` porque es el modelo Obrero */}
+      <Section title={`Maestros activos (${obreros.length})`} icon={HardHat}>
         {obreros.length === 0 ? (
-          <Empty>Sin personal de campo activos.</Empty>
+          <Empty>Sin maestros activos.</Empty>
         ) : (
           <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
             {obreros.map((o) => (
