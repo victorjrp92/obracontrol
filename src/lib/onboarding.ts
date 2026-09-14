@@ -53,6 +53,10 @@ export async function provisionarUsuario(
     { nombre: "Asistente", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
     { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
     { nombre: "Contratista lustrador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+    // Auxiliares y residentes de obra: ven solo las obras que se les asignan y
+    // reportan desde /campo. Las constructoras que ya existían no tienen este
+    // rol — se les crea con scripts/backfill-rol-personal-campo.ts.
+    { nombre: "Personal de campo", nivel_acceso: "PERSONAL_CAMPO" as const, es_default: true },
     { nombre: "Auxiliar de obra", nivel_acceso: "OBRERO" as const, es_default: true },
   ];
 

@@ -7,6 +7,9 @@ export type AccessibleProjects = "ALL" | string[];
  * Returns the project IDs accessible to a user.
  * - DIRECTIVO and ADMIN_GENERAL see every project in their constructora -> "ALL".
  * - ADMIN_PROYECTO sees only the projects assigned in AdminProyectoAccess.
+ * - PERSONAL_CAMPO: misma mecánica que ADMIN_PROYECTO (un admin le asigna las
+ *   obras en AdminProyectoAccess), pero solo para LEER y reportar: los
+ *   endpoints de escritura se cierran aparte con isAnyAdmin/canApproveTasks.
  * - CONTRATISTA sees projects where they have at least one task assigned.
  * - OBRERO: not used here (access is token-based); returns [].
  */
@@ -23,7 +26,11 @@ export async function getAccessibleProjectIds(
     return "ALL";
   }
 
-  if (nivelAcceso === "ADMIN_PROYECTO") {
+  // El personal de campo comparte tabla con el admin de proyecto: las dos
+  // relaciones «este usuario trabaja en esta obra» se guardan en
+  // AdminProyectoAccess. Lo que las separa son los permisos granulares, que
+  // solo se leen para ADMIN_PROYECTO (ver checkAdminProjectPermission).
+  if (nivelAcceso === "ADMIN_PROYECTO" || nivelAcceso === "PERSONAL_CAMPO") {
     const accesos = await prisma.adminProyectoAccess.findMany({
       where: { usuario_id: usuarioId, proyecto: { constructora_id: constructoraId } },
       select: { proyecto_id: true },
@@ -70,6 +77,39 @@ export function canAccessProject(accessible: AccessibleProjects, proyectoId: str
 }
 
 /**
+ * ¿Puede este usuario REPORTAR el avance de una tarea de esta obra?
+ *
+ * Es una TERCERA condición, distinta de las dos que ya usaba
+ * `POST /api/tareas/[id]/reportar`, y hace falta porque ninguna de las dos
+ * describe al personal de campo:
+ *
+ *   · `Tarea.asignado_a` apunta al CONTRATISTA que ejecuta, no al residente
+ *     que verifica y toma la foto: el residente nunca es el asignado.
+ *   · `canApproveTasks` es aprobar, y este rol no aprueba. Meterlo ahí para
+ *     que pudiera reportar le abriría de paso aprobar y rechazar.
+ *
+ * Lo que sí lo describe es «la obra está en su lista»: un administrador se la
+ * asignó (AdminProyectoAccess, ver `getAccessibleProjectIds`) y dentro de ella
+ * reporta cualquier tarea, la ejecute quien la ejecute.
+ *
+ * Va cerrada a PERSONAL_CAMPO a propósito. Con `getAccessibleProjectIds` a
+ * secas, un CONTRATISTA quedaría autorizado a reportar las tareas de OTRO
+ * contratista por el solo hecho de tener una tarea suya en la misma obra; hoy
+ * solo puede reportar las suyas y así se queda.
+ */
+export async function puedeReportarEnProyecto(
+  usuarioId: string,
+  constructoraId: string,
+  nivelAcceso: NivelAcceso,
+  proyectoId: string,
+): Promise<boolean> {
+  if (!isFieldStaff(nivelAcceso)) return false;
+
+  const accesibles = await getAccessibleProjectIds(usuarioId, constructoraId, nivelAcceso);
+  return canAccessProject(accesibles, proyectoId);
+}
+
+/**
  * Builds a Prisma `where` fragment that scopes a `proyecto`-side query by id.
  * Returns `{}` for "ALL" so callers can spread it without side effects.
  */
@@ -99,6 +139,16 @@ export function isGeneralAdmin(nivel: NivelAcceso | string): boolean {
 
 export function isProjectAdmin(nivel: NivelAcceso | string): boolean {
   return nivel === "ADMIN_PROYECTO";
+}
+
+/**
+ * Personal de campo (NivelAcceso PERSONAL_CAMPO): auxiliar o residente de obra.
+ * Se llama «field staff» y no «personal» porque en este repo «personal» ya
+ * significa otra cosa (la cuenta PERSONAL de B2C, `esCuentaPersonal`).
+ * Su zona es /campo; NO entra al dashboard ni a /contratista.
+ */
+export function isFieldStaff(nivel: NivelAcceso | string): boolean {
+  return nivel === "PERSONAL_CAMPO";
 }
 
 /** Either admin (general or per-project). */
@@ -148,6 +198,12 @@ export type AdminProjectPermission =
  *   project with the requested permission flag set to true.
  *
  * Other roles (CONTRATISTA, OBRERO) always return false.
+ *
+ * PERSONAL_CAMPO también devuelve false SIEMPRE, aunque tenga fila en
+ * AdminProyectoAccess: la fila le da acceso de lectura a la obra, no permisos
+ * de administración. Es deliberado que ni se lea la fila — `can_approve_tasks`
+ * viene con @default(true) en el esquema, así que leerla le daría permisos que
+ * nadie le otorgó.
  */
 export async function checkAdminProjectPermission(
   usuarioId: string,
@@ -195,5 +251,6 @@ export function getHomePathForRole(nivel: NivelAcceso | string): string {
   if (nivel === "SUPER_ADMIN") return "/super-admin";
   if (nivel === "DIRECTIVO") return "/directivo";
   if (nivel === "CONTRATISTA") return "/contratista";
+  if (nivel === "PERSONAL_CAMPO") return "/campo";
   return "/dashboard";
 }

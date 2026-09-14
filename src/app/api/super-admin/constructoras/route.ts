@@ -60,6 +60,8 @@ export async function POST(req: NextRequest) {
       { nombre: "Coordinador", nivel_acceso: "ADMIN_GENERAL" as const, es_default: true },
       { nombre: "Director de obra", nivel_acceso: "DIRECTIVO" as const, es_default: true },
       { nombre: "Contratista instalador", nivel_acceso: "CONTRATISTA" as const, es_default: true },
+      // Auxiliares y residentes de obra (ven solo su obra, reportan en /campo).
+      { nombre: "Personal de campo", nivel_acceso: "PERSONAL_CAMPO" as const, es_default: true },
       { nombre: "Auxiliar de obra", nivel_acceso: "OBRERO" as const, es_default: true },
     ];
 

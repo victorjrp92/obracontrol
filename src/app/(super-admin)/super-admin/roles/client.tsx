@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Pencil, Trash2, Save, X, Building2, Shield } from "lucide-react";
 
-const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"] as const;
+// Alimenta el selector de nivel: un valor que no esté aquí no se puede asignar,
+// aunque exista en el enum de Prisma.
+const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO", "PERSONAL_CAMPO"] as const;
 
 interface Rol {
   id: string;
@@ -28,6 +30,20 @@ const NIVEL_COLOR: Record<string, string> = {
   ADMIN_PROYECTO: "bg-yellow-100 text-yellow-700 border-yellow-200",
   CONTRATISTA: "bg-green-100 text-green-700 border-green-200",
   OBRERO: "bg-blue-100 text-blue-700 border-blue-200",
+  // Teal: el resto de la paleta ya está tomado y no se confunde con el verde del contratista.
+  PERSONAL_CAMPO: "bg-teal-100 text-teal-700 border-teal-200",
+};
+
+// La tabla pintaba el valor crudo del enum. Con «OBRERO» leyéndose «Maestro» en el
+// resto del producto, el super admin tiene que ver el mismo nombre que la constructora.
+const NIVEL_LABEL: Record<string, string> = {
+  SUPER_ADMIN: "Super Administrador",
+  DIRECTIVO: "Directivo",
+  ADMIN_GENERAL: "Administrador general",
+  ADMIN_PROYECTO: "Administrador de proyectos",
+  CONTRATISTA: "Contratista",
+  OBRERO: "Maestro",
+  PERSONAL_CAMPO: "Personal de campo",
 };
 
 export default function RolesClient({ grupos }: { grupos: Grupo[] }) {
@@ -131,12 +147,12 @@ function RolRow({ rol }: { rol: Rol }) {
             className="px-2 py-1 rounded border border-slate-200 text-sm"
           >
             {VALID_NIVELES.map((n) => (
-              <option key={n} value={n}>{n}</option>
+              <option key={n} value={n}>{NIVEL_LABEL[n] ?? n}</option>
             ))}
           </select>
         ) : (
           <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded border ${NIVEL_COLOR[rol.nivel_acceso] ?? "bg-slate-100 text-slate-700 border-slate-200"}`}>
-            {rol.nivel_acceso}
+            {NIVEL_LABEL[rol.nivel_acceso] ?? rol.nivel_acceso}
           </span>
         )}
       </td>

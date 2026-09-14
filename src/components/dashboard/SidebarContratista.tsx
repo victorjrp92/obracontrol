@@ -24,7 +24,8 @@ const navItems = [
   { icon: CheckSquare, label: "Reportar tareas", href: "/contratista/reportar" },
   { icon: History, label: "Historial", href: "/contratista/historial" },
   { icon: PlusCircle, label: "Sugerir tarea", href: "/contratista/sugerir" },
-  { icon: Users, label: "Mi personal de campo", href: "/contratista/obreros" },
+  // Solo cambia la etiqueta: la ruta /contratista/obreros es infraestructura.
+  { icon: Users, label: "Mis maestros", href: "/contratista/obreros" },
   { icon: BarChart3, label: "Reportes", href: "/contratista/reportes" },
 ];
 

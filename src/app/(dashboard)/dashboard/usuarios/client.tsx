@@ -6,6 +6,7 @@ import { UserPlus, Shield, Pencil, Check, X, Mail } from "lucide-react";
 import InviteUserModal from "@/components/dashboard/InviteUserModal";
 import AddContratistaModal from "@/components/dashboard/AddContratistaModal";
 import ProyectosMultiSelect from "@/components/dashboard/ProyectosMultiSelect";
+import { necesitaObrasAsignadas } from "@/lib/niveles-acceso";
 
 interface UserRow {
   id: string;
@@ -30,10 +31,9 @@ interface Props {
   usuarios: UserRow[];
   roles: RolOption[];
   proyectos?: { id: string; nombre: string }[];
-  canInviteAnyRole?: boolean;
 }
 
-export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAnyRole }: Props) {
+export default function UsuariosClient({ usuarios, roles, proyectos }: Props) {
   const router = useRouter();
   const [showInvite, setShowInvite] = useState(false);
   const [showAddContratista, setShowAddContratista] = useState(false);
@@ -58,8 +58,10 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
 
     if (!isUninvitedEdit) {
       const nextRol = roles.find((r) => r.id === selectedRolId);
-      if (nextRol?.nivel_acceso === "ADMIN_PROYECTO" && selectedProyectoIds.length === 0) {
-        alert("Un Admin Proyecto debe tener al menos un proyecto asignado");
+      // Admin de proyecto y personal de campo trabajan por obra asignada: sin
+      // obras el primero no administra nada y el segundo no ve nada.
+      if (necesitaObrasAsignadas(nextRol?.nivel_acceso) && selectedProyectoIds.length === 0) {
+        alert("Este rol necesita al menos una obra asignada");
         return;
       }
     }
@@ -86,7 +88,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
       } else {
         const body: { rol_id: string; proyectos_asignados?: string[] } = { rol_id: selectedRolId };
         const nextRol = roles.find((r) => r.id === selectedRolId);
-        if (nextRol?.nivel_acceso === "ADMIN_PROYECTO") {
+        if (necesitaObrasAsignadas(nextRol?.nivel_acceso)) {
           body.proyectos_asignados = selectedProyectoIds;
         }
         const res = await fetch(`/api/usuarios/${userId}`, {
@@ -207,7 +209,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
               <option key={r.id} value={r.id}>{r.nombre} ({r.nivel_acceso.toLowerCase()})</option>
             ))}
           </select>
-          {selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
+          {necesitaObrasAsignadas(selectedRol?.nivel_acceso) && proyectos && proyectos.length > 0 && (
             <ProyectosMultiSelect
               proyectos={proyectos}
               value={selectedProyectoIds}
@@ -418,7 +420,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
                       </select>
                     </div>
                   )}
-                  {!isUninvited && selectedRol?.nivel_acceso === "ADMIN_PROYECTO" && proyectos && proyectos.length > 0 && (
+                  {!isUninvited && necesitaObrasAsignadas(selectedRol?.nivel_acceso) && proyectos && proyectos.length > 0 && (
                     <ProyectosMultiSelect
                       proyectos={proyectos}
                       value={selectedProyectoIds}
@@ -461,7 +463,7 @@ export default function UsuariosClient({ usuarios, roles, proyectos, canInviteAn
         <InviteUserModal
           onClose={() => setShowInvite(false)}
           proyectos={proyectos}
-          canInviteAnyRole={canInviteAnyRole}
+          rolesDisponibles={roles}
         />
       )}
 

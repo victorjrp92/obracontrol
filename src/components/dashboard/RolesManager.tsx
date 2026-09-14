@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, X, Shield, ChevronDown, Users, Loader2 } from "lucide-react";
 
-type NivelAcceso = "DIRECTIVO" | "ADMIN_GENERAL" | "ADMIN_PROYECTO" | "CONTRATISTA" | "OBRERO";
+type NivelAcceso = "DIRECTIVO" | "ADMIN_GENERAL" | "ADMIN_PROYECTO" | "CONTRATISTA" | "OBRERO" | "PERSONAL_CAMPO";
 
 interface Rol {
   id: string;
@@ -14,14 +14,20 @@ interface Rol {
   _count: { usuarios: number };
 }
 
-const NIVELES: NivelAcceso[] = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"];
+// Esta lista es la que alimenta el selector del modal: un nivel que no esté aquí
+// no se puede elegir aunque exista en el enum de Prisma.
+const NIVELES: NivelAcceso[] = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO", "PERSONAL_CAMPO"];
 
+// Las claves son los valores crudos del enum NivelAcceso (si se tocan, la etiqueta
+// desaparece y se ve el nivel en bruto). OBRERO se lee «Maestro»: «Personal de
+// campo» ya nombra al rol PERSONAL_CAMPO, que sí tiene cuenta propia.
 const NIVEL_LABELS: Record<NivelAcceso, string> = {
   DIRECTIVO: "Directivo",
   ADMIN_GENERAL: "Administrador general",
   ADMIN_PROYECTO: "Administrador Proyectos",
   CONTRATISTA: "Contratista",
-  OBRERO: "Personal de campo",
+  OBRERO: "Maestro",
+  PERSONAL_CAMPO: "Personal de campo",
 };
 
 const NIVEL_COLORS: Record<NivelAcceso, string> = {
@@ -30,6 +36,8 @@ const NIVEL_COLORS: Record<NivelAcceso, string> = {
   ADMIN_PROYECTO: "bg-sky-100 text-sky-700",
   CONTRATISTA: "bg-amber-100 text-amber-700",
   OBRERO: "bg-emerald-100 text-emerald-700",
+  // Rosa: es el único tono que no se confunde con los cinco que ya están en la tabla.
+  PERSONAL_CAMPO: "bg-rose-100 text-rose-700",
 };
 
 // ─── Add/Edit Modal ───────────────────────────────────────────────────────────

@@ -1,0 +1,22 @@
+-- Añade PERSONAL_CAMPO a NivelAcceso.
+--
+-- Es el perfil de los auxiliares y residentes de obra: reportan desde una
+-- pantalla propia, ven solo las obras que un administrador les asignó, y no
+-- administran nada. La empresa les crea la cuenta y Seiricon les manda el
+-- acceso al correo.
+--
+-- Jerarquía: SUPER_ADMIN > DIRECTIVO > ADMIN_GENERAL > ADMIN_PROYECTO >
+-- PERSONAL_CAMPO > CONTRATISTA > OBRERO. El orden del enum en Postgres NO se
+-- puede alterar sin recrear el tipo, así que el valor se añade al final: el
+-- código nunca compara niveles por orden, siempre por igualdad.
+--
+-- Se llama PERSONAL_CAMPO y no PERSONAL_DE_CAMPO porque sigue el estilo de los
+-- valores que ya existen (ADMIN_GENERAL, ADMIN_PROYECTO). La etiqueta que ve
+-- el usuario, «Personal de campo», vive en el código, no aquí.
+--
+-- ⚠️ ESTA MIGRACIÓN SOLO AÑADE EL VALOR, A PROPÓSITO. Postgres prohíbe USAR un
+-- valor de enum en la misma transacción en que se crea («unsafe use of new
+-- value of enum type»), y Prisma envuelve cada fichero en una transacción. El
+-- alta de los roles por defecto va en un script aparte
+-- (scripts/backfill-rol-personal-campo.ts), no aquí.
+ALTER TYPE "NivelAcceso" ADD VALUE IF NOT EXISTS 'PERSONAL_CAMPO';

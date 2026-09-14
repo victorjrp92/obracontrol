@@ -31,7 +31,11 @@ export async function proxy(req: NextRequest) {
     req.nextUrl.pathname.startsWith("/dashboard") ||
     req.nextUrl.pathname.startsWith("/super-admin") ||
     req.nextUrl.pathname.startsWith("/directivo") ||
-    req.nextUrl.pathname.startsWith("/contratista");
+    req.nextUrl.pathname.startsWith("/contratista") ||
+    // Zona del personal de campo. Va en DOS sitios: aquí y en config.matcher
+    // de abajo. Si falta en el matcher, el proxy ni siquiera corre para /campo
+    // y la zona queda sin sesión obligatoria.
+    req.nextUrl.pathname.startsWith("/campo");
 
   // Redirigir al login si intenta acceder a rutas privadas sin sesión
   if (isProtected && !user) {
@@ -52,6 +56,7 @@ export const config = {
     "/super-admin/:path*",
     "/directivo/:path*",
     "/contratista/:path*",
+    "/campo/:path*",
     "/login",
     "/registro",
   ],

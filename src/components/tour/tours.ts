@@ -16,6 +16,13 @@ import { esCuentaPersonal } from "@/lib/plan";
  * Lo que vive DENTRO de una obra (productos técnicos, actas, equipo) no tiene
  * ítem de menú al que anclarse. Esos pasos van centrados y dicen con palabras
  * dónde encontrarlo.
+ *
+ * REGLA DE NOMBRES: `OBRERO` se lee «Maestro» — es quien entra por un enlace con
+ * token y no tiene cuenta. «Personal de campo» nombra en EXCLUSIVA al rol
+ * `PERSONAL_CAMPO` (auxiliar o residente con usuario y contraseña, zona /campo),
+ * así que ningún paso que hable del enlace personal puede llamarse así. Los
+ * `target` (p. ej. `nav-equipo`) son SELECTORES del DOM: renombrarlos apaga el
+ * paso sin dar error. Se renombran títulos y textos, nunca targets.
  */
 
 export interface TourStep {
@@ -95,7 +102,7 @@ function tourArquitecto(nombre: string): TourDef {
       },
       {
         target: "nav-equipo",
-        title: "8. Tu personal de campo",
+        title: "8. Tus maestros",
         body: "Registra a quien trabaja contigo y comparte con cada uno su enlace personal. Con ese enlace ven sus tareas y te reportan desde el celular con fotos, sin necesitar cuenta.",
         placement: "right",
       },
@@ -130,7 +137,7 @@ function tourPersonal(nombre: string): TourDef {
       },
       {
         target: "nav-equipo",
-        title: "3. Tu personal de campo",
+        title: "3. Tus maestros",
         body: "Registra a quien trabaja contigo y comparte con cada uno su enlace personal. Con ese enlace ven sus tareas y te reportan desde el celular con fotos, sin necesitar cuenta.",
         placement: "right",
       },
@@ -166,7 +173,7 @@ function tourEmpresa(nombre: string): TourDef {
       {
         target: "nav-tareas",
         title: "Tareas",
-        body: "Todo lo que reportan contratistas y personal de campo llega aquí para que tu equipo lo revise y apruebe.",
+        body: "Todo lo que reportan contratistas y maestros llega aquí para que tu equipo lo revise y apruebe.",
         placement: "right",
       },
       {

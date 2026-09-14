@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X, UserPlus, Mail, User, Shield } from "lucide-react";
 import ProyectosMultiSelect from "@/components/dashboard/ProyectosMultiSelect";
+import { necesitaObrasAsignadas } from "@/lib/niveles-acceso";
 
 interface RolOption {
   id: string;
@@ -19,29 +20,40 @@ interface ProyectoOption {
 interface Props {
   onClose: () => void;
   proyectos?: ProyectoOption[];
-  canInviteAnyRole?: boolean;
+  /**
+   * Roles que quien invita puede usar. GET /api/roles devuelve TODOS los de la
+   * constructora sin mirar quién pregunta, así que un admin de proyecto veía
+   * aquí roles que POST /api/usuarios le rechaza con 403. Quien renderiza el
+   * modal ya sabe la lista buena: se la pasa.
+   */
+  rolesDisponibles?: RolOption[];
 }
 
-export default function InviteUserModal({ onClose, proyectos = [], canInviteAnyRole: _canInviteAnyRole = true }: Props) {
-  void _canInviteAnyRole;
+export default function InviteUserModal({ onClose, proyectos = [], rolesDisponibles }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [roles, setRoles] = useState<RolOption[]>([]);
+  const [rolesRemotos, setRolesRemotos] = useState<RolOption[]>([]);
   const [selectedRolId, setSelectedRolId] = useState("");
   const [proyectosAsignados, setProyectosAsignados] = useState<string[]>([]);
 
+  const roles = rolesDisponibles ?? rolesRemotos;
+
   useEffect(() => {
+    if (rolesDisponibles) return;
     fetch("/api/roles")
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setRoles(data as RolOption[]);
+        if (Array.isArray(data)) setRolesRemotos(data as RolOption[]);
       })
       .catch(() => {});
-  }, []);
+  }, [rolesDisponibles]);
 
   const selectedRol = roles.find((r) => r.id === selectedRolId);
-  const needsProyectos = selectedRol?.nivel_acceso === "ADMIN_PROYECTO";
+  // El personal de campo también trabaja por obra asignada: sin esto se creaba
+  // la cuenta, se enviaba la contraseña y el usuario entraba a /campo para ver
+  // «Todavía no tienes obras» sin que nadie pudiera arreglarlo desde aquí.
+  const needsProyectos = necesitaObrasAsignadas(selectedRol?.nivel_acceso);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -56,8 +68,11 @@ export default function InviteUserModal({ onClose, proyectos = [], canInviteAnyR
     };
 
     if (needsProyectos) {
+      // La API solo obliga a la lista para ADMIN_PROYECTO; aquí se exige también
+      // al personal de campo a propósito: darlo de alta sin obra lo deja con la
+      // pantalla vacía y sin señal de que falta un paso.
       if (proyectosAsignados.length === 0) {
-        setError("Selecciona al menos un proyecto");
+        setError("Selecciona al menos una obra: sin obra asignada este usuario no verá nada");
         setLoading(false);
         return;
       }
@@ -138,12 +153,19 @@ export default function InviteUserModal({ onClose, proyectos = [], canInviteAnyR
           </div>
 
           {needsProyectos && (
-            <ProyectosMultiSelect
-              proyectos={proyectos}
-              value={proyectosAsignados}
-              onChange={setProyectosAsignados}
-              required
-            />
+            <>
+              <ProyectosMultiSelect
+                proyectos={proyectos}
+                value={proyectosAsignados}
+                onChange={setProyectosAsignados}
+                label="Obras asignadas"
+                required
+              />
+              <p className="text-xs text-slate-500 -mt-2">
+                Este rol solo ve las obras que le asignes. Después puedes añadir o
+                quitar obras desde el equipo de cada proyecto.
+              </p>
+            </>
           )}
 
           <p className="text-xs text-slate-500">

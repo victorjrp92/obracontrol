@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/(auth)/actions";
 import {
   LayoutDashboard,
-  FolderOpen,
+  ClipboardList,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -15,9 +16,20 @@ import {
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
+// El portal del directivo tiene UNA pantalla: /directivo, que ya lista las
+// obras (el antiguo item "Proyectos" apuntaba a /directivo?tab=proyectos y era
+// un enlace muerto — esa página no declara `searchParams`, así que el query no
+// cambiaba ni el contenido ni el resaltado).
+//
+// Las dos cosas que un directivo viene a ver de verdad —el estado de las tareas
+// y las gráficas— viven en el shell de administración, al que SÍ tiene derecho
+// de entrar: el layout de (dashboard) solo rebota a SUPER_ADMIN y CONTRATISTA.
+// Se marcan con `externo` porque lo sacan de su portal, y Sidebar.tsx le pinta
+// allí el camino de vuelta.
 const navItems = [
-  { key: "inicio", icon: LayoutDashboard, label: "Inicio", href: "/directivo" },
-  { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/directivo?tab=proyectos" },
+  { key: "inicio", icon: LayoutDashboard, label: "Inicio", href: "/directivo", externo: false },
+  { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas", externo: true },
+  { key: "reportes", icon: BarChart3, label: "Reportes", href: "/dashboard/reportes", externo: true },
 ];
 
 interface SidebarDirectivoProps {
@@ -76,31 +88,47 @@ export default function SidebarDirectivo({ userName = "Usuario" }: SidebarDirect
       {/* Nav */}
       <nav className="flex-1 py-4 overflow-y-auto">
         <ul className="flex flex-col gap-1 px-2">
-          {navItems.map((item) => {
+          {navItems.map((item, i) => {
             const Icon = item.icon;
-            // For "Inicio", only active when exactly on /directivo with no tab
-            // For "Proyectos" (query-based), active when tab=proyectos is in URL
+            // "Inicio" cubre todo el portal: el detalle de obra
+            // (/directivo/proyecto/[id]) es una bajada desde esa misma lista,
+            // no una sección aparte.
             const active =
               item.key === "inicio"
-                ? pathname === "/directivo"
-                : pathname.startsWith("/directivo/proyecto");
+                ? pathname.startsWith("/directivo")
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+            // Separador antes del primer item que lo saca del portal: sin él,
+            // el menú no avisa de que el shell cambia debajo de los pies.
+            const abreSeccionExterna = item.externo && !navItems[i - 1]?.externo;
 
             return (
-              <li key={item.key}>
-                <Link
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
-                    active
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800"
-                  } ${collapsed ? "justify-center" : ""}`}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className="w-4.5 h-4.5 flex-shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              </li>
+              <Fragment key={item.key}>
+                {abreSeccionExterna && (
+                  <li role="presentation" className="mt-3 pt-3 border-t border-slate-800">
+                    {!collapsed && (
+                      <span className="px-3 text-[10px] uppercase tracking-wide text-slate-500">
+                        Administración
+                      </span>
+                    )}
+                  </li>
+                )}
+                <li>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                      active
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800"
+                    } ${collapsed ? "justify-center" : ""}`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <Icon className="w-4.5 h-4.5 flex-shrink-0" />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                </li>
+              </Fragment>
             );
           })}
         </ul>

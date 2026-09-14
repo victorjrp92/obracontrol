@@ -23,10 +23,20 @@ import {
   Lightbulb,
   Plus,
   HardHat,
+  ArrowLeft,
+  ClipboardCheck,
 } from "lucide-react";
 import NotificacionesDropdown from "@/components/dashboard/NotificacionesDropdown";
 
+// Tabla única de items: `sidebarItems` de permissions.ts solo trae CLAVES, y el
+// `.map(find).filter(Boolean)` de abajo se come en silencio cualquier clave que
+// no exista aquí. Toda clave nueva que declare un rol necesita su fila.
 const allNavItems = [
+  // Salidas a otros shells: el directivo vuelve a su portal y el personal de
+  // campo va al suyo. Viven aquí porque `sidebarItems` de permissions.ts los
+  // nombra por clave ("campo") y sin fila desaparecerían sin avisar.
+  { key: "portal-directivo", icon: ArrowLeft, label: "Portal directivo", href: "/directivo" },
+  { key: "campo", icon: ClipboardCheck, label: "Mis obras", href: "/campo" },
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { key: "empresa", icon: Building2, label: "Empresa", href: "/dashboard/empresa" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
@@ -54,9 +64,21 @@ export default function Sidebar({ nivelAcceso = "ADMIN_GENERAL", tipoCuenta = "C
   // simple); las empresas conservan el menú por permisos de siempre.
   const personal = esCuentaPersonal(tipoCuenta);
   const itemKeys = personal ? modulosVisibles(tipoCuenta) : getPermissions(nivelAcceso).sidebarItems;
-  const navItems = itemKeys
+
+  // El directivo llega a este shell solo de paso (Tareas, Reportes) desde su
+  // portal, y nada aquí lo devolvía: entraba y se quedaba. La vuelta va en el
+  // Sidebar y no en permissions.ts porque es navegación entre shells, no un
+  // permiso — sidebarItems no debe saber dónde vive cada rol.
+  const keys = nivelAcceso === "DIRECTIVO" ? ["portal-directivo", ...itemKeys] : itemKeys;
+
+  const resueltos = keys
     .map((key) => allNavItems.find((item) => item.key === key))
     .filter((item): item is (typeof allNavItems)[number] => Boolean(item));
+  // Red de seguridad: una clave sin fila en `allNavItems` desaparece sin error
+  // de build, así que un rol cuyas claves no casen se queda con el menú EN
+  // BLANCO y sin forma de moverse. Antes de eso, al menos el Dashboard.
+  const navItems =
+    resueltos.length > 0 ? resueltos : allNavItems.filter((item) => item.key === "dashboard");
   const rolLabel = getRolLabel(userRole ?? nivelAcceso);
   const initials = userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 

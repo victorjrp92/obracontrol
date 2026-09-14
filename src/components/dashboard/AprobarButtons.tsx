@@ -85,7 +85,10 @@ export default function AprobarButtons({
         <textarea
           value={justificacion}
           onChange={(e) => setJustificacion(e.target.value)}
-          placeholder="Indica qué hace falta o qué debe corregirse. El personal de campo verá este mensaje al reenviar la tarea."
+          // Sin nombrar el rol: este botón se usa en el dashboard y en la zona del
+          // contratista, y quien reporta puede ser un maestro, un contratista o
+          // personal de campo. Nombrar uno solo sería falso en los otros dos.
+          placeholder="Indica qué hace falta o qué debe corregirse. Quien reportó la tarea verá este mensaje al reenviarla."
           className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
           rows={3}
           autoFocus

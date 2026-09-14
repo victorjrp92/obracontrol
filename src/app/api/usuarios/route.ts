@@ -79,48 +79,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
     }
 
-    // ADMIN_PROYECTO can only invite CONTRATISTA or OBRERO
-    if (isProjectAdmin(currentUser.rol_ref.nivel_acceso) && !["CONTRATISTA", "OBRERO"].includes(rol.nivel_acceso)) {
+    // Un ADMIN_PROYECTO solo da de alta a quien trabaja en SU obra. El personal
+    // de campo entra en esa lista a propósito: el admin de la obra es quien
+    // conoce a sus auxiliares y residentes, y las obras que les asigne quedan
+    // acotadas más abajo a las que él mismo administra.
+    const NIVELES_QUE_PUEDE_INVITAR_UN_ADMIN_PROYECTO = ["CONTRATISTA", "OBRERO", "PERSONAL_CAMPO"];
+    if (
+      isProjectAdmin(currentUser.rol_ref.nivel_acceso) &&
+      !NIVELES_QUE_PUEDE_INVITAR_UN_ADMIN_PROYECTO.includes(rol.nivel_acceso)
+    ) {
       return NextResponse.json(
-        { error: "Solo puedes invitar contratistas u obreros" },
+        { error: "Solo puedes invitar contratistas, obreros o personal de campo" },
         { status: 403 },
       );
     }
 
-    // If the target role is ADMIN_PROYECTO, proyectos_asignados must be non-empty.
-    if (rol.nivel_acceso === "ADMIN_PROYECTO") {
-      if (!Array.isArray(proyectos_asignados) || proyectos_asignados.length === 0) {
+    // Niveles cuyo acceso sale de AdminProyectoAccess (obra por obra) y no de la
+    // constructora entera. Antes solo se contemplaba ADMIN_PROYECTO, así que
+    // crear un PERSONAL_CAMPO con `proyectos_asignados` devolvía 201 y tiraba el
+    // array: usuario creado, correo enviado y cero obras que ver.
+    const asignaPorObra =
+      rol.nivel_acceso === "ADMIN_PROYECTO" || rol.nivel_acceso === "PERSONAL_CAMPO";
+
+    if (asignaPorObra) {
+      // Un Admin Proyecto sin obras no administra nada → la lista es obligatoria.
+      // Al personal de campo se le puede asignar la obra después desde el equipo
+      // del proyecto, así que para él se admite venir sin lista.
+      if (
+        rol.nivel_acceso === "ADMIN_PROYECTO" &&
+        (!Array.isArray(proyectos_asignados) || proyectos_asignados.length === 0)
+      ) {
         return NextResponse.json(
           { error: "Debes seleccionar al menos un proyecto para un Admin Proyecto" },
           { status: 400 },
         );
       }
 
-      const proyectosDb = await prisma.proyecto.findMany({
-        where: { id: { in: proyectos_asignados }, constructora_id: currentUser.constructora_id },
-        select: { id: true },
-      });
-      if (proyectosDb.length !== proyectos_asignados.length) {
-        return NextResponse.json(
-          { error: "Algunos proyectos no pertenecen a esta constructora" },
-          { status: 400 },
-        );
-      }
+      if (Array.isArray(proyectos_asignados) && proyectos_asignados.length > 0) {
+        const proyectosDb = await prisma.proyecto.findMany({
+          where: { id: { in: proyectos_asignados }, constructora_id: currentUser.constructora_id },
+          select: { id: true },
+        });
+        if (proyectosDb.length !== proyectos_asignados.length) {
+          return NextResponse.json(
+            { error: "Algunos proyectos no pertenecen a esta constructora" },
+            { status: 400 },
+          );
+        }
 
-      // If the inviter is ADMIN_PROYECTO (edge-case: spec allows Contratista/Obrero only, but guard anyway)
-      if (isAnyAdmin(currentUser.rol_ref.nivel_acceso) && !canManageUsers(currentUser.rol_ref.nivel_acceso)) {
-        const accessible = await getAccessibleProjectIds(
-          currentUser.id,
-          currentUser.constructora_id,
-          currentUser.rol_ref.nivel_acceso,
-        );
-        if (accessible !== "ALL") {
-          const allowed = new Set(accessible);
-          if (proyectos_asignados.some((p) => !allowed.has(p))) {
-            return NextResponse.json(
-              { error: "Solo puedes asignar proyectos que administras" },
-              { status: 403 },
-            );
+        // Si quien invita es ADMIN_PROYECTO, solo puede asignar las obras que él
+        // administra: si no, podría colocar a su residente en una obra ajena.
+        if (isAnyAdmin(currentUser.rol_ref.nivel_acceso) && !canManageUsers(currentUser.rol_ref.nivel_acceso)) {
+          const accessible = await getAccessibleProjectIds(
+            currentUser.id,
+            currentUser.constructora_id,
+            currentUser.rol_ref.nivel_acceso,
+          );
+          if (accessible !== "ALL") {
+            const allowed = new Set(accessible);
+            if (proyectos_asignados.some((p) => !allowed.has(p))) {
+              return NextResponse.json(
+                { error: "Solo puedes asignar proyectos que administras" },
+                { status: 403 },
+              );
+            }
           }
         }
       }
@@ -153,12 +175,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (rol.nivel_acceso === "ADMIN_PROYECTO" && Array.isArray(proyectos_asignados)) {
+    // El personal de campo comparte tabla con el admin de proyecto pero NO
+    // hereda sus permisos: `can_approve_tasks` viene con @default(true) en el
+    // esquema, así que para este nivel hay que apagar los cuatro a mano.
+    const permisosDeObra: {
+      can_edit_project?: boolean;
+      can_assign_contractors?: boolean;
+      can_manage_team?: boolean;
+      can_approve_tasks?: boolean;
+    } =
+      rol.nivel_acceso === "PERSONAL_CAMPO"
+        ? {
+            can_edit_project: false,
+            can_assign_contractors: false,
+            can_manage_team: false,
+            can_approve_tasks: false,
+          }
+        : {};
+
+    if (asignaPorObra && Array.isArray(proyectos_asignados) && proyectos_asignados.length > 0) {
       await prisma.adminProyectoAccess.createMany({
         data: proyectos_asignados.map((pid) => ({
           usuario_id: nuevoUsuario.id,
           proyecto_id: pid,
           asignado_por: currentUser.id,
+          ...permisosDeObra,
         })),
         skipDuplicates: true,
       });

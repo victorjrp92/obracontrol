@@ -34,7 +34,10 @@ export default async function ObrerosPage() {
 
   return (
     <>
-      <Topbar title="Personal de campo" subtitle="Todo el personal de campo del sistema" />
+      {/* «Maestros» y no «Personal de campo»: ese nombre es del rol PERSONAL_CAMPO
+          (auxiliares y residentes con cuenta propia). Aquí se listan Obreros, que
+          entran por enlace con token. El ítem del menú ya dice «Maestros». */}
+      <Topbar title="Maestros" subtitle="Todos los maestros del sistema" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <ObrerosClient obreros={data} constructoras={constructoras} />
       </main>

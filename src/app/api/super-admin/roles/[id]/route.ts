@@ -6,6 +6,7 @@ const VALID_NIVELES = [
   "DIRECTIVO",
   "ADMIN_GENERAL",
   "ADMIN_PROYECTO",
+  "PERSONAL_CAMPO",
   "CONTRATISTA",
   "OBRERO",
   // SUPER_ADMIN intencionalmente excluído: solo se asigna por seed.

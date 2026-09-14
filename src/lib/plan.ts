@@ -241,9 +241,13 @@ export {
  * salpicar condicionales de texto por toda la UI.
  */
 export interface TonoPerfil {
-  /** A quién contrata y reporta: define etiquetas del equipo. */
-  equipoLabel: string; // "Mis obreros" | "Mis contratistas"
-  equipoSingular: string; // "obrero" | "contratista"
+  /**
+   * A quién contrata y reporta: define etiquetas del equipo. El modelo se llama
+   * `Obrero`, pero en pantalla se lee «Maestro»: «Personal de campo» nombra en
+   * exclusiva al rol `PERSONAL_CAMPO` y no puede reutilizarse aquí.
+   */
+  equipoLabel: string; // "Mis maestros" | "Mis contratistas"
+  equipoSingular: string; // "maestro" | "contratista"
   obraLabel: string; // "Mi obra" | "Las obras"
   obraSingular: string; // "obra" | "proyecto"
   /** Saludo/encabezado del módulo de intención. */
@@ -267,8 +271,8 @@ export function tonoPerfil(tipo: TipoCuenta): TonoPerfil {
   }
   if (tipo === "PROPIETARIO") {
     return {
-      equipoLabel: "Mis obreros",
-      equipoSingular: "obrero",
+      equipoLabel: "Mis maestros",
+      equipoSingular: "maestro",
       obraLabel: "Mi obra",
       obraSingular: "obra",
       intencionTitulo: "Empecemos con tu obra",

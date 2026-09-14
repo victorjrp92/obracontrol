@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isGeneralAdmin } from "@/lib/access";
 
-const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"] as const;
+// Duplicada a mano en api/roles/route.ts y api/super-admin/roles/[id]/route.ts:
+// si se añade un nivel hay que tocar las tres o el mismo rol se crea desde un
+// endpoint y se rechaza con 400 desde otro.
+const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "PERSONAL_CAMPO", "CONTRATISTA", "OBRERO"] as const;
 
 // PATCH /api/roles/[id] — edit a role's nombre or nivel_acceso
 export async function PATCH(

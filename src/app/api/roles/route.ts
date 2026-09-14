@@ -3,7 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { isGeneralAdmin } from "@/lib/access";
 
-const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "CONTRATISTA", "OBRERO"] as const;
+// Lista blanca escrita a mano: NO deriva del enum `NivelAcceso`, así que
+// añadir un valor al esquema no rompe el build aquí — hay que acordarse.
+// SUPER_ADMIN queda fuera a propósito: solo se asigna por seed.
+const VALID_NIVELES = ["DIRECTIVO", "ADMIN_GENERAL", "ADMIN_PROYECTO", "PERSONAL_CAMPO", "CONTRATISTA", "OBRERO"] as const;
 
 // GET /api/roles — list roles for the current constructora
 export async function GET() {
@@ -59,7 +62,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (!VALID_NIVELES.includes(nivel_acceso as typeof VALID_NIVELES[number])) {
-      return NextResponse.json({ error: "nivel_acceso inválido. Debe ser uno de: DIRECTIVO, ADMIN_GENERAL, ADMIN_PROYECTO, CONTRATISTA, OBRERO" }, { status: 400 });
+      return NextResponse.json(
+        { error: `nivel_acceso inválido. Debe ser uno de: ${VALID_NIVELES.join(", ")}` },
+        { status: 400 },
+      );
     }
 
     // Check for duplicate name in same constructora

@@ -123,10 +123,10 @@ export default async function ContratistaTareaDetallePage({
           </div>
         )}
 
-        {/* Evidencias enviadas por el obrero */}
+        {/* Evidencias enviadas por el maestro */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-700">Evidencias del obrero</h3>
+            <h3 className="text-sm font-semibold text-slate-700">Evidencias del maestro</h3>
             <span className="text-xs text-slate-500">
               {fotos.length} foto{fotos.length === 1 ? "" : "s"} · {videos.length} video
               {videos.length === 1 ? "" : "s"}
@@ -149,13 +149,13 @@ export default async function ContratistaTareaDetallePage({
             <h3 className="text-sm font-semibold text-slate-700 mb-1">Revisión</h3>
             <p className="text-xs text-slate-500 mb-3">
               Verifica las evidencias y aprueba si el trabajo cumple con lo acordado. Si las pruebas
-              no son contundentes, rechaza con un comentario explicando qué falta — el obrero podrá
+              no son contundentes, rechaza con un comentario explicando qué falta — el maestro podrá
               re-reportar la misma tarea.
             </p>
             {!enoughPhotos && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700">
                 Solo hay {fotos.length} foto{fotos.length === 1 ? "" : "s"}. Se requieren al menos 2 para aprobar.
-                Puedes rechazar para que el obrero envíe más evidencias.
+                Puedes rechazar para que el maestro envíe más evidencias.
               </div>
             )}
             <AprobarButtons tareaId={tarea.id} canApprove={enoughPhotos} />

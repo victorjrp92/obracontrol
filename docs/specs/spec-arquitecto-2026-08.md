@@ -46,10 +46,17 @@ al arquitecto.
   a todo el piso.
 - **B5** — «Personas externas» → **«Personal del proyecto»**. Son parte del
   proyecto pero no responden por él.
-- **B6** — «Obrero» → **«Personal de Campo»**, en **todos** los perfiles, B2B
-  incluido. Solo interfaz: el modelo `Obrero`, la tabla `obreros` y las rutas
-  `/o/[token]` no se tocan. Se añaden **contacto de emergencia** y **dirección**,
-  mismos campos para el personal del proyecto.
+- **B6** — ~~«Obrero» → **«Personal de Campo»**, en **todos** los perfiles, B2B
+  incluido.~~ **ANULADO el 13 de septiembre de 2026.** El renombrado a «Personal
+  de Campo» ya no aplica: se creó el rol `NivelAcceso.PERSONAL_CAMPO` (auxiliares
+  y residentes de obra, con cuenta propia y zona `/campo`), que es algo distinto
+  de un `Obrero` —quien entra por enlace con token y no tiene cuenta—. Llamar
+  igual a los dos hacía imposible distinguirlos en pantalla. **Regla vigente:
+  `OBRERO` se lee «Maestro»; «Personal de campo» queda reservado en exclusiva
+  para `PERSONAL_CAMPO`.** Quien reabra este spec: no reintroduzcas la colisión.
+  Sigue vigente el resto del punto: solo interfaz —el modelo `Obrero`, la tabla
+  `obreros` y las rutas `/o/[token]` no se tocan— y se añaden **contacto de
+  emergencia** y **dirección**, mismos campos para el personal del proyecto.
 - **B7** — Rediseño del algoritmo de duración (sección 4).
 - **B8** — Bloque de datos del inmueble: matrícula inmobiliaria, dirección,
   conjunto + unidad, ciudad, tipo, área, pisos, **año de construcción**,
@@ -180,3 +187,7 @@ node-5  Productos técnicos ──── leaf-5.1  Modelo + storage + cupos
 node-6  Verificación final ──── leaf-6.1  Agente anti-bugs (encuentra y repara)
                                 leaf-6.2  Agente de seguridad
 ```
+
+> **leaf-1.2** — la mitad de «renombrado» quedó **anulada el 13/09/2026** (ver B6):
+> `OBRERO` se lee «Maestro», no «Personal de Campo». Los campos nuevos siguen
+> vigentes.

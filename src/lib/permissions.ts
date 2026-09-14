@@ -88,6 +88,33 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewUsers: false,
         sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes"],
       };
+    // Personal de campo (auxiliares y residentes): REPORTA, no administra. Sin
+    // este case caía en `default`, que lo dejaba con un menú de un solo ítem
+    // apuntando a /dashboard — una zona a la que no debe entrar.
+    //
+    // Los once permisos van en false a propósito, `canApprove` el primero, y
+    // eso NO le quita el reporte: reportar no se autoriza por estos flags. Lo
+    // autoriza `puedeReportarEnProyecto` (src/lib/access.ts) dentro de
+    // POST /api/tareas/[id]/reportar, comprobando que la tarea sea de una obra
+    // que un administrador le asignó. Subir cualquiera de estos a true no le
+    // daría nada de reporte: solo abriría UI de administración que no le toca.
+    case "PERSONAL_CAMPO":
+      return {
+        canCreate: false,
+        canEdit: false,
+        canDelete: false,
+        canApprove: false,
+        canInviteUsers: false,
+        canViewAllProjects: false,
+        canViewAllTasks: false,
+        canViewReports: false,
+        canViewConfig: false,
+        canViewContractors: false,
+        canViewUsers: false,
+        // Su zona es /campo, no /dashboard: la clave "campo" debe existir en
+        // `allNavItems` de Sidebar.tsx o el menú sale vacío en silencio.
+        sidebarItems: ["campo"],
+      };
     case "CONTRATISTA":
       return {
         canCreate: true,

@@ -43,17 +43,32 @@ export async function POST(
       );
     }
 
-    if (usuario.rol_ref.nivel_acceso !== "ADMIN_PROYECTO") {
+    // Mismo criterio que api/proyectos/[id]/admins: la tabla sirve al admin
+    // junior (administra la obra) y al personal de campo (la ve y reporta).
+    const NIVELES_ASIGNABLES_A_OBRA = ["ADMIN_PROYECTO", "PERSONAL_CAMPO"];
+    if (!NIVELES_ASIGNABLES_A_OBRA.includes(usuario.rol_ref.nivel_acceso)) {
       return NextResponse.json(
-        { error: "Solo se puede asignar usuarios con rol Admin Proyecto" },
+        { error: "Solo se puede asignar usuarios con rol Admin Proyecto o Personal de campo" },
         { status: 400 },
       );
     }
 
+    // `can_approve_tasks` tiene @default(true) en el esquema: para el personal
+    // de campo hay que apagarlo a mano, aquí y en el update del upsert.
+    const permisos =
+      usuario.rol_ref.nivel_acceso === "PERSONAL_CAMPO"
+        ? {
+            can_edit_project: false,
+            can_assign_contractors: false,
+            can_manage_team: false,
+            can_approve_tasks: false,
+          }
+        : {};
+
     const access = await prisma.adminProyectoAccess.upsert({
       where: { usuario_id_proyecto_id: { usuario_id, proyecto_id } },
-      update: {},
-      create: { usuario_id, proyecto_id, asignado_por: su.id },
+      update: { ...permisos },
+      create: { usuario_id, proyecto_id, asignado_por: su.id, ...permisos },
     });
 
     return NextResponse.json(access, { status: 201 });

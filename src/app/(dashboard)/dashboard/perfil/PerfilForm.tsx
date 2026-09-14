@@ -13,13 +13,17 @@ import {
   User,
 } from "lucide-react";
 
+// La clave es el valor crudo del enum NivelAcceso: no se toca. Lo que cambia es
+// la etiqueta — OBRERO se lee «Maestro» para no chocar con el rol PERSONAL_CAMPO,
+// que es el que de verdad se llama «Personal de campo».
 const nivelLabels: Record<string, string> = {
   SUPER_ADMIN: "Super Administrador",
   DIRECTIVO: "Directivo",
   ADMIN_GENERAL: "Administrador general",
   ADMIN_PROYECTO: "Administrador de proyectos",
   CONTRATISTA: "Contratista",
-  OBRERO: "Obrero",
+  OBRERO: "Maestro",
+  PERSONAL_CAMPO: "Personal de campo",
 };
 
 interface PerfilFormProps {

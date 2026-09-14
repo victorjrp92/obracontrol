@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { getUsuarioActual } from "@/lib/data";
-import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import {
+  getAccessibleProjectIds,
+  canAccessProject,
+  isGeneralAdmin,
+  isProjectAdmin,
+  isSuperAdmin,
+} from "@/lib/access";
+import { nivelesConObrasAsignadas } from "@/lib/niveles-acceso";
 import { prisma } from "@/lib/prisma";
 import Topbar from "@/components/dashboard/Topbar";
 import { ArrowLeft } from "lucide-react";
@@ -35,7 +42,7 @@ export default async function EquipoProyectoPage({
               id: true,
               nombre: true,
               email: true,
-              rol_ref: { select: { nombre: true } },
+              rol_ref: { select: { nombre: true, nivel_acceso: true } },
             },
           },
         },
@@ -74,35 +81,86 @@ export default async function EquipoProyectoPage({
     orderBy: { nombre: "asc" },
   });
 
+  // AdminProyectoAccess no es solo de admins juniors: el personal de campo se
+  // vincula a la obra por la misma tabla. Filtrar por ADMIN_PROYECTO dejaba a
+  // los residentes fuera de la lista, y esta pantalla era el único sitio donde
+  // se les podía añadir una obra después del alta.
   const adminsAsignadosIds = new Set(proyecto.admins_proyecto.map((a) => a.usuario.id));
-  const adminsDisponibles = await prisma.usuario.findMany({
+  const asignablesDisponibles = await prisma.usuario.findMany({
     where: {
       constructora_id: usuario.constructora_id,
-      rol_ref: { nivel_acceso: "ADMIN_PROYECTO" },
+      rol_ref: { nivel_acceso: { in: nivelesConObrasAsignadas() } },
       id: { notIn: Array.from(adminsAsignadosIds) },
     },
-    select: { id: true, nombre: true, email: true },
+    select: {
+      id: true,
+      nombre: true,
+      email: true,
+      rol_ref: { select: { nombre: true, nivel_acceso: true } },
+    },
     orderBy: { nombre: "asc" },
   });
 
-  // ADMIN_GENERAL siempre. ADMIN_PROYECTO solo si tiene can_manage_team o
-  // can_assign_contractors sobre este proyecto (la API hace el gate granular real).
-  // DIRECTIVO se excluye porque el endpoint /admins solo acepta ADMIN_GENERAL para
-  // crear/modificar admin juniors.
-  let canAssign = usuario.rol_ref.nivel_acceso === "ADMIN_GENERAL";
-  if (!canAssign && usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO") {
+  const asignados = proyecto.admins_proyecto;
+  const adminsJuniors = asignados.filter(
+    (a) => a.usuario.rol_ref.nivel_acceso === "ADMIN_PROYECTO",
+  ).length;
+  const personalCampo = asignados.length - adminsJuniors;
+
+  // El desplegable del hijo solo pinta nombre y email, así que el rol va dentro
+  // del nombre: sin él, un admin junior y un residente se ven exactamente igual
+  // en la lista y se acaba asignando al que no era.
+  const opcionesAsignables = asignablesDisponibles.map((a) => ({
+    id: a.id,
+    nombre: `${a.nombre} · ${a.rol_ref.nombre}`,
+    email: a.email,
+    // El nivel viaja aparte del texto: el modal de permisos apaga las casillas
+    // para un PERSONAL_CAMPO, y para eso necesita el dato, no la etiqueta.
+    nivelAcceso: a.rol_ref.nivel_acceso,
+  }));
+
+  // Los permisos del que MIRA, obra a obra. Antes salía de aquí un único
+  // `canAssign = can_manage_team || can_assign_contractors` que gobernaba dos
+  // familias de botones distintas: con cualquiera de los dos permisos se pintaba
+  // todo y la mitad devolvía 403. Son permisos separados en la API
+  // (`/admins` y `/personas` piden can_manage_team; `/asignar-tareas` y
+  // `/reasignar` piden can_assign_contractors), así que aquí van separados.
+  //
+  // DIRECTIVO, CONTRATISTA y PERSONAL_CAMPO se quedan en cero: llegan a esta
+  // pantalla porque la obra está en su lista, pero las cuatro APIs de equipo
+  // arrancan en `isAnyAdmin` y les responden 403.
+  const nivelUsuario = usuario.rol_ref.nivel_acceso;
+  const mandaEnTodaLaConstructora = isSuperAdmin(nivelUsuario) || isGeneralAdmin(nivelUsuario);
+
+  let permisosEnObra = {
+    can_edit_project: mandaEnTodaLaConstructora,
+    can_assign_contractors: mandaEnTodaLaConstructora,
+    can_manage_team: mandaEnTodaLaConstructora,
+    can_approve_tasks: mandaEnTodaLaConstructora,
+  };
+  if (isProjectAdmin(nivelUsuario)) {
     const acceso = await prisma.adminProyectoAccess.findUnique({
       where: { usuario_id_proyecto_id: { usuario_id: usuario.id, proyecto_id: id } },
-      select: { can_manage_team: true, can_assign_contractors: true },
+      select: {
+        can_edit_project: true,
+        can_assign_contractors: true,
+        can_manage_team: true,
+        can_approve_tasks: true,
+      },
     });
-    canAssign = !!(acceso?.can_manage_team || acceso?.can_assign_contractors);
+    permisosEnObra = {
+      can_edit_project: !!acceso?.can_edit_project,
+      can_assign_contractors: !!acceso?.can_assign_contractors,
+      can_manage_team: !!acceso?.can_manage_team,
+      can_approve_tasks: !!acceso?.can_approve_tasks,
+    };
   }
 
   return (
     <>
       <Topbar
         title={`Equipo · ${proyecto.nombre}`}
-        subtitle={`${proyecto.admins_proyecto.length} admin junior · ${contratistas.length} contratistas · ${personasExternas.length} externos`}
+        subtitle={`${adminsJuniors} admin junior · ${personalCampo} personal de campo · ${contratistas.length} contratistas · ${personasExternas.length} externos`}
       />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Link
@@ -114,12 +172,17 @@ export default async function EquipoProyectoPage({
 
         <EquipoAdminGeneral
           proyectoId={proyecto.id}
-          canAssign={canAssign}
+          puedeGestionarEquipo={permisosEnObra.can_manage_team}
+          puedeAsignarContratistas={permisosEnObra.can_assign_contractors}
+          // Techo de lo que puede repartir: `POST`/`PATCH` de /admins rechazan
+          // otorgar un permiso que el actor no tiene en esta obra.
+          permisosOtorgables={permisosEnObra}
           adminsAsignados={proyecto.admins_proyecto.map((a) => ({
             usuario_id: a.usuario.id,
             nombre: a.usuario.nombre,
             email: a.usuario.email,
             rol: a.usuario.rol_ref.nombre,
+            nivelAcceso: a.usuario.rol_ref.nivel_acceso,
             permisos: {
               can_edit_project: a.can_edit_project,
               can_assign_contractors: a.can_assign_contractors,
@@ -127,7 +190,7 @@ export default async function EquipoProyectoPage({
               can_approve_tasks: a.can_approve_tasks,
             },
           }))}
-          adminsDisponibles={adminsDisponibles}
+          adminsDisponibles={opcionesAsignables}
           contratistas={contratistas.map((c) => ({
             id: c.id,
             nombre: c.nombre,

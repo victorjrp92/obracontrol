@@ -138,7 +138,7 @@ export default function ObreroManager() {
     setLoading(true);
     try {
       const res = await fetch("/api/obreros");
-      if (!res.ok) throw new Error("Error cargando personal de campo");
+      if (!res.ok) throw new Error("Error cargando maestros");
       setObreros(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error");
@@ -272,7 +272,7 @@ export default function ObreroManager() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("¿Eliminar a esta persona de campo?")) return;
+    if (!confirm("¿Eliminar a este maestro?")) return;
     try {
       const res = await fetch(`/api/obreros/${id}`, { method: "DELETE" });
       if (!res.ok) {
@@ -315,7 +315,7 @@ export default function ObreroManager() {
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-slate-500" />
           <span className="text-sm text-slate-500">
-            {obreros.length} {obreros.length === 1 ? "persona de campo" : "personas de campo"}
+            {obreros.length} {obreros.length === 1 ? "maestro" : "maestros"}
           </span>
         </div>
         <button
@@ -323,7 +323,7 @@ export default function ObreroManager() {
           className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors text-sm cursor-pointer"
         >
           <UserPlus className="w-4 h-4" />
-          Agregar personal de campo
+          Agregar maestro
         </button>
       </div>
 
@@ -331,7 +331,7 @@ export default function ObreroManager() {
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
           <UserPlus className="w-10 h-10 text-slate-300 mx-auto mb-3" />
           <p className="text-sm text-slate-500">
-            No tienes personal de campo registrado. Agrega el primero para darle acceso a tus tareas.
+            No tienes maestros registrados. Agrega el primero para darle acceso a tus tareas.
           </p>
         </div>
       ) : (
@@ -426,7 +426,7 @@ export default function ObreroManager() {
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingId ? "Editar personal de campo" : "Agregar personal de campo"}
+                {editingId ? "Editar maestro" : "Agregar maestro"}
               </h3>
               <button onClick={() => setShowForm(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -508,7 +508,7 @@ export default function ObreroManager() {
               className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-3 rounded-xl transition-colors text-sm cursor-pointer"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear personal de campo"}
+              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear maestro"}
             </button>
           </div>
         </div>
@@ -519,13 +519,13 @@ export default function ObreroManager() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-slate-900">Personal de campo creado</h3>
+              <h3 className="text-lg font-bold text-slate-900">Maestro creado</h3>
               <button onClick={() => setShowLink(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-slate-600 mb-4">
-              Comparte este enlace con la persona de campo para que pueda acceder a sus tareas:
+              Comparte este enlace con el maestro para que pueda acceder a sus tareas:
             </p>
             <div className="bg-slate-50 rounded-xl p-3 mb-4 break-all text-sm text-slate-700 font-mono">
               {generatedLink}

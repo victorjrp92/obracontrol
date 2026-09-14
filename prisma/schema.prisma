@@ -640,6 +640,11 @@ enum NivelAcceso {
   ADMIN_PROYECTO
   CONTRATISTA
   OBRERO
+  /// Auxiliares y residentes de obra. Reportan desde su propia pantalla y ven
+  /// solo las obras que un administrador les asigno. La etiqueta visible es
+  /// «Personal de campo»; el valor va sin «DE» para seguir el estilo de
+  /// ADMIN_GENERAL y ADMIN_PROYECTO.
+  PERSONAL_CAMPO
 }
 
 model Rol {

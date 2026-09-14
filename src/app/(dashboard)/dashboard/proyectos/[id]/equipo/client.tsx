@@ -35,6 +35,9 @@ interface AdminAsignado {
   nombre: string;
   email: string;
   rol: string;
+  // El nivel, además del nombre del rol: el personal de campo no lleva permisos
+  // de obra y la pantalla tiene que saberlo para no ofrecérselos.
+  nivelAcceso: string;
   permisos: PermisosAdminProyecto;
 }
 
@@ -45,16 +48,27 @@ const DEFAULT_PERMISOS: PermisosAdminProyecto = {
   can_approve_tasks: true,
 };
 
+const SIN_PERMISOS: PermisosAdminProyecto = {
+  can_edit_project: false,
+  can_assign_contractors: false,
+  can_manage_team: false,
+  can_approve_tasks: false,
+};
+
+/** Los cuatro permisos de obra son cosa del admin junior, no del residente. */
+const NIVEL_SIN_PERMISOS_DE_OBRA = "PERSONAL_CAMPO";
+
 const PERMISOS_LABELS: { key: keyof PermisosAdminProyecto; label: string; descripcion: string }[] = [
   { key: "can_edit_project", label: "Editar proyecto", descripcion: "Modificar nombre, fechas y configuración del proyecto" },
   { key: "can_assign_contractors", label: "Asignar contratistas", descripcion: "Reasignar tareas entre contratistas" },
-  { key: "can_manage_team", label: "Gestionar equipo", descripcion: "Agregar y quitar admins junior y personas externas" },
+  { key: "can_manage_team", label: "Gestionar equipo", descripcion: "Agregar y quitar personas del equipo de la obra" },
   { key: "can_approve_tasks", label: "Aprobar tareas", descripcion: "Aprobar o rechazar tareas reportadas" },
 ];
 interface AdminDisponible {
   id: string;
   nombre: string;
   email: string;
+  nivelAcceso: string;
 }
 interface ContratistaRow {
   id: string;
@@ -74,7 +88,12 @@ interface PersonaExterna {
 
 interface Props {
   proyectoId: string;
-  canAssign: boolean;
+  /** can_manage_team sobre ESTA obra: /admins y /personas. */
+  puedeGestionarEquipo: boolean;
+  /** can_assign_contractors sobre ESTA obra: /asignar-tareas y /reasignar. */
+  puedeAsignarContratistas: boolean;
+  /** Techo de lo que el que mira puede otorgar a otros en esta obra. */
+  permisosOtorgables: PermisosAdminProyecto;
   adminsAsignados: AdminAsignado[];
   adminsDisponibles: AdminDisponible[];
   contratistas: ContratistaRow[];
@@ -83,7 +102,9 @@ interface Props {
 
 export default function EquipoAdminGeneral({
   proyectoId,
-  canAssign,
+  puedeGestionarEquipo,
+  puedeAsignarContratistas,
+  permisosOtorgables,
   adminsAsignados,
   adminsDisponibles,
   contratistas,
@@ -100,6 +121,11 @@ export default function EquipoAdminGeneral({
         modo: "asignar" | "editar";
         usuarioId: string;
         nombre: string;
+        nivelAcceso: string;
+        // Los permisos tal y como están guardados. La API solo rechaza ENCENDER
+        // lo que el que mira no puede otorgar, así que hace falta el original
+        // para saber qué casilla sigue siendo suya.
+        permisosOriginales: PermisosAdminProyecto;
         permisos: PermisosAdminProyecto;
       }
   >(null);
@@ -245,16 +271,46 @@ export default function EquipoAdminGeneral({
     }
   }
 
+  /**
+   * Con qué casillas nace el modal. El personal de campo entra sin ninguna (la
+   * API se las apaga igual) y al resto se le recortan las que el que asigna no
+   * puede otorgar: si no, el POST devolvería 403 por un valor por defecto que
+   * el usuario ni tocó.
+   */
+  function permisosIniciales(nivelAcceso: string): PermisosAdminProyecto {
+    if (nivelAcceso === NIVEL_SIN_PERMISOS_DE_OBRA) return { ...SIN_PERMISOS };
+    const iniciales = { ...SIN_PERMISOS };
+    for (const p of PERMISOS_LABELS) {
+      iniciales[p.key] = DEFAULT_PERMISOS[p.key] && permisosOtorgables[p.key];
+    }
+    return iniciales;
+  }
+
+  /**
+   * Espejo exacto de la regla del servidor: solo se bloquea ENCENDER un permiso
+   * que el que mira no tiene. Apagarlo sí puede aunque no lo tenga —gestionar el
+   * equipo incluye recortar— y volver a dejarlo como estaba también, porque la
+   * API compara contra la fila guardada, no contra cero.
+   */
+  function puedeTocarPermiso(key: keyof PermisosAdminProyecto): boolean {
+    if (!permisosModal) return false;
+    if (permisosModal.nivelAcceso === NIVEL_SIN_PERMISOS_DE_OBRA) return false;
+    return permisosOtorgables[key] || permisosModal.permisosOriginales[key];
+  }
+
   function handleAsignar() {
     if (!asignar) return;
     setError("");
     const usuario = adminsDisponibles.find((a) => a.id === asignar);
     if (!usuario) return;
+    setPermisosError("");
     setPermisosModal({
       modo: "asignar",
       usuarioId: usuario.id,
       nombre: usuario.nombre,
-      permisos: { ...DEFAULT_PERMISOS },
+      nivelAcceso: usuario.nivelAcceso,
+      permisosOriginales: { ...SIN_PERMISOS },
+      permisos: permisosIniciales(usuario.nivelAcceso),
     });
   }
 
@@ -264,6 +320,8 @@ export default function EquipoAdminGeneral({
       modo: "editar",
       usuarioId: admin.usuario_id,
       nombre: admin.nombre,
+      nivelAcceso: admin.nivelAcceso,
+      permisosOriginales: { ...admin.permisos },
       permisos: { ...admin.permisos },
     });
   }
@@ -403,20 +461,20 @@ export default function EquipoAdminGeneral({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* Admin Juniors -- first col */}
-      <Section title={`Admin Juniors asignados (${adminsAsignados.length})`} icon={Users}>
+      {/* Equipo con acceso a la obra (admins junior + personal de campo) -- first col */}
+      <Section title={`Equipo con acceso a la obra (${adminsAsignados.length})`} icon={Users}>
         {error && (
           <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
         )}
 
-        {canAssign && (
+        {puedeGestionarEquipo && (
           <div className="flex gap-2 mb-3">
             <select
               value={asignar}
               onChange={(e) => setAsignar(e.target.value)}
               className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white"
             >
-              <option value="">+ Asignar Admin Junior...</option>
+              <option value="">+ Asignar a la obra...</option>
               {adminsDisponibles.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.nombre} — {a.email}
@@ -434,33 +492,38 @@ export default function EquipoAdminGeneral({
         )}
 
         {adminsAsignados.length === 0 ? (
-          <Empty>Sin Admin Juniors asignados.</Empty>
+          <Empty>Nadie del equipo tiene acceso a esta obra todavía.</Empty>
         ) : (
           <div className="flex flex-col gap-2">
             {adminsAsignados.map((a) => {
               const perms = a.permisos;
               const permsActivos = PERMISOS_LABELS.filter((p) => perms[p.key]).length;
+              const esPersonalDeCampo = a.nivelAcceso === NIVEL_SIN_PERMISOS_DE_OBRA;
               return (
                 <div key={a.usuario_id} className="flex items-center justify-between gap-3 bg-slate-50 rounded-lg p-3">
                   <div className="min-w-0 flex-1">
                     <div className="font-semibold text-sm text-slate-800 truncate">{a.nombre}</div>
                     <div className="text-xs text-slate-500 truncate">{a.email} · {a.rol}</div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
-                      {permsActivos === 0
+                      {esPersonalDeCampo
+                        ? "Solo ve la obra y reporta avance"
+                        : permsActivos === 0
                         ? "Sin permisos extra"
                         : `${permsActivos} de ${PERMISOS_LABELS.length} permisos`}
                     </div>
                   </div>
-                  {canAssign && (
+                  {puedeGestionarEquipo && (
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => handleEditarPermisos(a)}
-                        className="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 inline-flex items-center gap-1 text-xs font-semibold"
-                        title="Editar permisos"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span className="hidden sm:inline">Permisos</span>
-                      </button>
+                      {!esPersonalDeCampo && (
+                        <button
+                          onClick={() => handleEditarPermisos(a)}
+                          className="text-blue-600 hover:text-blue-700 p-1.5 rounded hover:bg-blue-50 inline-flex items-center gap-1 text-xs font-semibold"
+                          title="Editar permisos"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span className="hidden sm:inline">Permisos</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => handleQuitar(a.usuario_id, a.nombre)}
                         className="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50"
@@ -482,7 +545,7 @@ export default function EquipoAdminGeneral({
         title={`Contratistas (${contratistas.length})`}
         icon={ClipboardList}
         action={
-          canAssign ? (
+          puedeAsignarContratistas ? (
             <button
               onClick={openAsignarTareas}
               className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5"
@@ -507,9 +570,9 @@ export default function EquipoAdminGeneral({
                     {c.tareas} tareas
                   </span>
                   <span className="bg-orange-50 text-orange-700 px-2 py-0.5 rounded font-semibold">
-                    {c.obreros} obreros
+                    {c.obreros} maestros
                   </span>
-                  {canAssign && c.tareas > 0 && (
+                  {puedeAsignarContratistas && c.tareas > 0 && (
                     <button
                       onClick={() => openReasignar(c.id)}
                       className="ml-1 text-violet-600 hover:text-violet-800 p-1 rounded hover:bg-violet-50"
@@ -524,7 +587,7 @@ export default function EquipoAdminGeneral({
           </div>
         )}
 
-        {canAssign && contratistas.length > 0 && (
+        {puedeAsignarContratistas && contratistas.length > 0 && (
           <button
             onClick={loadHistorial}
             className="mt-3 text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
@@ -552,16 +615,29 @@ export default function EquipoAdminGeneral({
         )}
       </Section>
 
-      {/* Modal permisos Admin Junior */}
+      {/* Modal de alta en la obra y permisos */}
       {permisosModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <h4 className="font-bold text-slate-800 mb-1">
-              {permisosModal.modo === "asignar" ? "Asignar Admin Junior" : "Editar permisos"}
+              {permisosModal.modo === "asignar" ? "Asignar a la obra" : "Editar permisos"}
             </h4>
             <p className="text-sm text-slate-600 mb-4">
-              <span className="font-medium">{permisosModal.nombre}</span> — define qué puede hacer en este proyecto.
+              <span className="font-medium">{permisosModal.nombre}</span>
+              {permisosModal.nivelAcceso === NIVEL_SIN_PERMISOS_DE_OBRA
+                ? " — entra a la obra a ver y reportar avance."
+                : " — define qué puede hacer en este proyecto."}
             </p>
+
+            {/* La API fuerza los cuatro permisos a false para un personal de
+                campo: decirlo aquí es más honesto que pintar cuatro casillas
+                que el servidor va a ignorar. */}
+            {permisosModal.nivelAcceso === NIVEL_SIN_PERMISOS_DE_OBRA && (
+              <div className="mb-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                El personal de campo no administra la obra: estos permisos no le
+                aplican y se guardan siempre apagados.
+              </div>
+            )}
 
             {permisosError && (
               <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -570,27 +646,38 @@ export default function EquipoAdminGeneral({
             )}
 
             <div className="flex flex-col gap-2 mb-5">
-              {PERMISOS_LABELS.map((p) => (
-                <label
-                  key={p.key}
-                  className="flex items-start gap-3 p-2 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-1 w-4 h-4 accent-blue-600"
-                    checked={permisosModal.permisos[p.key]}
-                    onChange={(e) =>
-                      setPermisosModal((m) =>
-                        m ? { ...m, permisos: { ...m.permisos, [p.key]: e.target.checked } } : m,
-                      )
-                    }
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold text-slate-800">{p.label}</div>
-                    <div className="text-xs text-slate-500">{p.descripcion}</div>
-                  </div>
-                </label>
-              ))}
+              {PERMISOS_LABELS.map((p) => {
+                const bloqueado = !puedeTocarPermiso(p.key);
+                return (
+                  <label
+                    key={p.key}
+                    className={`flex items-start gap-3 p-2 rounded-lg border border-slate-100 ${
+                      bloqueado ? "opacity-60 cursor-not-allowed" : "hover:bg-slate-50 cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-1 w-4 h-4 accent-blue-600 disabled:cursor-not-allowed"
+                      checked={permisosModal.permisos[p.key]}
+                      disabled={bloqueado}
+                      onChange={(e) =>
+                        setPermisosModal((m) =>
+                          m ? { ...m, permisos: { ...m.permisos, [p.key]: e.target.checked } } : m,
+                        )
+                      }
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-800">{p.label}</div>
+                      <div className="text-xs text-slate-500">{p.descripcion}</div>
+                      {bloqueado && permisosModal.nivelAcceso !== NIVEL_SIN_PERMISOS_DE_OBRA && (
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          No puedes otorgar un permiso que tú no tienes en esta obra.
+                        </div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
             </div>
 
             <div className="flex gap-2 justify-end">
@@ -746,7 +833,7 @@ export default function EquipoAdminGeneral({
           <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{personaError}</div>
         )}
 
-        {canAssign && (
+        {puedeGestionarEquipo && (
           <div className="mb-3 space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
@@ -810,7 +897,7 @@ export default function EquipoAdminGeneral({
                     )}
                   </div>
                 </div>
-                {canAssign && (
+                {puedeGestionarEquipo && (
                   <button
                     onClick={() => { setDeleteId(p.id); setDeletePassword(""); setDeleteError(""); }}
                     className="text-red-600 hover:text-red-700 p-1.5 rounded hover:bg-red-50 flex-shrink-0"

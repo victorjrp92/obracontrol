@@ -21,6 +21,11 @@ export default async function DashboardLayout({
   if (!usuario) redirect("/login");
   if (usuario.rol_ref.nivel_acceso === "SUPER_ADMIN") redirect("/super-admin");
   if (usuario.rol_ref.nivel_acceso === "CONTRATISTA") redirect("/contratista");
+  // El personal de campo reporta, no administra. Sin esta linea entra a
+  // /dashboard/tareas, /proyectos y /reportes: esas paginas no tienen guarda de
+  // nivel, solo recortan por proyecto, y `getAccessibleProjectIds` ya le
+  // devuelve obras. O sea: el grifo esta abierto y esta es la puerta.
+  if (usuario.rol_ref.nivel_acceso === "PERSONAL_CAMPO") redirect("/campo");
   // Consentimiento obligatorio (una vez) antes de usar la app.
   if (!(await tieneConsentimientoVigente(usuario.id))) redirect("/aceptar-politica");
 

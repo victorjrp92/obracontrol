@@ -30,7 +30,7 @@ export default function ObrerosClient({ obreros, constructoras }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
-        <p className="text-sm text-slate-500">{filtered.length} obreros</p>
+        <p className="text-sm text-slate-500">{filtered.length} maestros</p>
         <select
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
@@ -48,7 +48,7 @@ export default function ObrerosClient({ obreros, constructoras }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left">
-                <th className="px-4 py-3 font-semibold text-slate-600">Personal de campo</th>
+                <th className="px-4 py-3 font-semibold text-slate-600">Maestro</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Cédula</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Especialidad</th>
                 <th className="px-4 py-3 font-semibold text-slate-600">Contratista</th>
@@ -87,7 +87,7 @@ export default function ObrerosClient({ obreros, constructoras }: Props) {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-sm text-slate-400">
-                    No hay personal de campo registrado.
+                    No hay maestros registrados.
                   </td>
                 </tr>
               )}
