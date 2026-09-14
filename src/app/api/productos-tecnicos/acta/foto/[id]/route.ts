@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/tenant";
 import { CAMPOS_PUBLICOS, obtenerProducto } from "@/lib/productos-tecnicos/consultas";
-import { assertObraAccesible, contextoProductosTecnicos } from "@/lib/productos-tecnicos/contexto";
+import {
+  assertObraAccesible,
+  assertPuedeEscribirProductoTecnico,
+  contextoProductosTecnicos,
+} from "@/lib/productos-tecnicos/contexto";
 import { respuestaDeError } from "@/lib/productos-tecnicos/respuesta";
 
 /**
@@ -29,6 +33,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const auth = await requireUser();
     const ctx = await contextoProductosTecnicos(auth);
+    // Descartar o recuperar una foto decide qué entra en el acta. Misma regla que
+    // emitirla: el personal de campo no la toca.
+    assertPuedeEscribirProductoTecnico(ctx);
 
     const { id } = await params;
 

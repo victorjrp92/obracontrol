@@ -10,7 +10,11 @@ import {
 } from "@/lib/documentos";
 import type { DatosInmueble } from "@/lib/inmueble";
 import { prisma } from "@/lib/prisma";
-import { assertObraAccesible, contextoProductosTecnicos } from "@/lib/productos-tecnicos/contexto";
+import {
+  assertObraAccesible,
+  assertPuedeEscribirProductoTecnico,
+  contextoProductosTecnicos,
+} from "@/lib/productos-tecnicos/contexto";
 import { respuestaDeError } from "@/lib/productos-tecnicos/respuesta";
 import { requireUser } from "@/lib/tenant";
 import type { TipoPropiedad } from "@/lib/plantillas-personal";
@@ -79,6 +83,10 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser();
     const ctx = await contextoProductosTecnicos(auth);
+    // El acta es un documento firmado: el personal de campo no emite ninguno.
+    // El permiso por obra de abajo ya se lo negaría —PERSONAL_CAMPO nunca lo
+    // tiene—, pero la regla se escribe explícita para que no dependa de eso.
+    assertPuedeEscribirProductoTecnico(ctx);
 
     const cuerpo = (await req.json().catch(() => null)) as {
       proyecto_id?: unknown;

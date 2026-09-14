@@ -1,5 +1,10 @@
 import type { NivelAcceso, TipoCuenta } from "@/generated/prisma";
-import { canAccessProject, getAccessibleProjectIds, type AccessibleProjects } from "@/lib/access";
+import {
+  canAccessProject,
+  getAccessibleProjectIds,
+  isFieldStaff,
+  type AccessibleProjects,
+} from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import { assertProyectoInTenant, TenantError, type AuthContext } from "@/lib/tenant";
 import { assertPerfilConAcceso } from "./acceso";
@@ -82,5 +87,41 @@ export async function assertObraAccesible(
 
   if (!canAccessProject(ctx.proyectosAccesibles, proyectoId)) {
     fallar(403, "OBRA_SIN_ACCESO", "No tienes acceso a esta obra.");
+  }
+}
+/**
+ * Quién ESCRIBE productos técnicos, que no es lo mismo que quién los ve.
+ *
+ * `assertPerfilConAcceso` pregunta por el TIPO DE CUENTA («¿este negocio tiene
+ * el módulo?»). Esta pregunta por el NIVEL DE ACCESO («¿este rol manda sobre
+ * los planos de la obra?»), y son dos preguntas distintas: el personal de campo
+ * trabaja en una constructora que sí tiene el módulo y aun así no decide con
+ * qué plano se construye.
+ *
+ * Lee planos y renders de sus obras —es la mitad de su encargo— pero no sube,
+ * no reemplaza, no elige qué versión rige y no firma actas. TODA ruta que
+ * escriba en el módulo llama a esta guarda; si mañana aparece otra, la que le
+ * falte se encuentra buscando este símbolo en vez de releyendo seis ficheros.
+ *
+ * Vive aquí y no en `acceso.ts` porque `acceso.ts` sale por el barril
+ * `index.ts`, que importan componentes `"use client"`: traer `@/lib/access`
+ * allí arrastraría Prisma al bundle del navegador (ver la cabecera de
+ * `index.ts`). Este fichero ya arrastra Prisma, así que no cuesta nada.
+ */
+export function puedeEscribirProductoTecnico(nivel: NivelAcceso): boolean {
+  return !isFieldStaff(nivel);
+}
+
+/** Corta con 403 si este nivel solo puede mirar. */
+export function assertPuedeEscribirProductoTecnico(ctx: ContextoProductosTecnicos): void {
+  if (!puedeEscribirProductoTecnico(ctx.nivelAcceso)) {
+    // Sale como `TenantError` y no como `ProductoTecnicoError` a propósito: los
+    // códigos del dominio existen para que la UI reaccione —reintentar con otro
+    // archivo cuando el cupo se llenó, por ejemplo— y aquí no hay nada que
+    // reintentar. Es el límite del rol, no una condición recuperable.
+    throw new TenantError(
+      403,
+      "El personal de campo consulta los planos y renders de su obra, pero no puede subirlos, reemplazarlos ni decidir qué versión rige.",
+    );
   }
 }

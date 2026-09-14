@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateObreroToken } from "@/lib/data-obrero";
 import { uploadEvidencia } from "@/lib/storage";
+import {
+  CAMPO_DIFERIDA,
+  leerMarcaDiferida,
+  resolverHoraDeCaptura,
+} from "@/lib/evidencia-hora";
 
 // POST /api/o/[token]/evidencias — obrero uploads evidence (photo/video)
 // No Supabase Auth required — token IS the auth
+//
+// La hora de la evidencia la pone el SERVIDOR: `timestamp_captura` es solo lo
+// que declara el teléfono y sirve para comprobar que la foto es de ahora. El
+// maestro es justo quien más fotografía en sótanos sin señal, así que la cola
+// puede mandar `diferida` para subir lo capturado antes; esa evidencia guarda
+// la hora declarada y queda marcada como no verificada. Ver `@/lib/evidencia-hora`.
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -26,7 +37,8 @@ export async function POST(
     const tipo = formData.get("tipo") as "FOTO" | "VIDEO";
     const gps_lat = formData.get("gps_lat");
     const gps_lng = formData.get("gps_lng");
-    const timestamp_captura = formData.get("timestamp_captura") as string;
+    const timestamp_captura = formData.get("timestamp_captura");
+    const diferida = leerMarcaDiferida(formData.get(CAMPO_DIFERIDA));
 
     if (!file || !tarea_id || !tipo) {
       return NextResponse.json(
@@ -85,6 +97,16 @@ export async function POST(
       );
     }
 
+    // Antes de subir nada al bucket: si la hora no cuadra, la evidencia no vale.
+    const hora = resolverHoraDeCaptura({
+      declarada: timestamp_captura,
+      ahora: new Date(),
+      diferida,
+    });
+    if (!hora.ok) {
+      return NextResponse.json({ error: hora.mensaje }, { status: 400 });
+    }
+
     // Photo limit: max 4 per task — but only counts the CURRENT attempt
     // (evidences after the last rejection don't count old ones)
     if (tipo === "FOTO") {
@@ -119,15 +141,16 @@ export async function POST(
         url_storage: url,
         gps_lat: gps_lat ? parseFloat(gps_lat as string) : null,
         gps_lng: gps_lng ? parseFloat(gps_lng as string) : null,
-        timestamp_captura: timestamp_captura
-          ? new Date(timestamp_captura)
-          : new Date(),
+        timestamp_captura: hora.horaCaptura,
         obrero_id: obrero.id,
         // tomada_por stays null for obrero-uploaded evidence
       },
     });
 
-    return NextResponse.json(evidencia, { status: 201 });
+    return NextResponse.json(
+      { ...evidencia, hora_verificada: hora.verificadaPorServidor },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST /api/o/[token]/evidencias", error);
     const msg = error instanceof Error ? error.message : "Error interno";

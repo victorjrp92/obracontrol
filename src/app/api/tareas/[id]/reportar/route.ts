@@ -3,7 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { tareaReportadaEmailHtml } from "@/lib/email-templates/notifications";
-import { canApproveTasks, getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import {
+  canApproveTasks,
+  getAccessibleProjectIds,
+  canAccessProject,
+  puedeReportarEnProyecto,
+} from "@/lib/access";
 import { crearNotificacion, getProjectSupervisors } from "@/lib/notifications";
 
 // POST /api/tareas/[id]/reportar — obrero reporta tarea terminada
@@ -23,6 +28,7 @@ export async function POST(
       where: { email: user.email! },
       select: {
         id: true,
+        nombre: true,
         constructora_id: true,
         rol_ref: { select: { nivel_acceso: true } },
       },
@@ -81,27 +87,52 @@ export async function POST(
       return NextResponse.json({ error: "Tarea no encontrada" }, { status: 404 });
     }
 
+    const proyectoDeLaTarea = tarea.espacio.unidad.piso.edificio.proyecto;
+
     // Authorization: only the asignado contratista (or supervisors who can approve)
     // may report a task complete. Previously any authenticated user in the
     // constructora could mark somebody else's task as REPORTADA.
     const esAsignado = tarea.asignado_a === currentUser.id;
     const esSupervisor = canApproveTasks(currentUser.rol_ref.nivel_acceso);
-    if (!esAsignado && !esSupervisor) {
+
+    // Tercera puerta: el PERSONAL DE CAMPO. Reportar avance con evidencia es la
+    // razón de ser del rol y no entra por ninguna de las dos anteriores —la
+    // tarea está a nombre del contratista que la ejecuta, y aprobar no lo
+    // hace—, así que se comprueba lo que sí lo define: que la obra esté entre
+    // las que le asignaron (`puedeReportarEnProyecto`, src/lib/access.ts).
+    // El viaje a base de datos se hace solo si las dos comprobaciones baratas
+    // ya fallaron.
+    const esPersonalDeCampoDeLaObra =
+      esAsignado || esSupervisor
+        ? false
+        : await puedeReportarEnProyecto(
+            currentUser.id,
+            currentUser.constructora_id,
+            currentUser.rol_ref.nivel_acceso,
+            proyectoDeLaTarea.id,
+          );
+
+    if (!esAsignado && !esSupervisor && !esPersonalDeCampoDeLaObra) {
       return NextResponse.json(
-        { error: "Solo el contratista asignado o un supervisor puede reportar esta tarea" },
+        {
+          error:
+            "Solo el contratista asignado, un supervisor o el personal de campo de esta obra puede reportar esta tarea",
+        },
         { status: 403 }
       );
     }
 
     // Project-access: a supervisor (e.g. ADMIN_PROYECTO) must have the project
-    // in their assignments before reporting someone else's task.
+    // in their assignments before reporting someone else's task. El personal de
+    // campo no repite esta comprobación: `puedeReportarEnProyecto` ES esta
+    // comprobación, hecha unas líneas más arriba.
     if (esSupervisor && !esAsignado) {
       const accessible = await getAccessibleProjectIds(
         currentUser.id,
         currentUser.constructora_id,
         currentUser.rol_ref.nivel_acceso,
       );
-      if (!canAccessProject(accessible, tarea.espacio.unidad.piso.edificio.proyecto.id)) {
+      if (!canAccessProject(accessible, proyectoDeLaTarea.id)) {
         return NextResponse.json({ error: "Sin acceso a este proyecto" }, { status: 403 });
       }
     }
@@ -154,7 +185,11 @@ export async function POST(
 
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://seiricon.com";
       const ubicacion = `${tarea.espacio.unidad.piso.edificio.nombre} · Apto ${tarea.espacio.unidad.nombre} · ${tarea.espacio.nombre}`;
-      const reporterNombre = tarea.asignado_usuario?.nombre ?? "Un contratista";
+      // Quién reportó es QUIEN HIZO LA PETICIÓN, no el asignado. Con el
+      // personal de campo esto deja de ser un detalle: el residente reporta
+      // tareas que ejecuta un contratista, y decir su nombre en la
+      // notificación sería señalar a quien no fue.
+      const reporterNombre = currentUser.nombre;
 
       const html = tareaReportadaEmailHtml({
         nombre: tarea.nombre,

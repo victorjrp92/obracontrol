@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/tenant";
 import { eliminarObjeto, subirProductoTecnico, sufijoUnico } from "@/lib/productos-tecnicos/almacenamiento";
-import { assertObraAccesible, contextoProductosTecnicos } from "@/lib/productos-tecnicos/contexto";
+import {
+  assertObraAccesible,
+  assertPuedeEscribirProductoTecnico,
+  contextoProductosTecnicos,
+} from "@/lib/productos-tecnicos/contexto";
 import { CAMPOS_PUBLICOS } from "@/lib/productos-tecnicos/consultas";
 import { BYTES_CABECERA } from "@/lib/productos-tecnicos/formatos";
 import { puertosPrisma } from "@/lib/productos-tecnicos/puertos-prisma";
@@ -65,6 +69,9 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser();
     const ctx = await contextoProductosTecnicos(auth);
+    // La foto del registro inicial es el contenido del acta, no un reporte de
+    // avance: la escribe quien levanta el estado inicial, no el personal de campo.
+    assertPuedeEscribirProductoTecnico(ctx);
 
     const form = await req.formData();
 

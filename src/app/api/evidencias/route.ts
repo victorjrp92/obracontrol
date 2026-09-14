@@ -7,9 +7,21 @@ import {
   tenantErrorResponse,
 } from "@/lib/tenant";
 import { canApproveTasks } from "@/lib/access";
+import {
+  CAMPO_DIFERIDA,
+  leerMarcaDiferida,
+  resolverHoraDeCaptura,
+} from "@/lib/evidencia-hora";
 
 // POST /api/evidencias — subir foto o video de una tarea
-// multipart/form-data: file, tarea_id, tipo, gps_lat?, gps_lng?, timestamp_captura
+// multipart/form-data: file, tarea_id, tipo, gps_lat?, gps_lng?,
+// timestamp_captura?, diferida?
+//
+// `timestamp_captura` NO es la hora que se guarda: es la que el cliente declara
+// para que el servidor compruebe que la foto es de ahora mismo. Lo que se
+// escribe en la fila sale del reloj del servidor. La excepción es `diferida`,
+// que usa la cola offline para subir lo que se capturó sin señal: ahí se guarda
+// la hora declarada y la evidencia queda sin verificar. Ver `@/lib/evidencia-hora`.
 export async function POST(req: NextRequest) {
   try {
     const { constructoraId, usuario } = await requireUser();
@@ -20,7 +32,8 @@ export async function POST(req: NextRequest) {
     const tipo = formData.get("tipo") as "FOTO" | "VIDEO";
     const gps_lat = formData.get("gps_lat");
     const gps_lng = formData.get("gps_lng");
-    const timestamp_captura = formData.get("timestamp_captura") as string;
+    const timestamp_captura = formData.get("timestamp_captura");
+    const diferida = leerMarcaDiferida(formData.get(CAMPO_DIFERIDA));
 
     if (!file || !tarea_id || !tipo) {
       return NextResponse.json(
@@ -61,14 +74,41 @@ export async function POST(req: NextRequest) {
     // Verificar que la tarea pertenezca a la constructora del usuario
     await assertTareaInTenant(tarea_id, constructoraId);
 
-    // Validar límite de fotos (máx 4)
+    // La hora se decide ANTES de subir un solo byte: si la evidencia no es de
+    // ahora, no tiene sentido gastar el bucket en ella.
+    const hora = resolverHoraDeCaptura({
+      declarada: timestamp_captura,
+      ahora: new Date(),
+      diferida,
+    });
+    if (!hora.ok) {
+      return NextResponse.json({ error: hora.mensaje }, { status: 400 });
+    }
+
+    // Límite de 4 fotos POR INTENTO, no por vida de la tarea.
+    //
+    // Contando toda la vida se creaba un callejón sin salida: una tarea
+    // rechazada que ya había gastado sus cuatro fotos no se podía volver a
+    // reportar nunca. El contratista se salvaba porque puede BORRAR sus
+    // evidencias (es `esAsignado`); el personal de campo no, así que para él la
+    // tarea quedaba muerta. La ruta del maestro —`/api/o/[token]/evidencias`—
+    // ya contaba por intento; esto la iguala.
     if (tipo === "FOTO") {
+      const ultimoRechazo = await prisma.aprobacion.findFirst({
+        where: { tarea_id, estado: "NO_APROBADA" },
+        orderBy: { fecha: "desc" },
+        select: { fecha: true },
+      });
       const count = await prisma.evidencia.count({
-        where: { tarea_id, tipo: "FOTO" },
+        where: {
+          tarea_id,
+          tipo: "FOTO",
+          ...(ultimoRechazo ? { created_at: { gt: ultimoRechazo.fecha } } : {}),
+        },
       });
       if (count >= 4) {
         return NextResponse.json(
-          { error: "Máximo 4 fotos por tarea" },
+          { error: "Máximo 4 fotos por intento" },
           { status: 400 }
         );
       }
@@ -85,12 +125,18 @@ export async function POST(req: NextRequest) {
         url_storage: url,
         gps_lat: gps_lat ? parseFloat(gps_lat as string) : null,
         gps_lng: gps_lng ? parseFloat(gps_lng as string) : null,
-        timestamp_captura: timestamp_captura ? new Date(timestamp_captura) : new Date(),
+        timestamp_captura: hora.horaCaptura,
         tomada_por: usuario.id,
       },
     });
 
-    return NextResponse.json(evidencia, { status: 201 });
+    // `hora_verificada` no es una columna: es lo que el par de fechas de la
+    // fila ya dice. Va en la respuesta para que la pantalla pueda distinguir
+    // una foto en vivo de una que estuvo en cola.
+    return NextResponse.json(
+      { ...evidencia, hora_verificada: hora.verificadaPorServidor },
+      { status: 201 },
+    );
   } catch (error) {
     const resp = tenantErrorResponse(error);
     if (resp) return resp;

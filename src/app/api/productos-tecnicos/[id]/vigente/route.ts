@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/tenant";
 import { CAMPOS_PUBLICOS, obtenerProducto, versionesDeObra } from "@/lib/productos-tecnicos/consultas";
-import { assertObraAccesible, contextoProductosTecnicos } from "@/lib/productos-tecnicos/contexto";
+import {
+  assertObraAccesible,
+  assertPuedeEscribirProductoTecnico,
+  contextoProductosTecnicos,
+} from "@/lib/productos-tecnicos/contexto";
 import { respuestaDeError } from "@/lib/productos-tecnicos/respuesta";
 import {
   cadenaDeVersiones,
@@ -27,6 +31,9 @@ export async function PATCH(
   try {
     const auth = await requireUser();
     const ctx = await contextoProductosTecnicos(auth);
+    // Escoger la versión vigente es decidir con qué plano se construye. Es una
+    // decisión de quien administra la obra, no de quien está en ella.
+    assertPuedeEscribirProductoTecnico(ctx);
 
     const { id } = await params;
 

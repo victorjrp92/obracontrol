@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, isFieldStaff } from "@/lib/access";
 import { uploadFacturaFile } from "@/lib/storage";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -42,6 +42,17 @@ export async function POST(
       select: { id: true },
     });
     if (!proyecto) return NextResponse.json({ error: "Proyecto no encontrado" }, { status: 404 });
+
+    // El personal de campo no maneja dinero de obra, y subir la foto de una
+    // factura es manejar dinero: consume el bucket y deja un adjunto en el
+    // circuito de gastos. Cerrar el POST de /gastos sin cerrar esto dejaba la
+    // puerta de atras abierta.
+    if (isFieldStaff(currentUser.rol_ref.nivel_acceso)) {
+      return NextResponse.json(
+        { error: "El personal de campo no registra gastos" },
+        { status: 403 },
+      );
+    }
 
     // Acceso por rol (admins ven todo; contratistas solo sus proyectos).
     const accesibles = await getAccessibleProjectIds(

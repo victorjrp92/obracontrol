@@ -7,6 +7,7 @@ import {
   tenantErrorResponse,
 } from "@/lib/tenant";
 import { canApproveTasks } from "@/lib/access";
+import { leerMarcaDiferida, resolverHoraDeCaptura } from "@/lib/evidencia-hora";
 
 const BUCKET = "evidencias";
 
@@ -67,14 +68,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
-    // Cap de 4 fotos por tarea (no aplica para VIDEO).
+    // Cap de 4 fotos POR INTENTO (no aplica para VIDEO). Igual que en
+    // `/api/evidencias` y en la ruta del maestro: contarlas por vida de la
+    // tarea deja una tarea rechazada sin forma de volver a reportarse.
     if (tipo === "FOTO") {
+      const ultimoRechazo = await prisma.aprobacion.findFirst({
+        where: { tarea_id, estado: "NO_APROBADA" },
+        orderBy: { fecha: "desc" },
+        select: { fecha: true },
+      });
       const count = await prisma.evidencia.count({
-        where: { tarea_id, tipo: "FOTO" },
+        where: {
+          tarea_id,
+          tipo: "FOTO",
+          ...(ultimoRechazo ? { created_at: { gt: ultimoRechazo.fecha } } : {}),
+        },
       });
       if (count >= 4) {
         return NextResponse.json(
-          { error: "Máximo 4 fotos por tarea" },
+          { error: "Máximo 4 fotos por intento" },
           { status: 400 },
         );
       }
@@ -109,9 +121,14 @@ export async function POST(req: NextRequest) {
 }
 
 // PUT /api/evidencias/direct-upload
-// Body: { tarea_id, tipo, path, gps_lat?, gps_lng?, timestamp_captura? }
+// Body: { tarea_id, tipo, path, gps_lat?, gps_lng?, timestamp_captura?, diferida? }
 // Confirma que el archivo fue subido directamente a Storage y crea el
 // registro Evidencia en la BD.
+//
+// El archivo ya está en el bucket cuando se llama a esto, así que el reloj del
+// servidor de este momento es lo más cerca de la captura que el servidor puede
+// estar: es la hora que se guarda. `timestamp_captura` solo sirve para
+// comprobar que la captura es reciente. Ver `@/lib/evidencia-hora`.
 export async function PUT(req: NextRequest) {
   try {
     const { constructoraId, usuario } = await requireUser();
@@ -123,6 +140,7 @@ export async function PUT(req: NextRequest) {
       gps_lat?: number | null;
       gps_lng?: number | null;
       timestamp_captura?: string;
+      diferida?: boolean;
     };
 
     if (!body.tarea_id || !body.tipo || !body.path) {
@@ -164,6 +182,15 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
     }
 
+    const hora = resolverHoraDeCaptura({
+      declarada: body.timestamp_captura,
+      ahora: new Date(),
+      diferida: leerMarcaDiferida(body.diferida),
+    });
+    if (!hora.ok) {
+      return NextResponse.json({ error: hora.mensaje }, { status: 400 });
+    }
+
     const evidencia = await prisma.evidencia.create({
       data: {
         tarea_id: body.tarea_id,
@@ -171,14 +198,15 @@ export async function PUT(req: NextRequest) {
         url_storage: body.path,
         gps_lat: body.gps_lat ?? null,
         gps_lng: body.gps_lng ?? null,
-        timestamp_captura: body.timestamp_captura
-          ? new Date(body.timestamp_captura)
-          : new Date(),
+        timestamp_captura: hora.horaCaptura,
         tomada_por: usuario.id,
       },
     });
 
-    return NextResponse.json(evidencia, { status: 201 });
+    return NextResponse.json(
+      { ...evidencia, hora_verificada: hora.verificadaPorServidor },
+      { status: 201 },
+    );
   } catch (err) {
     const resp = tenantErrorResponse(err);
     if (resp) return resp;

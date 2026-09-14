@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { NivelAcceso } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, isFieldStaff } from "@/lib/access";
 
 const ID_RE = /^[a-z0-9]{20,30}$/;
 const MAX_NOTA = 300;
@@ -9,10 +10,32 @@ const MAX_NOTA = 300;
 const MAX_MONTO = 2_000_000_000;
 
 /**
+ * El dinero de la obra no es asunto del personal de campo.
+ *
+ * Su encargo es reportar avance con evidencia; no registra gastos, no entrega
+ * anticipos y no audita lo que otros gastaron. El corte es por NIVEL DE ACCESO
+ * y no por tipo de cuenta a propósito: la capa de tipo de cuenta ya existe
+ * —`muestraEconomiaDeObra()` en `src/lib/economia.ts` apaga la economía de obra
+ * para las constructoras en la interfaz— y responde otra pregunta, «¿este
+ * negocio ve dinero de obra?», no «¿este rol lo toca?». Sin esta guarda, un
+ * residente de una cuenta B2C entraría por la puerta que aquella deja abierta.
+ *
+ * Devuelve la respuesta que hay que mandar, o `null` si el usuario puede pasar.
+ */
+function corteSiNoManejaDineroDeObra(nivel: NivelAcceso): NextResponse | null {
+  if (!isFieldStaff(nivel)) return null;
+  return NextResponse.json(
+    { error: "El personal de campo no maneja el dinero de la obra." },
+    { status: 403 },
+  );
+}
+
+/**
  * POST /api/proyectos/[id]/anticipos — registrar dinero entregado al maestro.
  *
  * Body: { monto, entregado_a?, nota?, fecha? }
- * Permisos: cualquier usuario con acceso al proyecto.
+ * Permisos: cualquier usuario con acceso al proyecto, salvo el personal de
+ * campo (no maneja el dinero de la obra).
  */
 export async function POST(
   req: NextRequest,
@@ -30,6 +53,11 @@ export async function POST(
       select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
     if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+    // Por nivel, antes de mirar la obra: es un límite del rol, no depende de a
+    // qué proyecto apunte la petición.
+    const corte = corteSiNoManejaDineroDeObra(currentUser.rol_ref.nivel_acceso);
+    if (corte) return corte;
 
     const { id: proyecto_id } = await params;
 
@@ -109,7 +137,10 @@ export async function POST(
   }
 }
 
-/** GET /api/proyectos/[id]/anticipos — listar anticipos del proyecto. */
+/**
+ * GET /api/proyectos/[id]/anticipos — listar anticipos del proyecto.
+ * Mismos permisos que el POST: el personal de campo tampoco los lee.
+ */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -126,6 +157,11 @@ export async function GET(
       select: { id: true, constructora_id: true, rol_ref: { select: { nivel_acceso: true } } },
     });
     if (!currentUser) return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
+
+    // Por nivel, antes de mirar la obra: es un límite del rol, no depende de a
+    // qué proyecto apunte la petición.
+    const corte = corteSiNoManejaDineroDeObra(currentUser.rol_ref.nivel_acceso);
+    if (corte) return corte;
 
     const { id: proyecto_id } = await params;
 

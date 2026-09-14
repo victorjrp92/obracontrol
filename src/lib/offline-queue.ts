@@ -34,6 +34,17 @@ export interface QueuedEvidence {
   timestamp: number;
   retries: number;
   lastError?: string;
+  /**
+   * Token del maestro, si la evidencia se encolo desde `/o/[token]`.
+   *
+   * BUG QUE ESTO ARREGLA: el unico sitio de toda la app que encola es la
+   * pantalla del maestro, que corre SIN sesion de Supabase. La cola reintentaba
+   * siempre contra `/api/evidencias`, que empieza por `requireUser()`, asi que
+   * devolvia 401 para siempre; y `updateRetry` no tiene tope, de modo que la
+   * cola crecia y no drenaba nunca. Todo lo que un maestro fotografiaba sin
+   * senal se perdia en silencio.
+   */
+  token?: string;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -141,8 +152,18 @@ export async function flushEvidenceQueue(): Promise<{
       if (item.gpsLat != null) fd.append("gps_lat", String(item.gpsLat));
       if (item.gpsLng != null) fd.append("gps_lng", String(item.gpsLng));
       fd.append("timestamp_captura", new Date(item.timestamp).toISOString());
+      // Sin esta marca el servidor fecharia la foto con SU reloj, y una foto de
+      // hace seis horas quedaria registrada como tomada al subirla. Con ella se
+      // conserva el instante real y se guarda como no verificada, que es la
+      // verdad: el servidor no la vio llegar en su momento.
+      fd.append("diferida", "1");
 
-      const res = await fetch("/api/evidencias", { method: "POST", body: fd });
+      // El maestro entra por token, no por sesion: su cola tiene que volver por
+      // la misma puerta o recibe 401 eternamente.
+      const destino = item.token
+        ? `/api/o/${item.token}/evidencias`
+        : "/api/evidencias";
+      const res = await fetch(destino, { method: "POST", body: fd });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       await removeFromQueue(item.id);

@@ -3,7 +3,11 @@ import type { TipoProductoTecnico } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/tenant";
 import { eliminarObjeto, subirProductoTecnico, sufijoUnico } from "@/lib/productos-tecnicos/almacenamiento";
-import { assertObraAccesible, contextoProductosTecnicos } from "@/lib/productos-tecnicos/contexto";
+import {
+  assertObraAccesible,
+  assertPuedeEscribirProductoTecnico,
+  contextoProductosTecnicos,
+} from "@/lib/productos-tecnicos/contexto";
 import { CAMPOS_PUBLICOS, listarProductos } from "@/lib/productos-tecnicos/consultas";
 import { estadoCupo } from "@/lib/productos-tecnicos/cupo";
 import { BYTES_CABECERA } from "@/lib/productos-tecnicos/formatos";
@@ -82,6 +86,10 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser();
     const ctx = await contextoProductosTecnicos(auth);
+    // El personal de campo mira los planos, no los escribe. El corte va antes de
+    // leer un solo byte del archivo: quien no puede subir tampoco tiene por qué
+    // gastar el cupo de la obra ni el ancho de banda del servidor.
+    assertPuedeEscribirProductoTecnico(ctx);
 
     const form = await req.formData();
     const archivo = form.get("file");

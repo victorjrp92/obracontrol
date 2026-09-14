@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { getAccessibleProjectIds, buildProjectWhereFilter, isGeneralAdmin } from "@/lib/access";
+import { getAccessibleProjectIds, buildProjectWhereFilter, isGeneralAdmin, isFieldStaff } from "@/lib/access";
+import { sinDinero } from "@/lib/sin-dinero";
 
 // GET /api/proyectos — lista proyectos de la constructora del usuario
 export async function GET() {
@@ -40,7 +41,12 @@ export async function GET() {
       orderBy: { created_at: "desc" },
     });
 
-    return NextResponse.json(proyectos);
+    // El personal de campo no maneja dinero de obra. Esta consulta usa
+    // `include` sin `select`, asi que devuelve la fila entera: sin este filtro
+    // el presupuesto y los precios viajan al cliente aunque la pantalla no los
+    // pinte, y un `curl` con su cookie los lee.
+    const salida = isFieldStaff(usuario.rol_ref.nivel_acceso) ? sinDinero(proyectos) : proyectos;
+    return NextResponse.json(salida);
   } catch (error) {
     console.error("GET /api/proyectos", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

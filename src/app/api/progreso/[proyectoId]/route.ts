@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { calcularProgreso, calcularSemaforo, calcularDiasHabiles } from "@/lib/scoring";
-import { getAccessibleProjectIds, canAccessProject } from "@/lib/access";
+import { getAccessibleProjectIds, canAccessProject, isFieldStaff } from "@/lib/access";
+import { sinDinero } from "@/lib/sin-dinero";
 
 // GET /api/progreso/[proyectoId] — progreso ponderado completo del proyecto
 export async function GET(
@@ -127,11 +128,19 @@ export async function GET(
       e.pisos.flatMap((p) => p.unidades.flatMap((u) => u.espacios.flatMap((es) => es.tareas)))
     );
 
-    return NextResponse.json({
+    // El personal de campo no maneja dinero de obra. `edificiosData` desciende
+    // de una consulta con `include` anidado y sin `select`, asi que arrastra el
+    // precio y los presupuestos de cada tarea hasta el cliente. El progreso ya
+    // esta calculado arriba con los datos completos: filtrar aqui no cambia
+    // ningun numero, solo deja de enviar lo que este rol no debe leer.
+    const cuerpo = {
       proyecto_id: proyectoId,
       progreso: calcularProgreso(todasTareasProyecto),
       edificios: edificiosData,
-    });
+    };
+    return NextResponse.json(
+      isFieldStaff(currentUser.rol_ref.nivel_acceso) ? sinDinero(cuerpo) : cuerpo,
+    );
   } catch (error) {
     console.error("GET /api/progreso/[proyectoId]", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

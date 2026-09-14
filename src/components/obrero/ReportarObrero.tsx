@@ -63,6 +63,7 @@ export default function ReportarObrero({
     // Si el navegador YA reporta offline, encolar directo sin gastar batería en fetch
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       await enqueueEvidence({
+        token,
         tareaId,
         tipo,
         file,
@@ -97,6 +98,7 @@ export default function ReportarObrero({
     } catch (err) {
       // Sin red o 5xx: encolar
       await enqueueEvidence({
+        token,
         tareaId,
         tipo,
         file,
