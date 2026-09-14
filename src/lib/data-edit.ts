@@ -406,7 +406,52 @@ export async function getProyectoForEdit(
   }
 
   // ── Return EditModeData ──────────────────────────────────────────────────
+  // ── Cronograma guardado ──────────────────────────────────────────────────
+  //
+  // SIN ESTO, EDITAR UNA OBRA LE ESTAMPA UN CRONOGRAMA QUE NADIE ESCRIBIO.
+  // El asistente arranca con los huecos vacios, al pasar al paso 2 propone el
+  // reparto automatico para rellenarlos, y al guardar lo escribe: una obra que
+  // nunca tuvo plan sale de una edicion inocente con diez ventanas de fase y
+  // miles de ventanas de tarea inventadas. A partir de ahi el informe publica
+  // un «% programado» y un SPI calculados contra un plan que ningun humano
+  // aprobo — y ese PDF se firma. Recuperar lo guardado es lo que hace que la
+  // regla «lo que puso el usuario no se toca» valga tambien aqui arriba.
+  const iso = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : "");
+
+  const faseVentanas: Record<string, { inicio: string; fin: string }> = {};
+  for (const f of proyecto.fases) {
+    if (f.fecha_inicio_plan || f.fecha_fin_plan) {
+      faseVentanas[f.nombre] = { inicio: iso(f.fecha_inicio_plan), fin: iso(f.fecha_fin_plan) };
+    }
+  }
+
+  // La clave es el mismo id sintetico que se le da a cada TareaInput mas
+  // arriba (`db-<id>`): si no coincide, la ventana se pierde en silencio.
+  const tareaVentanas: Record<string, { inicio: string; fin: string }> = {};
+  for (const edificio of proyecto.edificios) {
+    for (const piso of edificio.pisos) {
+      for (const unidad of piso.unidades) {
+        for (const espacio of unidad.espacios) {
+          for (const t of espacio.tareas) {
+            if (t.fecha_inicio_plan || t.fecha_fin_plan) {
+              tareaVentanas[`db-${t.id}`] = {
+                inicio: iso(t.fecha_inicio_plan),
+                fin: iso(t.fecha_fin_plan),
+              };
+            }
+          }
+        }
+      }
+    }
+  }
+
   return {
+    // `modo_cronograma` puede venir NULL, y ese null es informacion: significa
+    // «esta obra nunca tuvo cronograma». El asistente tiene que distinguirlo de
+    // «el usuario eligio un modo», o vuelve a inventarlo.
+    modoCronograma: proyecto.modo_cronograma ?? undefined,
+    faseVentanas,
+    tareaVentanas,
     projectId: proyecto.id,
     nombre: proyecto.nombre,
     numeroRegistro: proyecto.numero_registro ?? "",

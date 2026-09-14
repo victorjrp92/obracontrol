@@ -5,9 +5,15 @@ import {
   ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight,
   Download, Pencil, Plus, Sparkles, Trash2, Upload, X,
 } from "lucide-react";
-import type { TareaInput, TipoUnidadInput } from "./wizard-types";
+import type { TareaInput, TipoUnidadInput, VentanaPlan } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import { FASES_DISPONIBLES } from "./wizard-types";
+import {
+  diasHabilesVentana,
+  type ModoCronograma,
+  type ResultadoReparto,
+} from "@/lib/reparto-cronograma";
+import { fechaCorta, fechaUTCDesde } from "@/lib/cronograma/fechas";
 import SuggestedTasksPanel from "./SuggestedTasksPanel";
 import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
 
@@ -23,6 +29,30 @@ function groupBySubfaseEspacio(tareas: TareaInput[]) {
   return result;
 }
 
+/**
+ * Los tres modos, con lo que le pide cada uno al cliente. El orden es de menos
+ * a mas trabajo para el usuario, y FASES va en medio porque es el recomendado:
+ * es el unico que le pregunta algo que el cliente de verdad sabe -cuando
+ * quiere tener la estructura arriba- sin obligarle a fechar tarea por tarea.
+ */
+const MODOS_CRONOGRAMA: { valor: ModoCronograma; titulo: string; detalle: string }[] = [
+  {
+    valor: "AUTOMATICO",
+    titulo: "Automático",
+    detalle: "Solo el inicio y el fin de la obra. El sistema reparte las fechas de cada fase y de cada tarea.",
+  },
+  {
+    valor: "FASES",
+    titulo: "Por fases",
+    detalle: "Tú pones la ventana de cada fase. El sistema reparte las tareas dentro de ella.",
+  },
+  {
+    valor: "MANUAL",
+    titulo: "Manual",
+    detalle: "Tú pones la ventana de cada fase y la de cada tarea. El sistema no interviene.",
+  },
+];
+
 interface WizardStep2Props {
   allEspacios: string[];
   fasesSeleccionadas: string[];
@@ -31,6 +61,26 @@ interface WizardStep2Props {
   setTareas: React.Dispatch<React.SetStateAction<TareaInput[]>>;
   faseDias: Record<string, number | undefined>;
   onFaseDiasChange: (fase: string, dias: number | undefined) => void;
+  // ── Cronograma planeado ──────────────────────────────────────────────────
+  // Vive en el paso 2 porque es aqui donde el usuario ya esta pensando en
+  // tiempos: acaba de elegir las fases y de ponerles dias. Pedirle las fechas
+  // en el paso 1, entre el numero de registro y las torres, seria pedirselas
+  // antes de que sepa que fases va a tener.
+  modoCronograma: ModoCronograma;
+  onModoCronogramaChange: (modo: ModoCronograma) => void;
+  faseVentanas: Record<string, VentanaPlan>;
+  onFaseVentanaChange: (fase: string, campo: "inicio" | "fin", valor: string) => void;
+  tareaVentanas: Record<string, VentanaPlan>;
+  onTareaVentanaChange: (tareaId: string, campo: "inicio" | "fin", valor: string) => void;
+  /** Rellena SOLO las ventanas vacias. No toca lo que el usuario escribio. */
+  onCompletarVentanas: () => void;
+  /** Rehace la propuesta del sistema PISANDO lo que haya. Solo desde el boton. */
+  onRecalcularVentanas: () => void;
+  /** El reparto en vivo: de aqui salen las fechas que se ensenan y los motivos. */
+  reparto: ResultadoReparto;
+  fechaInicioObra: string;
+  fechaFinObra: string;
+  diasHabilesSemana: number;
   canProceed: boolean;
   onNext: () => void;
   onBack: () => void;
@@ -49,6 +99,18 @@ export default function WizardStep2({
   setTareas,
   faseDias,
   onFaseDiasChange,
+  modoCronograma,
+  onModoCronogramaChange,
+  faseVentanas,
+  onFaseVentanaChange,
+  tareaVentanas,
+  onTareaVentanaChange,
+  onCompletarVentanas,
+  onRecalcularVentanas,
+  reparto,
+  fechaInicioObra,
+  fechaFinObra,
+  diasHabilesSemana,
   canProceed,
   onNext,
   onBack,
@@ -260,6 +322,15 @@ export default function WizardStep2({
     setUploading(false);
   }
 
+  // La ventana de la obra, ya normalizada a fecha. Es null mientras el paso 1
+  // este incompleto: el bloque de cronograma lo dice en vez de pintar "Invalid
+  // Date", que es lo que saldria de formatear una cadena vacia.
+  const inicioObra = fechaUTCDesde(fechaInicioObra);
+  const finObra = fechaUTCDesde(fechaFinObra);
+  const ventanaObra = inicioObra && finObra && finObra.getTime() >= inicioObra.getTime()
+    ? { inicio: inicioObra, fin: finObra }
+    : null;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-4xl">
       <h2 className="text-lg font-bold text-slate-900 mb-2">Fases y tareas</h2>
@@ -286,6 +357,76 @@ export default function WizardStep2({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Cronograma planeado: quien pone cada fecha */}
+      <div className="mb-6 rounded-xl border border-slate-200 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 className="font-bold text-slate-800 text-sm">Fechas del cronograma</h3>
+          {ventanaObra && (
+            <span className="text-[11px] text-slate-500">
+              Obra: {fechaCorta(ventanaObra.inicio)} → {fechaCorta(ventanaObra.fin)}
+              {" · "}
+              {diasHabilesVentana(ventanaObra, diasHabilesSemana)} días hábiles
+            </span>
+          )}
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          {MODOS_CRONOGRAMA.map((m) => (
+            <button
+              key={m.valor}
+              onClick={() => onModoCronogramaChange(m.valor)}
+              className={`text-left rounded-xl border p-3 transition-colors cursor-pointer ${
+                modoCronograma === m.valor
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                {modoCronograma === m.valor && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                <span className="text-xs font-bold text-slate-800">{m.titulo}</span>
+                {m.valor === "FASES" && (
+                  <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                    recomendado
+                  </span>
+                )}
+              </span>
+              <span className="block text-[11px] text-slate-500 mt-1 leading-snug">{m.detalle}</span>
+            </button>
+          ))}
+        </div>
+
+        {modoCronograma !== "AUTOMATICO" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {/* Dos botones y no uno: rellenar huecos y rehacerlo todo son
+                cosas distintas. El primero es seguro -no toca lo escrito- y
+                sirve para la fase que se acaba de anadir; el segundo PISA, y
+                por eso lo dice en el propio boton. */}
+            <button
+              onClick={onCompletarVentanas}
+              className="inline-flex items-center gap-1.5 text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Completar las fechas que falten
+            </button>
+            <button
+              onClick={onRecalcularVentanas}
+              className="inline-flex items-center gap-1.5 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+            >
+              Rehacer todas
+            </button>
+            <span className="text-[10px] text-slate-400">
+              «Rehacer todas» pisa las fechas que hayas escrito a mano.
+            </span>
+          </div>
+        )}
+
+        {!ventanaObra && (
+          <p className="text-[11px] text-amber-700 mt-3">
+            Vuelve al paso 1 y pon la fecha de inicio y la de fin de la obra: sin ellas no hay ventana que repartir.
+          </p>
+        )}
       </div>
 
       {/* Excel template toolbar (single for all phases) */}
@@ -347,6 +488,11 @@ export default function WizardStep2({
         const displayTareas = isMadera && selectedTipoId
           ? faseTareas.filter((t) => t.tipo_unidad_id === selectedTipoId)
           : faseTareas;
+        // La ventana que el reparto le dio a ESTA fase. En AUTOMATICO es la
+        // propuesta del sistema; en los otros dos, lo que escribio el usuario
+        // (el motor la devuelve intacta). Es null mientras el reparto no
+        // cuadre, y entonces no se ensena ninguna fecha inventada.
+        const ventanaFase = reparto.fases.get(fase) ?? null;
 
         return (
           <div key={fase} className="mb-6 border border-slate-200 rounded-xl overflow-hidden">
@@ -376,6 +522,46 @@ export default function WizardStep2({
                 />
                 <span className="text-[10px] text-slate-400">dias est.</span>
               </div>
+            </div>
+
+            {/* Ventana PLANEADA de la fase. Los "dias est." de arriba son una
+                DURACION; esto es la POSICION en el calendario. En una obra de
+                varias torres las fases se solapan, asi que una no se deduce de
+                la otra. */}
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-t border-slate-100 bg-white">
+              {modoCronograma === "AUTOMATICO" ? (
+                <span className="text-[11px] text-slate-500">
+                  {ventanaFase
+                    ? <>El sistema la programa del <strong className="text-slate-700">{fechaCorta(ventanaFase.inicio)}</strong> al <strong className="text-slate-700">{fechaCorta(ventanaFase.fin)}</strong> · {diasHabilesVentana(ventanaFase, diasHabilesSemana)} días hábiles</>
+                    : "El sistema calculará esta ventana al crear el proyecto."}
+                </span>
+              ) : (
+                <>
+                  <span className="text-[11px] text-slate-500">Del</span>
+                  <input
+                    type="date"
+                    value={faseVentanas[fase]?.inicio ?? ""}
+                    min={fechaInicioObra || undefined}
+                    max={fechaFinObra || undefined}
+                    onChange={(e) => onFaseVentanaChange(fase, "inicio", e.target.value)}
+                    className="px-2 py-1 rounded-lg border border-slate-200 text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                  <span className="text-[11px] text-slate-500">al</span>
+                  <input
+                    type="date"
+                    value={faseVentanas[fase]?.fin ?? ""}
+                    min={faseVentanas[fase]?.inicio || fechaInicioObra || undefined}
+                    max={fechaFinObra || undefined}
+                    onChange={(e) => onFaseVentanaChange(fase, "fin", e.target.value)}
+                    className="px-2 py-1 rounded-lg border border-slate-200 text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  />
+                  {ventanaFase && (
+                    <span className="text-[10px] text-slate-400">
+                      {diasHabilesVentana(ventanaFase, diasHabilesSemana)} días hábiles
+                    </span>
+                  )}
+                </>
+              )}
             </div>
 
             {!isCollapsed && (
@@ -709,11 +895,75 @@ export default function WizardStep2({
                       : "No hay tareas en esta fase. Genera sugeridas, agrega manualmente o sube una plantilla Excel."}
                   </p>
                 )}
+
+                {/* Modo MANUAL: la ventana de cada tarea la pone el usuario.
+                    Se listan TODAS las tareas de la fase, no solo las del tipo
+                    de unidad que esta filtrado arriba: una tarea sin fecha
+                    bloquea el paso, y una tarea escondida seria un bloqueo que
+                    el usuario no puede ver de donde sale. */}
+                {modoCronograma === "MANUAL" && faseTareas.length > 0 && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                    <p className="text-[11px] font-semibold text-slate-700 mb-2">
+                      Ventana de cada tarea
+                      {ventanaFase && (
+                        <span className="font-normal text-slate-500">
+                          {" "}— dentro de {fechaCorta(ventanaFase.inicio)} → {fechaCorta(ventanaFase.fin)}
+                        </span>
+                      )}
+                    </p>
+                    <div className="space-y-1">
+                      {faseTareas.map((t) => (
+                        <div key={t.id} className="flex flex-wrap items-center gap-2">
+                          <span className="flex-1 min-w-[140px] truncate text-[11px] text-slate-600">
+                            {t.espacio} · {t.nombre}
+                          </span>
+                          <span className="text-[10px] text-slate-400 w-10 text-right">{t.tiempo_acordado_dias} d</span>
+                          <input
+                            type="date"
+                            value={tareaVentanas[t.id]?.inicio ?? ""}
+                            min={faseVentanas[fase]?.inicio || fechaInicioObra || undefined}
+                            max={faseVentanas[fase]?.fin || fechaFinObra || undefined}
+                            onChange={(e) => onTareaVentanaChange(t.id, "inicio", e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-[11px] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                          />
+                          <input
+                            type="date"
+                            value={tareaVentanas[t.id]?.fin ?? ""}
+                            min={tareaVentanas[t.id]?.inicio || faseVentanas[fase]?.inicio || undefined}
+                            max={faseVentanas[fase]?.fin || fechaFinObra || undefined}
+                            onChange={(e) => onTareaVentanaChange(t.id, "fin", e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-[11px] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         );
       })}
+
+      {/* Lo que impide seguir, y lo que conviene saber. Los motivos salen del
+          MISMO motor que despues reparte en el servidor: si aqui pasa, alla
+          tambien. */}
+      {reparto.motivos.length > 0 && (
+        <div className="mt-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+          <p className="text-[11px] font-semibold text-amber-800 mb-1">Para continuar, arregla el cronograma:</p>
+          <ul className="text-[12px] text-amber-700 space-y-0.5">
+            {reparto.motivos.slice(0, 8).map((m, i) => <li key={i}>• {m}</li>)}
+            {reparto.motivos.length > 8 && <li>• …y {reparto.motivos.length - 8} más</li>}
+          </ul>
+        </div>
+      )}
+      {reparto.motivos.length === 0 && reparto.avisos.length > 0 && (
+        <div className="mt-6 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+          <ul className="text-[12px] text-slate-600 space-y-0.5">
+            {reparto.avisos.slice(0, 5).map((a, i) => <li key={i}>• {a}</li>)}
+          </ul>
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex items-center justify-between mt-6">

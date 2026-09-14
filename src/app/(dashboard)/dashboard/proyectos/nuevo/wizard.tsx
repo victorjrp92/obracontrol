@@ -4,9 +4,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
-import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride, UbicacionInput } from "./wizard-types";
+import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride, UbicacionInput, VentanaPlan } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import { excesosMetraje } from "@/lib/metraje";
+import { faltantesFechasObra } from "./wizard-types";
+import {
+  fechaISO,
+  repartirCronograma,
+  type FaseReparto,
+  type ModoCronograma,
+  type TareaReparto,
+} from "@/lib/reparto-cronograma";
 import WizardStep1 from "./WizardStep1";
 import WizardStep2 from "./WizardStep2";
 import WizardStep3 from "./WizardStep3";
@@ -85,6 +93,25 @@ export default function WizardClient({
   const [tareas, setTareas] = useState<TareaInput[]>(initialData?.tareas ?? []);
   const [faseDias, setFaseDias] = useState<Record<string, number | undefined>>(initialData?.faseDias ?? {});
 
+  // ── Cronograma planeado ───────────────────────────────────────────────────
+  // El modo decide QUIEN pone cada fecha, no como se calculan. FASES viene
+  // preseleccionado porque es el punto donde el cliente sabe algo real -sabe
+  // cuando quiere tener la estructura arriba- sin obligarle a fechar tarea por
+  // tarea. AUTOMATICO pide menos y MANUAL pide todo.
+  const [modoCronograma, setModoCronograma] = useState<ModoCronograma>(initialData?.modoCronograma ?? "FASES");
+  const [faseVentanas, setFaseVentanas] = useState<Record<string, VentanaPlan>>(initialData?.faseVentanas ?? {});
+  const [tareaVentanas, setTareaVentanas] = useState<Record<string, VentanaPlan>>(initialData?.tareaVentanas ?? {});
+
+  // ¿Esta obra tenia cronograma ANTES de abrir el asistente?
+  //
+  // Es la diferencia entre «el usuario eligio un modo» y «esta obra nunca tuvo
+  // plan». Sin distinguirlo, editar una obra vieja para cambiarle el nombre le
+  // escribia diez ventanas de fase inventadas, y el informe pasaba a publicar
+  // un SPI calculado contra un plan que nadie aprobo.
+  const teniaCronograma = initialData?.modoCronograma != null;
+  // Se elige un modo A PROPOSITO cuando el usuario lo toca en el paso 2.
+  const [modoElegido, setModoElegido] = useState(teniaCronograma);
+
   // Step 3 state
   const [personas, setPersonas] = useState<PersonaProyectoInput[]>([]);
   // En modo edición precargamos las asignaciones reverse-engineered desde la BD
@@ -116,6 +143,86 @@ export default function WizardClient({
         return acc + unidadesAplicables * subfasesPorTarea;
       }, 0);
 
+  // ── El reparto, en vivo ───────────────────────────────────────────────────
+  // Se recalcula en cada render a proposito: es puro y barato (recorre los dias
+  // de la obra una vez), y memorizarlo obligaria a listar como dependencias las
+  // ocho piezas de estado de las que depende — la primera que se olvide deja al
+  // asistente validando contra un cronograma viejo.
+  const fasesReparto: FaseReparto[] = fasesSeleccionadas.map((f, i) => ({
+    nombre: f,
+    orden: i + 1,
+    dias: faseDias[f] ?? null,
+    ventana: faseVentanas[f] ?? null,
+  }));
+  const tareasReparto: TareaReparto[] = tareas.map((t) => ({
+    id: t.id,
+    fase: t.fase,
+    dias: t.tiempo_acordado_dias,
+    ventana: tareaVentanas[t.id] ?? null,
+  }));
+  const reparto = repartirCronograma({
+    inicio: fechaInicio,
+    fin: fechaFin,
+    diasHabilesSemana: diasHabiles,
+    modo: modoCronograma,
+    fases: fasesReparto,
+    tareas: tareasReparto,
+  });
+
+  /**
+   * Propone ventanas con el reparto AUTOMATICO y las escribe donde hagan falta.
+   *
+   * `forzar = false` (al entrar al paso 2, o al cambiar de modo) rellena SOLO
+   * los huecos: lo que el usuario ya escribio es suyo y no se pisa. `forzar =
+   * true` es el boton explicito «recalcular», el unico sitio donde el sistema
+   * tiene permiso para sobrescribir — porque lo pidio el usuario.
+   */
+  function proponerVentanas(modo: ModoCronograma, forzar: boolean) {
+    if (modo === "AUTOMATICO") return; // ahi no hay nada que rellenar: lo pone todo el servidor
+    const fasesBase: FaseReparto[] = fasesSeleccionadas.map((f, i) => ({
+      nombre: f, orden: i + 1, dias: faseDias[f] ?? null,
+    }));
+    const tareasBase: TareaReparto[] = tareas.map((t) => ({
+      id: t.id, fase: t.fase, dias: t.tiempo_acordado_dias,
+    }));
+
+    const auto = repartirCronograma({
+      inicio: fechaInicio, fin: fechaFin, diasHabilesSemana: diasHabiles,
+      modo: "AUTOMATICO", fases: fasesBase, tareas: tareasBase,
+    });
+    if (!auto.ok) return;
+
+    const nuevasFases: Record<string, VentanaPlan> = { ...faseVentanas };
+    for (const f of fasesSeleccionadas) {
+      const actual = nuevasFases[f];
+      if (!forzar && actual?.inicio && actual?.fin) continue;
+      const v = auto.fases.get(f);
+      if (v) nuevasFases[f] = { inicio: fechaISO(v.inicio), fin: fechaISO(v.fin) };
+    }
+    setFaseVentanas(nuevasFases);
+
+    if (modo !== "MANUAL") return;
+
+    // Las tareas se proponen DENTRO de las ventanas de fase que acaban de
+    // quedar fijadas, no dentro del reparto automatico: si el usuario ya movio
+    // una fase, sus tareas tienen que caer donde el la puso.
+    const porFases = repartirCronograma({
+      inicio: fechaInicio, fin: fechaFin, diasHabilesSemana: diasHabiles,
+      modo: "FASES",
+      fases: fasesBase.map((f) => ({ ...f, ventana: nuevasFases[f.nombre] ?? null })),
+      tareas: tareasBase,
+    });
+    if (!porFases.ok) return;
+    const nuevasTareas: Record<string, VentanaPlan> = { ...tareaVentanas };
+    for (const t of tareas) {
+      const actual = nuevasTareas[t.id];
+      if (!forzar && actual?.inicio && actual?.fin) continue;
+      const v = porFases.tareas.get(t.id);
+      if (v) nuevasTareas[t.id] = { inicio: fechaISO(v.inicio), fin: fechaISO(v.fin) };
+    }
+    setTareaVentanas(nuevasTareas);
+  }
+
   // Validation
   const canProceed1 = nombre.trim().length >= 3 && numeroRegistro.trim().length >= 2 && (
     subtipo === "ZONAS_COMUNES"
@@ -131,8 +238,17 @@ export default function WizardClient({
         })
         && tiposUnidad.every((t) => t.espacios.length > 0)
     )
-    && excesosMetraje(tiposUnidad).length === 0;
-  const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0;
+    && excesosMetraje(tiposUnidad).length === 0
+    // Las fechas de obra son obligatorias al CREAR. Al editar no se exigen:
+    // en produccion hay obras antiguas sin fecha de fin, y bloquearles la ficha
+    // obligaria a inventarse una fecha para poder cambiar un nombre — y esa
+    // fecha inventada alimentaria despues el cronograma.
+    && (isEditMode || faltantesFechasObra(fechaInicio, fechaFin).length === 0);
+  // El cronograma entra en `canProceed2` porque es en el paso 2 donde se
+  // rellena: sin ventanas validas no se puede crear el proyecto, y descubrirlo
+  // en el paso 3 -tras asignar contratistas- seria hacerle perder el trabajo.
+  const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0
+    && reparto.ok;
 
   const [pendingOverrides, setPendingOverrides] = useState<AsignacionOverride[] | undefined>(undefined);
 
@@ -205,15 +321,29 @@ export default function WizardClient({
         } : {}),
       })),
       espacios: allEspacios,
+      // El modo viaja SIEMPRE: es lo que le dice al servidor que partes del
+      // cronograma son suyas y cuales del usuario. Las ventanas solo viajan
+      // cuando el modo dice que las pone el usuario — mandar las de fase en
+      // AUTOMATICO seria darle al servidor una version vieja de lo que el
+      // mismo va a calcular.
+      // Se manda SOLO si alguien lo eligio de verdad. Mandarlo siempre
+      // convertia cualquier edicion en un alta de cronograma silenciosa.
+      ...(modoElegido ? { modo_cronograma: modoCronograma } : {}),
       fases: fasesSeleccionadas.map((f) => ({
         nombre: f,
         ...(faseDias[f] != null ? { tiempo_estimado_dias: faseDias[f] } : {}),
+        ...(modoCronograma !== "AUTOMATICO" && faseVentanas[f]?.inicio && faseVentanas[f]?.fin
+          ? { fecha_inicio_plan: faseVentanas[f]!.inicio, fecha_fin_plan: faseVentanas[f]!.fin }
+          : {}),
       })),
       tareas: tareasToSend.map(({ id: _id, tipo_unidad_id, ...rest }) => ({
         ...rest,
         // Translate local tipo ID -> tipo nombre, since the server matches by nombre.
         ...(tipo_unidad_id
           ? { tipo_unidad_id: tiposUnidad.find((tu) => tu.id === tipo_unidad_id)?.nombre ?? tipo_unidad_id }
+          : {}),
+        ...(modoCronograma === "MANUAL" && tareaVentanas[_id]?.inicio && tareaVentanas[_id]?.fin
+          ? { fecha_inicio_plan: tareaVentanas[_id]!.inicio, fecha_fin_plan: tareaVentanas[_id]!.fin }
           : {}),
       })),
       zonas_comunes: tieneZonasComunes || esZonasComunes ? zonasSeleccionadas : [],
@@ -238,7 +368,17 @@ export default function WizardClient({
 
       if (res.ok) {
         if (isEditMode) {
-          setSuccessMsg("Cambios guardados correctamente. Redirigiendo…");
+          // Los avisos del servidor son lo que NO se toco por ser del usuario
+          // (p. ej. ventanas de fase que no se movieron al cambiar las fechas
+          // de la obra). Se ensenan: un cambio silencioso que no ocurre es tan
+          // desconcertante como uno que ocurre sin avisar.
+          const datos = await res.json().catch(() => null);
+          const avisos: string[] = Array.isArray(datos?.avisos) ? datos.avisos : [];
+          setSuccessMsg(
+            avisos.length > 0
+              ? `Cambios guardados. ${avisos.join(" ")} Redirigiendo…`
+              : "Cambios guardados correctamente. Redirigiendo…",
+          );
           setLoading(false);
           setTimeout(() => {
             router.push(`/dashboard/proyectos/${initialData!.projectId}`);
@@ -315,7 +455,13 @@ export default function WizardClient({
           metrosEnabled={metrosEnabled} onMetrosEnabledChange={setMetrosEnabled}
           metrosZonas={metrosZonas} onMetrosZonasChange={setMetrosZonas}
           canProceed={canProceed1}
-          onNext={() => setStep(2)}
+          onNext={() => {
+            // Solo se propone si la obra YA tenia cronograma o si es una obra
+            // nueva. A una obra vieja sin plan no se le inventa uno por el solo
+            // hecho de abrir su ficha.
+            if (!isEditMode || teniaCronograma) proponerVentanas(modoCronograma, false);
+            setStep(2);
+          }}
         />
       )}
 
@@ -328,6 +474,28 @@ export default function WizardClient({
           setTareas={setTareas}
           faseDias={faseDias}
           onFaseDiasChange={(fase, dias) => setFaseDias((prev) => ({ ...prev, [fase]: dias }))}
+          modoCronograma={modoCronograma}
+          onModoCronogramaChange={(modo) => {
+            // Tocar el selector ES elegir: a partir de aqui el cronograma viaja
+            // al servidor. Antes de esto, una obra sin plan sigue sin plan.
+            setModoElegido(true);
+            setModoCronograma(modo);
+            proponerVentanas(modo, false);
+          }}
+          faseVentanas={faseVentanas}
+          onFaseVentanaChange={(fase, campo, valor) =>
+            setFaseVentanas((prev) => ({ ...prev, [fase]: { ...prev[fase], [campo]: valor || undefined } }))
+          }
+          tareaVentanas={tareaVentanas}
+          onTareaVentanaChange={(tareaId, campo, valor) =>
+            setTareaVentanas((prev) => ({ ...prev, [tareaId]: { ...prev[tareaId], [campo]: valor || undefined } }))
+          }
+          onCompletarVentanas={() => proponerVentanas(modoCronograma, false)}
+          onRecalcularVentanas={() => proponerVentanas(modoCronograma, true)}
+          reparto={reparto}
+          fechaInicioObra={fechaInicio}
+          fechaFinObra={fechaFin}
+          diasHabilesSemana={diasHabiles}
           canProceed={canProceed2}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}

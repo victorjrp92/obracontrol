@@ -133,6 +133,10 @@ model Proyecto {
   presupuesto_mano_obra   Int?           // COP, opcional (modo "separado": bolsa de mano de obra)
   presupuesto_materiales  Int?           // COP, opcional (modo "separado": bolsa de materiales)
   metraje_total           Float?         // m² de toda la obra (alternativa a metraje por espacio)
+  /// Como se construyo el cronograma. Se guarda para poder REHACER el reparto
+  /// si cambian las fechas de la obra sin volver a preguntar, y para saber que
+  /// partes puso el usuario y cuales calculo el sistema.
+  modo_cronograma         ModoCronograma?
   // ── Datos del inmueble ───────────────────────────────────────────────────
   // Los pide el acta de estado inicial y cualquier informe técnico. La
   // matrícula inmobiliaria es el identificador legal del predio en Colombia y
@@ -278,6 +282,14 @@ model Fase {
   nombre               String
   orden                Int      @default(0)
   tiempo_estimado_dias Int?
+  /// Ventana PLANEADA de la fase. Es la linea base contra la que se mide el
+  /// avance: sin ella solo se puede decir «vamos al 49%», nunca «vamos al 49%
+  /// cuando tocaba el 44%». Distinta de `tiempo_estimado_dias`, que es una
+  /// duracion y no dice donde cae en el calendario — y en una obra de tres
+  /// torres las fases se solapan, asi que encadenar duraciones da un
+  /// cronograma falso.
+  fecha_inicio_plan    DateTime?
+  fecha_fin_plan       DateTime?
   created_at           DateTime @default(now())
 
   proyecto    Proyecto @relation(fields: [proyecto_id], references: [id], onDelete: Cascade)
@@ -310,8 +322,14 @@ model Tarea {
   tiene_chapa               Boolean      @default(false)
   tiene_cartera             Boolean      @default(false)
   tiempo_acordado_dias      Int
+  /// OJO: `fecha_inicio` y `fecha_fin_real` son REALES, no planeadas.
+  /// `fecha_inicio` se rellena AL REPORTAR, asi que marca cuando se declaro
+  /// hecha, no cuando debia empezar. Para el plan estan las dos de abajo.
   fecha_inicio              DateTime?
   fecha_fin_real            DateTime?
+  /// Ventana PLANEADA de la tarea, repartida desde la de su fase.
+  fecha_inicio_plan         DateTime?
+  fecha_fin_plan            DateTime?
   estado                    EstadoTarea  @default(PENDIENTE)
   asignado_a                String?
   depende_de                String?
@@ -632,6 +650,16 @@ model PagoContratista {
 }
 
 // ─── ROLES Y ACCESO ─────────────────────────────────────────────────────────
+
+/// Cuanto del calendario pone el usuario y cuanto calcula el sistema.
+enum ModoCronograma {
+  /// Solo inicio y fin de obra: el sistema reparte fases y tareas.
+  AUTOMATICO
+  /// El usuario fija la ventana de cada fase; el sistema reparte las tareas.
+  FASES
+  /// El usuario fija todo, fases y tareas. El sistema no interviene.
+  MANUAL
+}
 
 enum NivelAcceso {
   SUPER_ADMIN

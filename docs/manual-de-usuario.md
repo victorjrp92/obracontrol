@@ -320,7 +320,8 @@ Ve **solo las obras que un administrador le asignó**, y dentro de cada una: las
 - **Cliente** (opcional) y **contratista por defecto** (opcional, se asigna a las tareas sin asignación específica).
 - **Presupuesto total** y **metraje** (opcionales).
 - **Ubicación** de la obra (para que aparezca en el mapa de obras).
-- **Días hábiles por semana** (1–7, por defecto 5) y **fechas** de inicio y fin estimado.
+- **Días hábiles por semana** (1–7, por defecto 5).
+- **Fecha de inicio y fecha de fin estimada — ahora son obligatorias.** Sin ellas no hay contra qué comparar el avance: el informe solo podría decir «vamos al 49%», nunca «vamos al 49% cuando tocaba el 44%». En obras creadas antes de este cambio no se exigen, para no obligar a inventar una fecha solo para poder editar.
 
 ### Paso 2: Estructura
 
@@ -334,6 +335,22 @@ Ve **solo las obras que un administrador le asignó**, y dentro de cada una: las
 - Que los espacios sumen **menos** que el total es lo normal y no da error: los muros, las circulaciones y los clósets no se listan como espacio, y se suelen llevar entre el 10% y el 20% del área construida. Una ocupación entre el 80% y el 90% es lo habitual.
 - Que sumen **más** es imposible en obra, y además distorsiona el plan: los m² del espacio son los que el sistema usa para estimar la duración y el presupuesto de cada tarea, así que un reparto inflado infla la obra entera.
 - La regla se aplica igual **al crear y al editar** un proyecto, y también a lo que entra por la API o por importación, no solo a lo que se escribe en pantalla.
+
+### Paso 2 (final): el cronograma
+
+Antes de pasar a las tareas eliges **quién pone el calendario**. Son tres formas, según cuánto quieras escribir tú:
+
+| | Tú pones | El sistema calcula |
+|---|---|---|
+| **Automático** | Inicio y fin de la obra | Las fechas de cada fase **y** las de cada tarea |
+| **Por fases** ← recomendado | Inicio, fin y la ventana de cada fase | Las fechas de cada tarea |
+| **Manual** | Todo: obra, fases y tareas | Nada |
+
+- **Lo que escribes a mano no se toca.** En «Por fases», las ventanas que pusiste son tuyas y el sistema solo reparte dentro de ellas. En «Manual» no interviene en nada.
+- **Los días se cuentan hábiles**, con la jornada que declaraste para la obra y los 18 festivos colombianos. Repartir en días de almanaque metería domingos y el plan nacería mintiendo.
+- **Las fases se solapan a propósito.** En modo automático, cada fase arranca cuando la anterior lleva tres cuartas partes recorridas. Ponerlas en fila una tras otra describiría una obra de una sola torre: en una de tres, la Torre 1 está en pintura mientras la Torre 3 sigue en mampostería.
+- Al **editar** una obra, el cronograma que ya tenía se recupera tal cual. A una obra sin cronograma no se le inventa uno por abrirle la ficha.
+- Hay dos botones: **«Completar las que falten»**, que no pisa nada, y **«Rehacer todas»**, que sí — y lo avisa.
 
 ### Paso 3: Tareas
 

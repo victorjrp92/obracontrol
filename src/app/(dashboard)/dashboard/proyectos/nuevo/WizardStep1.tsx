@@ -8,6 +8,7 @@ import {
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
 import { excesoMetraje, excesosMetraje, formatearM2, mensajeExceso, sumaEspacios } from "@/lib/metraje";
 import type { TipoUnidadInput, EdificioInput, UnidadDetailInput, Contratista, UbicacionInput } from "./wizard-types";
+import { faltantesFechasObra } from "./wizard-types";
 import LocationPicker from "@/components/mapa/LocationPicker";
 
 interface WizardStep1Props {
@@ -504,24 +505,46 @@ export default function WizardStep1({
           </select>
         </div>
 
+        {/* Las dos fechas de la OBRA. Obligatorias desde que existe el
+            cronograma planeado: son la ventana dentro de la que se reparten
+            fases y tareas, y sin ellas no hay nada que repartir. */}
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">Fecha de inicio</label>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            Fecha de inicio <span className="text-red-500">*</span>
+          </label>
           <input
             type="date"
             value={fechaInicio}
             onChange={(e) => setFechaInicio(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className={`w-full px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${
+              fechaInicio ? "border-slate-200" : "border-amber-300 bg-amber-50/40"
+            }`}
           />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-1.5 block">Fecha fin estimada</label>
+          <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+            Fecha fin estimada <span className="text-red-500">*</span>
+          </label>
           <input
             type="date"
             value={fechaFin}
+            // `min` empuja al navegador a no ofrecer un fin anterior al inicio.
+            // Es ayuda, no defensa: la regla de verdad vive en
+            // `faltantesFechasObra`, que es la que bloquea el boton.
+            min={fechaInicio || undefined}
             onChange={(e) => setFechaFin(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+            className={`w-full px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 ${
+              fechaFin && (!fechaInicio || fechaFin > fechaInicio)
+                ? "border-slate-200"
+                : "border-amber-300 bg-amber-50/40"
+            }`}
           />
+          {fechaInicio && fechaFin && fechaFin <= fechaInicio && (
+            <p className="text-[11px] text-amber-700 mt-1">
+              La obra no puede terminar el mismo día que empieza ni antes.
+            </p>
+          )}
         </div>
       </div>
 
@@ -1057,6 +1080,9 @@ export default function WizardStep1({
           const missing: string[] = [];
           if (nombre.trim().length < 3) missing.push("Nombre del proyecto (mín. 3 caracteres)");
           if (numeroRegistro.trim().length < 2) missing.push("Número de registro (mín. 2 caracteres)");
+          // Las fechas de la obra: misma regla que usa `canProceed1`, para que
+          // el botón y el motivo no puedan decir cosas distintas.
+          missing.push(...faltantesFechasObra(fechaInicio, fechaFin));
           // contratistaDefaultId is optional
           const tiposSinEspacios = tiposUnidad.filter((t) => t.espacios.length === 0).map((t) => t.nombre || "Tipo sin nombre");
           if (tiposSinEspacios.length > 0) missing.push(`Espacios para: ${tiposSinEspacios.join(", ")}`);

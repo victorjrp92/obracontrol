@@ -4,7 +4,9 @@ import { getAccessibleProjectIds } from "@/lib/access";
 import Topbar from "@/components/dashboard/Topbar";
 import { Download } from "lucide-react";
 import { getTareasVelocidad } from "@/lib/data-velocidad";
+import { getResumenCronograma } from "@/lib/data-cronograma";
 import ReporteVelocidad from "@/components/dashboard/ReporteVelocidad";
+import CronogramaFases from "@/components/dashboard/CronogramaFases";
 import SelectorObraReporte from "@/components/dashboard/SelectorObraReporte";
 import DescargarReportes from "@/components/dashboard/DescargarReportes";
 
@@ -23,19 +25,44 @@ export default async function ReportesPage({
   );
   const proyectos = await getProyectosConProgreso(usuario.constructora_id, accessible);
 
-  // La obra del reporte de velocidad. El id que llega por URL se valida contra
-  // las obras a las que el usuario tiene acceso: sin eso, cambiarlo a mano
-  // serviria el reporte de otra constructora.
+  // La obra del reporte. El id que llega por URL se valida contra las obras a
+  // las que el usuario tiene acceso: sin eso, cambiarlo a mano serviria el
+  // reporte de otra constructora.
   const { proyecto: pedido } = await searchParams;
   const elegida = proyectos.find((p) => p.id === pedido) ?? proyectos[0];
-  const velocidad = elegida
-    ? await getTareasVelocidad(elegida.id, usuario.constructora_id)
-    : null;
+
+  // Las dos cargas de la obra elegida van en PARALELO: son independientes y
+  // encadenarlas suma las dos esperas en una pagina que ya venia lenta.
+  const [velocidad, cronograma] = elegida
+    ? await Promise.all([
+        getTareasVelocidad(elegida.id, usuario.constructora_id),
+        getResumenCronograma(elegida.id, usuario.constructora_id),
+      ])
+    : [null, null];
 
   return (
     <>
       <Topbar title="Reportes" subtitle="Generación y descarga de reportes" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {/* El selector gobierna TODO lo de abajo -cronograma y velocidad-, asi
+            que sube al principio: pegado a las graficas parecia filtrar solo
+            esas. */}
+        {elegida && (
+          <div className="flex items-center justify-end mb-3">
+            <SelectorObraReporte
+              proyectos={proyectos.map((p) => ({ id: p.id, nombre: p.nombre }))}
+              activo={elegida.id}
+            />
+          </div>
+        )}
+
+        {/* ── Avance contra cronograma ───────────────────────────────────
+            Va ARRIBA de todo lo demas porque es el titular del informe. El
+            «49%» que enseña el resto de la app no se puede leer solo: contra un
+            44% programado es una obra sana y contra un 70% es una obra
+            hundida, y esa comparacion es lo que se firma en un acta. */}
+        {cronograma && <CronogramaFases resumen={cronograma} />}
+
         {/* ── Descargas ──────────────────────────────────────────────────
             Un desplegable con buscador y casillas en vez de un boton por obra:
             con treinta obras, la lista era una pantalla entera y el cierre de
@@ -46,9 +73,9 @@ export default async function ReportesPage({
             de la constructora; vive en super admin. Quitar el enlace no bastaba:
             el endpoint tambien quedo cerrado a SUPER_ADMIN, porque un boton
             escondido con una API abierta no protege nada. */}
-        {/* Arriba de las graficas y con ancho acotado: es una accion corta
-            -elegir obra y bajar- y estirada a toda la pantalla parecia la
-            seccion principal cuando lo que se viene a ver son las graficas. */}
+        {/* Con ancho acotado: es una accion corta -elegir obra y bajar- y
+            estirada a toda la pantalla parecia la seccion principal cuando lo
+            que se viene a ver son el cronograma y las graficas. */}
         <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-xl mb-6">
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 mb-1">
             <Download className="w-4 h-4 text-blue-600" /> Descargar avance en PDF
@@ -67,21 +94,11 @@ export default async function ReportesPage({
           />
         </div>
 
-        {elegida && (
-          <>
-            <div className="flex items-center justify-end mb-3">
-              <SelectorObraReporte
-                proyectos={proyectos.map((p) => ({ id: p.id, nombre: p.nombre }))}
-                activo={elegida.id}
-              />
-            </div>
-            {velocidad && (
-              <ReporteVelocidad
-                tareas={velocidad.tareas}
-                diasHabilesSemana={velocidad.diasHabilesSemana}
-              />
-            )}
-          </>
+        {velocidad && (
+          <ReporteVelocidad
+            tareas={velocidad.tareas}
+            diasHabilesSemana={velocidad.diasHabilesSemana}
+          />
         )}
 
         <p className="text-[11px] text-slate-400 mt-4 px-1">

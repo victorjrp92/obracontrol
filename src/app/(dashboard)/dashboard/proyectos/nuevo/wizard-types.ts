@@ -1,3 +1,5 @@
+import type { ModoCronograma } from "@/lib/reparto-cronograma";
+
 export interface Contratista {
   id: string;
   nombre: string;
@@ -10,6 +12,39 @@ export interface TipoUnidadInput {
   espacios: string[];
   metraje_total?: number;              // m² total of the unit
   metrajes_espacios?: Record<string, number>;  // space_name -> m²
+}
+
+/**
+ * Ventana PLANEADA tal como la maneja el asistente: dos strings de
+ * `<input type="date">` ("YYYY-MM-DD") o vacio. Es POSICION EN EL CALENDARIO,
+ * no duracion — los dias siguen viviendo en `tiempo_acordado_dias`.
+ */
+export interface VentanaPlan {
+  inicio?: string;
+  fin?: string;
+}
+
+/**
+ * Lo que le falta a las fechas de la OBRA para poder pasar del paso 1.
+ *
+ * Vive aqui y no en el paso 1 porque lo necesitan los dos: `canProceed1` en
+ * `wizard.tsx` para bloquear el boton y `WizardStep1` para escribir el motivo
+ * en el panel «Para continuar, completa». Con la regla duplicada, el dia que
+ * cambie una de las dos copias el boton y el mensaje dirian cosas distintas.
+ *
+ * Las dos fechas son OBLIGATORIAS desde que existe el cronograma planeado: sin
+ * ventana de obra no hay nada que repartir. Y el fin tiene que ser POSTERIOR
+ * al inicio — una obra que termina antes de empezar no produce un cronograma
+ * raro, produce un reparto vacio.
+ */
+export function faltantesFechasObra(fechaInicio: string, fechaFin: string): string[] {
+  const faltan: string[] = [];
+  if (!fechaInicio) faltan.push("Fecha de inicio de la obra");
+  if (!fechaFin) faltan.push("Fecha de fin estimada de la obra");
+  if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
+    faltan.push("La fecha de fin debe ser posterior a la de inicio");
+  }
+  return faltan;
 }
 
 export interface FaseInput {
@@ -107,6 +142,16 @@ export interface EditModeData {
   // asignado_a no nulo), agrupadas en el scope más amplio donde son
   // consistentes (global > por torre > por torre+unidad).
   asignaciones?: AsignacionOverride[];
+  // ── Cronograma planeado ──────────────────────────────────────────────────
+  // OPCIONALES a proposito: `src/lib/data-edit.ts` —que es quien construye
+  // este objeto— todavia no los rellena, y hacerlos obligatorios tumbaria la
+  // pagina de edicion sin arreglar nada. Mientras lleguen vacios, el asistente
+  // propone el reparto automatico y el usuario lo ajusta.
+  modoCronograma?: ModoCronograma;
+  /** Ventana de cada fase, por NOMBRE de fase. */
+  faseVentanas?: Record<string, VentanaPlan>;
+  /** Ventana de cada tarea, por el id local de la tarea. */
+  tareaVentanas?: Record<string, VentanaPlan>;
 }
 
 export interface UbicacionInput {

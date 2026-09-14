@@ -56,6 +56,17 @@ export default function ReporteVelocidad({
 }) {
   const [periodo, setPeriodo] = useState<Periodo>("mes");
 
+  /**
+   * Periodo resaltado, por `orden`, compartido por las DOS graficas de arriba.
+   *
+   * Vive aqui y no en cada grafica porque el resaltado cruzado es justamente lo
+   * que ensena que las dos hablan del mismo mes: una mide cuantas tareas
+   * incumplieron y la otra por cuanto, y sin verlas senalar el mismo punto se
+   * leen como dos reportes sueltos. La matriz de ciclo no entra: no tiene
+   * periodo, es un promedio sobre toda la obra.
+   */
+  const [resaltado, setResaltado] = useState<number | null>(null);
+
   const datos = useMemo<TareaVelocidad[]>(
     () =>
       tareas.map((t) => ({
@@ -133,7 +144,13 @@ export default function ReporteVelocidad({
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Período</span>
           <select
             value={periodoEfectivo}
-            onChange={(e) => setPeriodo(e.target.value as Periodo)}
+            onChange={(e) => {
+              // `orden` numera los cubos del periodo actual: en semanas el 7 es
+              // otra cosa que en meses. Soltarlo aqui evita resaltar un cubo
+              // que ya no es el que el usuario habia senalado.
+              setResaltado(null);
+              setPeriodo(e.target.value as Periodo);
+            }}
             className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
           >
             {PERIODOS.map((p) => (
@@ -189,11 +206,17 @@ export default function ReporteVelocidad({
         </div>
       )}
 
-      <div className="mb-2 text-[13px] font-bold text-slate-700">Tareas que cerraron a tiempo</div>
-      {/* Mas alla de unos 1000px la linea se aplana y la grafica deja de
-          leerse: no es un limite estetico, es donde la pendiente se pierde. */}
+      <div className="mb-2 flex items-baseline justify-between gap-3 flex-wrap">
+        <span className="text-[13px] font-bold text-slate-700">Tareas que cerraron a tiempo</span>
+        <span className="text-[11px] text-slate-400">
+          Señala un {nombrePeriodo} —con el dedo, el ratón o las flechas— y se resalta en las dos gráficas
+        </span>
+      </div>
+      {/* Mas alla de unos 1000px las columnas se separan tanto que dejan de
+          compararse de un vistazo: no es un limite estetico, es donde el ojo
+          pierde la fila. */}
       <div className="max-w-[1000px]">
-        <GraficaATiempo serie={serie} meta={meta} />
+        <GraficaATiempo serie={serie} meta={meta} resaltado={resaltado} onResaltar={setResaltado} />
       </div>
 
       <div className="mt-7 mb-2 text-[13px] font-bold text-slate-700">
@@ -201,7 +224,7 @@ export default function ReporteVelocidad({
       </div>
       {/* Mismo limite que la grafica de arriba, y por la misma razon. */}
       <div className="max-w-[1000px]">
-        <GraficaDiasDeMas serie={serie} />
+        <GraficaDiasDeMas serie={serie} resaltado={resaltado} onResaltar={setResaltado} />
       </div>
 
       <div className="mt-8 pt-6 border-t border-slate-100">

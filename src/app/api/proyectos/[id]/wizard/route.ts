@@ -4,6 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { isGeneralAdmin } from "@/lib/access";
 import { aprenderTareas } from "@/lib/learning";
 import { excesosMetraje, mensajeExceso } from "@/lib/metraje";
+import {
+  fechaISO,
+  repartirCronograma,
+  type ModoCronograma,
+  type ResultadoReparto,
+} from "@/lib/reparto-cronograma";
 
 /**
  * Wizard payload — same shape as the creation wizard POST endpoint.
@@ -38,7 +44,16 @@ interface WizardPayload {
   }[];
   // Paso 3 — espacios y tareas
   espacios: string[];
-  fases: (string | { nombre: string; tiempo_estimado_dias?: number })[];
+  /** Como se construye el cronograma. Ausente = no se toca nada del plan. */
+  modo_cronograma?: ModoCronograma;
+  fases: (string | {
+    nombre: string;
+    /** DURACION de la fase. */
+    tiempo_estimado_dias?: number;
+    /** POSICION de la fase. La pone el usuario en modo FASES y MANUAL. */
+    fecha_inicio_plan?: string;
+    fecha_fin_plan?: string;
+  })[];
   tareas: {
     fase: string;
     subfase?: string;
@@ -60,6 +75,9 @@ interface WizardPayload {
     lustro_dias?: number;
     lustro_precio?: number;
     lustro_excluido?: boolean;
+    /** POSICION de la tarea. La pone el usuario solo en modo MANUAL. */
+    fecha_inicio_plan?: string;
+    fecha_fin_plan?: string;
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
@@ -72,6 +90,11 @@ interface WizardPayload {
     tarea_nombre?: string | null;
     contratista_id: string;
   }[];
+}
+
+/** Clave de una tarea del payload dentro del reparto. Ver la ruta de creacion. */
+function claveTareaPlan(indice: number, nombre: string): string {
+  return `${indice + 1} · ${nombre}`;
 }
 
 function resolveContratista(
@@ -394,6 +417,104 @@ export async function POST(
       estado: "PENDIENTE";
     };
 
+    // ── Cronograma planeado: QUE se rehace y que NO ──────────────────────────
+    //
+    // LA DECISION, y por que es esta. Al editar, el usuario puede mover las
+    // fechas de la obra. Hay dos maneras de responder y solo una es honesta:
+    //
+    //  · AUTOMATICO — el cronograma entero lo puso el sistema, no hay nada del
+    //    usuario que pisar. Se REHACE completo contra las fechas nuevas. No
+    //    rehacerlo dejaria fases colgando fuera de la ventana de la obra.
+    //
+    //  · FASES y MANUAL — las ventanas las escribio el usuario. Estirarlas
+    //    «para que cuadren» es cambiarle el plan sin decirselo, y ese es el
+    //    fallo que nadie detecta: el cliente pregunta por que cambio una fecha
+    //    que el mismo fijo y no hay respuesta. Asi que NO se tocan y se AVISA.
+    //    Si con las fechas nuevas alguna ventana se sale de la obra, la
+    //    peticion se RECHAZA nombrando la fase — un aviso que el usuario no
+    //    puede pasar por alto sin querer, porque no le deja guardar.
+    //
+    // Sin `modo_cronograma` en el payload no se toca NADA del plan: un cliente
+    // viejo que edite un proyecto no puede borrarle el cronograma sin saberlo.
+    const avisosCronograma: string[] = [];
+    const modoCronograma = body.modo_cronograma;
+    let repartoPlan: ResultadoReparto | null = null;
+    if (modoCronograma) {
+      if (!body.fecha_inicio || !body.fecha_fin_estimada) {
+        return NextResponse.json(
+          { error: "La obra necesita fecha de inicio y fecha de fin estimada para construir el cronograma" },
+          { status: 400 },
+        );
+      }
+
+      const inicioAntes = proyecto.fecha_inicio ? fechaISO(proyecto.fecha_inicio) : null;
+      const finAntes = proyecto.fecha_fin_estimada ? fechaISO(proyecto.fecha_fin_estimada) : null;
+      const cambianFechasObra =
+        inicioAntes !== body.fecha_inicio.slice(0, 10) ||
+        finAntes !== body.fecha_fin_estimada.slice(0, 10);
+
+      repartoPlan = repartirCronograma({
+        inicio: body.fecha_inicio,
+        fin: body.fecha_fin_estimada,
+        diasHabilesSemana: body.dias_habiles_semana ?? 6,
+        modo: modoCronograma,
+        fases: fasesNormalized.map((f, i) => ({
+          nombre: f.nombre,
+          orden: i + 1,
+          dias: f.tiempo_estimado_dias ?? null,
+          ventana: { inicio: f.fecha_inicio_plan, fin: f.fecha_fin_plan },
+        })),
+        tareas: (body.tareas ?? []).map((t, i) => ({
+          id: claveTareaPlan(i, t.nombre),
+          fase: t.fase,
+          dias:
+            (t.tiempo_acordado_dias || 0) +
+            (t.fase === "Madera" && !t.lustro_excluido
+              ? (t.lustro_dias ?? t.tiempo_acordado_dias ?? 0)
+              : 0),
+          ventana: { inicio: t.fecha_inicio_plan, fin: t.fecha_fin_plan },
+        })),
+      });
+      if (!repartoPlan.ok) {
+        return NextResponse.json({ error: repartoPlan.motivos.join(" ") }, { status: 400 });
+      }
+      avisosCronograma.push(...repartoPlan.avisos);
+      if (cambianFechasObra && modoCronograma !== "AUTOMATICO") {
+        avisosCronograma.push(
+          "Cambiaste las fechas de la obra: las ventanas que pusiste a mano NO se movieron. Usa «Recalcular fechas» si quieres rehacerlas.",
+        );
+      }
+      if (cambianFechasObra && modoCronograma === "AUTOMATICO") {
+        avisosCronograma.push("Cambiaste las fechas de la obra: el cronograma se rehizo completo.");
+      }
+    }
+
+    // Ventana por FILA de tarea. Una tarea del asistente se convierte en muchas
+    // filas -una por unidad y espacio- y en Madera ademas en dos subfases; las
+    // filas se localizan despues por (fase, nombre, subfase), que es la misma
+    // clave con la que el diff de arriba las empareja.
+    const ventanasTareaPlan: {
+      fase: string;
+      nombre: string;
+      subfase: string | null;
+      inicio: Date;
+      fin: Date;
+    }[] = [];
+    if (repartoPlan) {
+      (body.tareas ?? []).forEach((t, i) => {
+        const v = repartoPlan!.tareas.get(claveTareaPlan(i, t.nombre));
+        if (!v) return;
+        if (t.fase === "Madera") {
+          ventanasTareaPlan.push({ fase: t.fase, nombre: t.nombre, subfase: "Instalación", ...v });
+          if (!t.lustro_excluido) {
+            ventanasTareaPlan.push({ fase: t.fase, nombre: t.nombre, subfase: "Detallado y lustro", ...v });
+          }
+        } else {
+          ventanasTareaPlan.push({ fase: t.fase, nombre: t.nombre, subfase: t.subfase ?? null, ...v });
+        }
+      });
+    }
+
     // ── Diff transaction ─────────────────────────────────────────────────────
     const summary = await prisma.$transaction(async (tx) => {
       const stats = {
@@ -429,6 +550,7 @@ export async function POST(
           ...(body.ubicacion_lng !== undefined ? { ubicacion_lng: typeof body.ubicacion_lng === "number" ? body.ubicacion_lng : null } : {}),
           ...(body.numero_registro ? { numero_registro: body.numero_registro } : {}),
           ...(body.contratista_default_id !== undefined ? { contratista_default_id: body.contratista_default_id || null } : {}),
+          ...(modoCronograma ? { modo_cronograma: modoCronograma } : {}),
           cliente_id: body.cliente_id || null,
         },
       });
@@ -455,6 +577,7 @@ export async function POST(
       for (let i = 0; i < fasesNormalized.length; i++) {
         const faseInput = fasesNormalized[i];
         const existing = existingFasesByName.get(faseInput.nombre);
+        const ventanaFase = repartoPlan?.fases.get(faseInput.nombre);
         if (existing) {
           await tx.fase.update({
             where: { id: existing.id },
@@ -462,6 +585,9 @@ export async function POST(
               orden: i + 1,
               ...(faseInput.tiempo_estimado_dias != null
                 ? { tiempo_estimado_dias: faseInput.tiempo_estimado_dias }
+                : {}),
+              ...(ventanaFase
+                ? { fecha_inicio_plan: ventanaFase.inicio, fecha_fin_plan: ventanaFase.fin }
                 : {}),
             },
           });
@@ -475,6 +601,9 @@ export async function POST(
               orden: i + 1,
               ...(faseInput.tiempo_estimado_dias != null
                 ? { tiempo_estimado_dias: faseInput.tiempo_estimado_dias }
+                : {}),
+              ...(ventanaFase
+                ? { fecha_inicio_plan: ventanaFase.inicio, fecha_fin_plan: ventanaFase.fin }
                 : {}),
             },
           });
@@ -1229,6 +1358,21 @@ export async function POST(
         );
       }
 
+      // ── 7. Ventanas planeadas de las tareas ─────────────────────────────
+      // Al final y no dentro del diff de tareas a proposito: asi una sola
+      // pasada cubre las tres poblaciones -las que se acaban de crear, las que
+      // ya existian sin tocar y las que solo cambiaron de dias-, en vez de
+      // tener que acordarse de poner la ventana en los tres sitios.
+      // `fase_id` ya acota al proyecto: `fasesMap` solo tiene fases de esta obra.
+      for (const vt of ventanasTareaPlan) {
+        const faseId = fasesMap[vt.fase];
+        if (!faseId) continue;
+        await tx.tarea.updateMany({
+          where: { fase_id: faseId, nombre: vt.nombre, subfase: vt.subfase },
+          data: { fecha_inicio_plan: vt.inicio, fecha_fin_plan: vt.fin },
+        });
+      }
+
       return stats;
     }, { timeout: 180000, maxWait: 10000 });
 
@@ -1239,7 +1383,7 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ updated: true, summary });
+    return NextResponse.json({ updated: true, summary, avisos: avisosCronograma });
   } catch (err) {
     console.error("POST /api/proyectos/[id]/wizard", err);
     return NextResponse.json({ error: "Error actualizando proyecto" }, { status: 500 });

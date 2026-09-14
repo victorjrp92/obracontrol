@@ -15,6 +15,12 @@ import {
   type PreRegistroDuracion,
 } from "@/lib/duraciones-mercado";
 import type { EspacioEstim } from "@/lib/estimar-presupuesto";
+import {
+  repartirCronograma,
+  type ModoCronograma,
+  type ResultadoReparto,
+  type Ventana,
+} from "@/lib/reparto-cronograma";
 
 interface WizardPayload {
   // Paso 1
@@ -45,7 +51,20 @@ interface WizardPayload {
   }[];
   // Paso 3 — espacios y tareas
   espacios: string[];
-  fases: (string | { nombre: string; tiempo_estimado_dias?: number })[];
+  /**
+   * Como se construye el cronograma. AUSENTE = cliente que no lo conoce
+   * (import por API, payload viejo): entonces no se reparte nada y el proyecto
+   * se crea SIN plan, exactamente como antes de que existiera el cronograma.
+   */
+  modo_cronograma?: ModoCronograma;
+  fases: (string | {
+    nombre: string;
+    /** DURACION de la fase. No dice donde cae en el calendario. */
+    tiempo_estimado_dias?: number;
+    /** POSICION de la fase. La pone el usuario en modo FASES y MANUAL. */
+    fecha_inicio_plan?: string;
+    fecha_fin_plan?: string;
+  })[];
   tareas: {
     fase: string;
     subfase?: string;
@@ -65,6 +84,9 @@ interface WizardPayload {
     lustro_dias?: number;
     lustro_precio?: number;
     lustro_excluido?: boolean;
+    /** POSICION de la tarea. La pone el usuario solo en modo MANUAL. */
+    fecha_inicio_plan?: string;
+    fecha_fin_plan?: string;
   }[];
   zonas_comunes?: string[];
   zonas_comunes_metrajes?: Record<string, number>;
@@ -96,6 +118,15 @@ const METRAJE_ESPACIO_DEFECTO = 15;
  * an unbounded array would blow up memory before the batch insert.
  */
 const MAX_PREREGISTROS_DURACION = 5000;
+
+/**
+ * Clave de una tarea del payload dentro del reparto. Manda el INDICE -dos
+ * tareas pueden llamarse igual en espacios distintos-, y el nombre va detras
+ * solo para que el motivo de rechazo se pueda leer sin abrir el JSON.
+ */
+function claveTareaPlan(indice: number, nombre: string): string {
+  return `${indice + 1} · ${nombre}`;
+}
 
 /** Synthetic key of an espacio inside the payload (group + index). */
 function claveEspacioWizard(grupo: string, indice: number): string {
@@ -464,6 +495,64 @@ export async function POST(req: NextRequest) {
       if (pre) preRegistrosDuracion.push(pre);
     };
 
+    // ── Cronograma planeado ──────────────────────────────────────────────
+    // Se corre AQUI, fuera de la transaccion: es puro y no toca la base, y si
+    // la entrada es contradictoria conviene rechazarla antes de abrir una
+    // transaccion de 60 segundos que va a tener que deshacerse entera.
+    //
+    // Sin `modo_cronograma` no se reparte NADA: el proyecto se crea con
+    // `fecha_*_plan` en null, que es justo el estado en el que estan todas las
+    // obras anteriores a esta funcion y en el que siguen funcionando.
+    const modoCronograma = body.modo_cronograma;
+    let repartoPlan: ResultadoReparto | null = null;
+    if (modoCronograma) {
+      if (!body.fecha_inicio || !body.fecha_fin_estimada) {
+        return NextResponse.json(
+          { error: "La obra necesita fecha de inicio y fecha de fin estimada para construir el cronograma" },
+          { status: 400 },
+        );
+      }
+      repartoPlan = repartirCronograma({
+        inicio: body.fecha_inicio,
+        fin: body.fecha_fin_estimada,
+        diasHabilesSemana: body.dias_habiles_semana ?? 6,
+        modo: modoCronograma,
+        fases: fasesNormalized.map((f, i) => ({
+          nombre: f.nombre,
+          orden: i + 1,
+          dias: f.tiempo_estimado_dias ?? null,
+          ventana: { inicio: f.fecha_inicio_plan, fin: f.fecha_fin_plan },
+        })),
+        tareas: (body.tareas ?? []).map((t, i) => ({
+          id: claveTareaPlan(i, t.nombre),
+          fase: t.fase,
+          // El peso incluye el lustro: en Madera una tarea del payload se
+          // convierte en DOS filas (Instalación + Detallado y lustro) que
+          // comparten ventana, asi que pesa lo que suman las dos.
+          dias:
+            (t.tiempo_acordado_dias || 0) +
+            (t.fase === "Madera" && !t.lustro_excluido
+              ? (t.lustro_dias ?? t.tiempo_acordado_dias ?? 0)
+              : 0),
+          ventana: { inicio: t.fecha_inicio_plan, fin: t.fecha_fin_plan },
+        })),
+      });
+      if (!repartoPlan.ok) {
+        return NextResponse.json({ error: repartoPlan.motivos.join(" ") }, { status: 400 });
+      }
+    }
+
+    // Ventana por tarea DEL PAYLOAD, indexada por referencia: el bucle de
+    // creacion recorre esos mismos objetos, asi que no hace falta arrastrar el
+    // indice por cinco niveles de funcion anidada.
+    const ventanaPorTarea = new Map<WizardPayload["tareas"][number], Ventana>();
+    if (repartoPlan) {
+      (body.tareas ?? []).forEach((t, i) => {
+        const v = repartoPlan!.tareas.get(claveTareaPlan(i, t.nombre));
+        if (v) ventanaPorTarea.set(t, v);
+      });
+    }
+
     // Crear todo en una transacción
     const proyectoCreado = await prisma.$transaction(async (tx) => {
       // 1. Proyecto
@@ -480,6 +569,7 @@ export async function POST(req: NextRequest) {
           fecha_fin_estimada: body.fecha_fin_estimada ? new Date(body.fecha_fin_estimada) : null,
           ubicacion_lat: typeof body.ubicacion_lat === "number" ? body.ubicacion_lat : null,
           ubicacion_lng: typeof body.ubicacion_lng === "number" ? body.ubicacion_lng : null,
+          ...(modoCronograma ? { modo_cronograma: modoCronograma } : {}),
           estado: "ACTIVO",
         },
       });
@@ -492,6 +582,7 @@ export async function POST(req: NextRequest) {
       const faseDiasMap: Record<string, number | undefined> = {};
       for (let i = 0; i < fasesNormalized.length; i++) {
         const faseInput = fasesNormalized[i];
+        const ventanaFase = repartoPlan?.fases.get(faseInput.nombre);
         const fase = await tx.fase.create({
           data: {
             proyecto_id: proyecto.id,
@@ -499,6 +590,9 @@ export async function POST(req: NextRequest) {
             orden: i + 1,
             ...(faseInput.tiempo_estimado_dias != null
               ? { tiempo_estimado_dias: faseInput.tiempo_estimado_dias }
+              : {}),
+            ...(ventanaFase
+              ? { fecha_inicio_plan: ventanaFase.inicio, fecha_fin_plan: ventanaFase.fin }
               : {}),
           },
         });
@@ -667,6 +761,12 @@ export async function POST(req: NextRequest) {
 
             for (const t of tareasDelEspacio) {
               const isMadera = t.fase === "Madera";
+              // La ventana es de la tarea DEL PAYLOAD, asi que todas las filas
+              // que salen de ella -una por unidad y espacio, mas el lustro- la
+              // comparten. El plan dice «esta tarea ocurre en esta franja»; que
+              // el apartamento 301 y el 302 la hagan en dias distintos dentro
+              // de la franja es ejecucion, no plan.
+              const ventanaTarea = ventanaPorTarea.get(t) ?? null;
 
               // Instalación (or the only record for non-Madera)
               const diasInstalacion = calcDias(t.tiempo_acordado_dias, t.fase);
@@ -689,6 +789,9 @@ export async function POST(req: NextRequest) {
                   tiene_nave: t.tiene_nave ?? (isMadera ? true : false),
                   tiene_chapa: t.tiene_chapa ?? false,
                   tiene_cartera: t.tiene_cartera ?? false,
+                  ...(ventanaTarea
+                    ? { fecha_inicio_plan: ventanaTarea.inicio, fecha_fin_plan: ventanaTarea.fin }
+                    : {}),
                   estado: "PENDIENTE",
                 },
               });
@@ -720,6 +823,9 @@ export async function POST(req: NextRequest) {
                     tiene_nave: t.tiene_nave ?? true,
                     tiene_chapa: t.tiene_chapa ?? false,
                     tiene_cartera: t.tiene_cartera ?? false,
+                    ...(ventanaTarea
+                      ? { fecha_inicio_plan: ventanaTarea.inicio, fecha_fin_plan: ventanaTarea.fin }
+                      : {}),
                     estado: "PENDIENTE",
                   },
                 });
