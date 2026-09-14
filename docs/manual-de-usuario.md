@@ -2,9 +2,9 @@
 
 > Controla cada tarea, cada contratista y cada peso de tu obra desde un solo lugar.
 
-> **Alcance de este manual:** cubre el producto **B2B** de Seiricon — las cuentas de **constructora** y sus roles (Super Administrador, Administrador General, Administrador de Proyecto, Directivo, Contratista y Obrero). Las cuentas personales (Propietario / Arquitecto) tienen un flujo propio simplificado que se documenta aparte.
+> **Alcance de este manual:** cubre el producto **B2B** de Seiricon — las cuentas de **constructora** y sus roles (Super Administrador, Administrador General, Administrador de Proyecto, Directivo, Contratista, Personal de campo y Maestro). Las cuentas personales (Propietario / Arquitecto) tienen un flujo propio simplificado que se documenta aparte.
 
-_Última actualización: agosto 2026._
+_Última actualización: septiembre 2026._
 
 ---
 
@@ -17,7 +17,7 @@ _Última actualización: agosto 2026._
 5. [Administrador de Proyecto y permisos granulares](#5-administrador-de-proyecto-y-permisos-granulares)
 6. [Directivo](#6-directivo)
 7. [Contratista](#7-contratista)
-8. [Obrero](#8-obrero)
+8. [Maestro y Personal de campo](#8-maestro-y-personal-de-campo)
 9. [Crear un proyecto paso a paso](#9-crear-un-proyecto-paso-a-paso)
 10. [Monitorear un proyecto y el mapa de obras](#10-monitorear-un-proyecto-y-el-mapa-de-obras)
 11. [Reportar, aprobar y rechazar tareas](#11-reportar-aprobar-y-rechazar-tareas)
@@ -57,8 +57,9 @@ _Última actualización: agosto 2026._
 | Administrador General | Gerente o dueño de la constructora | Control total de su empresa y proyectos |
 | Administrador de Proyecto | Coordinador de obra (admin junior) | Gestiona los proyectos que le asignen, con permisos configurables |
 | Directivo | Director de obra, coordinador senior | Ve todos los proyectos, aprueba tareas y gastos |
-| Contratista | Empresa o persona que ejecuta tareas | Reporta avance, gestiona sus obreros, propone tareas |
-| Obrero | Trabajador en campo | Ejecuta tareas individuales y sube evidencia |
+| Contratista | Empresa o persona que ejecuta tareas | Reporta avance, gestiona sus maestros, propone tareas |
+| Personal de campo | Auxiliar o residente de obra con cuenta propia | Ve las obras que le asignen (fases en orden, tareas por espacio, planos y renders) y reporta |
+| Maestro | Trabajador en campo, entra por enlace | Ejecuta tareas individuales y sube evidencia |
 
 ---
 
@@ -68,7 +69,7 @@ La primera vez que entras, Seiricon abre una **guía paso a paso** que te muestr
 
 Para volver a verla, el botón **«¿Cómo funciona?»** abajo a la derecha, en cualquier momento.
 
-La guía **cambia según tu perfil**: una constructora ve proyectos, sugerencias y usuarios; un propietario o contratista ve su obra y su personal de campo; y un **arquitecto** tiene la suya, que además recorre el registro fotográfico inicial, la firma con matrícula, el acta y los planos versionados.
+La guía **cambia según tu perfil**: una constructora ve proyectos, sugerencias y usuarios; un propietario o contratista ve su obra y sus maestros; y un **arquitecto** tiene la suya, que además recorre el registro fotográfico inicial, la firma con matrícula, el acta y los planos versionados.
 
 ---
 
@@ -76,20 +77,20 @@ La guía **cambia según tu perfil**: una constructora ve proyectos, sugerencias
 
 Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la matriz resumida de quién puede hacer qué:
 
-| Acción | Super Admin | Admin General | Admin Proyecto | Directivo | Contratista | Obrero |
-|--------|:---:|:---:|:---:|:---:|:---:|:---:|
-| Ver proyectos | Todos (sistema) | De su constructora | Solo asignados | De su constructora | Solo asignados | Solo asignados |
-| Crear proyecto | ✓ | ✓ | — | — | — | — |
-| Editar proyecto | ✓ | ✓ | Si tiene el permiso | — | — | — |
-| Reportar tarea (evidencia) | — | — | — | — | ✓ | ✓ |
-| Aprobar/rechazar tareas | ✓ | ✓ | Si tiene el permiso | ✓ | — | — |
-| Reasignar contratistas | ✓ | ✓ | Si tiene el permiso | — | — | — |
-| Registrar gasto / anticipo | ✓ | ✓ | ✓ | ✓ | — | — |
-| Aprobar gasto | ✓ | ✓ | Si tiene el permiso | ✓ | — | — |
-| Invitar usuarios | ✓ | ✓ | Limitado | — | — | — |
-| Gestionar obreros | — | ✓ | ✓ | — | ✓ (los suyos) | — |
-| Proponer tareas (sugerencias) | — | — | — | — | ✓ | — |
-| Ver scoring global de contratistas | ✓ | — | — | — | — | — |
+| Acción | Super Admin | Admin General | Admin Proyecto | Directivo | Contratista | Personal de campo | Maestro |
+|--------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Ver proyectos | Todos (sistema) | De su constructora | Solo asignados | De su constructora | Solo asignados | Solo asignados | Solo asignados |
+| Crear proyecto | ✓ | ✓ | — | — | — | — | — |
+| Editar proyecto | ✓ | ✓ | Si tiene el permiso | — | — | — | — |
+| Reportar tarea (evidencia) | — | — | — | — | ✓ | ✓ | ✓ |
+| Aprobar/rechazar tareas | ✓ | ✓ | Si tiene el permiso | ✓ | — | — | — |
+| Reasignar contratistas | ✓ | ✓ | Si tiene el permiso | — | — | — | — |
+| Registrar gasto / anticipo | ✓ | ✓ | ✓ | ✓ | — | — | — |
+| Aprobar gasto | ✓ | ✓ | Si tiene el permiso | ✓ | — | — | — |
+| Invitar usuarios | ✓ | ✓ | Limitado | — | — | — | — |
+| Gestionar maestros | — | ✓ | ✓ | — | ✓ (los suyos) | — | — |
+| Proponer tareas (sugerencias) | — | — | — | — | ✓ | — | — |
+| Ver scoring global de contratistas | ✓ | — | — | — | — | — | — |
 
 ---
 
@@ -106,7 +107,7 @@ Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la 
 | **Proyectos** | Todos los proyectos de todas las constructoras en una sola tabla |
 | **Admins Generales** | Gestionar los administradores principales de cada constructora |
 | **Contratistas** | Ranking y scoring de contratistas a nivel global |
-| **Obreros** | Ranking y scoring de obreros a nivel global |
+| **Maestros** | Ranking y scoring de maestros a nivel global |
 | **Roles** | Configurar los roles del sistema agrupados por constructora |
 | **Reportes** | Analíticas globales |
 | **Instalaciones (PWA)** | Métricas de instalación de la app (ver sección 17) |
@@ -118,7 +119,7 @@ Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la 
 - Provisionar Administradores Generales (crea la cuenta en Supabase + envía email de bienvenida).
 - Ver y gestionar proyectos de cualquier constructora.
 - Acceder al **mapa global de obras**: ve todas las obras activas del sistema con su ubicación y progreso.
-- Acceder al scoring de contratistas y obreros como activo estratégico (solo este perfil ve el ranking global).
+- Acceder al scoring de contratistas y maestros como activo estratégico (solo este perfil ve el ranking global).
 
 ---
 
@@ -167,7 +168,7 @@ Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la 
 
 ### Menú lateral
 
-Dashboard, Proyectos (solo asignados), Tareas, Sugerencias, Reportes, Usuarios (limitado a contratistas y obreros de sus proyectos).
+Dashboard, Proyectos (solo asignados), Tareas, Sugerencias, Reportes, Usuarios (limitado a contratistas, personal de campo y maestros de sus proyectos).
 
 ### Permisos granulares (lo nuevo)
 
@@ -222,7 +223,7 @@ Inicio (dashboard ejecutivo) y Proyectos.
 
 ## 7. Contratista
 
-> Tu portal de trabajo. Reporta el avance de tus tareas, gestiona tu equipo de obreros y propone nuevas tareas.
+> Tu portal de trabajo. Reporta el avance de tus tareas, gestiona tu equipo de maestros y propone nuevas tareas.
 
 ### Menú lateral
 
@@ -232,13 +233,13 @@ Inicio (dashboard ejecutivo) y Proyectos.
 | **Reportar tareas** | Tareas pendientes por reportar; aquí subes la evidencia |
 | **Historial** | Registro de tus tareas reportadas, aprobadas y rechazadas |
 | **Sugerir tarea** | Proponer nuevas tareas al administrador |
-| **Mis obreros** | Crear, editar y ver el scoring de los obreros a tu cargo |
+| **Mis maestros** | Crear, editar y ver el scoring de los maestros a tu cargo |
 | **Reportes** | Tu desempeño: scoring, tiempos y calidad |
 
 ### Qué puede hacer el contratista
 
 - **Reportar sus tareas** con evidencia fotográfica (entra a *Reportar tareas → la tarea*).
-- **Gestionar sus obreros** y consultar su scoring.
+- **Gestionar sus maestros** y consultar su scoring.
 - **Proponer tareas** (sugerencias) que el administrador aprueba o rechaza.
 - **Ver el progreso** de sus tareas y su propio desempeño.
 
@@ -260,27 +261,48 @@ Inicio (dashboard ejecutivo) y Proyectos.
 
 ---
 
-## 8. Obrero
+## 8. Maestro y Personal de campo
 
-> Acceso simplificado desde el celular, sin crear cuenta.
+> Los dos perfiles que están en la obra. **El maestro entra por un enlace y no tiene cuenta; el personal de campo tiene usuario y contraseña propios.**
 
-El obrero entra mediante un **enlace único (token)** que le comparte su contratista o administrador — no necesita email ni contraseña.
+### 8.1 Maestro
+
+> Acceso simplificado desde el celular, sin crear cuenta. Antes se llamaba «obrero».
+
+El maestro entra mediante un **enlace único (token)** que le comparte su contratista o administrador — no necesita email ni contraseña.
 
 > **El enlace es la llave.** Como no hay usuario ni contraseña, quien tenga el enlace entra. Compártelo solo por un canal privado (WhatsApp directo, no grupos) y avisa a soporte si sospechas que se filtró: se puede regenerar, y el anterior deja de funcionar en el acto.
 
-**Actualización de agosto de 2026.** Los enlaces se generaron de nuevo con un código mucho más largo y aleatorio, para que nadie pueda adivinarlos a partir de otro. Si tus obreros tenían enlaces de antes de esa fecha, **dejaron de funcionar y hay que reenviarles el nuevo** desde la pestaña de obreros. Además, el sistema ahora bloquea de forma temporal a quien pruebe muchos enlaces incorrectos seguidos.
+**Actualización de agosto de 2026.** Los enlaces se generaron de nuevo con un código mucho más largo y aleatorio, para que nadie pueda adivinarlos a partir de otro. Si tus maestros tenían enlaces de antes de esa fecha, **dejaron de funcionar y hay que reenviarles el nuevo** desde la pestaña de maestros. Además, el sistema ahora bloquea de forma temporal a quien pruebe muchos enlaces incorrectos seguidos.
 
-### Qué puede hacer
+#### Qué puede hacer
 
 - Ver, organizadas por jerarquía (proyecto → edificio → piso → apartamento → espacio), las tareas que le asignaron.
 - Subir evidencia fotográfica con **GPS y hora de captura**.
 - Ver el estado de sus tareas.
 
-### Qué NO puede hacer
+#### Qué NO puede hacer
 
 - Aprobar o rechazar tareas.
 - Ver otros proyectos o tareas.
 - Gestionar otros usuarios.
+
+### 8.2 Personal de campo
+
+> Auxiliares y residentes de obra. Entran con **su propio usuario y contraseña**.
+
+Es el perfil para quien vive la obra todos los días pero no administra: auxiliares y residentes. **La empresa le crea la cuenta** desde *Usuarios* y Seiricon le manda por correo su usuario y su contraseña; desde ese momento entra como cualquier otro miembro del equipo.
+
+Ve **solo las obras que un administrador le asignó**, y dentro de cada una: las **fases en orden**, las **tareas agrupadas por espacio**, y los **planos y renders** del proyecto. Reporta avance con evidencia, igual que el maestro, pero no aprueba, no reasigna y no gestiona usuarios.
+
+**En qué se diferencia del maestro:**
+
+| | Maestro | Personal de campo |
+|---|---|---|
+| Cómo entra | Enlace único con token, sin cuenta | Usuario y contraseña propios |
+| Quién le da acceso | Su contratista o un administrador, compartiendo el enlace | La empresa le crea la cuenta; Seiricon le envía las credenciales por correo |
+| Qué alcance tiene | Las tareas que le asignaron | Las obras completas que le asignaron: fases en orden, tareas por espacio, planos y renders |
+| Vigencia | El enlace expira en una fecha y se puede extender | La cuenta vive mientras el administrador la mantenga activa |
 
 ---
 
@@ -369,11 +391,11 @@ En el dashboard y en la lista de proyectos verás un **mapa con todas las obras 
 
 ## 11. Reportar, aprobar y rechazar tareas
 
-> Reportan: contratista y obrero. Aprueban/rechazan: Administrador General, Administrador de Proyecto (con permiso) y Directivo.
+> Reportan: contratista, personal de campo y maestro. Aprueban/rechazan: Administrador General, Administrador de Proyecto (con permiso) y Directivo.
 
 ### Evidencia fotográfica (con GPS y hora)
 
-Cuando un contratista u obrero reporta una tarea, la app:
+Cuando un contratista, un miembro del personal de campo o un maestro reporta una tarea, la app:
 
 - Toma **fotos** desde la cámara del dispositivo (**mínimo 2 para poder reportar**) y, opcionalmente, video.
 - **Comprime y redimensiona** las fotos automáticamente para que pesen poco (las cámaras de celular de alta resolución no bloquean el envío).
@@ -385,12 +407,12 @@ Después del reporte, en el detalle de la tarea la evidencia se ve con su **hora
 ### Flujo de aprobación
 
 ```
-PENDIENTE → [contratista/obrero reporta] → REPORTADA → [supervisor revisa] → APROBADA o NO_APROBADA
+PENDIENTE → [contratista/maestro reporta] → REPORTADA → [supervisor revisa] → APROBADA o NO_APROBADA
                                                                           ↓
                                                   (si se rechaza, se corrige y se reporta de nuevo)
 ```
 
-**Al aprobar**: la tarea pasa a APROBADA, se registra la fecha de fin, se recalcula el scoring del contratista y del obrero, y se notifica al contratista.
+**Al aprobar**: la tarea pasa a APROBADA, se registra la fecha de fin, se recalcula el scoring del contratista y del maestro, y se notifica al contratista.
 
 **Al rechazar**: escribe la **justificación** (y, si quieres, marca los ítems que no cumplen). La tarea pasa a NO_APROBADA y el contratista recibe la notificación con el motivo para corregir.
 
@@ -421,7 +443,7 @@ Un gasto pasa por tres estados: **Registrado → Aprobado / Rechazado**. Solo lo
 
 Esta es la vista que evita fugas de dinero:
 
-- **Anticipos** = dinero entregado a maestros/obreros (cada anticipo lleva monto, nota, a quién se entregó y fecha).
+- **Anticipos** = dinero entregado a los maestros (cada anticipo lleva monto, nota, a quién se entregó y fecha).
 - **Sustentado** = gastos aprobados (con factura).
 - **Sin sustentar** = anticipos − gastos aprobados → si hay dinero entregado que nadie ha justificado con factura, aparece una **alerta roja**.
 
@@ -461,7 +483,7 @@ El administrador puede además **autorizar una extensión de tiempo** (días adi
 
 ## 15. Sistema de puntuación
 
-Seiricon calcula automáticamente el desempeño de contratistas y obreros. Este scoring es un **activo estratégico** de la plataforma.
+Seiricon calcula automáticamente el desempeño de contratistas y maestros. Este scoring es un **activo estratégico** de la plataforma.
 
 ### Scoring de contratistas (0–100)
 
@@ -473,7 +495,7 @@ Seiricon calcula automáticamente el desempeño de contratistas y obreros. Este 
 
 Se recalcula cada vez que se aprueba/rechaza una tarea o se registra un retraso.
 
-### Scoring de obreros (0–100)
+### Scoring de maestros (0–100)
 
 | Factor | Peso | Qué mide |
 |--------|:---:|----------|
@@ -481,7 +503,7 @@ Se recalcula cada vez que se aprueba/rechaza una tarea o se registra un retraso.
 | **Cumplimiento** | 30% | Tareas entregadas a tiempo |
 | **Velocidad** | 20% | Penaliza progresivamente por rechazos |
 
-Cada obrero guarda su histórico de scores para ver su evolución.
+Cada maestro guarda su histórico de scores para ver su evolución.
 
 ---
 
@@ -497,8 +519,8 @@ Seiricon notifica los eventos importantes **en tiempo real**.
 
 ### Qué eventos notifican
 
-- **A los supervisores** (Admin General, Directivo y Admin de Proyecto con acceso al proyecto): una tarea fue **reportada**, llegó una **nueva sugerencia** de tarea, o un **obrero reportó** avance.
-- **Al contratista / obrero**: su tarea fue **aprobada** o **rechazada** (con el motivo), o su **sugerencia** fue aprobada/rechazada.
+- **A los supervisores** (Admin General, Directivo y Admin de Proyecto con acceso al proyecto): una tarea fue **reportada**, llegó una **nueva sugerencia** de tarea, o un **maestro reportó** avance.
+- **Al contratista, al personal de campo y al maestro**: su tarea fue **aprobada** o **rechazada** (con el motivo), o su **sugerencia** fue aprobada/rechazada.
 
 ---
 
@@ -510,7 +532,7 @@ Seiricon notifica los eventos importantes **en tiempo real**.
 > `public/sw.js`. Sin service worker **no hay modo offline y la app no es
 > instalable**, aunque el banner y las métricas sigan a la vista. Todo lo que
 > describe esta sección está pendiente de que se migre a `@serwist/turbopack` o
-> al modo configurador de Serwist. Los obreros con mala señal hoy necesitan
+> al modo configurador de Serwist. Los maestros con mala señal hoy necesitan
 > conexión para reportar.
 
 Seiricon es una **app instalable** (PWA): funciona en el navegador y puedes instalarla en el celular o el computador como una app nativa.
@@ -565,7 +587,7 @@ Cada cobro queda en el historial con su estado: **Pendiente**, **Aprobado**, **R
 
 ### Quién puede comprar o cambiar de plan
 
-Solo **Super Administrador**, **Administrador General** y **Directivo**. Es el mismo nivel que se exige para gestionar usuarios. Un Administrador de Proyecto, Contratista u Obrero no puede tocar la suscripción.
+Solo **Super Administrador**, **Administrador General** y **Directivo**. Es el mismo nivel que se exige para gestionar usuarios. Un Administrador de Proyecto, Contratista, Personal de campo o Maestro no puede tocar la suscripción.
 
 ### Qué pasa cuando se vence
 
@@ -579,7 +601,7 @@ No tienes que estar pendiente de la fecha. Seiricon manda un correo a quien pued
 
 El correo trae el enlace directo para renovar y recuerda lo importante: aunque se venza, no se pierde nada; solo se dejan de poder crear obras nuevas.
 
-Se avisa a quien puede pagar, no a todo el equipo. Un obrero no recibe estos correos.
+Se avisa a quien puede pagar, no a todo el equipo. Un maestro no recibe estos correos.
 
 ### Si llegas al tope de obras del plan
 
@@ -702,6 +724,26 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 - Cada PDF trae el estado de avance con el detalle por edificio.
 - **El ranking de contratistas ya no está aquí.** Es información sobre el desempeño de personas y no la debe ver cualquiera dentro de la empresa; ahora vive solo en el perfil de Super Admin, en la ficha de cada constructora.
 
+### Reportes: la bitácora de obra
+
+Contesta **quién hizo qué, cuándo, y quién lo aprobó o lo devolvió**. Es una línea por decisión, la más reciente arriba: qué tarea, en qué espacio y torre, quién la reportó, quién la firmó, cuándo, y con qué motivo si la devolvió. Si una tarea se devolvió y se volvió a reportar, cada intento aparece numerado («intento 2 de 3»).
+
+Se filtra por persona, fase, torre y rango de fechas.
+
+- **Arriba hay una tabla por persona** con cuántas aprobó, cuántas devolvió y cuánto tarda en revisar. Esa tabla existe para contestar una pregunta concreta: *si el trabajo se está reportando y no se está aprobando, ¿quién no está revisando?*
+- **Quien no ha firmado nada también aparece, con ceros.** Una tabla hecha solo con los que firmaron es una tabla de la que el ausente se cae — y el ausente es justo a quien buscas.
+- **El tiempo de revisión se da en mediana, no en promedio.** Una sola tarea olvidada seis meses dispara el promedio y esconde que las demás se revisan en horas.
+- **Solo la primera decisión de cada tarea mide tiempo.** En un reintento, el reloj incluiría los días que el contratista tardó en rehacer el trabajo, y eso no es tiempo del revisor.
+
+### Reportes: el mapa de evidencias
+
+Las fotos de la obra sobre el mapa, cada una con **su distancia al sitio**. Contesta la pregunta que ninguna otra pantalla contesta: *¿esta foto se tomó en el apartamento, o desde otro lado?*
+
+- Al pinchar una foto se ve la imagen, la tarea, quién la tomó, cuándo y a qué distancia.
+- **Las fotos que caen fuera del radio salen marcadas.** El radio es ajustable y va deliberadamente holgado: el GPS de un celular pegado a una estructura de hormigón se desvía decenas de metros, y señalar en falso a un contratista es peor que no avisar.
+- **Las fotos sin ubicación no se esconden**, se listan aparte. Quien reporta en un sótano o con el permiso de ubicación denegado sube la foto igual; ocultarla haría que el reporte mintiera por omisión.
+- Si la obra no tiene ubicación registrada no se puede medir distancia, y la pantalla lo dice en vez de pintar ceros.
+
 ### Reportes: ¿el equipo va más rápido o más lento?
 
 En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gente está rindiendo igual, mejor o peor que en el período anterior. Se elige la obra arriba a la derecha, y el período en la lista desplegable **Período**: semana, quincena, mes, trimestre, semestre o año.
@@ -729,7 +771,7 @@ En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gen
 - **Edición total**: después puedes editar toda la obra (espacios, tareas, costos, fechas, ubicación) sin perder el historial de lo ya reportado. En edición, puedes **guardar desde cualquier paso**, sin recorrer todo el asistente.
 - **Compartir avance con el cliente** (Contratista B2C): generas un **enlace de solo lectura** y tu cliente ve el progreso de la obra (semáforo, tareas y fotos del avance) sin crear cuenta. No ve costos ni datos de tus trabajadores.
 - **Mapa de obras**: aparece solo si gestionas **2 o más obras activas** (con una sola obra no hace falta; la ubicación igual se guarda).
-- **Mismo control que el B2B** para lo demás: evidencia con foto, GPS y hora aprobada por ti, gastos y anticipos, y acceso por enlace para obreros sin instalar nada.
+- **Mismo control que el B2B** para lo demás: evidencia con foto, GPS y hora aprobada por ti, gastos y anticipos, y acceso por enlace para los maestros sin instalar nada.
 
 ---
 
@@ -818,7 +860,7 @@ Sí. Seiricon implementa:
 
 ### ¿Funciona en el celular?
 
-Sí. Es una PWA instalable (sección 17), pensada para el trabajo en campo: cámara con GPS, evidencia con marca de agua y acceso por token para los obreros sin necesidad de cuenta.
+Sí. Es una PWA instalable (sección 17), pensada para el trabajo en campo: cámara con GPS, evidencia con marca de agua y acceso por token para los maestros sin necesidad de cuenta.
 
 ---
 

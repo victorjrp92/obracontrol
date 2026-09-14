@@ -36,23 +36,6 @@ export default async function ReportesPage({
     <>
       <Topbar title="Reportes" subtitle="Generación y descarga de reportes" />
       <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {elegida && (
-          <>
-            <div className="flex items-center justify-end mb-3">
-              <SelectorObraReporte
-                proyectos={proyectos.map((p) => ({ id: p.id, nombre: p.nombre }))}
-                activo={elegida.id}
-              />
-            </div>
-            {velocidad && (
-              <ReporteVelocidad
-                tareas={velocidad.tareas}
-                diasHabilesSemana={velocidad.diasHabilesSemana}
-              />
-            )}
-          </>
-        )}
-
         {/* ── Descargas ──────────────────────────────────────────────────
             Un desplegable con buscador y casillas en vez de un boton por obra:
             con treinta obras, la lista era una pantalla entera y el cierre de
@@ -63,7 +46,10 @@ export default async function ReportesPage({
             de la constructora; vive en super admin. Quitar el enlace no bastaba:
             el endpoint tambien quedo cerrado a SUPER_ADMIN, porque un boton
             escondido con una API abierta no protege nada. */}
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6">
+        {/* Arriba de las graficas y con ancho acotado: es una accion corta
+            -elegir obra y bajar- y estirada a toda la pantalla parecia la
+            seccion principal cuando lo que se viene a ver son las graficas. */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 max-w-xl mb-6">
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2 mb-1">
             <Download className="w-4 h-4 text-blue-600" /> Descargar avance en PDF
           </h2>
@@ -80,6 +66,23 @@ export default async function ReportesPage({
             }))}
           />
         </div>
+
+        {elegida && (
+          <>
+            <div className="flex items-center justify-end mb-3">
+              <SelectorObraReporte
+                proyectos={proyectos.map((p) => ({ id: p.id, nombre: p.nombre }))}
+                activo={elegida.id}
+              />
+            </div>
+            {velocidad && (
+              <ReporteVelocidad
+                tareas={velocidad.tareas}
+                diasHabilesSemana={velocidad.diasHabilesSemana}
+              />
+            )}
+          </>
+        )}
 
         <p className="text-[11px] text-slate-400 mt-4 px-1">
           Próximamente: reporte de extensiones de tiempo y consumo de materiales.

@@ -29,6 +29,21 @@ import { Download, ChevronDown, Search, Check, Loader2 } from "lucide-react";
  *  descartar las que llegan de a rafagas. */
 const PAUSA_MS = 400;
 
+/**
+ * El nombre con el que se guarda el PDF.
+ *
+ * Al bajar por `fetch` el navegador ya no lee `Content-Disposition` por su
+ * cuenta -eso solo pasa en una navegacion-, asi que hay que sacarlo a mano. Sin
+ * esto el fichero se llamaria como el id de la obra, que es justo el sintoma
+ * que teniamos.
+ */
+function nombreDeArchivo(res: Response, id: string): string {
+  const cd = res.headers.get("content-disposition") ?? "";
+  const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+  if (m?.[1]) return decodeURIComponent(m[1]);
+  return `avance-${id}.pdf`;
+}
+
 export interface ObraDescargable {
   id: string;
   nombre: string;
@@ -42,6 +57,7 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
   const [busqueda, setBusqueda] = useState("");
   const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set());
   const [bajando, setBajando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const caja = useRef<HTMLDivElement>(null);
 
   // Cerrar al hacer clic afuera o con Escape: un desplegable que solo se cierra
@@ -93,22 +109,51 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
     const ids = obras.filter((o) => marcadas.has(o.id)).map((o) => o.id);
     if (ids.length === 0 || bajando) return;
     setBajando(true);
+    setError(null);
     try {
       for (const [i, id] of ids.entries()) {
+        // Se baja con `fetch` y no con un `<a download>`.
+        //
+        // Con el atributo `download`, quien hace la peticion es el gestor de
+        // descargas del navegador, no la pagina, y ahi la cookie de sesion no
+        // viaja siempre: el servidor respondia 401 y Chrome guardaba el JSON
+        // del error como un fichero llamado `<id-de-obra>.json`. El usuario se
+        // encontraba un archivo ilegible en su carpeta de descargas y ningun
+        // aviso. Con `fetch` la sesion va segura y, sobre todo, un fallo se
+        // puede CONTAR en vez de guardarse en el disco.
+        const res = await fetch(`/api/reportes/progreso/${id}`);
+
+        if (!res.ok) {
+          const nombre = obras.find((o) => o.id === id)?.nombre ?? "la obra";
+          let detalle = `error ${res.status}`;
+          try {
+            const cuerpo = await res.json();
+            if (typeof cuerpo?.error === "string") detalle = cuerpo.error;
+          } catch {
+            // El cuerpo no era JSON: nos quedamos con el codigo.
+          }
+          throw new Error(`No se pudo generar el reporte de ${nombre}: ${detalle}`);
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = `/api/reportes/progreso/${id}`;
-        // `download` no fuerza el nombre -el servidor manda el suyo en la
-        // cabecera- pero si evita que el PDF se abra en una pestana nueva.
-        a.download = "";
-        a.rel = "noopener";
+        a.href = url;
+        a.download = nombreDeArchivo(res, id);
         document.body.appendChild(a);
         a.click();
         a.remove();
+        // Sin esto el blob se queda en memoria hasta recargar la pagina, y
+        // treinta PDF de una obra grande no son poca cosa.
+        URL.revokeObjectURL(url);
+
         if (i < ids.length - 1) await new Promise((r) => setTimeout(r, PAUSA_MS));
       }
+      setAbierto(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo descargar el reporte.");
     } finally {
       setBajando(false);
-      setAbierto(false);
     }
   }
 
@@ -222,6 +267,14 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
       >
         {bajando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
       </button>
+
+      {/* Un fallo tiene que VERSE. Antes se guardaba como fichero en la carpeta
+          de descargas y el usuario no se enteraba de nada. */}
+      {error && (
+        <p role="alert" className="basis-full text-xs text-red-600 mt-2">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
