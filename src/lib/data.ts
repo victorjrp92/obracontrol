@@ -200,6 +200,62 @@ export async function getProyectosMapaGlobal(): Promise<ProyectoMapaData[]> {
   }));
 }
 
+/** Los cuatro estados de `EstadoTarea`, para reconstruir la lista de etiquetas
+ *  desde los conteos que devuelve la base. */
+const ESTADOS_TAREA = ["PENDIENTE", "REPORTADA", "APROBADA", "NO_APROBADA"] as const;
+
+/** Una fila de la consulta de agregados: un proyecto × una tarea empezada.
+ *  Los agregados se repiten en cada fila del proyecto (son cuatro enteros). */
+interface FilaProgreso {
+  proyecto_id: string;
+  edificios: number;
+  unidades: number;
+  total: number;
+  n_pendiente: number;
+  n_reportada: number;
+  n_aprobada: number;
+  n_no_aprobada: number;
+  // Nulos cuando el proyecto no tiene ninguna tarea empezada.
+  estado: string | null;
+  tiempo_acordado_dias: number | null;
+  fecha_inicio: Date | null;
+  fecha_fin_real: Date | null;
+}
+
+/**
+ * Proyectos activos con su progreso y su semáforo. Lo consumen el dashboard,
+ * la lista de proyectos y el selector de reportes.
+ *
+ * ── POR QUÉ ESTÁ ESCRITA ASÍ ────────────────────────────────────────────────
+ *
+ * Antes traía el árbol entero —`edificios → pisos → unidades → espacios →
+ * tareas`— solo para contar cuántas tareas hay en cada estado. Prisma resuelve
+ * cada nivel de un `include` anidado como una CONSULTA APARTE y luego las cose
+ * en memoria: seis viajes a la base y 4.110 tareas cosidas para producir dos
+ * porcentajes. Sobre la obra del demo eso medía 766 ms.
+ *
+ * Lo que de verdad se paga aquí no es el cómputo: es cada viaje. Medido contra
+ * la base real, una consulta trivial cuesta ~110 ms de ida y vuelta, y las
+ * consultas de abajo cuestan casi eso mismo —el trabajo en el servidor es
+ * ruido al lado de la latencia—. Por eso el objetivo no fue «consultas más
+ * ligeras» sino MENOS VIAJES: de seis encadenados a dos.
+ *
+ * `groupBy` de Prisma no llega: `Tarea` no tiene `proyecto_id` —el proyecto
+ * está cinco relaciones más arriba— y no se puede agrupar por un campo de un
+ * ancestro. De ahí el `$queryRaw` con los joins explícitos, igual que en
+ * `data-velocidad.ts`.
+ *
+ * Las dos van EN SERIE a propósito. Lanzarlas con `Promise.all` no las
+ * solapa —medido: 228 ms en serie contra 266 ms «en paralelo»; la consulta
+ * pesada y la de Prisma no se superponen en esta conexión— y obligaría a
+ * reescribir el alcance de acceso dentro del SQL. Así la regla de quién ve qué
+ * proyecto sigue viviendo en un solo sitio, `scopedProyectoConstructoraFilter`,
+ * y la segunda consulta solo recibe los ids que la primera ya resolvió.
+ *
+ * El semáforo sí necesita fila por fila (cada tarea tiene sus fechas y sus
+ * días acordados), pero solo de las tareas EMPEZADAS —`fecha_inicio` no nula,
+ * el mismo filtro de antes— y planas, sin el árbol encima.
+ */
 export async function getProyectosConProgreso(
   constructoraId: string,
   accessibleProjectIds?: AccessibleProjects,
@@ -207,40 +263,151 @@ export async function getProyectosConProgreso(
   const proyectoWhere = scopedProyectoConstructoraFilter(constructoraId, accessibleProjectIds);
   const proyectos = await prisma.proyecto.findMany({
     where: { ...proyectoWhere, estado: "ACTIVO" },
-    include: {
-      edificios: {
-        include: {
-          pisos: {
-            include: {
-              unidades: {
-                include: {
-                  espacios: {
-                    include: { tareas: { select: { estado: true, tiempo_acordado_dias: true, fecha_inicio: true, fecha_fin_real: true, created_at: true } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     orderBy: { created_at: "desc" },
   });
+  if (proyectos.length === 0) return [];
+
+  const ids = proyectos.map((p) => p.id);
+
+  // UNA consulta para las tres cosas que antes salían del árbol: cuántas
+  // tareas hay en cada estado, cuántas torres y unidades tiene la obra, y las
+  // tareas empezadas que el semáforo necesita ver una por una.
+  //
+  // `obra` se calcula UNA vez y la reusan los dos agregados: en consultas
+  // separadas cada una recorrería la misma tabla otra vez y, lanzadas a la
+  // vez, se estorban entre ellas (medido: 2 × 116 ms sueltas → 508 ms juntas).
+  //
+  // `estructura` manda en el `left join` porque una obra puede tener torres y
+  // ninguna tarea todavía —recién creada— y su tarjeta igual muestra «3 torres
+  // · 60 unidades». Al revés no pasa: una tarea siempre cuelga de un edificio.
+  //
+  // El filtro de tenant va por `constructora_id` ADEMÁS del `in` de ids, igual
+  // que en `data-velocidad.ts`: los ids salen de una consulta ya scoped, pero
+  // dejar la pertenencia escrita en el SQL es lo que impide que un cambio
+  // futuro en el primer paso se convierta en una fuga entre constructoras.
+  const filas = await prisma.$queryRaw<FilaProgreso[]>`
+      with alcance as (
+        select pr.id
+        from proyectos pr
+        where pr.id = any(${ids}) and pr.constructora_id = ${constructoraId}
+      ),
+      obra as (
+        select ed.proyecto_id,
+               t.estado::text as estado,
+               t.tiempo_acordado_dias,
+               t.fecha_inicio,
+               t.fecha_fin_real
+        from tareas t
+          join espacios  es on es.id = t.espacio_id
+          join unidades  u  on u.id  = es.unidad_id
+          join pisos     pi on pi.id = u.piso_id
+          join edificios ed on ed.id = pi.edificio_id
+        where ed.proyecto_id in (select id from alcance)
+      ),
+      conteos as (
+        select proyecto_id,
+               count(*)::int                                          as total,
+               count(*) filter (where estado = 'PENDIENTE')::int       as n_pendiente,
+               count(*) filter (where estado = 'REPORTADA')::int       as n_reportada,
+               count(*) filter (where estado = 'APROBADA')::int        as n_aprobada,
+               count(*) filter (where estado = 'NO_APROBADA')::int     as n_no_aprobada
+        from obra
+        group by proyecto_id
+      ),
+      estructura as (
+        select ed.proyecto_id,
+               count(distinct ed.id)::int as edificios,
+               count(distinct u.id)::int  as unidades
+        from edificios ed
+          left join pisos    pi on pi.edificio_id = ed.id
+          left join unidades u  on u.piso_id      = pi.id
+        where ed.proyecto_id in (select id from alcance)
+        group by ed.proyecto_id
+      )
+      select e.proyecto_id,
+             e.edificios,
+             e.unidades,
+             coalesce(c.total, 0)          as total,
+             coalesce(c.n_pendiente, 0)    as n_pendiente,
+             coalesce(c.n_reportada, 0)    as n_reportada,
+             coalesce(c.n_aprobada, 0)     as n_aprobada,
+             coalesce(c.n_no_aprobada, 0)  as n_no_aprobada,
+             o.estado,
+             o.tiempo_acordado_dias,
+             o.fecha_inicio,
+             o.fecha_fin_real
+      from estructura e
+        left join conteos c on c.proyecto_id = e.proyecto_id
+        left join obra    o on o.proyecto_id = e.proyecto_id and o.fecha_inicio is not null
+  `;
+
+  // Las filas llegan sueltas: cada proyecto tiene que encontrar las suyas sin
+  // recorrer las 4.110.
+  interface Acumulado {
+    edificios: number;
+    unidades: number;
+    total: number;
+    porEstado: Record<string, number>;
+    empezadas: FilaProgreso[];
+  }
+  const porProyecto = new Map<string, Acumulado>();
+  for (const f of filas) {
+    let acc = porProyecto.get(f.proyecto_id);
+    if (!acc) {
+      acc = {
+        edificios: f.edificios,
+        unidades: f.unidades,
+        total: f.total,
+        porEstado: {
+          PENDIENTE: f.n_pendiente,
+          REPORTADA: f.n_reportada,
+          APROBADA: f.n_aprobada,
+          NO_APROBADA: f.n_no_aprobada,
+        },
+        empezadas: [],
+      };
+      porProyecto.set(f.proyecto_id, acc);
+    }
+    if (f.fecha_inicio !== null) acc.empezadas.push(f);
+  }
+
+  const ahora = new Date();
+  const orden = ["verde-intenso", "verde", "amarillo", "rojo", "vinotinto"];
 
   return proyectos.map((p) => {
-    const todasTareas = p.edificios.flatMap((e) =>
-      e.pisos.flatMap((pi) => pi.unidades.flatMap((u) => u.espacios.flatMap((es) => es.tareas)))
-    );
-    const progreso = calcularProgreso(todasTareas);
+    const acc = porProyecto.get(p.id);
+
+    // El porcentaje lo sigue calculando `calcularProgreso`, la MISMA función
+    // de antes. Reescribir aquí la fórmula sería un segundo sitio donde el
+    // redondeo puede separarse del que ve el resto de la app; lo único que
+    // cambia es de dónde salen las tareas. Reexpandir los conteos son punteros
+    // repetidos a cinco objetos, no cuatro mil tareas: lo que se ahorró es el
+    // árbol, no esta lista.
+    //
+    // El relleno final cuadra el total por si algún día entra un estado nuevo
+    // en el enum: sin él, esas tareas desaparecerían del denominador y el
+    // porcentaje subiría solo.
+    const etiquetas: { estado: string }[] = [];
+    if (acc) {
+      let contadas = 0;
+      for (const estado of ESTADOS_TAREA) {
+        const n = acc.porEstado[estado] ?? 0;
+        contadas += n;
+        // Un solo objeto por estado, repetido: `calcularProgreso` solo lee
+        // `.estado` y no muta nada.
+        const etiqueta = { estado };
+        for (let i = 0; i < n; i++) etiquetas.push(etiqueta);
+      }
+      const otro = { estado: "OTRO" };
+      for (let i = contadas; i < acc.total; i++) etiquetas.push(otro);
+    }
+    const progreso = calcularProgreso(etiquetas);
 
     // Semáforo general: el peor de todas las tareas activas
-    const ahora = new Date();
-    const orden = ["verde-intenso", "verde", "amarillo", "rojo", "vinotinto"];
-    const semaforo = todasTareas
-      .filter((t) => t.fecha_inicio)
+    const semaforo = (acc?.empezadas ?? [])
       .map((t) => {
         const dias = calcularDiasHabiles(t.fecha_inicio!, t.fecha_fin_real ?? ahora, p.dias_habiles_semana);
-        return calcularSemaforo(t.tiempo_acordado_dias, dias, t.estado === "APROBADA");
+        return calcularSemaforo(t.tiempo_acordado_dias!, dias, t.estado === "APROBADA");
       })
       .reduce((peor, actual) =>
         orden.indexOf(actual) > orden.indexOf(peor) ? actual : peor,
@@ -251,7 +418,10 @@ export async function getProyectosConProgreso(
       ...p,
       progreso,
       semaforo,
-      totalUnidades: p.edificios.flatMap((e) => e.pisos.flatMap((pi) => pi.unidades)).length,
+      totalUnidades: acc?.unidades ?? 0,
+      // Antes las páginas contaban `p.edificios.length` sobre el árbol; ahora
+      // el número llega contado de la base y el árbol ya no viaja.
+      totalEdificios: acc?.edificios ?? 0,
     };
   });
 }

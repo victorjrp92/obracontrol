@@ -13,6 +13,22 @@
 // El periodo se resuelve en el CLIENTE sobre las tareas ya cargadas. Cambiar de
 // mes a semana no puede costar un viaje al servidor: es la misma lista
 // reagrupada, y la espera haria que nadie explore.
+//
+// == LOS TITULOS SON PREGUNTAS, A PROPOSITO =================================
+//
+// «Dias que toma cada fase en una unidad» describe el CALCULO. Lo que el
+// usuario trae a esta pantalla es una pregunta -«¿donde se esta demorando la
+// obra?»- y el titulo que contesta esa pregunta es el que hace que la mire.
+// Los tres bloques van en el mismo registro: pregunta arriba, que se esta
+// midiendo en el subtitulo, y debajo de la grafica una frase construida con el
+// dato, que es lo unico que se lee sin que nadie explique nada.
+//
+// == Y CADA CIFRA LLEVA SU UNIDAD ===========================================
+//
+// Los tres indicadores de arriba decian «+0,07» y «−2 pts» sin decir de que.
+// Ahora dicen «+0,07 días» y «−2 puntos», y debajo contra que se comparan
+// («28 de 34 tareas cerradas en ago», «de 84% en jul a 82% en ago»). Una cifra
+// sin unidad y sin referencia no informa: obliga a adivinar, y se adivina mal.
 // ---------------------------------------------------------------------------
 
 import { useMemo, useState } from "react";
@@ -24,6 +40,7 @@ import {
   PERIODOS,
   type Dimension,
   type Periodo,
+  type PuntoVelocidad,
   type TareaVelocidad,
 } from "@/lib/velocidad";
 import GraficaATiempo from "./GraficaATiempo";
@@ -32,6 +49,50 @@ import MatrizCiclo from "./MatrizCiclo";
 
 /** Minimo de periodos para que una serie cuente algo. Con uno no hay tendencia. */
 const MINIMO_PUNTOS = 2;
+
+/**
+ * El plural de cada periodo, para la frase de lectura: «de los 7 meses». El
+ * modulo de calculo solo trae el singular y esto es prosa, no una clave.
+ */
+const PLURAL_PERIODO: Record<Periodo, string> = {
+  sem: "semanas",
+  qui: "quincenas",
+  mes: "meses",
+  tri: "trimestres",
+  sms: "semestres",
+  ano: "años",
+};
+
+/** Dos decimales y coma, igual que las etiquetas de la grafica de dias. */
+const nDias = (v: number) => Math.abs(v).toFixed(2).replace(".", ",");
+
+/** Por debajo de esto, el promedio es cero a efectos de leerlo en voz alta. */
+const CERO = 0.005;
+
+/**
+ * Como quedo una tarea contra su plazo, en palabras.
+ *
+ * El signo de `diasDeMas` es facil de leer al reves: lo BUENO es el numero
+ * negativo. Escrito en prosa -«cerró 0,30 días antes»- no hay signo que
+ * interpretar.
+ */
+function contraPlazo(v: number): string {
+  if (Math.abs(v) < CERO) return "cerró justo en su plazo";
+  return v > 0 ? `se pasó ${nDias(v)} días de su plazo` : `cerró ${nDias(v)} días antes de su plazo`;
+}
+
+/**
+ * Lo mismo, en forma corta, para la SEGUNDA mitad de la frase: con el verbo
+ * repetido -«se pasó X de su plazo... se pasó Y de su plazo»- el contraste
+ * entre el peor periodo y el mejor se pierde en la repeticion.
+ */
+function contraPlazoCorto(v: number): string {
+  if (Math.abs(v) < CERO) return "justo en su plazo";
+  return v > 0 ? `${nDias(v)} días de más` : `${nDias(v)} días de menos`;
+}
+
+/** Las clases de la frase de primera lectura, iguales en los tres bloques. */
+const LECTURA = "mt-3 border-l-2 border-blue-600 pl-3 text-[13.5px] leading-snug text-slate-700";
 
 interface Cruda extends Omit<TareaVelocidad, "fecha_inicio" | "fecha_fin_real"> {
   fecha_inicio: string | null;
@@ -120,14 +181,47 @@ export default function ReporteVelocidad({
           <TrendingUp className="w-4 h-4 text-blue-600" /> Velocidad del equipo
         </h2>
         <p className="text-sm text-slate-400 mt-3">
-          Todavia no hay tareas cerradas con fecha de inicio y de fin. En cuanto se aprueben las
-          primeras, aqui aparece si el equipo va mas rapido o mas lento que el periodo pasado.
+          Todavía no hay tareas cerradas con fecha de inicio y de fin. En cuanto se aprueben las
+          primeras, aquí aparece si el equipo va más rápido o más lento que el periodo pasado.
         </p>
       </div>
     );
   }
 
   const nombrePeriodo = PERIODOS.find((p) => p.clave === periodoEfectivo)!.nombre.toLowerCase();
+  const pluralPeriodo = PLURAL_PERIODO[periodoEfectivo];
+
+  // ── Las dos frases de primera lectura ────────────────────────────────────
+  //
+  // Describen la SERIE -el mejor y el peor periodo-, no el ultimo. El ultimo ya
+  // lo dicen los tres indicadores de arriba, y repetirlo debajo de la grafica
+  // gastaria el unico renglon que alguien va a leer en algo que ya sabe.
+  const mejorPct = serie.reduce((a, b) => (b.pctATiempo > a.pctATiempo ? b : a));
+  const peorPct = serie.reduce((a, b) => (b.pctATiempo < a.pctATiempo ? b : a));
+  const enMeta = serie.filter((p) => p.pctATiempo >= meta).length;
+  const cuantosMeta =
+    enMeta === 0 ? "ninguno llegó" : enMeta === 1 ? "solo 1 llegó" : `${enMeta} llegaron`;
+
+  const soloUno = serie.length < 2 || mejorPct.orden === peorPct.orden;
+  const unico: PuntoVelocidad = serie[serie.length - 1];
+
+  const lecturaATiempo = soloUno
+    ? `En ${unico.etiqueta} cerraron ${unico.cerradas} ${
+        unico.cerradas === 1 ? "tarea" : "tareas"
+      } y ${unico.aTiempo} llegaron dentro de su plazo: ${unico.pctATiempo}%, contra una meta de ${meta}%.`
+    : `El mejor ${nombrePeriodo} fue ${mejorPct.etiqueta}, con ${mejorPct.pctATiempo}% de las tareas dentro del plazo, y el peor ${peorPct.etiqueta}, con ${peorPct.pctATiempo}%. De ${serie.length} ${pluralPeriodo} con tareas cerradas, ${cuantosMeta} a la meta de ${meta}%.`;
+
+  const masLento = serie.reduce((a, b) => (b.diasDeMas > a.diasDeMas ? b : a));
+  const masRapido = serie.reduce((a, b) => (b.diasDeMas < a.diasDeMas ? b : a));
+
+  const lecturaDias =
+    serie.length < 2 || masLento.orden === masRapido.orden
+      ? `En ${unico.etiqueta}, en promedio, cada tarea ${contraPlazo(unico.diasDeMas)}.`
+      : `El peor ${nombrePeriodo} fue ${masLento.etiqueta}: en promedio, cada tarea ${contraPlazo(
+          masLento.diasDeMas,
+        )}. El mejor fue ${masRapido.etiqueta}, con ${contraPlazoCorto(masRapido.diasDeMas)}.`;
+
+  const puntos = previo ? ultimo!.pctATiempo - previo.pctATiempo : 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 mb-6">
@@ -136,8 +230,11 @@ export default function ReporteVelocidad({
           <h2 className="font-bold text-slate-900 text-base flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-blue-600" /> Velocidad del equipo
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5 max-w-[64ch]">
-            Que tan rapido cerraron las tareas contra el plazo que se habia acordado para cada una.
+          <p className="text-xs text-slate-500 mt-1 max-w-[70ch] leading-relaxed">
+            ¿El equipo está cerrando las tareas en el plazo que se le puso? Aquí se compara lo que
+            tardó cada tarea contra lo que se acordó que tardara. Todos los días de esta pantalla son{" "}
+            <strong className="font-semibold text-slate-600">días hábiles</strong>: esta obra trabaja{" "}
+            {diasHabilesSemana} días a la semana, así que los domingos y los festivos no cuentan.
           </p>
         </div>
         <label className="flex items-center gap-2">
@@ -165,84 +262,137 @@ export default function ReporteVelocidad({
       {ultimo && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-            <div className="text-[11px] font-semibold text-slate-500">Ultimo {nombrePeriodo} cerrado</div>
+            <div className="text-[11px] font-semibold text-slate-500">Cerraron dentro del plazo</div>
             <div className="text-2xl font-extrabold tabular-nums text-slate-900 mt-1">
-              {ultimo.pctATiempo}%
+              {ultimo.pctATiempo}
+              <span className="text-lg font-bold">%</span>
             </div>
-            <div className="text-[11px] font-semibold text-slate-400">a tiempo</div>
+            <div className="text-[11px] font-semibold text-slate-400">
+              {ultimo.aTiempo} de {ultimo.cerradas}{" "}
+              {ultimo.cerradas === 1 ? "tarea cerrada" : "tareas cerradas"} en {ultimo.etiqueta}
+            </div>
           </div>
+
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-            <div className="text-[11px] font-semibold text-slate-500">Se pasaron</div>
+            <div className="text-[11px] font-semibold text-slate-500">
+              {Math.abs(ultimo.diasDeMas) < CERO
+                ? "Cerraron justo en el plazo"
+                : ultimo.diasDeMas > 0
+                  ? "Se pasaron del plazo"
+                  : "Cerraron antes del plazo"}
+            </div>
             <div
               className={`text-2xl font-extrabold tabular-nums mt-1 ${
-                ultimo.diasDeMas > 0 ? "text-red-600" : "text-green-600"
+                Math.abs(ultimo.diasDeMas) < CERO
+                  ? "text-slate-900"
+                  : ultimo.diasDeMas > 0
+                    ? "text-red-600"
+                    : "text-green-600"
               }`}
             >
-              {ultimo.diasDeMas > 0 ? "+" : "−"}
-              {Math.abs(ultimo.diasDeMas).toFixed(2).replace(".", ",")}
+              {/* Sin signo, a proposito: el rotulo de arriba ya dice la
+                  direccion. «Cerraron antes del plazo −5,00 dias» obliga a
+                  leer dos veces para decidir si el menos suma o resta a lo que
+                  acaba de decir la palabra. En el tercer indicador el signo SI
+                  se queda, porque alli «Contra el mes anterior» no dice hacia
+                  donde. */}
+              {nDias(ultimo.diasDeMas)}
             </div>
-            <div className="text-[11px] font-semibold text-slate-400">dias en promedio</div>
+            <div className="text-[11px] font-semibold text-slate-400">
+              {/* «habiles» no es un adorno: la metrica descuenta domingos y los
+                  18 festivos colombianos, y decir solo «dias» invita a que
+                  alguien compare este numero contra el almanaque. */}
+              días <b className="font-semibold">hábiles</b> por tarea, en promedio · {ultimo.etiqueta}
+            </div>
           </div>
+
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 col-span-2 sm:col-span-1">
             <div className="text-[11px] font-semibold text-slate-500">Contra el {nombrePeriodo} anterior</div>
             {previo ? (
               <>
                 <div
                   className={`text-2xl font-extrabold tabular-nums mt-1 ${
-                    ultimo.pctATiempo >= previo.pctATiempo ? "text-green-600" : "text-red-600"
+                    puntos === 0 ? "text-slate-900" : puntos > 0 ? "text-green-600" : "text-red-600"
                   }`}
                 >
-                  {ultimo.pctATiempo >= previo.pctATiempo ? "+" : "−"}
-                  {Math.abs(ultimo.pctATiempo - previo.pctATiempo)} pts
+                  {puntos === 0 ? (
+                    "Igual"
+                  ) : (
+                    <>
+                      {puntos > 0 ? "+" : "−"}
+                      {Math.abs(puntos)}
+                      <span className="text-base font-bold ml-1">
+                        {Math.abs(puntos) === 1 ? "punto" : "puntos"}
+                      </span>
+                    </>
+                  )}
                 </div>
                 <div className="text-[11px] font-semibold text-slate-400">
-                  venia en {previo.pctATiempo}%
+                  de {previo.pctATiempo}% en {previo.etiqueta} a {ultimo.pctATiempo}% en{" "}
+                  {ultimo.etiqueta}
                 </div>
               </>
             ) : (
-              <div className="text-sm text-slate-400 mt-2">Sin periodo anterior para comparar</div>
+              <div className="text-sm text-slate-400 mt-2">
+                Sin {nombrePeriodo} anterior con el que comparar
+              </div>
             )}
           </div>
         </div>
       )}
 
       <div className="mb-2 flex items-baseline justify-between gap-3 flex-wrap">
-        <span className="text-[13px] font-bold text-slate-700">Tareas que cerraron a tiempo</span>
+        <span className="text-[13px] font-bold text-slate-700">¿Cuántas tareas cerraron a tiempo?</span>
         <span className="text-[11px] text-slate-400">
           Señala un {nombrePeriodo} —con el dedo, el ratón o las flechas— y se resalta en las dos gráficas
         </span>
       </div>
+      <p className="text-xs text-slate-500 mb-3 max-w-[70ch]">
+        De cada {nombrePeriodo}, qué porcentaje de las tareas que se cerraron no se pasó de su plazo.
+        La raya punteada es la meta de la obra: {meta}%.
+      </p>
       {/* Mas alla de unos 1000px las columnas se separan tanto que dejan de
           compararse de un vistazo: no es un limite estetico, es donde el ojo
           pierde la fila. */}
       <div className="max-w-[1000px]">
         <GraficaATiempo serie={serie} meta={meta} resaltado={resaltado} onResaltar={setResaltado} />
       </div>
+      <p className={LECTURA}>{lecturaATiempo}</p>
 
       <div className="mt-7 mb-2 text-[13px] font-bold text-slate-700">
-        Cuanto se pasaron del plazo, en dias
+        ¿Por cuánto se pasaron del plazo?
       </div>
+      <p className="text-xs text-slate-500 mb-3 max-w-[70ch]">
+        Días hábiles que tardó cada tarea de más —o de menos— frente al plazo acordado, en
+        promedio. Un <b>−</b> quiere decir que terminaron <b>antes</b>; un <b>+</b>, que se
+        pasaron. En el dibujo eso se lee por altura: <b>cuanto más arriba, mejor</b>. La gráfica
+        de arriba dice cuántas incumplieron; ésta dice por cuánto.
+      </p>
       {/* Mismo limite que la grafica de arriba, y por la misma razon. */}
       <div className="max-w-[1000px]">
         <GraficaDiasDeMas serie={serie} resaltado={resaltado} onResaltar={setResaltado} />
       </div>
+      <p className={LECTURA}>{lecturaDias}</p>
 
       <div className="mt-8 pt-6 border-t border-slate-100">
         <div className="flex items-center gap-2 mb-1">
           <CalendarClock className="w-4 h-4 text-blue-600" />
-          <span className="text-[13px] font-bold text-slate-700">Dias que toma cada fase en una unidad</span>
+          <span className="text-[13px] font-bold text-slate-700">¿Dónde se está demorando la obra?</span>
         </div>
-        <p className="text-xs text-slate-500 mb-4 max-w-[64ch]">
-          Aqui se compara el mismo trabajo consigo mismo: mamposteria contra mamposteria. Es la unica
-          de las tres que no se distorsiona porque una fase sea mas pesada que otra.
+        <p className="text-xs text-slate-500 mb-4 max-w-[70ch] leading-relaxed">
+          Días hábiles que tarda cada fase en una unidad —un apartamento, un local, una casa—, desde
+          que arranca su primera tarea hasta que se aprueba la última. Aquí se compara el mismo
+          trabajo consigo mismo: mampostería contra mampostería. Es la única de las tres que no se
+          distorsiona porque una fase sea más pesada que otra.
         </p>
         <MatrizCiclo porDimension={porDimension} />
       </div>
 
-      <p className="mt-6 text-[11px] text-slate-400 leading-relaxed">
-        El tiempo de una tarea se mide desde su fecha de inicio registrada hasta que se aprueba, asi que
-        incluye la espera de revision. Sirve para comparar periodos entre si —el sesgo es el mismo en
-        todos— pero no para afirmar cuantos dias de mano de obra costo una tarea.
+      <p className="mt-6 text-[11px] text-slate-400 leading-relaxed max-w-[80ch]">
+        El reloj de una tarea arranca en su fecha de inicio registrada y para cuando se aprueba, así
+        que incluye lo que esperó a que alguien la revisara. Sirve para comparar unos periodos con
+        otros —el sesgo es el mismo en todos— pero no para afirmar cuántos días de mano de obra costó
+        una tarea.
       </p>
     </div>
   );

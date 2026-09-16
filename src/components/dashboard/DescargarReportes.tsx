@@ -20,10 +20,27 @@
 // Las descargas van escalonadas: los navegadores estrangulan varias descargas
 // simultaneas del mismo origen y algunas se pierden en silencio, que es el
 // peor de los fallos -el usuario cree que bajo todo-.
+//
+// == EL PERIODO ES UNO Y VALE PARA TODAS LAS OBRAS MARCADAS =================
+//
+// Un periodo por obra seria un selector por fila y treinta rangos que cuadrar
+// para un cierre de mes. Se elige UNO y se aplica a todo lo que se baje: el
+// caso real es «septiembre de estas ocho obras», no un mes distinto por obra.
+//
+// Y OJO con lo que el periodo significa: acota lo que OCURRIO -decisiones,
+// devoluciones y fotografias del anexo-, no el avance. El avance del PDF es
+// acumulado a la fecha de generacion. El documento lo dice en su primera
+// pagina, y aqui se repite antes de pulsar: quien elige «septiembre» espera
+// que el 49% sea de septiembre, y no lo es.
 // ---------------------------------------------------------------------------
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ChevronDown, Search, Check, Loader2 } from "lucide-react";
+import SelectorPeriodo, {
+  PERIODO_COMPLETO,
+  periodoInvalido,
+  type PeriodoElegido,
+} from "@/components/dashboard/SelectorPeriodo";
 
 /** Separacion entre descargas. Por debajo de esto el navegador empieza a
  *  descartar las que llegan de a rafagas. */
@@ -44,6 +61,23 @@ function nombreDeArchivo(res: Response, id: string): string {
   return `avance-${id}.pdf`;
 }
 
+/**
+ * La cola del endpoint con el periodo elegido.
+ *
+ * Sin periodo NO se manda ningun parametro, y eso importa: la ruta sin
+ * `desde`/`hasta` se comporta exactamente como antes de que existiera el
+ * selector, asi que cualquier otro sitio que la llame sigue funcionando.
+ */
+function colaDePeriodo(p: PeriodoElegido): string {
+  const sp = new URLSearchParams();
+  if (p.desde) sp.set("desde", p.desde);
+  if (p.hasta) sp.set("hasta", p.hasta);
+  // La etiqueta solo viaja si el rango sigue siendo el que produjo el atajo.
+  if (p.atajo) sp.set("periodo", p.atajo);
+  const cola = sp.toString();
+  return cola ? `?${cola}` : "";
+}
+
 export interface ObraDescargable {
   id: string;
   nombre: string;
@@ -56,6 +90,7 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [marcadas, setMarcadas] = useState<Set<string>>(() => new Set());
+  const [periodo, setPeriodo] = useState<PeriodoElegido>(PERIODO_COMPLETO);
   const [bajando, setBajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const caja = useRef<HTMLDivElement>(null);
@@ -107,7 +142,10 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
 
   async function descargar() {
     const ids = obras.filter((o) => marcadas.has(o.id)).map((o) => o.id);
-    if (ids.length === 0 || bajando) return;
+    if (ids.length === 0 || bajando || periodoInvalido(periodo)) return;
+    // La cola se calcula UNA vez, antes del bucle: si se recalculara por obra,
+    // un lote que cruza la medianoche mezclaria dos rangos distintos.
+    const cola = colaDePeriodo(periodo);
     setBajando(true);
     setError(null);
     try {
@@ -121,7 +159,7 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
         // encontraba un archivo ilegible en su carpeta de descargas y ningun
         // aviso. Con `fetch` la sesion va segura y, sobre todo, un fallo se
         // puede CONTAR en vez de guardarse en el disco.
-        const res = await fetch(`/api/reportes/progreso/${id}`);
+        const res = await fetch(`/api/reportes/progreso/${id}${cola}`);
 
         if (!res.ok) {
           const nombre = obras.find((o) => o.id === id)?.nombre ?? "la obra";
@@ -162,116 +200,138 @@ export default function DescargarReportes({ obras }: { obras: ObraDescargable[] 
   }
 
   const n = marcadas.size;
+  const rangoAlReves = periodoInvalido(periodo);
 
   return (
-    <div className="flex items-center gap-2" ref={caja}>
-      <div className="relative flex-1 min-w-0">
+    <div className="flex flex-col gap-4">
+      <SelectorPeriodo valor={periodo} onCambio={setPeriodo} deshabilitado={bajando} />
+
+      {/* La advertencia va PEGADA al selector y no al final de la tarjeta: es
+          la aclaración que evita que alguien lea el porcentaje del PDF como
+          «lo que se hizo en el período». */}
+      {(periodo.desde || periodo.hasta) && (
+        <p className="text-[11px] leading-relaxed text-gris border-l-2 border-gris-bde pl-3">
+          El período acota lo ocurrido: decisiones, devoluciones y el registro
+          fotográfico del anexo. El porcentaje de avance del informe es acumulado a la fecha en
+          que se genera, no del período.
+        </p>
+      )}
+
+      <div className="flex items-center gap-2" ref={caja}>
+        <div className="relative flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setAbierto((v) => !v)}
+            aria-expanded={abierto}
+            aria-haspopup="listbox"
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:border-slate-300 transition-colors cursor-pointer"
+          >
+            <span className="truncate">
+              {n === 0
+                ? "Elegir obras"
+                : n === 1
+                  ? obras.find((o) => marcadas.has(o.id))!.nombre
+                  : `${n} obras seleccionadas`}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`}
+            />
+          </button>
+
+          {abierto && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+              {obras.length > 6 && (
+                <div className="relative border-b border-slate-100">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar obra..."
+                    autoFocus
+                    className="w-full pl-9 pr-3 py-2.5 text-sm outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={alternarTodas}
+                disabled={filtradas.length === 0}
+                className="w-full text-left px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer disabled:text-slate-300 disabled:cursor-not-allowed"
+              >
+                {todasFiltradasMarcadas ? "Quitar todas" : "Marcar todas"}
+                {busqueda.trim() && filtradas.length !== obras.length && ` (${filtradas.length})`}
+              </button>
+
+              <ul role="listbox" aria-multiselectable className="max-h-64 overflow-y-auto">
+                {filtradas.length === 0 ? (
+                  <li className="px-3 py-4 text-sm text-slate-400 text-center">Ninguna obra coincide.</li>
+                ) : (
+                  filtradas.map((o) => {
+                    const on = marcadas.has(o.id);
+                    return (
+                      <li key={o.id} role="option" aria-selected={on}>
+                        <button
+                          type="button"
+                          onClick={() => alternar(o.id)}
+                          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+                        >
+                          <span
+                            className={`w-4 h-4 rounded border flex-shrink-0 grid place-items-center ${
+                              on ? "bg-blue-600 border-blue-600" : "border-slate-300"
+                            }`}
+                          >
+                            {on && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-[13px] font-semibold text-slate-800 truncate">
+                              {o.nombre}
+                            </span>
+                            <span className="flex items-center gap-2 mt-0.5">
+                              <span className="h-1 w-14 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
+                                <span
+                                  className="block h-full rounded-full bg-blue-600"
+                                  style={{ width: `${o.porcentaje}%` }}
+                                />
+                              </span>
+                              <span className="text-[10.5px] font-semibold text-slate-400 truncate">
+                                {o.porcentaje}% · {o.aprobadas}/{o.total}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })
+                )}
+              </ul>
+            </div>
+          )}
+        </div>
+
         <button
           type="button"
-          onClick={() => setAbierto((v) => !v)}
-          aria-expanded={abierto}
-          aria-haspopup="listbox"
-          className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:border-slate-300 transition-colors cursor-pointer"
+          onClick={descargar}
+          disabled={n === 0 || bajando || rangoAlReves}
+          title={
+            rangoAlReves
+              ? "Corrige el rango de fechas"
+              : n === 0
+                ? "Elige al menos una obra"
+                : `Descargar ${n} reporte${n === 1 ? "" : "s"} en PDF`
+          }
+          aria-label={n === 0 ? "Descargar reportes" : `Descargar ${n} reporte${n === 1 ? "" : "s"} en PDF`}
+          className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
         >
-          <span className="truncate">
-            {n === 0
-              ? "Elegir obras"
-              : n === 1
-                ? obras.find((o) => marcadas.has(o.id))!.nombre
-                : `${n} obras seleccionadas`}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform ${abierto ? "rotate-180" : ""}`}
-          />
+          {bajando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         </button>
-
-        {abierto && (
-          <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-            {obras.length > 6 && (
-              <div className="relative border-b border-slate-100">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar obra..."
-                  autoFocus
-                  className="w-full pl-9 pr-3 py-2.5 text-sm outline-none placeholder:text-slate-400"
-                />
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={alternarTodas}
-              disabled={filtradas.length === 0}
-              className="w-full text-left px-3 py-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer disabled:text-slate-300 disabled:cursor-not-allowed"
-            >
-              {todasFiltradasMarcadas ? "Quitar todas" : "Marcar todas"}
-              {busqueda.trim() && filtradas.length !== obras.length && ` (${filtradas.length})`}
-            </button>
-
-            <ul role="listbox" aria-multiselectable className="max-h-64 overflow-y-auto">
-              {filtradas.length === 0 ? (
-                <li className="px-3 py-4 text-sm text-slate-400 text-center">Ninguna obra coincide.</li>
-              ) : (
-                filtradas.map((o) => {
-                  const on = marcadas.has(o.id);
-                  return (
-                    <li key={o.id} role="option" aria-selected={on}>
-                      <button
-                        type="button"
-                        onClick={() => alternar(o.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition-colors cursor-pointer text-left"
-                      >
-                        <span
-                          className={`w-4 h-4 rounded border flex-shrink-0 grid place-items-center ${
-                            on ? "bg-blue-600 border-blue-600" : "border-slate-300"
-                          }`}
-                        >
-                          {on && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-[13px] font-semibold text-slate-800 truncate">
-                            {o.nombre}
-                          </span>
-                          <span className="flex items-center gap-2 mt-0.5">
-                            <span className="h-1 w-14 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
-                              <span
-                                className="block h-full rounded-full bg-blue-600"
-                                style={{ width: `${o.porcentaje}%` }}
-                              />
-                            </span>
-                            <span className="text-[10.5px] font-semibold text-slate-400 truncate">
-                              {o.porcentaje}% · {o.aprobadas}/{o.total}
-                            </span>
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </div>
-        )}
       </div>
-
-      <button
-        type="button"
-        onClick={descargar}
-        disabled={n === 0 || bajando}
-        title={n === 0 ? "Elige al menos una obra" : `Descargar ${n} reporte${n === 1 ? "" : "s"} en PDF`}
-        aria-label={n === 0 ? "Descargar reportes" : `Descargar ${n} reporte${n === 1 ? "" : "s"} en PDF`}
-        className="flex-shrink-0 w-9 h-9 grid place-items-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
-      >
-        {bajando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-      </button>
 
       {/* Un fallo tiene que VERSE. Antes se guardaba como fichero en la carpeta
           de descargas y el usuario no se enteraba de nada. */}
       {error && (
-        <p role="alert" className="basis-full text-xs text-red-600 mt-2">
+        <p role="alert" className="text-xs text-red-600">
           {error}
         </p>
       )}

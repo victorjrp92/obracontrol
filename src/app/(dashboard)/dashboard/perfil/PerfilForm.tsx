@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -34,6 +34,13 @@ interface PerfilFormProps {
   rol: string;
   nivelAcceso: string;
   constructora: string;
+  /**
+   * Secciones extra del perfil que deben caer DENTRO de este mismo contenedor
+   * (hoy: la ficha de empresa). Entran como children y no como prop de datos
+   * porque quien decide si se pintan es el server component de page.tsx: este
+   * formulario es cliente y no puede —ni debe— resolver ese permiso.
+   */
+  children?: ReactNode;
 }
 
 export default function PerfilForm({
@@ -44,6 +51,7 @@ export default function PerfilForm({
   rol,
   nivelAcceso,
   constructora,
+  children,
 }: PerfilFormProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -258,6 +266,8 @@ export default function PerfilForm({
             </button>
           </div>
         </div>
+
+        {children}
       </div>
     </main>
   );

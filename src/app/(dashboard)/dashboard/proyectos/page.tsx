@@ -87,7 +87,9 @@ export default async function ProyectosPage() {
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
             {proyectosVisibles.map((p) => {
               const sem = semaforoColors[p.semaforo as SemaforoLevel] ?? semaforoColors.verde;
-              const numEdificios = p.edificios.length;
+              // El conteo llega contado desde SQL: la lista ya no arrastra el
+              // árbol de edificios solo para hacerle `.length`.
+              const numEdificios = p.totalEdificios;
 
               return (
                 <Link

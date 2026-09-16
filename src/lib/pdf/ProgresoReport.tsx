@@ -47,8 +47,28 @@
 // El informe tiene que salir para una obra SIN cronograma, SIN fotos, SIN
 // decisiones y SIN edificios. Cada tabla trae su fila de «sin datos».
 //
+// == LAS DOS LINEAS DE TIEMPO DEL DOCUMENTO =================================
+//
+// El informe mezcla dos cosas que NO se miden igual, y confundirlas seria
+// mentir con cifras ciertas:
+//
+//   · PERIODO (lo elige el usuario: una semana, un mes, un rango a mano). Rige
+//     lo que OCURRIO: decisiones firmadas, devoluciones, actividades aprobadas
+//     y fotografias del anexo A.
+//   · CORTE (el instante de generacion). Rige el ESTADO: avance ejecutado,
+//     avance programado, SPI, fases, torres y la seccion 5. Ese avance es
+//     ACUMULADO desde el inicio de la obra, no del periodo — un «49%» no es
+//     «lo que se hizo en septiembre», es lo que lleva la obra entera.
+//
+// No se puede reconstruir el avance a una fecha pasada: `Tarea.estado` guarda
+// el estado de HOY, no su historia. Por eso el corte es siempre el momento de
+// generar, aunque el periodo termine antes, y el documento lo dice en la
+// seccion 1 en vez de dejar que el lector lo suponga.
+//
 // NOTA DE ALCANCE: este informe es B2B y NO lleva dinero. Ni precios, ni
-// presupuestos, ni valor ejecutado. Se declara en la seccion 7.
+// presupuestos, ni valor ejecutado. Se declara en la seccion 7. El registro
+// fotografico va como ANEXO A y no como seccion 8: meterlo en medio habria
+// corrido la numeracion de REFERENCIAS y roto las citas ya emitidas.
 // ---------------------------------------------------------------------------
 
 import { Document, Image, Page, Text, View } from "@react-pdf/renderer";
@@ -67,6 +87,11 @@ import {
   porcentaje,
   texto,
 } from "./estilos-informe";
+import {
+  recortar,
+  RegistroFotografico,
+  type RegistroFotograficoData,
+} from "./RegistroFotografico";
 
 // ─── Contrato de datos ──────────────────────────────────────────────────────
 // Todo llega ya calculado desde la ruta. Este fichero no consulta, no suma y
@@ -87,10 +112,31 @@ export interface IdentificacionInforme {
   fechaInicio: Date | null;
   fechaFinEstimada: Date | null;
   diasHabilesSemana: number;
-  /** Instante en que se generó: es la fecha de corte de todas las cifras. */
+  /** Instante en que se generó: es la fecha de corte del ESTADO de la obra. */
   corte: Date;
   elaboradoPor: string;
   cargoElaborador: string;
+}
+
+/**
+ * El período que el usuario eligió: rige lo que OCURRIÓ, nunca el estado.
+ *
+ * Las fechas viajan como `YYYY-MM-DD` —tal cual las escogió— y no como `Date`
+ * a propósito. Un `Date` obliga a decidir aquí en qué zona horaria se lee, y
+ * el mismo informe saldría con un día de diferencia en local (Bogotá) y en
+ * producción (UTC). La ruta convierte esa cadena a instantes de la hora de
+ * Colombia para consultar; el documento la imprime tal como se escogió.
+ */
+export interface PeriodoInforme {
+  /** `null` = sin límite inferior: desde el inicio de la obra. */
+  desde: string | null;
+  /** `null` = sin límite superior: hasta la fecha de corte. */
+  hasta: string | null;
+  /**
+   * Nombre del atajo que lo produjo («último mes»), o `null` si el usuario
+   * escribió las dos fechas a mano.
+   */
+  atajo: string | null;
 }
 
 export interface EstadoAvanceInforme {
@@ -184,8 +230,14 @@ export interface CalidadInforme {
   devolucionesRecientes: FilaDevolucionInforme[];
   /** Sobre cuántas decisiones se buscaron los motivos de 4.2. */
   ventanaRevisada: number;
-  /** `true` si el resumen chocó con el tope de filas y no cubre toda la historia. */
+  /** `true` si el resumen chocó con el tope de filas y no cubre todo el período. */
   resumenTruncado: boolean;
+  /**
+   * Actividades con al menos una aprobación firmada DENTRO del período. Es la
+   * producción del período, y la única cifra de este informe que se puede leer
+   * como «lo que se hizo en estas fechas».
+   */
+  aprobadasEnPeriodo: number;
 }
 
 export interface GestionInforme {
@@ -206,22 +258,18 @@ export interface CoberturaInforme {
 
 export interface InformeAvanceData {
   identificacion: IdentificacionInforme;
+  periodo: PeriodoInforme;
   avance: EstadoAvanceInforme;
   fases: FilaFaseInforme[];
   torres: FilaTorreInforme[];
   calidad: CalidadInforme;
   gestion: GestionInforme;
   cobertura: CoberturaInforme;
+  /** El anexo A. Siempre presente: sin fotos trae la lista vacía y lo declara. */
+  registro: RegistroFotograficoData;
 }
 
 // ─── Piezas del formato ─────────────────────────────────────────────────────
-
-/** Recorta a lo ancho de la columna y avisa con puntos suspensivos. */
-function recortar(valor: string, maximo: number): string {
-  const limpio = valor.trim();
-  if (limpio.length <= maximo) return limpio;
-  return `${limpio.slice(0, maximo - 1).trimEnd()}…`;
-}
 
 /**
  * El CAJETIN. Va en TODAS las páginas: una hoja que se desprenda del juego
@@ -419,6 +467,41 @@ function dias(n: number | null): string {
   return n === null ? "—" : entero(n);
 }
 
+/**
+ * `YYYY-MM-DD` → «14 de septiembre de 2026».
+ *
+ * Se ancla a mediodía UTC y no a medianoche: `fechaLarga` lee en UTC, y con
+ * medianoche cualquier desplazamiento de un milisegundo hacia atrás —el que
+ * introduce un `Date` mal construido— cambia el día impreso. Al mediodía
+ * sobran doce horas de margen en las dos direcciones.
+ */
+function fechaISOLarga(iso: string): string {
+  return fechaLarga(new Date(`${iso}T12:00:00Z`));
+}
+
+/**
+ * La frase que encabeza el informe: «15 de agosto a 14 de septiembre de 2026».
+ *
+ * Sin período elegido NO se escribe una fecha inventada: se dice que el
+ * documento cubre la historia completa, que es lo que de verdad cubre.
+ */
+function textoPeriodo(p: PeriodoInforme): string {
+  const atajo = p.atajo ? ` (${p.atajo})` : "";
+  if (p.desde && p.hasta) {
+    // Dentro del mismo año el año se escribe UNA vez, al final: «15 de agosto a
+    // 14 de septiembre de 2026». Repetirlo no añade precisión, solo ruido en la
+    // línea que más se lee del informe.
+    const mismoAnio = p.desde.slice(0, 4) === p.hasta.slice(0, 4);
+    const inicio = mismoAnio
+      ? fechaISOLarga(p.desde).replace(/ de \d{4}$/, "")
+      : fechaISOLarga(p.desde);
+    return `${inicio} a ${fechaISOLarga(p.hasta)}${atajo}`;
+  }
+  if (p.desde) return `Desde el ${fechaISOLarga(p.desde)} hasta la fecha de corte${atajo}`;
+  if (p.hasta) return `Desde el inicio de la obra hasta el ${fechaISOLarga(p.hasta)}${atajo}`;
+  return "Historia completa de la obra, desde su inicio hasta la fecha de corte";
+}
+
 // ─── El informe ─────────────────────────────────────────────────────────────
 
 export function ProgresoReport({
@@ -428,9 +511,21 @@ export function ProgresoReport({
   data: InformeAvanceData;
   logoDataUrl?: string | null;
 }) {
-  const { identificacion: id, avance, fases, torres, calidad, gestion, cobertura } = data;
+  const {
+    identificacion: id,
+    periodo,
+    avance,
+    fases,
+    torres,
+    calidad,
+    gestion,
+    cobertura,
+    registro,
+  } = data;
   const codigo = codigoDocumento(id.numeroRegistro, id.obra, id.corte);
   const hayCronograma = avance.pctProgramado !== null;
+  /** Un período acotado obliga a distinguir «lo ocurrido» de «lo acumulado». */
+  const hayPeriodo = periodo.desde !== null || periodo.hasta !== null;
 
   return (
     <Document
@@ -480,18 +575,27 @@ export function ProgresoReport({
                 id.diasHabilesSemana,
               )} días laborables por semana, descontando los festivos nacionales`}
             />
-            <FilaFicha
-              clave="Período informado"
-              valor={
-                id.fechaInicio
-                  ? `Acumulado desde el inicio de la obra (${fechaDMA(
-                      id.fechaInicio,
-                    )}) hasta la fecha de corte`
-                  : "Acumulado hasta la fecha de corte"
-              }
-            />
+            <FilaFicha clave="Período del informe" valor={textoPeriodo(periodo)} />
             <FilaFicha clave="Fecha de corte" valor={fechaHoraColombia(id.corte)} />
             <FilaFicha clave="Documento" valor={codigo} ultima />
+          </View>
+
+          {/* La distincion entre las dos lineas de tiempo va en la PRIMERA
+              pagina, junto a las fechas, y no en las definiciones del final:
+              quien solo lee la portada tiene que saber ya que el 49% no es lo
+              del mes, y quien firma no puede alegar que estaba en letra chica. */}
+          <View style={est.nota} wrap={false}>
+            <Text style={est.notaTitulo}>QUÉ MIDE EL PERÍODO Y QUÉ MIDE LA FECHA DE CORTE</Text>
+            <Text style={est.notaTexto}>
+              El período rige lo que OCURRIÓ dentro de él: las decisiones firmadas y las
+              devoluciones de la sección 4, y el registro fotográfico del anexo A. El estado de
+              avance —secciones 2, 3 y 5— es ACUMULADO desde el inicio de la obra hasta la fecha de
+              corte, no del período: un avance ejecutado del 49% dice cuánto lleva la obra entera,
+              nunca cuánto se hizo en estas fechas.{" "}
+              {hayPeriodo
+                ? "La fecha de corte es el instante en que se generó este documento, que puede ser posterior al cierre del período: el estado de la obra no se puede reconstruir hacia atrás, porque el sistema guarda el estado actual de cada actividad y no su historia. Lo que sí se puede afirmar del período está en la sección 4."
+                : "No se acotó ningún período, así que el informe cubre la historia completa de la obra."}
+            </Text>
           </View>
 
           <Subseccion numero="1.1" titulo="Control de aprobación" />
@@ -796,16 +900,27 @@ export function ProgresoReport({
 
         {/* ── 4. CONTROL DE CALIDAD ─────────────────────────────────────── */}
         <Seccion numero="4" titulo="CONTROL DE CALIDAD DE LA EJECUCIÓN">
+          {/* La UNICA seccion que habla del periodo y no del acumulado. Los
+              verbos van en pasado y con las fechas delante a proposito: es lo
+              que la separa de las secciones 2, 3 y 5. */}
           <Text style={est.parrafo}>
             Ninguna actividad suma avance hasta que alguien la revisa y la firma. Esta sección dice
-            quién lo hizo, cuánto tardó y qué devolvió. En la historia de la obra constan{" "}
+            quién lo hizo, cuánto tardó y qué devolvió{" "}
+            {hayPeriodo ? "DENTRO DEL PERÍODO INFORMADO" : "en la historia de la obra"}. Constan{" "}
             {entero(calidad.decisiones)} decisiones firmadas, de las cuales{" "}
             {entero(calidad.devoluciones)} fueron devoluciones (
-            {porcentaje(calidad.pctDevoluciones)}).
+            {porcentaje(calidad.pctDevoluciones)}). En ese mismo lapso quedaron aprobadas{" "}
+            {entero(calidad.aprobadasEnPeriodo)} actividades: esa es la producción del período, y es
+            la única cifra de este informe que se puede leer como «lo que se hizo en estas fechas».
           </Text>
 
           <Subseccion numero="4.1" titulo="Decisiones por revisor" />
-          <Rotulo codigo="4.1-1" titulo="Aprobaciones, devoluciones y tiempo de revisión" />
+          <Rotulo
+            codigo="4.1-1"
+            titulo={`Aprobaciones, devoluciones y tiempo de revisión ${
+              hayPeriodo ? "en el período" : "en la obra"
+            }`}
+          />
           <Tabla filas={calidad.revisores.length}>
             <View style={est.tablaCab} fixed={partePagina(calidad.revisores.length)}>
               <Text style={[est.tablaCabTexto, { flex: 1 }]}>Revisor</Text>
@@ -853,7 +968,7 @@ export function ProgresoReport({
             marca de reporte se congela en el primer envío: usarla en un reintento cargaría al
             revisor el tiempo que el ejecutor tardó en rehacer el trabajo.
             {calidad.resumenTruncado
-              ? " Aviso: la obra supera el tope de decisiones del resumen y esta tabla no cubre toda su historia."
+              ? " Aviso: el período supera el tope de decisiones del resumen y esta tabla no lo cubre entero; acote el rango de fechas para leerlo completo."
               : ""}
           </Text>
 
@@ -862,7 +977,7 @@ export function ProgresoReport({
             codigo="4.2-1"
             titulo={`Devoluciones halladas entre las ${entero(
               calidad.ventanaRevisada,
-            )} decisiones más recientes`}
+            )} decisiones más recientes ${hayPeriodo ? "del período" : "de la obra"}`}
           />
           <Tabla filas={calidad.devolucionesRecientes.length}>
             <View style={est.tablaCab} fixed={partePagina(calidad.devolucionesRecientes.length)}>
@@ -1022,7 +1137,9 @@ export function ProgresoReport({
           <Text style={est.rotuloNota}>
             {cobertura.aprobadas === 0
               ? "Todavía no hay actividades aprobadas, así que no hay universo sobre el que medir cobertura."
-              : "Mide qué parte del avance aprobado tiene respaldo gráfico en el expediente. Una aprobación sin evidencia es válida en el sistema, pero no se puede auditar después."}
+              : "Mide qué parte del avance aprobado tiene respaldo gráfico en el expediente. Una aprobación sin evidencia es válida en el sistema, pero no se puede auditar después."}{" "}
+            Esta tabla cuenta el ACUMULADO de la obra a la fecha de corte; las fotografías del
+            período, con su pie verificable, están en el anexo A.
           </Text>
         </Seccion>
 
@@ -1033,9 +1150,16 @@ export function ProgresoReport({
             <FilaFicha clave="Versión del formato" valor={FORMATO.version} />
             <FilaFicha clave="Código del documento" valor={codigo} />
             <FilaFicha clave="Emitido" valor={fechaHoraColombia(id.corte)} />
+            <FilaFicha clave="Período del informe" valor={textoPeriodo(periodo)} />
             <FilaFicha
               clave="Fuente de los datos"
               valor="Registros de la obra en Seiricon: actividades, aprobaciones y evidencias, a la fecha de corte."
+            />
+            <FilaFicha
+              clave="Anexos"
+              valor={`Anexo A — Registro fotográfico: ${entero(
+                registro.mostradas,
+              )} imágenes con pie de cuatro campos y declaración de integridad.`}
             />
             <FilaFicha
               clave="Alcance"
@@ -1046,6 +1170,14 @@ export function ProgresoReport({
 
           <Subseccion numero="7.1" titulo="Definiciones empleadas" />
           <View style={est.ficha} wrap={false}>
+            <FilaFicha
+              clave="Período del informe"
+              valor="Rango de fechas elegido por quien pide el informe. Acota lo que OCURRIÓ: decisiones, devoluciones y fotografías. No acota el estado de avance."
+            />
+            <FilaFicha
+              clave="Fecha de corte"
+              valor="Instante en que se generó el documento. El avance de las secciones 2, 3 y 5 está medido a esa fecha y es acumulado desde el inicio de la obra."
+            />
             <FilaFicha
               clave="Avance ejecutado"
               valor="Actividades aprobadas ÷ actividades totales. Todas pesan igual."
@@ -1083,9 +1215,16 @@ export function ProgresoReport({
             Documento generado automáticamente el {fechaLarga(id.corte)} a partir de los registros
             de la obra. El código del documento identifica de forma única esta emisión: la misma
             obra a otra fecha de corte produce otro código. Cualquier cifra de este informe puede
-            citarse por su sección y su tabla.
+            citarse por su sección y su tabla, y cualquier imagen por su número de foto.
           </Text>
         </Seccion>
+
+        {/* ── ANEXO A ───────────────────────────────────────────────────────
+            Va DENTRO de esta misma `<Page>` y no en una segunda: el cajetin y
+            el pie son `fixed` de la pagina, asi que abrir otra obligaria a
+            repetirlos y a mantener dos copias. El salto a hoja nueva lo da
+            `break` en el contenedor del anexo. */}
+        <RegistroFotografico data={registro} />
       </Page>
     </Document>
   );

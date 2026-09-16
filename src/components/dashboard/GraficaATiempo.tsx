@@ -174,7 +174,7 @@ export default function GraficaATiempo({
       ref={ref}
       tabIndex={0}
       role="group"
-      aria-label="Tareas a tiempo por periodo. Flechas para recorrer los periodos, Escape para soltar."
+      aria-label="Porcentaje de tareas que cumplieron el plazo, por período. Flechas para recorrer los períodos, Escape para soltar."
       onKeyDown={alTeclear}
       onFocus={() => {
         if (iSel < 0) onResaltar(ultimo.orden);

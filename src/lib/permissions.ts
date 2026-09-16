@@ -56,7 +56,12 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: true,
         canViewContractors: false,    // ← Solo Super Admin ve la lista global con scoring
         canViewUsers: true,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"],
+        // Sin "empresa": la ficha de la constructora (NIT, direccion, datos
+        // fiscales) es configuracion de cuenta, no una seccion de trabajo
+        // diaria, y ahora vive dentro de /dashboard/perfil. Quitar la clave de
+        // aqui NO cambia quien ve esos datos: eso lo sigue decidiendo
+        // `canManageUsers` en la pagina y en api/constructora.
+        sidebarItems: ["dashboard", "proyectos", "tareas", "sugerencias", "reportes", "usuarios", "configuracion"],
       };
     case "ADMIN_PROYECTO":
       return {
@@ -86,7 +91,8 @@ export function getPermissions(nivelAcceso: NivelAcceso | string): Permissions {
         canViewConfig: false,
         canViewContractors: false,    // ← Sólo Super Admin
         canViewUsers: false,
-        sidebarItems: ["dashboard", "empresa", "proyectos", "tareas", "sugerencias", "reportes"],
+        // "empresa" salio del menu: la ficha se pinta dentro del perfil.
+        sidebarItems: ["dashboard", "proyectos", "tareas", "sugerencias", "reportes"],
       };
     // Personal de campo (auxiliares y residentes): REPORTA, no administra. Sin
     // este case caía en `default`, que lo dejaba con un menú de un solo ítem

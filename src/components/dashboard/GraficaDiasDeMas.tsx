@@ -125,7 +125,7 @@ export default function GraficaDiasDeMas({
       ref={ref}
       tabIndex={0}
       role="group"
-      aria-label="Dias de mas o de menos por periodo. Flechas para recorrer los periodos, Escape para soltar."
+      aria-label="Días de más o de menos frente al plazo, por período. Flechas para recorrer los períodos, Escape para soltar."
       onKeyDown={alTeclear}
       onFocus={() => {
         if (iSel < 0) onResaltar(ultimo.orden);
@@ -183,7 +183,7 @@ export default function GraficaDiasDeMas({
               fontWeight="800"
               fill="#DC2626"
             >
-              AQUI CAMBIO
+              AQUÍ CAMBIÓ
             </text>
           </g>
         )}
@@ -224,7 +224,7 @@ export default function GraficaDiasDeMas({
                 stroke="#fff"
                 strokeWidth={esta ? 2 : 1.5}
               >
-                <title>{`${p.etiqueta}: ${nf(p.diasDeMas)} dias sobre ${p.cerradas} tareas`}</title>
+                <title>{`${p.etiqueta}: ${nf(p.diasDeMas)} días sobre ${p.cerradas} tareas`}</title>
               </circle>
               {muestraValor && (
                 <text
@@ -258,7 +258,7 @@ export default function GraficaDiasDeMas({
       {/* Lo que el resaltado dice en voz alta: sin esto, recorrer con flechas no
           cambia nada de lo que un lector de pantalla puede oir. */}
       <p className="sr-only" aria-live="polite">
-        {sel ? `${sel.etiqueta}: ${nf(sel.diasDeMas)} dias sobre ${sel.cerradas} tareas` : ""}
+        {sel ? `${sel.etiqueta}: ${nf(sel.diasDeMas)} días sobre ${sel.cerradas} tareas` : ""}
       </p>
     </div>
   );

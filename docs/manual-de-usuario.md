@@ -132,7 +132,6 @@ Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la 
 | Pestaña | Descripción |
 |---------|-------------|
 | **Dashboard** | Panel principal con estadísticas, mapa de obras y tareas que requieren acción |
-| **Empresa** | Perfil de tu constructora: nombre, NIT, dirección, ciudad, teléfono, sitio web, logo |
 | **Proyectos** | Lista de todos tus proyectos con progreso visual, semáforo de estado y mapa |
 | **Tareas** | Vista global de todas las tareas con filtros por estado, fase y proyecto |
 | **Equipo** | Gestión de tu equipo de trabajo |
@@ -140,6 +139,10 @@ Cada perfil tiene su propio panel con las herramientas que necesita. Esta es la 
 | **Reportes** | Reportes y analíticas de tus proyectos |
 | **Usuarios** | Invitar y gestionar usuarios: admins de proyecto, directivos, contratistas |
 | **Configuración** | Datos de empresa, clientes, plan de suscripción |
+
+> **La ficha de la empresa ya no es una pestaña del menú.** El nombre, el NIT, la dirección, el teléfono, el sitio web y el logo de tu constructora se editan ahora **dentro de tu perfil** (menú de usuario › *Mi perfil*), debajo de tus datos personales, junto al conteo de usuarios y obras activas. Son datos que se llenan una vez y se revisan cada varios meses: tener eso fijo en el menú de trabajo diario ocupaba un sitio que se usa mucho más para entrar a las obras.
+>
+> **Quién los ve no cambió.** Siguen siendo el **Administrador General** y el **Directivo** de una cuenta de constructora. Administrador de Proyecto, Contratista, Personal de campo y Maestro no ven el NIT ni los datos fiscales, igual que antes.
 
 ### Dashboard — Lo que ves al entrar
 
@@ -739,6 +742,27 @@ En todos los casos te muestra, en lenguaje llano, cuánto de tu presupuesto es *
 
 - En **Reportes** eliges **una obra o varias** de la lista desplegable y las descargas en PDF con el botón de descarga. Si tienes más de seis obras aparece un buscador, y «Marcar todas» solo marca lo que estés viendo tras buscar.
 - Cada PDF trae el estado de avance con el detalle por edificio.
+
+#### Elegir el período del informe
+
+Sobre el botón de descarga hay seis atajos —**semana, quincena, mes, trimestre, semestre y año**— y dos campos de fecha para escribir el rango que quieras.
+
+- **El atajo rellena las dos fechas a la vista.** Al pulsar «mes» los campos se llenan con el rango que produjo, así que siempre sabes qué le pediste al sistema; si corriges una de las dos fechas, deja de ser un atajo y pasa a ser tu rango. Un atajo que no enseña sus fechas obliga a fiarse.
+- **La ventana termina hoy y cuenta los dos extremos.** «Mes» pedido un 14 de septiembre va del 15 de agosto al 14 de septiembre.
+- **Si no tocas nada, el informe sale completo**, como salía antes.
+- **El período es uno y vale para todas las obras que marques.** El caso real es «el cierre de septiembre de estas ocho obras», no un mes distinto por cada una.
+- **Ojo con lo que acota el período.** Recorta **lo que ocurrió** entre esas fechas —aprobaciones, devoluciones y las fotos del anexo—, no el avance. El porcentaje de avance es siempre **acumulado a la fecha en que generas el PDF**: si pides septiembre y la obra va en 49%, ese 49% es el de toda la obra, no el de septiembre. El documento lo dice en su primera página, y la pantalla te lo repite antes de descargar.
+
+### Reportes: el anexo fotográfico
+
+El informe de avance termina en un **Anexo A — Registro fotográfico**, armado con el formato de un informe de interventoría y no como un álbum de fotos. Eso es lo que lo hace firmable:
+
+- **Cada imagen va numerada** («Foto 017»). Un número correlativo es una dirección: puedes citarlo en un acta o en un correo sin adjuntar nada.
+- **Pie de cuatro campos** bajo cada foto: actividad, ubicación, autor y fecha, y estado. No se escriben a mano —los arma el sistema desde los registros de la obra—, así que son verificables uno a uno.
+- **Agrupadas por ubicación**: espacio, luego fase, luego actividad. No por fecha: quien revisa camina la obra, no el calendario.
+- **Abre con una declaración de integridad**: quién pone la hora, quién firma como autor y que la imagen no se retoca. Es el párrafo que le permite a un interventor firmar debajo sin afirmar nada que no le conste.
+- **Cierra con las firmas** de quien reportó y quien revisó.
+- **Hay un tope de imágenes por documento, y el anexo dice cuántas muestra de cuántas hay.** Una obra con tres mil fotos no cabe en un PDF que se pueda abrir. Si necesitas ver un tramo concreto, **acota el período**: para eso está el selector de fechas.
 - **El ranking de contratistas ya no está aquí.** Es información sobre el desempeño de personas y no la debe ver cualquiera dentro de la empresa; ahora vive solo en el perfil de Super Admin, en la ficha de cada constructora.
 
 ### Reportes: la bitácora de obra
@@ -772,7 +796,10 @@ En **Reportes** hay un bloque de **Velocidad del equipo** que responde si la gen
 - **Tareas que cerraron a tiempo.** De las tareas que se cerraron en el período, cuántas terminaron dentro de los días acordados. Es una por una: cada tarea se compara contra **su propio** plazo, así que no importa que pintar no sea lo mismo que levantar una columna. La línea punteada es la meta.
 - **Cuánto se pasaron del plazo, en días.** Lo mismo, pero en tamaño. Van juntas porque dicen cosas distintas: la primera dice **cuántas** incumplieron y la segunda **por cuánto**. Un mes con la mitad de las tareas pasadas por medio día y otro con la mitad pasadas por tres días dan el mismo porcentaje y son problemas muy diferentes. Arriba de la línea es terminar antes; abajo, tarde. Cuando la obra cruza de un lado al otro, la gráfica marca el período exacto.
 - **Días que toma cada fase en una unidad.** Cuántos días pasan desde que arranca una fase en un apartamento hasta que se cierra su última tarea, comparado entre **torres, pisos, tipologías o responsables**. Aquí se compara el mismo trabajo consigo mismo —mampostería contra mampostería— así que es la única de las tres que no se distorsiona porque una fase sea más pesada que otra.
-- **Cuidado al leer la matriz:** solo cuentan las unidades que terminaron la fase completa. Una torre a medio camino aporta nada más lo que alcanzó a cerrar —casi siempre lo más fácil— y puede verse más rápida de lo que es. Por eso cada celda muestra cuántas unidades la respaldan, y las que se apoyan en menos de cinco salen atenuadas.
+- **Cada celda dice su unidad, en palabras.** Antes mostraba «2,5» y «20 u», dos números correctos y mudos. Ahora dice **«2,5 días»** —lo que tarda esa fase en un apartamento— y **«20 unidades»** —cuántos apartamentos respaldan ese promedio—. Un número sin unidad no es un dato, es una adivinanza.
+- **Cuidado al leer la matriz:** solo cuentan las unidades que terminaron la fase completa. Una torre a medio camino aporta nada más lo que alcanzó a cerrar —casi siempre lo más fácil— y puede verse más rápida de lo que es. Por eso cada celda muestra cuántas unidades la respaldan, y **las que se apoyan en menos de cinco salen sin color y dicen «solo 3 unidades»**: un promedio flojo tiene que verse flojo, no pintarse igual que uno sólido.
+- **Debajo de cada gráfica hay una frase que la lee por ti.** No repite el último dato —ese ya está arriba— sino que describe la serie: cuál fue el mejor período y cuál el peor, y cuántos llegaron a la meta. Es el renglón que se lee cuando no hay tiempo de interpretar el dibujo.
+- **Las gráficas son interactivas.** Al pasar por encima de un período se resalta y muestra sus números; el período en el que la obra cruzó de ir adelantada a ir retrasada (o al revés) queda marcado sobre la línea.
 - El tiempo de una tarea se mide **desde su fecha de inicio registrada hasta que se aprueba**, así que incluye la espera de revisión. Sirve para comparar períodos entre sí, no para afirmar cuántos días de mano de obra costó una tarea.
 
 ### Fases de la obra: en qué va cada una

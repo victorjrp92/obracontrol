@@ -9,7 +9,6 @@ import { esCuentaPersonal, modulosVisibles, tonoPerfil } from "@/lib/plan";
 import type { TipoCuenta } from "@/generated/prisma";
 import {
   LayoutDashboard,
-  Building2,
   FolderOpen,
   ClipboardList,
   UsersRound,
@@ -52,7 +51,6 @@ const allNavItems = [
   { key: "portal-directivo", icon: ArrowLeft, label: "Portal directivo", href: "/directivo" },
   { key: "campo", icon: ClipboardCheck, label: "Mis obras", href: "/campo" },
   { key: "dashboard", icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-  { key: "empresa", icon: Building2, label: "Empresa", href: "/dashboard/empresa" },
   { key: "proyectos", icon: FolderOpen, label: "Proyectos", href: "/dashboard/proyectos" },
   { key: "tareas", icon: ClipboardList, label: "Tareas", href: "/dashboard/tareas" },
   { key: "equipo", icon: HardHat, label: "Mi equipo", href: "/dashboard/equipo" },
