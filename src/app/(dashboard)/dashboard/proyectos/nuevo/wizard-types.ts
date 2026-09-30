@@ -1,4 +1,5 @@
 import type { ModoCronograma } from "@/lib/reparto-cronograma";
+import { FASES_OBRA } from "@/lib/fases-obra";
 
 export interface Contratista {
   id: string;
@@ -207,4 +208,23 @@ export function generateUnitNamesForTorre(
 
 export const SUBFASES_MADERA = ["Instalación", "Detallado y lustro"] as const;
 
-export const FASES_DISPONIBLES = ["Madera", "Obra Blanca"];
+/**
+ * Catálogo de chips de fase del paso 2. Las dos históricas van PRIMERO: tienen
+ * plantillas de tareas propias y «Madera» arrastra comportamiento especial
+ * (subfases Instalación/Detallado y lustro, componentes Est/Nav/Cha/Car). El
+ * resto se DERIVA del catálogo curado FASES_OBRA —no se copia a mano— para que
+ * si ese catálogo cambia, este lo siga solo. «Carpintería/Madera» se excluye
+ * porque se solapa con «Madera»: dos chips para el mismo oficio terminan con
+ * las tareas partidas entre dos fases que significan lo mismo.
+ */
+export const FASES_DISPONIBLES: string[] = [
+  "Madera",
+  "Obra Blanca",
+  ...FASES_OBRA.filter((f) => f !== "Carpintería/Madera"),
+];
+
+/**
+ * Tope BLANDO de fases seleccionadas, decidido por negocio: con más de 15
+ * fases el paso 2 deja de ser un cronograma y se vuelve una lista de chequeo.
+ */
+export const MAX_FASES_SELECCIONADAS = 15;

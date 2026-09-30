@@ -35,7 +35,7 @@ export async function generateTemplate(
   // ---------------------------------------------------------------------
   ws.columns = [
     { header: "Fase", key: "fase", width: 18 },
-    { header: "Tipo unidad (Madera)", key: "tipo_unidad", width: 22 },
+    { header: "Tipo unidad", key: "tipo_unidad", width: 22 },
     { header: "Subfase (opcional)", key: "subfase", width: 20 },
     { header: "Espacio", key: "espacio", width: 22 },
     { header: "Nombre de la tarea", key: "nombre", width: 35 },
@@ -55,16 +55,37 @@ export async function generateTemplate(
     cell.alignment = { horizontal: "center" };
   });
 
-  const exampleFase1 = fases[0] ?? "Madera";
-  const exampleFase2 = fases[1] ?? fases[0] ?? "Obra Blanca";
+  // Las fases de los EJEMPLOS se eligen por NOMBRE, no por posición. Los dos
+  // primeros ejemplos son muebles de carpintería (componentes, marca SAGANO):
+  // son tareas de "Madera" se mire como se mire. Cuando se tomaba `fases[0]` a
+  // ciegas y el proyecto traía las fases en otro orden, el mueble salía
+  // etiquetado "Obra Blanca" y la pintura "Madera" — el cliente de la demo lo
+  // reportó como "los encabezados están trocados", y razón no le faltaba: un
+  // ejemplo que se contradice enseña a llenar mal la plantilla.
+  const faseMadera = fases.find((f) => f.trim().toLowerCase() === "madera");
+  const faseNoMadera = fases.find((f) => f.trim().toLowerCase() !== "madera");
   const exampleEsp1 = espacios[0] ?? "Cocina";
   const exampleEsp2 = espacios[1] ?? espacios[0] ?? "Bano principal";
   const exampleTipo = tiposUnidad?.[0] ?? "Tipo estándar";
 
+  // En B2B (muestraEconomia=false) las columnas de dinero van OCULTAS, pero
+  // ocultas no es vacías: si los ejemplos llevaran valores, cualquiera que
+  // des-oculte columnas en Excel vería cifras de dinero en un plan que decidió
+  // no manejarlas (cbd2363). Los ejemplos solo traen plata cuando la pantalla
+  // también la enseña.
+  // Cada bloque de ejemplos solo aparece si SU fase esta en el proyecto: un
+  // mueble etiquetado con la unica fase disponible («Pintura», digamos) es un
+  // ejemplo que miente, y un ejemplo que miente ensena a llenar mal.
   const examples = [
-    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp1, nombre: "[EJEMPLO] Mueble bajo cocina", dias: 3, valor_instalacion: 450000, valor_lustro: 180000, estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "SAGANO" },
-    { fase: exampleFase1, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp2, nombre: "[EJEMPLO] Mueble lavamanos", dias: 2, valor_instalacion: "", valor_lustro: "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "" },
-    { fase: exampleFase2, tipo_unidad: "", subfase: "Pintura", espacio: exampleEsp1, nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, valor_instalacion: 120000, valor_lustro: "", estructura: "", nave: "", chapa: "", cartera: "", marca: "Corona" },
+    ...(faseMadera
+      ? [
+          { fase: faseMadera, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp1, nombre: "[EJEMPLO] Mueble bajo cocina", dias: 3, valor_instalacion: muestraEconomia ? 450000 : "", valor_lustro: muestraEconomia ? 180000 : "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "SAGANO" },
+          { fase: faseMadera, tipo_unidad: exampleTipo, subfase: "", espacio: exampleEsp2, nombre: "[EJEMPLO] Mueble lavamanos", dias: 2, valor_instalacion: "", valor_lustro: "", estructura: "Sí", nave: "Sí", chapa: "No", cartera: "No", marca: "" },
+        ]
+      : []),
+    ...(faseNoMadera
+      ? [{ fase: faseNoMadera, tipo_unidad: "", subfase: "Pintura", espacio: exampleEsp1, nombre: "[EJEMPLO] Pintura paredes cocina", dias: 1, valor_instalacion: muestraEconomia ? 120000 : "", valor_lustro: "", estructura: "", nave: "", chapa: "", cartera: "", marca: "Corona" }]
+      : []),
   ];
 
   for (const ex of examples) {
@@ -116,7 +137,7 @@ export async function generateTemplate(
   // faltara texto. En B2C sale la lista completa, igual que siempre.
   const pasos = [
     "'Fase' es obligatorio: selecciona del dropdown.",
-    "'Tipo unidad' solo para Madera: indica a qué tipo de apartamento aplica la tarea.",
+    "'Tipo unidad': a qué tipo de apartamento aplica la tarea. Obligatorio en Madera; opcional en las demás fases (sin tipo, la tarea aplica a todas las unidades).",
     "'Subfase' es opcional (no se usa para Madera, se genera automáticamente).",
     "'Espacio' es obligatorio: selecciona del dropdown.",
     "'Nombre de la tarea' es obligatorio.",

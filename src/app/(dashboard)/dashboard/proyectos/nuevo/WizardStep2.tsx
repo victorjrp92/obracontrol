@@ -7,14 +7,14 @@ import {
 } from "lucide-react";
 import type { TareaInput, TipoUnidadInput, VentanaPlan } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
-import { FASES_DISPONIBLES } from "./wizard-types";
+import { FASES_DISPONIBLES, MAX_FASES_SELECCIONADAS } from "./wizard-types";
 import {
   diasHabilesVentana,
   type ModoCronograma,
   type ResultadoReparto,
 } from "@/lib/reparto-cronograma";
 import { fechaCorta, fechaUTCDesde } from "@/lib/cronograma/fechas";
-import SuggestedTasksPanel from "./SuggestedTasksPanel";
+import SuggestedTasksPanel, { escalarDiasPorMetraje, plantillasSugeridas } from "./SuggestedTasksPanel";
 import { generateTemplate, parseTemplate } from "./ExcelTemplateUtils";
 
 function groupBySubfaseEspacio(tareas: TareaInput[]) {
@@ -145,11 +145,51 @@ export default function WizardStep2({
   const [newTaskNave, setNewTaskNave] = useState(true);
   const [newTaskChapa, setNewTaskChapa] = useState(false);
   const [newTaskCartera, setNewTaskCartera] = useState(false);
+  // Input de fase personalizada (texto libre, tope 40 caracteres)
+  const [newFaseNombre, setNewFaseNombre] = useState("");
+  // Resultado del último «Generar para todos los tipos», por fase: decirle al
+  // usuario cuántas agregó es lo único que distingue el botón de no hacer nada.
+  const [genTodosMsg, setGenTodosMsg] = useState<{ fase: string; texto: string } | null>(null);
+
+  // Al tope no se agregan más fases; quitar sí se puede siempre.
+  const topeFases = fasesSeleccionadas.length >= MAX_FASES_SELECCIONADAS;
+  // Fases fuera del catálogo: las que el usuario escribió en el input y las
+  // que un proyecto en edición trae desde la BD con cualquier nombre. Se
+  // comparan EXACTAS contra el catálogo a propósito: si de la BD llegara
+  // «madera» en minúscula, un match laxo la escondería detrás del chip
+  // «Madera» sin marcarlo — así sale como chip propio y no se pierde.
+  const fasesPersonalizadas = fasesSeleccionadas.filter((f) => !FASES_DISPONIBLES.includes(f));
 
   function toggleFase(fase: string) {
-    setFasesSeleccionadas((prev) =>
-      prev.includes(fase) ? prev.filter((f) => f !== fase) : [...prev, fase]
-    );
+    setFasesSeleccionadas((prev) => {
+      if (prev.includes(fase)) return prev.filter((f) => f !== fase);
+      // Tope blando de negocio: más fases dejan de ser cronograma.
+      if (prev.length >= MAX_FASES_SELECCIONADAS) return prev;
+      return [...prev, fase];
+    });
+  }
+
+  function addFasePersonalizada() {
+    // El input ya impone maxLength=40; el slice cubre valores que lleguen por
+    // otra vía (autocompletado, pruebas).
+    const nombre = newFaseNombre.trim().slice(0, 40);
+    if (!nombre) return;
+    const lower = nombre.toLowerCase();
+    // Ya seleccionada (con cualquier grafía): no se duplica, solo se limpia.
+    if (fasesSeleccionadas.some((f) => f.toLowerCase() === lower)) {
+      setNewFaseNombre("");
+      return;
+    }
+    // Si coincide con el catálogo, se activa ESE chip: escribir «pintura»
+    // enciende «Pintura» en vez de crear una fase gemela con otra grafía.
+    const delCatalogo = FASES_DISPONIBLES.find((f) => f.toLowerCase() === lower);
+    const aAgregar = delCatalogo ?? nombre;
+    setFasesSeleccionadas((prev) => {
+      if (prev.length >= MAX_FASES_SELECCIONADAS) return prev;
+      if (prev.some((f) => f.toLowerCase() === aAgregar.toLowerCase())) return prev;
+      return [...prev, aAgregar];
+    });
+    setNewFaseNombre("");
   }
 
   function toggleCollapse(fase: string) {
@@ -172,13 +212,17 @@ export default function WizardStep2({
     setTareas((prev) => prev.map((t) => t.id === id ? { ...t, lustro_excluido: !t.lustro_excluido } : t));
   }
 
+  // En TODAS las fases se trabaja por tipo cuando el proyecto tiene tipos de
+  // unidad — el gate «solo Madera» era el bug de la demo: en Obra Blanca solo
+  // se veía un tipo. El servidor ya replica una tarea con tipo únicamente en
+  // las unidades de ese tipo, en cualquier fase.
   function getSelectedTipoId(fase: string): string | undefined {
-    if (fase !== "Madera" || !tiposUnidad?.length) return undefined;
+    if (!tiposUnidad?.length) return undefined;
     return selectedTipoPerFase[fase] ?? tiposUnidad[0].id;
   }
 
   function getEspaciosForFase(fase: string): string[] {
-    if (fase !== "Madera" || !tiposUnidad?.length) return allEspacios;
+    if (!tiposUnidad?.length) return allEspacios;
     const tipoId = getSelectedTipoId(fase);
     const tipo = tiposUnidad.find((t) => t.id === tipoId);
     return tipo?.espacios ?? allEspacios;
@@ -216,13 +260,70 @@ export default function WizardStep2({
     const withIds: TareaInput[] = nuevas.map((t) => ({
       ...t,
       id: `sug-${counter++}`,
-      ...(fase === "Madera" && tipoId ? {
-        tipo_unidad_id: tipoId,
+      // El tipo activo se estampa en CUALQUIER fase; el gemelo de «Detallado
+      // y lustro» sigue siendo exclusivo de Madera.
+      ...(tipoId ? { tipo_unidad_id: tipoId } : {}),
+      ...(fase === "Madera" ? {
         lustro_dias: t.tiempo_acordado_dias,
         lustro_excluido: false,
       } : {}),
     }));
     setTareas((prev) => [...prev, ...withIds]);
+  }
+
+  /**
+   * Agrega las sugeridas de CADA tipo de unidad, sin abrir el panel: mismas
+   * plantillas, días escalados al metraje de cada tipo y `tipo_unidad_id` del
+   * tipo que toca. Se salta lo que ya existe con la regla del panel
+   * (fase+espacio+nombre+tipo), y también lo que existe SIN tipo: una tarea
+   * genérica ya se replica en todas las unidades, y la copia por tipo la
+   * duplicaría en el servidor.
+   */
+  function generarParaTodosLosTipos(fase: string) {
+    if (!tiposUnidad?.length) return;
+    let counter = Date.now();
+    let plantillasVistas = 0;
+    const nuevas: TareaInput[] = [];
+    const yaExiste = (espacio: string, nombre: string, tipoId: string) =>
+      tareas.some((t) =>
+        t.fase === fase && t.espacio === espacio && t.nombre === nombre
+        && (t.tipo_unidad_id === tipoId || !t.tipo_unidad_id))
+      || nuevas.some((t) => t.espacio === espacio && t.nombre === nombre && t.tipo_unidad_id === tipoId);
+    for (const tipo of tiposUnidad) {
+      for (const espacio of tipo.espacios) {
+        for (const s of plantillasSugeridas(fase, espacio, tareasAprendidas)) {
+          plantillasVistas++;
+          if (yaExiste(espacio, s.nombre, tipo.id)) continue;
+          const dias = escalarDiasPorMetraje(s.tiempo_acordado_dias, espacio, tipo);
+          nuevas.push({
+            id: `sug-${counter++}`,
+            fase,
+            subfase: s.subfase,
+            espacio,
+            nombre: s.nombre,
+            tiempo_acordado_dias: dias,
+            codigo_referencia: s.codigo_referencia,
+            marca_linea: s.marca_linea,
+            componentes: s.componentes,
+            precio: s.precio,
+            tipo_unidad_id: tipo.id,
+            ...(fase === "Madera" ? { lustro_dias: dias, lustro_excluido: false } : {}),
+          });
+        }
+      }
+    }
+    if (nuevas.length > 0) setTareas((prev) => [...prev, ...nuevas]);
+    // Tres finales distintos y los tres verdaderos: decir «ya existen» cuando
+    // la fase no tiene plantillas mandaria al usuario a buscar tareas que no
+    // estan en ninguna parte.
+    setGenTodosMsg({
+      fase,
+      texto: nuevas.length > 0
+        ? `Se agregaron ${nuevas.length} tareas sugeridas repartidas entre ${tiposUnidad.length} tipos.`
+        : plantillasVistas > 0
+          ? "No se agregó ninguna tarea: las sugeridas ya existen en todos los tipos."
+          : "Esta fase no tiene tareas sugeridas. Agrégalas manualmente o con la plantilla Excel.",
+    });
   }
 
   function openAddForm(fase: string) {
@@ -255,6 +356,7 @@ export default function WizardStep2({
     if (!newTaskEspacio || !newTaskNombre.trim()) return;
     const id = `custom-${Date.now()}`;
     const isMadera = fase === "Madera";
+    const tipoId = getSelectedTipoId(fase);
     setTareas((prev) => [...prev, {
       id,
       fase,
@@ -263,8 +365,10 @@ export default function WizardStep2({
       nombre: newTaskNombre.trim(),
       tiempo_acordado_dias: newTaskDias,
       precio: newTaskPrecio,
+      // La tarea manual nace en el tipo activo de la pestaña, en cualquier
+      // fase; los componentes y el lustro siguen siendo solo de Madera.
+      ...(tipoId ? { tipo_unidad_id: tipoId } : {}),
       ...(isMadera ? {
-        tipo_unidad_id: getSelectedTipoId(fase),
         tiene_estructura: newTaskEstructura,
         tiene_nave: newTaskNave,
         tiene_chapa: newTaskChapa,
@@ -342,21 +446,68 @@ export default function WizardStep2({
       <div className="mb-6">
         <h3 className="font-bold text-slate-800 text-sm mb-3">Fases del proyecto</h3>
         <div className="flex flex-wrap gap-2">
-          {FASES_DISPONIBLES.map((fase) => (
-            <button
+          {FASES_DISPONIBLES.map((fase) => {
+            const activa = fasesSeleccionadas.includes(fase);
+            return (
+              <button
+                key={fase}
+                onClick={() => toggleFase(fase)}
+                disabled={!activa && topeFases}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  activa
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 disabled:opacity-40 disabled:hover:border-slate-200"
+                }`}
+              >
+                {activa && <Check className="w-3 h-3 inline mr-1" />}
+                {fase}
+              </button>
+            );
+          })}
+          {/* Fases personalizadas: siempre activas (existir = estar
+              seleccionada) y con su boton de quitar. Aqui caen tambien las
+              fases de un proyecto en edicion que no esten en el catalogo. */}
+          {fasesPersonalizadas.map((fase) => (
+            <span
               key={fase}
-              onClick={() => toggleFase(fase)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                fasesSeleccionadas.includes(fase)
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-              }`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border bg-blue-600 text-white border-blue-600"
             >
-              {fasesSeleccionadas.includes(fase) && <Check className="w-3 h-3 inline mr-1" />}
+              <Check className="w-3 h-3" />
               {fase}
-            </button>
+              <button
+                onClick={() => toggleFase(fase)}
+                aria-label={`Quitar fase ${fase}`}
+                className="ml-0.5 text-blue-200 hover:text-white cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
           ))}
         </div>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <input
+            value={newFaseNombre}
+            maxLength={40}
+            onChange={(e) => setNewFaseNombre(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFasePersonalizada(); } }}
+            placeholder="Agregar fase personalizada"
+            disabled={topeFases}
+            className="w-56 px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 disabled:opacity-50"
+          />
+          <button
+            onClick={addFasePersonalizada}
+            disabled={topeFases || !newFaseNombre.trim()}
+            className="inline-flex items-center gap-1.5 text-blue-600 bg-blue-50 border border-blue-200 hover:bg-blue-100 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer disabled:opacity-50"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Agregar fase
+          </button>
+        </div>
+        {topeFases && (
+          <p className="text-[11px] text-amber-700 mt-2">
+            Máximo {MAX_FASES_SELECCIONADAS} fases: con más, el plan deja de ser un cronograma. Quita una para agregar otra.
+          </p>
+        )}
       </div>
 
       {/* Cronograma planeado: quien pone cada fecha */}
@@ -483,10 +634,16 @@ export default function WizardStep2({
         const faseTareas = tareas.filter((t) => t.fase === fase);
         const isCollapsed = collapsedFases[fase] ?? false;
         const isMadera = fase === "Madera";
-        const selectedTipoId = isMadera ? getSelectedTipoId(fase) : undefined;
+        const selectedTipoId = getSelectedTipoId(fase);
+        const selectedTipo = tiposUnidad?.find((t) => t.id === selectedTipoId);
         const espaciosForFase = getEspaciosForFase(fase);
-        const displayTareas = isMadera && selectedTipoId
-          ? faseTareas.filter((t) => t.tipo_unidad_id === selectedTipoId)
+        // Con tipos, la lista se filtra por el tipo activo EN CUALQUIER FASE.
+        // Las tareas SIN tipo de las fases no-Madera (genéricas: el servidor
+        // las replica en todas las unidades, y así rehidratan los proyectos
+        // viejos) se enseñan bajo todos los tipos — ocultarlas al filtrar las
+        // volvería ineditables. En Madera toda tarea lleva tipo.
+        const displayTareas = selectedTipoId
+          ? faseTareas.filter((t) => t.tipo_unidad_id === selectedTipoId || (!isMadera && !t.tipo_unidad_id))
           : faseTareas;
         // La ventana que el reparto le dio a ESTA fase. En AUTOMATICO es la
         // propuesta del sistema; en los otros dos, lo que escribio el usuario
@@ -575,6 +732,17 @@ export default function WizardStep2({
                     <Sparkles className="w-3.5 h-3.5" />
                     Generar sugeridas
                   </button>
+                  {/* Con un solo tipo el boton seria un duplicado confuso de
+                      «Generar sugeridas»; aparece cuando hay entre que iterar. */}
+                  {tiposUnidad && tiposUnidad.length > 1 && (
+                    <button
+                      onClick={() => generarParaTodosLosTipos(fase)}
+                      className="inline-flex items-center gap-1.5 text-violet-700 bg-violet-50 border border-violet-200 hover:bg-violet-100 font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generar para todos los tipos
+                    </button>
+                  )}
                   <button
                     onClick={() => openAddForm(addFormOpenFase === fase ? "" : fase)}
                     className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs cursor-pointer"
@@ -593,12 +761,22 @@ export default function WizardStep2({
                   )}
                 </div>
 
-                {/* Tipo tabs for Madera */}
-                {isMadera && tiposUnidad && tiposUnidad.length > 0 && (
+                {/* Resultado del ultimo «Generar para todos los tipos» */}
+                {genTodosMsg?.fase === fase && (
+                  <p className="text-[11px] text-violet-700 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2 mb-4">
+                    {genTodosMsg.texto}
+                  </p>
+                )}
+
+                {/* Pestañas de tipo de unidad: en TODAS las fases */}
+                {tiposUnidad && tiposUnidad.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-4">
                     {tiposUnidad.map((tipo) => {
                       const isSelected = selectedTipoId === tipo.id;
-                      const count = faseTareas.filter((t) => t.tipo_unidad_id === tipo.id).length;
+                      // El numero del chip cuadra con lo que se ve al abrirlo:
+                      // en fases no-Madera las genericas sin tipo cuentan en
+                      // todos, porque en todos se enseñan.
+                      const count = faseTareas.filter((t) => t.tipo_unidad_id === tipo.id || (!isMadera && !t.tipo_unidad_id)).length;
                       return (
                         <button
                           key={tipo.id}
@@ -643,6 +821,7 @@ export default function WizardStep2({
                     onClose={() => setSuggestionsOpenFase(null)}
                     tareasAprendidas={tareasAprendidas}
                     tipoUnidadId={selectedTipoId}
+                    tipoUnidad={selectedTipo}
                     muestraEconomia={muestraEconomia}
                   />
                 )}
@@ -652,9 +831,9 @@ export default function WizardStep2({
                   <div className={`${isMadera ? "bg-violet-50 border-violet-200" : "bg-blue-50 border-blue-200"} border rounded-xl p-4 mb-4`}>
                     <h4 className="text-sm font-bold text-slate-800 mb-3">
                       Nueva tarea - {fase}
-                      {isMadera && selectedTipoId && tiposUnidad && (
+                      {selectedTipo && (
                         <span className="ml-2 text-xs font-medium text-violet-600">
-                          ({tiposUnidad.find((t) => t.id === selectedTipoId)?.nombre})
+                          ({selectedTipo.nombre})
                         </span>
                       )}
                     </h4>
@@ -880,6 +1059,9 @@ export default function WizardStep2({
                     <div className="border border-slate-100 rounded-xl overflow-hidden">
                       <div className="px-4 py-2 bg-slate-50 text-xs font-semibold text-slate-600 border-b border-slate-100">
                         {displayTareas.length} tarea{displayTareas.length !== 1 ? "s" : ""} en {fase}
+                        {selectedTipo && (
+                          <span className="ml-1 font-medium text-slate-400">— {selectedTipo.nombre}</span>
+                        )}
                       </div>
                       <div className="max-h-[28rem] overflow-y-auto">
                         {renderGroupedTasks(displayTareas, renderInstalacionRow)}
@@ -890,8 +1072,8 @@ export default function WizardStep2({
 
                 {displayTareas.length === 0 && (
                   <p className="text-xs text-slate-400 text-center py-4">
-                    {isMadera && selectedTipoId && tiposUnidad
-                      ? `No hay tareas para ${tiposUnidad.find((t) => t.id === selectedTipoId)?.nombre ?? "este tipo"}. Genera sugeridas o agrega manualmente.`
+                    {selectedTipo
+                      ? `No hay tareas para ${selectedTipo.nombre}. Genera sugeridas o agrega manualmente.`
                       : "No hay tareas en esta fase. Genera sugeridas, agrega manualmente o sube una plantilla Excel."}
                   </p>
                 )}

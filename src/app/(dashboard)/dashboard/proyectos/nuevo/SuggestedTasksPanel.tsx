@@ -4,10 +4,55 @@ import { useState, useMemo } from "react";
 import { Check, X } from "lucide-react";
 import { getTareasSugeridas } from "@/lib/task-templates";
 import type { TaskTemplate } from "@/lib/task-templates";
-import type { TareaInput } from "./wizard-types";
+import type { TareaInput, TipoUnidadInput } from "./wizard-types";
+import { areaTipica } from "@/lib/estimar-presupuesto";
 
 interface SuggestedTask extends TaskTemplate {
   espacio: string;
+}
+
+/**
+ * Mezcla las plantillas estáticas con las aprendidas de la constructora para
+ * una (fase, espacio), sin duplicar por nombre. Es LA definición de «tareas
+ * sugeridas»: la usa este panel y el botón «Generar para todos los tipos» de
+ * WizardStep2 — si divergieran, ese botón agregaría tareas que el panel no
+ * enseña, o al revés.
+ */
+export function plantillasSugeridas(
+  fase: string,
+  espacio: string,
+  tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>,
+): TaskTemplate[] {
+  const estaticas = getTareasSugeridas(fase, espacio);
+  const aprendidas = tareasAprendidas?.[fase]?.[espacio] ?? [];
+  const vistas = new Set(estaticas.map((t) => t.nombre));
+  return [...estaticas, ...aprendidas.filter((t) => !vistas.has(t.nombre))];
+}
+
+/**
+ * Escala los días de una plantilla al metraje REAL del espacio en un tipo de
+ * unidad: un Tipo A de 100 m² no puede llevar los mismos días que un B de
+ * 62 m². Regla, en orden:
+ *  1. metraje del espacio en el tipo (`metrajes_espacios`);
+ *  2. si no hay, `metraje_total` repartido a partes iguales entre sus espacios;
+ *  3. si tampoco, no se escala (los días de la plantilla ya son el estimado).
+ * El factor se limita a [0.5, 3]: un metraje absurdo (un dedazo en el paso 1)
+ * no puede convertir 2 días en 40. Y nunca baja de 1 día — no existen tareas
+ * de cero días en el cronograma.
+ */
+export function escalarDiasPorMetraje(
+  diasPlantilla: number,
+  espacio: string,
+  tipo?: TipoUnidadInput,
+): number {
+  if (!tipo) return diasPlantilla;
+  let metraje = tipo.metrajes_espacios?.[espacio];
+  if ((metraje == null || metraje <= 0) && tipo.metraje_total && tipo.metraje_total > 0 && tipo.espacios.length > 0) {
+    metraje = tipo.metraje_total / tipo.espacios.length;
+  }
+  if (metraje == null || metraje <= 0) return diasPlantilla;
+  const factor = Math.min(3, Math.max(0.5, metraje / areaTipica(espacio)));
+  return Math.max(1, Math.round(diasPlantilla * factor));
 }
 
 interface SuggestedTasksPanelProps {
@@ -18,6 +63,12 @@ interface SuggestedTasksPanelProps {
   onClose: () => void;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
   tipoUnidadId?: string;
+  /**
+   * El OBJETO del tipo activo (no solo su id): hace falta para escalar los
+   * días de las plantillas con sus metrajes. Opcional porque un proyecto de
+   * zonas comunes no trabaja por tipos.
+   */
+  tipoUnidad?: TipoUnidadInput;
   // Obligatoria a proposito: sin defecto no hay forma de olvidarse de pasarla
   // y dejar el precio sugerido a la vista de una constructora.
   muestraEconomia: boolean;
@@ -31,46 +82,51 @@ export default function SuggestedTasksPanel({
   onClose,
   tareasAprendidas,
   tipoUnidadId,
+  tipoUnidad,
   muestraEconomia,
 }: SuggestedTasksPanelProps) {
   // Build grouped suggestions merging static templates + learned tasks
   const grouped = useMemo(() => {
     const result: { espacio: string; tareas: SuggestedTask[] }[] = [];
     for (const espacio of espacios) {
-      const staticTemplates = getTareasSugeridas(fase, espacio);
-      const learnedTemplates = tareasAprendidas?.[fase]?.[espacio] ?? [];
-
-      // Merge: static first, then learned that don't duplicate by nombre
-      const seen = new Set(staticTemplates.map((t) => t.nombre));
-      const merged = [
-        ...staticTemplates,
-        ...learnedTemplates.filter((t) => !seen.has(t.nombre)),
-      ];
-
+      const merged = plantillasSugeridas(fase, espacio, tareasAprendidas);
       if (merged.length > 0) {
         result.push({
           espacio,
-          tareas: merged.map((t) => ({ ...t, espacio })),
+          // Los días se enseñan y se agregan YA escalados al metraje del tipo
+          // activo: el usuario decide sobre el número que de verdad se va a
+          // guardar, no sobre el genérico de la plantilla. Siguen siendo
+          // editables una vez agregados, como siempre.
+          tareas: merged.map((t) => ({
+            ...t,
+            espacio,
+            tiempo_acordado_dias: escalarDiasPorMetraje(t.tiempo_acordado_dias, espacio, tipoUnidad),
+          })),
         });
       }
     }
     return result;
-  }, [fase, espacios, tareasAprendidas]);
+  }, [fase, espacios, tareasAprendidas, tipoUnidad]);
 
   const allSuggestions = useMemo(() => grouped.flatMap((g) => g.tareas), [grouped]);
+
+  // Una sugerida «ya existe» si está en el MISMO tipo o si está SIN tipo: la
+  // tarea genérica ya se replica en todas las unidades (proyectos viejos
+  // rehidratan así), y agregarle la copia por tipo la duplicaría en el
+  // servidor para las unidades de ese tipo.
+  const yaExiste = (s: SuggestedTask): boolean =>
+    existingTareas.some(
+      (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
+        && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId || !t.tipo_unidad_id)
+    );
 
   // Track selected by a composite key "espacio::nombre"
   const [selected, setSelected] = useState<Set<string>>(() => {
     // Pre-select all that are not already in existingTareas
     const keys = new Set<string>();
     for (const s of allSuggestions) {
-      const key = `${s.espacio}::${s.nombre}`;
-      const alreadyExists = existingTareas.some(
-        (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
-          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
-      );
-      if (!alreadyExists) {
-        keys.add(key);
+      if (!yaExiste(s)) {
+        keys.add(`${s.espacio}::${s.nombre}`);
       }
     }
     return keys;
@@ -116,11 +172,7 @@ export default function SuggestedTasksPanel({
       const key = `${s.espacio}::${s.nombre}`;
       if (!selected.has(key)) continue;
       // Skip duplicates
-      const alreadyExists = existingTareas.some(
-        (t) => t.fase === fase && t.espacio === s.espacio && t.nombre === s.nombre
-          && (!tipoUnidadId || t.tipo_unidad_id === tipoUnidadId)
-      );
-      if (alreadyExists) continue;
+      if (yaExiste(s)) continue;
       tareasToAdd.push({
         fase,
         subfase: s.subfase,
@@ -190,10 +242,7 @@ export default function SuggestedTasksPanel({
                 {tareas.map((t) => {
                   const key = `${t.espacio}::${t.nombre}`;
                   const isSelected = selected.has(key);
-                  const isDuplicate = existingTareas.some(
-                    (ex) => ex.fase === fase && ex.espacio === t.espacio && ex.nombre === t.nombre
-                      && (!tipoUnidadId || ex.tipo_unidad_id === tipoUnidadId)
-                  );
+                  const isDuplicate = yaExiste(t);
                   return (
                     <label
                       key={key}

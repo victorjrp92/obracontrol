@@ -47,6 +47,7 @@ _Última actualización: septiembre 2026._
 ### Inicio de sesión
 
 - Ingresa con email y contraseña, o usa **Google** para acceso rápido.
+- El campo de contraseña trae un **ojito** para ver lo que escribiste — útil con contraseñas largas o dictadas.
 - El sistema te redirige automáticamente a tu panel según tu rol.
 
 ### Roles disponibles
@@ -319,8 +320,12 @@ Ve **solo las obras que un administrador le asignó**, y dentro de cada una: las
 
 - **Nombre del proyecto** (mínimo 3 caracteres).
 - **Número de registro** (identificador, formato libre).
+
+> **Tu avance no se pierde.** El asistente guarda un borrador local mientras llenas el formulario. Si cierras la pestaña o se va la luz, al volver te pregunta: **«Retomar borrador»** o **«Empezar de nuevo»** — nunca restaura solo. El borrador es tuyo (no lo ve otro usuario del mismo computador), se elimina al crear el proyecto y expira a los 7 días.
+
 - **Tipo / subtipo** de obra.
 - **Cliente** (opcional) y **contratista por defecto** (opcional, se asigna a las tareas sin asignación específica).
+- **Contratistas del proyecto** (opcional): un multi-selección para armar el equipo de una vez. Al crear un proyecto vienen preseleccionados los contratistas que tuvieron tareas en tus últimos 5 proyectos. Esta lista **no asigna tareas**: solo deja al equipo listo en el paso de asignación, donde la asignación sigue siendo tuya. El **contratista por defecto** sigue siendo una elección tuya: no se completa solo, porque ese campo sí asigna (recibe todas las tareas sin asignación específica).
 - **Presupuesto total** y **metraje** (opcionales).
 - **Ubicación** de la obra (para que aparezca en el mapa de obras).
 - **Días hábiles por semana** (1–7, por defecto 5).
@@ -331,7 +336,9 @@ Ve **solo las obras que un administrador le asignó**, y dentro de cada una: las
 - **Torres / edificios**: nombre, número de pisos, y si es zona común.
 - **Tipos de unidad** (ej. "Tipo A - 65m²", "Penthouse") con los **espacios** que contienen (cocina, baño, habitación, sala…).
 - **Distribución**: cuántas unidades de cada tipo hay por piso.
+- **Detalle por piso — ahora abierto por defecto.** Ahí se renombra cada apartamento y se le cambia el tipo y el sentido; antes estaba escondido tras un clic y parecía que no se podía. En torres de hasta 10 pisos los pisos vienen expandidos; con más, colapsados. Si cambias la estructura (pisos, unidades por piso o distribución), el detalle se rehace al instante — y si habías editado nombres a mano, un aviso te dice que se reiniciaron.
 - **Metraje por espacio** (opcional). Al activar **«Incluir m²»** cada tipo de unidad lleva sus m² totales y, además, los m² de cada espacio.
+- **Totales de zonas comunes.** Con m² activados, al pie del bloque de zonas verás la suma («Zonas comunes: 5 · 320 m² en total»), y la línea del total del paso incluye cuántas zonas comunes seleccionaste. Solo cuentan las zonas seleccionadas.
 
 **Los m² de los espacios no pueden pasarse del total del tipo.** Debajo de los espacios verás siempre cuánto llevas repartido —«48 de 65 m² repartidos»—, y si te pasas, el aviso se pone en rojo, dice por cuánto y **el paso no deja continuar** hasta que cuadre.
 
@@ -357,15 +364,21 @@ Antes de pasar a las tareas eliges **quién pone el calendario**. Son tres forma
 
 ### Paso 3: Tareas
 
+**Fases del proyecto.** Ya no son solo dos: además de **Madera** y **Obra Blanca**, puedes activar las fases del catálogo constructivo (Preliminares/Demolición, Obra gris/Estructura, Instalaciones eléctricas e hidrosanitarias, Repello/Estuco, Pintura, Pisos/Enchapes, Cocina/Closets, Aparatos y grifería, Detalles y aseo) **y agregar fases propias** escribiendo su nombre (Cimentación, Fachada, Urbanismo…). Máximo 15 fases por proyecto. Madera conserva su comportamiento especial (subfases de Instalación y Detallado/Lustro, componentes).
+
+**Cada fase trabaja por tipo de apartamento.** Las pestañas de tipo (Tipo A, Tipo B…) ahora aparecen en **todas** las fases, no solo en Madera: las tareas se generan y se editan por tipo, y cada una aplica únicamente a las unidades de su tipo. Las tareas sin tipo (de proyectos anteriores) siguen aplicando a todas las unidades.
+
+**Los días sugeridos se ajustan al tamaño del tipo.** Si activaste los m², una misma tarea sugiere más días en el Tipo A de 100 m² que en el Tipo B de 62 m² — el cálculo usa el metraje del espacio de ese tipo. Siempre puedes editar los días a mano.
+
 Define las tareas que se ejecutarán en cada unidad. Puedes:
 
-- Usar **tareas sugeridas** (plantillas que el sistema aprende de tus proyectos anteriores).
+- Usar **tareas sugeridas** (plantillas que el sistema aprende de tus proyectos anteriores), tipo por tipo o con **«Generar para todos los tipos»** de una sola vez.
 - **Agregar tareas manualmente**, indicando por cada una: fase, **subfase** (ej. Instalación / Detallado y Lustro), espacio, nombre, tipo de unidad (si aplica), tiempo acordado en días y **precio** (COP, opcional).
 - **Importar desde Excel** con la plantilla de 9 columnas (Fase, Subfase, Espacio, Nombre de tarea, Días acordados, Valor COP, Marca/Línea, Componentes, Notas).
 
 ### Paso 4: Asignar contratistas y crear
 
-El panel de asignación es **granular**:
+El panel de asignación es **granular**. Si elegiste **contratistas del proyecto** en el paso 1, cada fase llega con ese equipo ya cargado en su lista — pero solo en las fases donde no habías puesto a nadie, y sin asignar ninguna tarea:
 
 1. Selecciona un **contratista**.
 2. Filtra el alcance con chips multi-selección: **torres → pisos → apartamentos**.

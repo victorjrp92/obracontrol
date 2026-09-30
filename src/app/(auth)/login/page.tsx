@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import { login, loginConGoogle } from "../actions";
 import AuthRightPanel from "@/components/auth/AuthRightPanel";
+import PasswordInput from "@/components/auth/PasswordInput";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { getHomePathForRole } from "@/lib/access";
@@ -88,18 +89,10 @@ export default async function LoginPage({ searchParams }: Props) {
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 text-slate-900 placeholder:text-slate-400"
-                  required
-                />
-              </div>
+              {/* Campo con «ojito» para ver lo escrito. Es un componente
+                  cliente NO controlado: el formulario es una Server Action y
+                  sigue leyendo el valor del FormData por su `name`. */}
+              <PasswordInput id="password" name="password" autoComplete="current-password" />
             </div>
 
             <button

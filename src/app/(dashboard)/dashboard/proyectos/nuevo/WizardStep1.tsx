@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import {
-  ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload,
+  ArrowRight, Check, ChevronDown, ChevronRight, Download, Plus, Ruler, Trash2, Trees, Upload, X,
 } from "lucide-react";
 import { ESPACIOS_SUGERIDOS, ZONAS_COMUNES_SUGERIDAS } from "@/lib/task-templates";
 import { excesoMetraje, excesosMetraje, formatearM2, mensajeExceso, sumaEspacios } from "@/lib/metraje";
@@ -19,6 +19,13 @@ interface WizardStep1Props {
   contratistaDefaultId: string;
   setContratistaDefaultId: (v: string) => void;
   contratistas: Contratista[];
+  /** Equipo del proyecto: siembra el pool del paso 3, NO asigna tareas. */
+  contratistasProyecto: string[];
+  onToggleContratistaProyecto: (id: string) => void;
+  /** true si la lista arranco preseleccionada con los habituales (solo alta). */
+  preseleccionHabituales: boolean;
+  /** true mientras el default lo haya puesto el sistema y no el admin. */
+  isEditMode: boolean;
   clienteId: string;
   setClienteId: (v: string) => void;
   clientes: { id: string; nombre: string }[];
@@ -53,6 +60,9 @@ export default function WizardStep1({
   numeroRegistro, setNumeroRegistro,
   contratistaDefaultId, setContratistaDefaultId,
   contratistas,
+  contratistasProyecto, onToggleContratistaProyecto,
+  preseleccionHabituales,
+  isEditMode,
   clienteId, setClienteId,
   clientes,
   subtipo, setSubtipo,
@@ -71,8 +81,16 @@ export default function WizardStep1({
   const [customSpaceInputs, setCustomSpaceInputs] = useState<Record<string, string>>({});
   const [zonaPersonalizada, setZonaPersonalizada] = useState("");
   const [numericStrings, setNumericStrings] = useState<Record<string, string>>({});
+  // Semantica INVERTIDA a proposito: sin entrada = ABIERTO. El detalle por
+  // piso escondia la edicion de unidades (renombrar apto, tipo, sentido viven
+  // ahi) y el piloto pidio «cambiar unidades» sin saber que ya se podia.
+  // Solo un `false` explicito (el admin lo colapso) lo cierra.
   const [detalleExpandido, setDetalleExpandido] = useState<Record<number, boolean>>({});
   const [pisosExpandidos, setPisosExpandidos] = useState<Record<string, boolean>>({});
+  // Aviso por torre de que un cambio estructural rehizo el detalle y piso
+  // ediciones manuales. Nunca se regenera en silencio: perder los nombres
+  // que el admin tecleo sin decirselo es peor que la regeneracion misma.
+  const [notaDetalleRegenerado, setNotaDetalleRegenerado] = useState<Record<number, boolean>>({});
   const excelInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // --- Tipo management ---
@@ -148,6 +166,24 @@ export default function WizardStep1({
   }
 
   // --- Edificio management ---
+
+  // Materializa el detalle por piso al montar, sin esperar el clic: con el
+  // bloque abierto por defecto, una torre sin detalle seria un titulo que
+  // dice «Ocultar» sobre nada. En EDICION no se corre: alli el detalle no
+  // viene precargado y generarlo al entrar haria que el payload de guardado
+  // mandara nombres sinteticos que pisan los nombres reales de las unidades
+  // en BD — abrir la ficha para cambiar un dato no puede renombrar la obra.
+  useEffect(() => {
+    if (isEditMode) return;
+    if (edificios.every((e) => e.unidades_detalle)) return;
+    setEdificios(edificios.map((e) =>
+      e.unidades_detalle ? e : { ...e, unidades_detalle: generateUnidadesDetalle(e) }
+    ));
+    // Solo al montar: despues de esto, cada cambio estructural regenera su
+    // propio detalle en el momento (ver `regenerarDetalle`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function addEdificio() {
     const defaultPisos = 5;
     const defaultUpiso = 4;
@@ -156,11 +192,46 @@ export default function WizardStep1({
     const half = Math.floor(perTipo / 2);
     const dist: Record<string, import("./wizard-types").DistribucionSentido> = {};
     tiposUnidad.forEach((t) => { dist[t.id] = { derecha: half, izquierda: perTipo - half }; });
-    setEdificios([...edificios, { nombre: `Torre ${edificios.length + 1}`, pisos: defaultPisos, unidades_por_piso: defaultUpiso, distribucion: dist }]);
+    const nueva: EdificioInput = { nombre: `Torre ${edificios.length + 1}`, pisos: defaultPisos, unidades_por_piso: defaultUpiso, distribucion: dist };
+    // La torre nace con su detalle generado: con el bloque abierto por
+    // defecto, agregarla sin detalle dejaria un hueco visual.
+    nueva.unidades_detalle = generateUnidadesDetalle(nueva);
+    setEdificios([...edificios, nueva]);
+  }
+
+  /**
+   * Al borrar la torre `removed`, todo estado indexado por POSICION se corre
+   * una casilla. Sin reindexar, el colapso o el aviso de una torre se queda
+   * pegado a la que hereda su indice — y con el detalle abierto por defecto,
+   * un `false` huerfano colapsa una torre que el admin nunca toco.
+   */
+  function reindexTrasBorrar<T>(m: Record<number, T>, removed: number): Record<number, T> {
+    const out: Record<number, T> = {};
+    for (const [k, v] of Object.entries(m)) {
+      const i = Number(k);
+      if (i === removed) continue;
+      out[i > removed ? i - 1 : i] = v;
+    }
+    return out;
+  }
+
+  /** Igual que `reindexTrasBorrar` pero para claves compuestas `edIdx-piso`. */
+  function reindexPisosTrasBorrar(m: Record<string, boolean>, removed: number): Record<string, boolean> {
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(m)) {
+      const sep = k.indexOf("-");
+      const i = Number(k.slice(0, sep));
+      if (i === removed) continue;
+      out[i > removed ? `${i - 1}${k.slice(sep)}` : k] = v;
+    }
+    return out;
   }
 
   function removeEdificio(idx: number) {
     setEdificios(edificios.filter((_, i) => i !== idx));
+    setDetalleExpandido((prev) => reindexTrasBorrar(prev, idx));
+    setNotaDetalleRegenerado((prev) => reindexTrasBorrar(prev, idx));
+    setPisosExpandidos((prev) => reindexPisosTrasBorrar(prev, idx));
   }
 
   function updateEdificioNombre(idx: number, value: string) {
@@ -202,17 +273,47 @@ export default function WizardStep1({
     void realValue;
   }
 
-  function updateEdificioPisos(idx: number, pisos: number) {
+  /**
+   * ¿El detalle actual difiere del que se generaria en automatico? Si
+   * difiere, alguien lo edito a mano (renombro aptos, cambio tipos o
+   * sentidos) o vino de Excel/BD — y regenerarlo destruye ese trabajo, asi
+   * que hay que avisarlo. La comparacion por JSON es barata a esta escala
+   * (pisos x uds por torre) y las claves numericas serializan en el mismo
+   * orden en ambos lados.
+   */
+  function detalleTieneEdiciones(e: EdificioInput): boolean {
+    if (!e.unidades_detalle) return false;
+    return JSON.stringify(e.unidades_detalle) !== JSON.stringify(generateUnidadesDetalle(e));
+  }
+
+  /**
+   * Aplica un cambio ESTRUCTURAL (pisos, uds/piso, distribucion) y rehace el
+   * detalle por piso en el mismo acto. Antes el cambio dejaba
+   * `unidades_detalle: undefined` y el hueco se rellenaba al reabrir; con el
+   * detalle abierto por defecto ese hueco quedaria a la vista. Si el detalle
+   * anterior tenia ediciones a mano, se enciende el aviso de la torre — la
+   * regeneracion es inevitable, hacerla en silencio no.
+   */
+  function regenerarDetalle(idx: number, cambios: Partial<EdificioInput>) {
+    const anterior = edificios[idx];
+    const actualizado = { ...anterior, ...cambios };
     const next = [...edificios];
-    next[idx] = { ...next[idx], pisos, unidades_detalle: undefined };
+    next[idx] = { ...actualizado, unidades_detalle: generateUnidadesDetalle(actualizado) };
     setEdificios(next);
+    if (detalleTieneEdiciones(anterior)) {
+      setNotaDetalleRegenerado((prev) => ({ ...prev, [idx]: true }));
+    }
+  }
+
+  function updateEdificioPisos(idx: number, pisos: number) {
+    regenerarDetalle(idx, { pisos });
   }
 
   function updateEdificioDistribucion(idx: number, tipoId: string, sentido: "derecha" | "izquierda", count: number) {
-    const next = [...edificios];
-    const prev = next[idx].distribucion[tipoId] ?? { derecha: 0, izquierda: 0 };
-    next[idx] = { ...next[idx], distribucion: { ...next[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } }, unidades_detalle: undefined };
-    setEdificios(next);
+    const prev = edificios[idx].distribucion[tipoId] ?? { derecha: 0, izquierda: 0 };
+    regenerarDetalle(idx, {
+      distribucion: { ...edificios[idx].distribucion, [tipoId]: { ...prev, [sentido]: count } },
+    });
   }
 
   // --- Zonas comunes ---
@@ -233,6 +334,14 @@ export default function WizardStep1({
   // --- Computed ---
   const totalUnidades = edificios.reduce((acc, e) => {
     return acc + e.pisos * getUnidadesPorPiso(e);
+  }, 0);
+
+  // Suma SOLO de las zonas seleccionadas: un m² huerfano de una zona
+  // deseleccionada puede seguir vivo en `metrosZonas` (nadie lo limpia al
+  // soltar el chip) y no debe inflar el total que ve el usuario.
+  const totalM2Zonas = zonasSeleccionadas.reduce((acc, z) => {
+    const m = metrosZonas[z];
+    return acc + (Number.isFinite(m) ? m : 0);
   }, 0);
 
   function generateUnidadesDetalle(e: EdificioInput): Record<number, UnidadDetailInput[]> {
@@ -265,10 +374,23 @@ export default function WizardStep1({
     return result;
   }
 
+  /**
+   * Abierto = no colapsado explicitamente Y con detalle materializado. La
+   * segunda condicion cubre EDICION: alli el detalle no se genera al montar
+   * (ver el efecto de arriba), asi que la torre se muestra cerrada hasta que
+   * el admin la abre — y ese clic si genera, igual que siempre.
+   */
+  function esDetalleAbierto(e: EdificioInput, idx: number): boolean {
+    return detalleExpandido[idx] !== false && !!e.unidades_detalle;
+  }
+
   function toggleDetalleEdificio(idx: number) {
-    const next = { ...detalleExpandido, [idx]: !detalleExpandido[idx] };
-    setDetalleExpandido(next);
-    if (next[idx] && !edificios[idx].unidades_detalle) {
+    if (esDetalleAbierto(edificios[idx], idx)) {
+      setDetalleExpandido({ ...detalleExpandido, [idx]: false });
+      return;
+    }
+    setDetalleExpandido({ ...detalleExpandido, [idx]: true });
+    if (!edificios[idx].unidades_detalle) {
       const updated = [...edificios];
       updated[idx] = { ...updated[idx], unidades_detalle: generateUnidadesDetalle(updated[idx]) };
       setEdificios(updated);
@@ -277,7 +399,11 @@ export default function WizardStep1({
 
   function togglePisoExpandido(edIdx: number, piso: number) {
     const key = `${edIdx}-${piso}`;
-    setPisosExpandidos((prev) => ({ ...prev, [key]: !prev[key] }));
+    // El defecto por piso depende del tamano de la torre (<=10 pisos =
+    // expandido), asi que negar `prev[key]` a secas no basta: sin entrada
+    // previa hay que negar el DEFECTO, no `undefined`.
+    const defecto = (edificios[edIdx]?.pisos ?? 0) <= 10;
+    setPisosExpandidos((prev) => ({ ...prev, [key]: !(prev[key] ?? defecto) }));
   }
 
   function updateUnidadDetalle(edIdx: number, piso: number, uIdx: number, field: string, value: string) {
@@ -316,9 +442,7 @@ export default function WizardStep1({
   }
 
   function updateUnidadesPorPiso(idx: number, total: number) {
-    const updated = [...edificios];
-    updated[idx] = { ...updated[idx], unidades_por_piso: total, unidades_detalle: undefined };
-    setEdificios(updated);
+    regenerarDetalle(idx, { unidades_por_piso: total });
   }
 
   async function downloadDetalleExcel(idx: number) {
@@ -472,7 +596,47 @@ export default function WizardStep1({
               Se asignará automáticamente a las tareas del proyecto que no tengan contratista específico. Vinculado al proyecto {numeroRegistro || "(número)"}.
             </p>
           )}
+          {/* La nota de autocompletado va pegada al select del default: es
+              sobre ESE campo que el sistema tomo una decision visible. */}
         </div>
+
+        {/* Contratistas del proyecto: multi-select que arma el EQUIPO. No
+            asigna tareas — siembra el pool del paso 3, donde la asignacion
+            sigue siendo un acto explicito del admin. */}
+        {contratistas.length > 0 && (
+          <div className="sm:col-span-2">
+            <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+              Contratistas del proyecto
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {contratistas.map((c) => {
+                const sel = contratistasProyecto.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onToggleContratistaProyecto(c.id)}
+                    aria-pressed={sel}
+                    className={`px-2.5 py-1.5 rounded-full text-[11px] font-medium border transition-colors ${
+                      sel
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    {sel && <Check className="w-2.5 h-2.5 inline mr-0.5" />}
+                    {c.nombre}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              {preseleccionHabituales && !isEditMode
+                ? "Preseleccionamos a los que trabajaron en tus últimos proyectos. "
+                : ""}
+              Aquí solo armas el equipo del proyecto: la asignación de tareas se hace en el paso 3.
+            </p>
+          </div>
+        )}
 
         <div>
           <label className="text-sm font-medium text-slate-700 mb-1.5 block">Subtipo</label>
@@ -829,12 +993,12 @@ export default function WizardStep1({
                         onClick={() => toggleDetalleEdificio(idx)}
                         className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
                       >
-                        {detalleExpandido[idx] ? (
+                        {esDetalleAbierto(e, idx) ? (
                           <ChevronDown className="w-3.5 h-3.5" />
                         ) : (
                           <ChevronRight className="w-3.5 h-3.5" />
                         )}
-                        Ver detalle por piso
+                        {esDetalleAbierto(e, idx) ? "Ocultar detalle" : "Ver detalle"}
                       </button>
                       <button
                         type="button"
@@ -865,11 +1029,34 @@ export default function WizardStep1({
                       />
                     </div>
 
-                    {detalleExpandido[idx] && e.unidades_detalle && (
+                    {/* Aviso de regeneracion: vive FUERA del bloque colapsable
+                        para que se vea aunque el admin tenga el detalle
+                        cerrado — un aviso que solo aparece al abrir lo que ya
+                        se rehizo llega tarde. */}
+                    {notaDetalleRegenerado[idx] && (
+                      <div className="mt-2 flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200">
+                        <p className="flex-1 text-[11px] text-amber-800">
+                          Se rehizo el detalle por piso por el cambio de estructura; los nombres editados a mano se reiniciaron.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setNotaDetalleRegenerado((prev) => ({ ...prev, [idx]: false }))}
+                          aria-label="Descartar aviso"
+                          className="p-0.5 text-amber-700 hover:text-amber-900 flex-shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {esDetalleAbierto(e, idx) && e.unidades_detalle && (
                       <div className="mt-2 space-y-1">
                         {Array.from({ length: e.pisos }, (_, i) => i + 1).map((piso) => {
                           const pisoKey = `${idx}-${piso}`;
-                          const isOpen = pisosExpandidos[pisoKey];
+                          // Torres de hasta 10 pisos: todos los pisos
+                          // expandidos; mas de 10, colapsados para no hacer
+                          // una pared infinita. El clic del admin manda.
+                          const isOpen = pisosExpandidos[pisoKey] ?? (e.pisos <= 10);
                           const unidades = e.unidades_detalle?.[piso] ?? [];
                           return (
                             <div key={piso} className="rounded-lg border border-slate-200 bg-white">
@@ -954,6 +1141,12 @@ export default function WizardStep1({
                   }, 0);
                   return `${count} ${t.nombre}`;
                 }).join(", ")})</>
+              )}
+              {/* Las zonas comunes tambien son alcance de la obra: dejarlas
+                  fuera del total hacia parecer que no contaban. Solo las
+                  SELECCIONADAS — el catalogo de chips no es el proyecto. */}
+              {tieneZonasComunes && zonasSeleccionadas.length > 0 && (
+                <> · {zonasSeleccionadas.length} {zonasSeleccionadas.length === 1 ? "zona común" : "zonas comunes"}</>
               )}
             </p>
           </div>
@@ -1041,7 +1234,9 @@ export default function WizardStep1({
               </button>
             </div>
 
-            {zonasSeleccionadas.length > 0 && (
+            {/* El conteo simple solo cuando NO va a salir la linea con m² de
+                abajo: dos pies diciendo casi lo mismo es ruido. */}
+            {zonasSeleccionadas.length > 0 && !(metrosEnabled && totalM2Zonas > 0) && (
               <p className="text-xs text-slate-500 mt-2">
                 {zonasSeleccionadas.length} zona{zonasSeleccionadas.length !== 1 ? "s" : ""} seleccionada{zonasSeleccionadas.length !== 1 ? "s" : ""}
               </p>
@@ -1070,6 +1265,14 @@ export default function WizardStep1({
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Total de m² de las zonas SELECCIONADAS, al pie del bloque:
+                antes cada zona tenia su numero pero nada los sumaba. */}
+            {metrosEnabled && zonasSeleccionadas.length > 0 && totalM2Zonas > 0 && (
+              <p className="text-xs font-medium text-slate-600 mt-3">
+                Zonas comunes: {zonasSeleccionadas.length} · {totalM2Zonas.toLocaleString("es-CO", { maximumFractionDigits: 2 })} m² en total
+              </p>
             )}
           </div>
         )}

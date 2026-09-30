@@ -143,9 +143,10 @@ export async function getProyectoForEdit(
   // Cargamos una unidad representativa POR cada tipo y deduplicamos templates.
   // Tareas de Madera se etiquetan con tipo_unidad_id (local id) y se colapsan
   // las 2 subfases de DB en un único template (subfase=undefined, como las envía
-  // el wizard de creación). Tareas no-Madera se mantienen como plantillas únicas
-  // (sin tipo_unidad_id) si aparecen idénticas en todos los tipos; si solo
-  // aparecen en algunos, se etiquetan con el tipo correspondiente.
+  // el wizard de creación). Tareas no-Madera se colapsan a una plantilla única
+  // SIN tipo solo si aparecen IDÉNTICAS —campos incluidos— en todos los tipos
+  // (proyecto viejo con tarea genérica replicada); si difieren en algo o solo
+  // están en algunos tipos, se rehidratan POR TIPO igual que Madera.
   const tareas: TareaInput[] = [];
 
   // Por cada tipo, buscar la primera unidad de ese tipo con tareas
@@ -209,15 +210,29 @@ export async function getProyectoForEdit(
     porTipo.set(localId, lista);
   }
 
-  // Dedup cross-tipo para tareas no-Madera: si un mismo (fase, espacio, nombre,
-  // subfase) aparece en TODOS los tipos, lo conservamos sin tipo_unidad_id.
-  // Si aparece solo en algunos, mantenemos copia por tipo con su tag.
+  // Dedup cross-tipo para tareas no-Madera. La FIRMA incluye todo lo que el
+  // usuario puede variar POR TIPO (días, precio, referencia, marca,
+  // componentes), no solo la identidad (fase/espacio/nombre/subfase). Es lo
+  // que separa los dos mundos:
+  //  - Proyecto viejo (tarea genérica replicada): la misma tarea aparece
+  //    IDÉNTICA en todos los tipos → colapsa a una plantilla sin tipo, como
+  //    siempre. Al reguardar produce exactamente las mismas unidades.
+  //  - Proyecto nuevo (tareas por tipo, p. ej. días escalados por m² del
+  //    tipo): algún campo difiere entre tipos → se conserva UNA plantilla POR
+  //    TIPO, igual que Madera. Antes se colapsaba por identidad y el primer
+  //    tipo iterado pisaba los días de los demás: editar el proyecto le
+  //    borraba el escalado sin avisar.
+  // El caso «por tipo pero idéntico en todos» es indistinguible del genérico
+  // en la BD (la Tarea no guarda tipo) y colapsarlo es inocuo: replicar en
+  // todas las unidades y repetir por cada tipo crean las mismas filas.
+  const firmaDe = (t: TareaCargada): string =>
+    `${t.fase}|${t.espacio}|${t.nombre}|${t.subfase ?? ""}|${t.tiempo_acordado_dias}|${t.precio ?? ""}|${t.codigo_referencia ?? ""}|${t.marca_linea ?? ""}|${t.componentes ?? ""}`;
   const allLocalTipoIds = [...porTipo.keys()];
   const occurrences = new Map<string, Set<string>>();
   for (const [localId, lista] of porTipo) {
     for (const t of lista) {
       if (t.fase === "Madera") continue; // Madera siempre va por tipo
-      const k = `${t.fase}|${t.espacio}|${t.nombre}|${t.subfase ?? ""}`;
+      const k = firmaDe(t);
       const set = occurrences.get(k) ?? new Set<string>();
       set.add(localId);
       occurrences.set(k, set);
@@ -247,10 +262,10 @@ export async function getProyectoForEdit(
         });
         continue;
       }
-      const k = `${t.fase}|${t.espacio}|${t.nombre}|${t.subfase ?? ""}`;
+      const k = firmaDe(t);
       const presentes = occurrences.get(k);
       if (presentes && presentes.size === allLocalTipoIds.length) {
-        // Aparece en todos los tipos: incluir UNA vez sin tipo_unidad_id
+        // Firma idéntica en todos los tipos: incluir UNA vez sin tipo_unidad_id
         if (!inserted.has(k)) {
           inserted.add(k);
           tareas.push({
@@ -267,9 +282,14 @@ export async function getProyectoForEdit(
           });
         }
       } else {
-        // Solo en algunos tipos: incluir por tipo con etiqueta
+        // Difiere entre tipos (o solo existe en algunos): incluir por tipo.
+        // El id se queda como `db-<id>` SIN sufijo de tipo: cada tipo carga su
+        // propia unidad representativa, así que el id de BD ya es único, y
+        // `tareaVentanas` se rehidrata con la clave `db-<id>` — el sufijo
+        // viejo (`|tipoLocal`) hacía que la ventana planeada de estas tareas
+        // se perdiera en silencio al reabrir el asistente.
         tareas.push({
-          id: `${t.id}|${localId}`,
+          id: t.id,
           fase: t.fase,
           espacio: t.espacio,
           nombre: t.nombre,

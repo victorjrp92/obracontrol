@@ -28,6 +28,11 @@ interface WizardStep3Props {
   setPersonas: React.Dispatch<React.SetStateAction<PersonaProyectoInput[]>>;
   asignaciones: AsignacionOverride[];
   setAsignaciones: React.Dispatch<React.SetStateAction<AsignacionOverride[]>>;
+  // El pool por fase vive en el wizard (se siembra desde el paso 1 y
+  // sobrevive a ir y volver entre pasos); aqui solo se consume y se edita.
+  pool: Record<string, string[]>;
+  addToPool: (fase: string, cId: string) => void;
+  removeFromPool: (fase: string, cId: string) => void;
   onBack: () => void;
   onSubmit: (resolvedTareas?: TareaInput[], overrides?: AsignacionOverride[]) => void;
 }
@@ -90,12 +95,9 @@ export default function WizardStep3({
   nombre, subtipo, diasHabiles, edificios, tiposUnidad,
   fasesSeleccionadas, tareas, contratistas, totalUnidades,
   totalTareasGlobal, loading, isEditMode, personas, setPersonas,
-  asignaciones, setAsignaciones, onBack, onSubmit,
+  asignaciones, setAsignaciones, pool, addToPool, removeFromPool,
+  onBack, onSubmit,
 }: WizardStep3Props) {
-  const [pool, setPool] = useState<Record<string, string[]>>(() =>
-    Object.fromEntries(fasesSeleccionadas.map(f => [f, []]))
-  );
-
   const emptyBuilder: BuilderState = {
     contratista: "", torres: [], tipoUnidad: "", pisos: [], aptos: [], subfase: "", checked: {},
   };
@@ -108,16 +110,15 @@ export default function WizardStep3({
 
   /* ── Pool ────────────────────────────────────────────── */
 
-  function addToPool(fase: string, cId: string) {
-    setPool(p => ({ ...p, [fase]: p[fase]?.includes(cId) ? p[fase] : [...(p[fase] ?? []), cId] }));
-  }
-
-  function removeFromPool(fase: string, cId: string) {
-    setPool(p => ({ ...p, [fase]: (p[fase] ?? []).filter(id => id !== cId) }));
-    setAsignaciones(p => p.filter(o => !(o.fase === fase && o.contratista_id === cId)));
+  // `removeFromPool` (del wizard) ya limpia pool y asignaciones; aqui solo
+  // queda la parte que el padre no conoce: si el contratista que sale era el
+  // elegido en el builder de esa fase, el builder se reinicia para no seguir
+  // apuntando a alguien que ya no esta disponible.
+  function quitarDelPool(fase: string, cId: string) {
+    removeFromPool(fase, cId);
     setBuilders(p => {
       const b = p[fase];
-      if (b.contratista === cId) return { ...p, [fase]: { ...emptyBuilder } };
+      if (b?.contratista === cId) return { ...p, [fase]: { ...emptyBuilder } };
       return p;
     });
   }
@@ -430,7 +431,7 @@ export default function WizardStep3({
                         return (
                           <span key={cId} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                             {c.nombre}
-                            <button onClick={() => removeFromPool(fase, cId)} className="hover:text-red-600">
+                            <button onClick={() => quitarDelPool(fase, cId)} aria-label={`Quitar a ${c.nombre} del pool de ${fase}`} className="hover:text-red-600">
                               <X className="w-3 h-3" />
                             </button>
                           </span>

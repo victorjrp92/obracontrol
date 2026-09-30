@@ -1,12 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronLeft, Eye, EyeOff, Loader2, X } from "lucide-react";
 import type { Contratista, TipoUnidadInput, EdificioInput, TareaInput, EditModeData, PersonaProyectoInput, AsignacionOverride, UbicacionInput, VentanaPlan } from "./wizard-types";
 import type { TaskTemplate } from "@/lib/task-templates";
 import { excesosMetraje } from "@/lib/metraje";
+import {
+  BORRADOR_VERSION,
+  borrarBorrador,
+  claveBorrador,
+  edadLegible,
+  guardarBorrador,
+  leerBorrador,
+  type BorradorWizard,
+  type DatosBorrador,
+} from "./borrador";
 import { faltantesFechasObra } from "./wizard-types";
 import {
   fechaISO,
@@ -32,11 +42,20 @@ import WizardStep3 from "./WizardStep3";
 // que todavia no pasa la prop.
 export default function WizardClient({
   contratistas,
+  contratistasHabituales,
   initialData,
   tareasAprendidas,
   muestraEconomia,
+  usuarioId,
 }: {
   contratistas: Contratista[];
+  /**
+   * Ids de contratistas con tareas en los ultimos proyectos de la
+   * constructora. Solo preseleccionan el multi-select del paso 1 en modo
+   * alta; la pagina de edicion no la pasa (una obra ya creada tiene su
+   * propia historia y no se le inventa un equipo).
+   */
+  contratistasHabituales?: string[];
   initialData?: EditModeData;
   tareasAprendidas?: Record<string, Record<string, TaskTemplate[]>>;
   /**
@@ -46,6 +65,12 @@ export default function WizardClient({
    * hasta decidir que hace con el dinero.
    */
   muestraEconomia: boolean;
+  /**
+   * Id del usuario que abre el asistente. Solo se usa para la clave del
+   * borrador local: los PC de oficina se comparten y el borrador de un
+   * admin no puede aparecerle a otro. Sin id no hay autoguardado.
+   */
+  usuarioId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -64,7 +89,27 @@ export default function WizardClient({
   // Step 1 state
   const [nombre, setNombre] = useState(initialData?.nombre ?? "");
   const [numeroRegistro, setNumeroRegistro] = useState(initialData?.numeroRegistro ?? "");
+
+  // ── Contratistas del proyecto (paso 1) ────────────────────────────────────
+  // Vive SOLO en el estado del asistente: siembra el pool del paso 3 y muere
+  // ahi — no viaja al API ni crea asignaciones. Preseleccionar NO es asignar:
+  // la asignacion sigue siendo un acto explicito del admin en el paso 3.
+  // En alta arranca con los habituales; en edicion arranca vacio a proposito.
+  const habitualesIniciales = isEditMode ? [] : (contratistasHabituales ?? []);
+  const [contratistasProyecto, setContratistasProyecto] = useState<string[]>(habitualesIniciales);
+
+  // El contratista por defecto NO se autocompleta desde los habituales, y es
+  // deliberado: ese campo es el fallback de `asignado_a` de TODAS las tareas
+  // sin asignar — quien caiga ahi queda como responsable de la obra entera.
+  // La regla del multi-select es «preseleccionar no asigna»; autocompletar el
+  // default la violaria por la puerta de atras. Elegirlo es un acto del admin.
   const [contratistaDefaultId, setContratistaDefaultId] = useState(initialData?.contratistaDefaultId ?? "");
+
+  function toggleContratistaProyecto(id: string) {
+    setContratistasProyecto((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
   const [clienteId, setClienteId] = useState(initialData?.clienteId ?? "");
   const [clientes, setClientes] = useState<{ id: string; nombre: string }[]>([]);
 
@@ -118,6 +163,153 @@ export default function WizardClient({
   // para que el accordion muestre el estado real y el usuario pueda editar.
   const [asignaciones, setAsignaciones] = useState<AsignacionOverride[]>(initialData?.asignaciones ?? []);
 
+  // ── Pool de contratistas por fase (paso 3) ────────────────────────────────
+  // Vive aqui y no en WizardStep3 porque se siembra desde el paso 1
+  // (`contratistasProyecto`) y un autoguardado posterior lo va a serializar.
+  // El pool tampoco asigna nada: es el menu del que el builder del paso 3
+  // saca gente, y sobrevive a ir y volver entre pasos.
+  const [pool, setPool] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(fasesSeleccionadas.map((f) => [f, [] as string[]]))
+  );
+  // Fases cuyo pool el admin VACIO a mano. La siembra solo rellena pools
+  // vacios, pero «vacio porque nunca se toco» y «vacio porque el admin saco
+  // a todos» no son lo mismo: re-sembrar el segundo seria pisar su decision.
+  const fasesVaciadasAMano = useRef<Set<string>>(new Set());
+
+  function addToPool(fase: string, cId: string) {
+    setPool((p) => ({ ...p, [fase]: p[fase]?.includes(cId) ? p[fase] : [...(p[fase] ?? []), cId] }));
+  }
+
+  function removeFromPool(fase: string, cId: string) {
+    // Se calcula ANTES del setState, con el estado fresco del evento: dentro
+    // del updater seria mutar un ref en una funcion que React puede repetir.
+    if ((pool[fase] ?? []).filter((id) => id !== cId).length === 0) {
+      fasesVaciadasAMano.current.add(fase);
+    }
+    setPool((p) => ({ ...p, [fase]: (p[fase] ?? []).filter((id) => id !== cId) }));
+    // Sacar del pool retira tambien sus asignaciones de esa fase: dejar
+    // overrides de alguien que ya no esta seria una asignacion invisible.
+    setAsignaciones((p) => p.filter((o) => !(o.fase === fase && o.contratista_id === cId)));
+  }
+
+  /**
+   * Siembra el pool del paso 3 con los contratistas del proyecto elegidos en
+   * el paso 1. Solo rellena fases con pool vacio que el admin no vacio a
+   * mano: la siembra es un punto de partida, nunca una correccion de lo que
+   * el admin ya decidio. Y sembrar NO crea asignaciones.
+   */
+  function sembrarPool() {
+    if (contratistasProyecto.length === 0) return;
+    setPool((prev) => {
+      let cambio = false;
+      const next = { ...prev };
+      for (const f of fasesSeleccionadas) {
+        if ((next[f] ?? []).length === 0 && !fasesVaciadasAMano.current.has(f)) {
+          next[f] = [...contratistasProyecto];
+          cambio = true;
+        }
+      }
+      return cambio ? next : prev;
+    });
+  }
+
+  // ── Borrador local (autoguardado) ─────────────────────────────────────────
+  // Ver el porqué completo en ./borrador.ts. Aquí solo vive el cableado:
+  // detectar al montar, preguntar (nunca restaurar en silencio), guardar con
+  // debounce y borrar al crear el proyecto. Solo en modo alta: en edición la
+  // verdad vive en la base y un borrador local podría pisar datos más nuevos.
+  const claveB = !isEditMode && usuarioId ? claveBorrador(usuarioId) : null;
+  const [borradorGuardado, setBorradorGuardado] = useState<BorradorWizard | null>(null);
+  const [decisionBorrador, setDecisionBorrador] = useState<"sin_borrador" | "pendiente" | "resuelta">("sin_borrador");
+
+  useEffect(() => {
+    // localStorage solo existe en el navegador: leer al montar, nunca en el
+    // initializer de un useState (rompería la hidratación de React).
+    if (!claveB) return;
+    const b = leerBorrador(claveB);
+    if (b) {
+      setBorradorGuardado(b);
+      setDecisionBorrador("pendiente");
+    }
+    // La clave no cambia en la vida del componente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function snapshotDatos(): DatosBorrador {
+    return {
+      nombre, numeroRegistro, contratistaDefaultId, contratistasProyecto,
+      clienteId, subtipo, diasHabiles, fechaInicio, fechaFin, ubicacion,
+      tiposUnidad, edificios, tieneZonasComunes, zonasSeleccionadas,
+      metrosEnabled, metrosZonas, fasesSeleccionadas, tareas, faseDias,
+      modoCronograma, modoElegido, faseVentanas, tareaVentanas, personas,
+      asignaciones, pool,
+      fasesVaciadasAMano: [...fasesVaciadasAMano.current],
+    };
+  }
+
+  function retomarBorrador() {
+    if (!borradorGuardado) return;
+    const d = borradorGuardado.datos;
+    setNombre(d.nombre); setNumeroRegistro(d.numeroRegistro);
+    setClienteId(d.clienteId); setSubtipo(d.subtipo);
+    setDiasHabiles(d.diasHabiles); setFechaInicio(d.fechaInicio); setFechaFin(d.fechaFin);
+    setUbicacion(d.ubicacion); setTiposUnidad(d.tiposUnidad); setEdificios(d.edificios);
+    setTieneZonasComunes(d.tieneZonasComunes); setZonasSeleccionadas(d.zonasSeleccionadas);
+    setMetrosEnabled(d.metrosEnabled); setMetrosZonas(d.metrosZonas);
+    setFasesSeleccionadas(d.fasesSeleccionadas); setTareas(d.tareas); setFaseDias(d.faseDias);
+    setModoCronograma(d.modoCronograma); setModoElegido(d.modoElegido);
+    setFaseVentanas(d.faseVentanas); setTareaVentanas(d.tareaVentanas);
+    setPersonas(d.personas);
+    // Un borrador puede traer ids de contratistas que ya no existen (los
+    // borraron o perdieron el rol entre visitas). Se sanean aqui y no en el
+    // submit: mandarlos al servidor daria un 400 criptico, y dejarlos en el
+    // pool hace que una fase «parezca» tener equipo cuando no tiene a nadie.
+    const idsValidos = new Set(contratistas.map((c) => c.id));
+    setContratistaDefaultId(idsValidos.has(d.contratistaDefaultId) ? d.contratistaDefaultId : "");
+    setContratistasProyecto(d.contratistasProyecto.filter((id) => idsValidos.has(id)));
+    setAsignaciones(d.asignaciones.filter((a) => idsValidos.has(a.contratista_id)));
+    setPool(Object.fromEntries(
+      Object.entries(d.pool).map(([f, ids]) => [f, ids.filter((id) => idsValidos.has(id))])
+    ));
+    fasesVaciadasAMano.current = new Set(d.fasesVaciadasAMano ?? []);
+    setStep(borradorGuardado.step);
+    setDecisionBorrador("resuelta");
+  }
+
+  function descartarBorrador() {
+    if (claveB) borrarBorrador(claveB);
+    setBorradorGuardado(null);
+    setDecisionBorrador("resuelta");
+  }
+
+  // Guardado con debounce. Sin array de dependencias A PROPÓSITO: cada render
+  // reprograma el timeout, así que se guarda 1.2 s después del ÚLTIMO cambio.
+  // Listar aquí las ~26 piezas de estado sería el clásico bug latente: la
+  // primera que alguien olvide al agregar un campo deja de autoguardarse en
+  // silencio. Un setTimeout/clearTimeout por render es despreciable.
+  // Compuertas: (1) hay clave (alta con usuario); (2) el aviso de borrador no
+  // está esperando decisión — guardar ahí pisaría el borrador ANTES de que el
+  // usuario elija; (3) hay contenido real — abrir la página y salir no debe
+  // fabricar borradores fantasma; (4) no hay un submit en vuelo — si el
+  // proyecto se crea en menos que el debounce, el timer pendiente escribiría
+  // el borrador DESPUÉS de que el éxito lo borró, y la próxima visita
+  // ofrecería «retomar» una obra ya creada. El render de loading=true cancela
+  // ese timer vía cleanup y esta compuerta impide programar otro.
+  const hayContenidoBorrador =
+    nombre.trim() !== "" || tareas.length > 0 || zonasSeleccionadas.length > 0 || personas.length > 0;
+  useEffect(() => {
+    if (!claveB || loading || decisionBorrador === "pendiente" || !hayContenidoBorrador) return;
+    const t = setTimeout(() => {
+      guardarBorrador(claveB, {
+        version: BORRADOR_VERSION,
+        guardadoEn: new Date().toISOString(),
+        step,
+        datos: snapshotDatos(),
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  });
+
   // Computed
   const totalUnidades = subtipo === "ZONAS_COMUNES" ? 0 : edificios.reduce((acc, e) => {
     const perFloor = e.unidades_por_piso ?? 0;
@@ -130,13 +322,23 @@ export default function WizardClient({
     }
     return acc;
   }, {});
-  // Mirror the server's tarea creation: each Madera task generates 2 subfases (Instalación + Detallado y lustro)
-  // and Madera tasks with tipo_unidad_id only apply to units of that type.
+  // Tareas de fases que YA NO estan seleccionadas: se CONSERVAN en el estado
+  // (quitar una fase por error y reactivarla recupera su trabajo intacto),
+  // pero no cuentan, no entran al reparto y no viajan al servidor — que
+  // responde 400 ante una tarea cuya fase no venga en la lista. Sin este
+  // filtro, quitar una fase con tareas dejaba el asistente avanzando con un
+  // contador inflado y la creacion reventaba al final.
+  const tareasActivas = tareas.filter((t) => fasesSeleccionadas.includes(t.fase));
+
+  // Espeja la creacion de tareas del servidor: cada tarea de Madera genera 2
+  // subfases (Instalación + Detallado y lustro), y CUALQUIER tarea con
+  // tipo_unidad_id solo aplica a las unidades de ese tipo — el servidor filtra
+  // por tipo en todas las fases, no solo en Madera.
   const totalTareasGlobal = subtipo === "ZONAS_COMUNES"
-    ? tareas.length * zonasSeleccionadas.length
-    : tareas.reduce((acc, t) => {
+    ? tareasActivas.length * zonasSeleccionadas.length
+    : tareasActivas.reduce((acc, t) => {
         const isMadera = t.fase === "Madera";
-        const unidadesAplicables = isMadera && t.tipo_unidad_id
+        const unidadesAplicables = t.tipo_unidad_id
           ? (unidadesPorTipo[t.tipo_unidad_id] ?? 0)
           : totalUnidades;
         const subfasesPorTarea = isMadera ? (t.lustro_excluido ? 1 : 2) : 1;
@@ -154,7 +356,7 @@ export default function WizardClient({
     dias: faseDias[f] ?? null,
     ventana: faseVentanas[f] ?? null,
   }));
-  const tareasReparto: TareaReparto[] = tareas.map((t) => ({
+  const tareasReparto: TareaReparto[] = tareasActivas.map((t) => ({
     id: t.id,
     fase: t.fase,
     dias: t.tiempo_acordado_dias,
@@ -247,7 +449,7 @@ export default function WizardClient({
   // El cronograma entra en `canProceed2` porque es en el paso 2 donde se
   // rellena: sin ventanas validas no se puede crear el proyecto, y descubrirlo
   // en el paso 3 -tras asignar contratistas- seria hacerle perder el trabajo.
-  const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareas.length > 0
+  const canProceed2 = allEspacios.length > 0 && fasesSeleccionadas.length > 0 && tareasActivas.length > 0
     && reparto.ok;
 
   const [pendingOverrides, setPendingOverrides] = useState<AsignacionOverride[] | undefined>(undefined);
@@ -266,7 +468,11 @@ export default function WizardClient({
     setLoading(true);
     setError("");
 
-    const tareasToSend = resolvedTareas ?? pendingTareas ?? tareas;
+    // El filtro de fase se aplica a los TRES origenes: `resolvedTareas` y
+    // `pendingTareas` derivan del mismo estado y podrian arrastrar tareas
+    // de una fase quitada despues de haberse calculado.
+    const tareasToSend = (resolvedTareas ?? pendingTareas ?? tareas)
+      .filter((t) => fasesSeleccionadas.includes(t.fase));
     const asignacionesToSend = overrides ?? pendingOverrides ?? asignaciones;
 
     if (totalTareasGlobal > 5000) {
@@ -386,6 +592,9 @@ export default function WizardClient({
           return;
         } else {
           const data = await res.json();
+          // El proyecto ya existe: el borrador cumplió y se va. Dejarlo haría
+          // que la próxima visita ofreciera «retomar» una obra ya creada.
+          if (claveB) borrarBorrador(claveB);
           router.push(`/dashboard/proyectos/${data.id}`);
         }
       } else {
@@ -435,12 +644,51 @@ export default function WizardClient({
         </div>
       )}
 
+      {/* Aviso de borrador: SIEMPRE una decisión explícita del usuario.
+          Restaurar en silencio metería datos rancios sin que nadie lo note;
+          mientras el aviso esté visible, el autoguardado está en pausa para
+          no pisar el borrador antes de que el usuario elija. */}
+      {decisionBorrador === "pendiente" && borradorGuardado && (
+        <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+          <p className="font-semibold">
+            Tienes un borrador sin terminar de este asistente ({edadLegible(borradorGuardado.guardadoEn)}).
+          </p>
+          <p className="mt-1 text-blue-800">
+            {borradorGuardado.datos.nombre.trim()
+              ? `Proyecto «${borradorGuardado.datos.nombre.trim()}», paso ${borradorGuardado.step} de 3.`
+              : `Quedó en el paso ${borradorGuardado.step} de 3.`}{" "}
+            Si empiezas de nuevo, el borrador se elimina.
+          </p>
+          <div className="mt-3 flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={retomarBorrador}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 cursor-pointer"
+            >
+              Retomar borrador
+            </button>
+            <button
+              type="button"
+              onClick={descartarBorrador}
+              className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 cursor-pointer"
+            >
+              Empezar de nuevo
+            </button>
+          </div>
+        </div>
+      )}
+
       {step === 1 && (
         <WizardStep1
           nombre={nombre} setNombre={setNombre}
           numeroRegistro={numeroRegistro} setNumeroRegistro={setNumeroRegistro}
-          contratistaDefaultId={contratistaDefaultId} setContratistaDefaultId={setContratistaDefaultId}
+          contratistaDefaultId={contratistaDefaultId}
+          setContratistaDefaultId={setContratistaDefaultId}
           contratistas={contratistas}
+          contratistasProyecto={contratistasProyecto}
+          onToggleContratistaProyecto={toggleContratistaProyecto}
+          preseleccionHabituales={habitualesIniciales.length > 0}
+          isEditMode={isEditMode}
           clienteId={clienteId} setClienteId={setClienteId}
           clientes={clientes}
           subtipo={subtipo} setSubtipo={setSubtipo}
@@ -497,7 +745,13 @@ export default function WizardClient({
           fechaFinObra={fechaFin}
           diasHabilesSemana={diasHabiles}
           canProceed={canProceed2}
-          onNext={() => setStep(3)}
+          onNext={() => {
+            // La siembra ocurre al ENTRAR al paso 3, no antes: es el ultimo
+            // momento en que las fases ya son definitivas (el paso 2 puede
+            // agregarlas o quitarlas) y los pools vacios siguen vacios.
+            sembrarPool();
+            setStep(3);
+          }}
           onBack={() => setStep(1)}
           tareasAprendidas={tareasAprendidas}
           tiposUnidad={tiposUnidad}
@@ -523,6 +777,9 @@ export default function WizardClient({
           setPersonas={setPersonas}
           asignaciones={asignaciones}
           setAsignaciones={setAsignaciones}
+          pool={pool}
+          addToPool={addToPool}
+          removeFromPool={removeFromPool}
           onBack={() => setStep(2)}
           onSubmit={handleSubmit}
         />
